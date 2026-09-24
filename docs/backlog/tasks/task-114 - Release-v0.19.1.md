@@ -1,14 +1,14 @@
 ---
 id: TASK-114
 title: Release v0.19.1
-status: In Progress
+status: Done
 assignee:
   - '@codex'
 created_date: '2026-09-11 22:15'
-updated_date: '2026-09-11 22:20'
+updated_date: '2026-09-22 00:36'
 labels: []
 dependencies: []
-ordinal: 95000
+ordinal: 101000
 ---
 
 ## Description
