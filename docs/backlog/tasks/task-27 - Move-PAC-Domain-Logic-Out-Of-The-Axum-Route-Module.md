@@ -1,9 +1,10 @@
 ---
 id: TASK-27
 title: Move PAC Domain Logic Out Of The Axum Route Module
-status: To Do
+status: Done
 assignee: []
 created_date: '2026-07-05 14:43'
+updated_date: '2026-09-25 02:13'
 labels:
   - legacy-import
   - improvement
@@ -57,3 +58,9 @@ and rule conversion; HTTP and CLI adapters expose it.
 pure. Move tests with the module and keep existing route tests as compatibility
 checks.
 <!-- SECTION:DESCRIPTION:END -->
+
+## Implementation Notes
+
+<!-- SECTION:NOTES:BEGIN -->
+P4 DONE (commit aca2144). PAC model + rendering moved to src/app/services/proxy_pac/ (model.rs 36 lines, render.rs 288 lines, mod.rs declarations only). server/routes/pac.rs shrank 409 -> 97 lines and keeps only HTTP concerns (host authorization, response headers, active-session endpoint lookup). CLI proxy/pac.rs imports from services. All PAC render tests moved with the module and pass.
+<!-- SECTION:NOTES:END -->

@@ -1,9 +1,10 @@
 ---
 id: TASK-28
 title: Move Config Lifecycle Mutations Out Of CLI Commands
-status: To Do
+status: Done
 assignee: []
 created_date: '2026-07-05 14:43'
+updated_date: '2026-09-25 02:13'
 labels:
   - legacy-import
   - improvement
@@ -66,3 +67,9 @@ persisted state. Add focused service tests for deleted, already-enabled,
 already-disabled, hard-delete, and subscription-delete paths before replacing
 CLI internals.
 <!-- SECTION:DESCRIPTION:END -->
+
+## Implementation Notes
+
+<!-- SECTION:NOTES:BEGIN -->
+P4 DONE (commit 5d766df). Added ConfigLifecycleService (src/app/services/lifecycle/service.rs) with typed outcomes ToggleOutcome/DeleteOutcome/RestoreOutcome and resolve_config_id/resolve_subscription_id/config/subscription. CLI lifecycle.rs now only translates args, confirms, and prints. Port ConfigRepository extended with mutation + subscription methods. All existing lifecycle tests pass.
+<!-- SECTION:NOTES:END -->
