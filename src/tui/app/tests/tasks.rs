@@ -1,7 +1,7 @@
 use super::helpers::row;
 use crate::tui::app::TuiApp;
 use crate::tui::data::TuiData;
-use crate::tui::run::test_args_for_app;
+use crate::tui::run::test_run_request_for_app;
 use crate::tui::task::{TuiTaskEvent, TuiTaskKind};
 use std::time::Duration;
 
@@ -25,17 +25,17 @@ fn completed_event_clears_cancellation_token() {
 }
 
 #[test]
-fn tui_test_args_follow_configured_stage_names() {
+fn tui_test_request_follows_configured_stage_names() {
     let mut data = TuiData::from_configs(vec![row(1)]);
     data.test_stage_names = vec!["icmp".to_string(), "real_delay".to_string()];
     let app = TuiApp::with_data(data);
 
-    let args = test_args_for_app(&app);
+    let request = test_run_request_for_app(&app);
 
-    assert!(!args.skip_icmp);
-    assert!(args.skip_tcp);
-    assert!(!args.skip_real_delay);
-    assert!(args.skip_download);
+    assert!(!request.skip_icmp);
+    assert!(request.skip_tcp);
+    assert!(!request.skip_real_delay);
+    assert!(request.skip_download);
 }
 
 #[test]

@@ -4,7 +4,7 @@ mod terminal;
 mod tests;
 
 #[cfg(test)]
-pub(crate) use tasks::test_args_for_app;
+pub(crate) use tasks::test_run_request_for_app;
 
 use std::collections::BTreeSet;
 use std::time::Duration;

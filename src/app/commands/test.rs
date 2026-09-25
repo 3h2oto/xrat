@@ -18,6 +18,7 @@ use crate::app::AppError;
 use crate::app::config::defaults;
 use crate::app::config::{AppConfig, ConnectionTestStage, TestFailurePolicy};
 use crate::app::context::{AppContext, RuntimePaths};
+use crate::app::services::testing::TestRunRequest;
 use crate::cli::{TestArgs, TestFormat, TestSortBy};
 #[cfg(test)]
 use crate::db::DatabaseConnectionConfig;
@@ -50,12 +51,12 @@ pub(crate) struct TestProgressUpdate {
 
 #[allow(dead_code)]
 pub(crate) async fn run_bulk_for_config_ids_cancellable(
-    args: &TestArgs,
+    request: &TestRunRequest,
     context: &AppContext,
     config_ids: &[i64],
     cancel_rx: crate::support::cancel::CancellationReceiver,
 ) -> crate::app::Result<usize> {
-    let settings = resolve_test_settings(args, &context.app_config, &context.runtime_paths)?;
+    let settings = resolve_test_settings(request, &context.app_config, &context.runtime_paths)?;
     let mut configs = Vec::with_capacity(config_ids.len());
 
     for config_id in config_ids {
@@ -81,13 +82,13 @@ pub(crate) async fn run_bulk_for_config_ids_cancellable(
 }
 
 pub(crate) async fn run_bulk_for_config_ids_with_progress(
-    args: &TestArgs,
+    request: &TestRunRequest,
     context: &AppContext,
     config_ids: &[i64],
     cancel_rx: crate::support::cancel::CancellationReceiver,
     progress_tx: tokio::sync::mpsc::UnboundedSender<TestProgressUpdate>,
 ) -> crate::app::Result<usize> {
-    let settings = resolve_test_settings(args, &context.app_config, &context.runtime_paths)?;
+    let settings = resolve_test_settings(request, &context.app_config, &context.runtime_paths)?;
     let mut configs = Vec::with_capacity(config_ids.len());
 
     for config_id in config_ids {

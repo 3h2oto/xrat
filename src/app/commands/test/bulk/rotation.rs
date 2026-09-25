@@ -9,34 +9,9 @@ pub(crate) async fn run_rotation_bulk_tests(
     }
 
     let mut settings = resolve_test_settings(
-        &TestArgs {
-            id: None,
-            test_url: None,
-            download_url: None,
-            upload_url: None,
-            upload_timeout_ms: None,
-            skip_icmp: false,
-            skip_real_delay: false,
-            skip_download: false,
+        &TestRunRequest {
             skip_upload: true,
-            skip_tcp: false,
-            sort_by: TestSortBy::Status,
-            format: TestFormat::Tsv,
-            output: None,
-            country: None,
-            asn: None,
-            enabled_only: false,
-            active_only: false,
-            subscription: None,
-            latest_run_summary: false,
-            ping: false,
-            ping_interval_ms: 1000,
-            icmp_timeout_ms: None,
-            real_delay_timeout_ms: None,
-            download_timeout_ms: None,
-            tcp_timeout_ms: None,
-            concurrency: None,
-            no_progress: true,
+            ..TestRunRequest::default()
         },
         &context.app_config,
         &context.runtime_paths,

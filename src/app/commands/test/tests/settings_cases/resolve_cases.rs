@@ -1,5 +1,5 @@
 use super::super::super::*;
-use super::super::geoip_cases::{test_args, test_runtime_paths};
+use super::super::geoip_cases::{test_args, test_request, test_runtime_paths};
 
 use crate::app::config::{AppConfig, TestingSettings};
 use crate::cli::TestArgs;
@@ -35,7 +35,8 @@ fn resolves_test_settings_from_app_config() {
     let args = test_args(Some(1));
 
     let runtime_paths = test_runtime_paths();
-    let settings = resolve_test_settings(&args, &app_config, &runtime_paths).expect("settings");
+    let settings = resolve_test_settings(&TestRunRequest::from(&args), &app_config, &runtime_paths)
+        .expect("settings");
 
     assert_eq!(settings.real_delay_url, "https://example.test/204");
     assert_eq!(settings.download_url, "https://example.test/10mb.test");
@@ -70,7 +71,7 @@ fn rejects_an_unsupported_singbox_test_binary_before_probe_setup() {
     let mut runtime_paths = test_runtime_paths();
     runtime_paths.sing_box_path = "/definitely-not-installed/sing-box".into();
 
-    let error = resolve_test_settings(&test_args(Some(1)), &app_config, &runtime_paths)
+    let error = resolve_test_settings(&test_request(None), &app_config, &runtime_paths)
         .expect_err("unavailable sing-box must be rejected before probe setup");
 
     assert!(error.to_string().contains("detected version unavailable"));
@@ -87,7 +88,7 @@ fn applies_dns_settings_to_xray_probe_options() {
         ..AppConfig::default()
     };
 
-    let settings = resolve_test_settings(&test_args(Some(1)), &app_config, &test_runtime_paths())
+    let settings = resolve_test_settings(&test_request(None), &app_config, &test_runtime_paths())
         .expect("settings");
     let dns = serde_json::to_value(settings.gen_options.dns.expect("probe DNS"))
         .expect("DNS should serialize");
@@ -130,7 +131,8 @@ fn cli_test_settings_override_app_config() {
     };
 
     let runtime_paths = test_runtime_paths();
-    let settings = resolve_test_settings(&args, &app_config, &runtime_paths).expect("settings");
+    let settings = resolve_test_settings(&TestRunRequest::from(&args), &app_config, &runtime_paths)
+        .expect("settings");
 
     assert_eq!(settings.real_delay_url, "https://override.test/204");
     assert_eq!(settings.download_url, "https://override.test/10mb.test");
@@ -153,7 +155,7 @@ follow_redirects = false
     )
     .expect("config");
 
-    let settings = resolve_test_settings(&test_args(Some(1)), &app_config, &test_runtime_paths())
+    let settings = resolve_test_settings(&test_request(None), &app_config, &test_runtime_paths())
         .expect("settings");
 
     assert!(settings.accepted_http_statuses.matches(204));
@@ -171,7 +173,7 @@ fn rejects_explicitly_empty_status_acceptance() {
     )
     .expect("config");
 
-    let error = resolve_test_settings(&test_args(Some(1)), &app_config, &test_runtime_paths())
+    let error = resolve_test_settings(&test_request(None), &app_config, &test_runtime_paths())
         .expect_err("empty matcher should fail");
 
     assert!(
@@ -191,7 +193,8 @@ fn default_geoip_paths_resolve_from_runtime_root_mmdb_dir() {
         ..test_runtime_paths()
     };
 
-    let settings = resolve_test_settings(&args, &app_config, &runtime_paths).expect("settings");
+    let settings = resolve_test_settings(&TestRunRequest::from(&args), &app_config, &runtime_paths)
+        .expect("settings");
 
     assert_eq!(
         settings.geoip_country_path,

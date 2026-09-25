@@ -27,5 +27,5 @@ pub use source::{
 pub use stats::{StatsEngine, spawn_poll_stats};
 pub use test_batch::spawn_test_batch;
 #[cfg(test)]
-pub(crate) use test_batch::test_args_for_app;
+pub(crate) use test_batch::test_run_request_for_app;
 pub use version_check::spawn_version_check;

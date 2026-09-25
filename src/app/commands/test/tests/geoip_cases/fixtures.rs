@@ -16,6 +16,13 @@ pub(crate) fn test_runtime_paths() -> crate::app::context::RuntimePaths {
     }
 }
 
+pub(crate) fn test_request(id: Option<i64>) -> TestRunRequest {
+    TestRunRequest {
+        skip_upload: false,
+        ..TestRunRequest::from(&test_args(id))
+    }
+}
+
 pub(crate) fn test_args(id: Option<i64>) -> TestArgs {
     TestArgs {
         id: id.map(|value| value.to_string()),

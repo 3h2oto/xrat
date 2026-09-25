@@ -8,7 +8,11 @@ pub async fn run(args: &TestArgs, context: &AppContext) -> crate::app::Result<()
         return Ok(());
     }
 
-    let settings = resolve_test_settings(args, &context.app_config, &context.runtime_paths)?;
+    let settings = resolve_test_settings(
+        &TestRunRequest::from(args),
+        &context.app_config,
+        &context.runtime_paths,
+    )?;
     let config_id = match args.id.as_deref() {
         Some(raw) => Some(resolve_config_id(context, raw).await?),
         None => None,
