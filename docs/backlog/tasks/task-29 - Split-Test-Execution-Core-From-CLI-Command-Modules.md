@@ -1,9 +1,10 @@
 ---
 id: TASK-29
 title: Split Test Execution Core From CLI Command Modules
-status: To Do
+status: Done
 assignee: []
 created_date: '2026-07-05 14:43'
+updated_date: '2026-09-25 15:35'
 labels:
   - legacy-import
   - improvement
@@ -65,3 +66,11 @@ has many options. Migrate in small steps by first adding a request type that
 mirrors current `TestArgs`, then move settings resolution and bulk execution
 behind it.
 <!-- SECTION:DESCRIPTION:END -->
+
+## Implementation Notes
+
+<!-- SECTION:NOTES:BEGIN -->
+P5 DONE (commit f9309fa). Added TestRunRequest in src/app/services/testing/request.rs (filter fields, stage skips, URL/timeout overrides, concurrency) with config_filter(). resolve_test_settings now takes &TestRunRequest. run_bulk_for_config_ids_with_progress/cancellable take &TestRunRequest. CLI translation lives in src/cli/test_cmd/request.rs (From<&TestArgs>). TUI test_batch builds TestRunRequest via test_run_request_for_app; test_args_for_app removed. Output format/sort/ping/latest-summary stay CLI-only in TestArgs.
+
+Verification: grep 'crate::cli' src/tui = 0. 858 tests pass; clippy -D warnings clean.
+<!-- SECTION:NOTES:END -->
