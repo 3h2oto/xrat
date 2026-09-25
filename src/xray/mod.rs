@@ -13,3 +13,4 @@ pub use config::{
 };
 pub use parsing::{ParseMode, XrayConfig as XrayConfigJson, XrayConfigError};
 pub use process::{XrayProcess, XrayProcessError};
+pub use process_mgmt::{XrayRuntimeError, XraySignalError};

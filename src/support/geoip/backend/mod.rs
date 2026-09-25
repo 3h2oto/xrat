@@ -5,7 +5,7 @@ use crate::app::context::RuntimePaths;
 use crate::app::paths::mmdb;
 
 use super::{
-    CachedLookup, ChainedLookup, GeoIpLookup, LocalMmdbLookup, RateLimitedLookup,
+    CachedLookup, ChainedLookup, GeoIpError, GeoIpLookup, LocalMmdbLookup, RateLimitedLookup,
     RemoteIpApiLookup, RemoteIpWhoisLookup,
 };
 
@@ -17,7 +17,7 @@ mod tests;
 pub fn build_lookup_chain(
     app_config: &AppConfig,
     runtime_paths: &RuntimePaths,
-) -> crate::app::Result<Arc<dyn GeoIpLookup>> {
+) -> Result<Arc<dyn GeoIpLookup>, GeoIpError> {
     validation::validate_geoip_settings(&app_config.testing.geoip)?;
 
     match app_config.testing.geoip.backend {
@@ -40,7 +40,7 @@ pub fn build_lookup_chain(
             build_mmdb_lookup(app_config, runtime_paths),
             build_chain_fallback(app_config)?,
         ))),
-        GeoIpBackend::None => Err(crate::app::AppError::InvalidArgument(
+        GeoIpBackend::None => Err(GeoIpError::InvalidSettings(
             "[testing.geoip].backend cannot be 'none'".to_string(),
         )),
     }
@@ -69,7 +69,7 @@ fn build_mmdb_lookup(app_config: &AppConfig, runtime_paths: &RuntimePaths) -> Ar
     ))
 }
 
-fn build_chain_fallback(app_config: &AppConfig) -> crate::app::Result<Arc<dyn GeoIpLookup>> {
+fn build_chain_fallback(app_config: &AppConfig) -> Result<Arc<dyn GeoIpLookup>, GeoIpError> {
     match app_config.testing.geoip.fallback {
         GeoIpBackend::IpWhois => build_remote_lookup(
             Arc::new(RemoteIpWhoisLookup::new(
@@ -85,7 +85,7 @@ fn build_chain_fallback(app_config: &AppConfig) -> crate::app::Result<Arc<dyn Ge
             )?),
             app_config,
         ),
-        _ => Err(crate::app::AppError::InvalidArgument(
+        _ => Err(GeoIpError::InvalidSettings(
             "[testing.geoip].fallback must be ipwhois or ip-api when backend = 'chain'".to_string(),
         )),
     }
@@ -94,7 +94,7 @@ fn build_chain_fallback(app_config: &AppConfig) -> crate::app::Result<Arc<dyn Ge
 fn build_remote_lookup(
     remote: Arc<dyn GeoIpLookup>,
     app_config: &AppConfig,
-) -> crate::app::Result<Arc<dyn GeoIpLookup>> {
+) -> Result<Arc<dyn GeoIpLookup>, GeoIpError> {
     let rate_limited: Arc<dyn GeoIpLookup> = Arc::new(RateLimitedLookup::new(
         remote,
         app_config.testing.geoip.remote.rate_limit_per_minute,

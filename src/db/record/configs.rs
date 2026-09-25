@@ -63,8 +63,8 @@ pub struct ConfigRecord {
     pub updated_at: String,
 }
 
-pub fn node_from_record(config: &ConfigRecord) -> Result<crate::model::Node, crate::app::AppError> {
-    use crate::app::AppError;
+pub fn node_from_record(config: &ConfigRecord) -> Result<crate::model::Node, crate::db::DbError> {
+    use crate::db::DbError;
     use crate::model::{Node, Protocol};
 
     let protocol = match config.protocol.as_str() {
@@ -75,7 +75,7 @@ pub fn node_from_record(config: &ConfigRecord) -> Result<crate::model::Node, cra
         "http" => Protocol::Http,
         "socks5" => Protocol::Socks5,
         "hy2" => Protocol::Hy2,
-        other => return Err(AppError::UnsupportedProtocol(other.to_string())),
+        other => return Err(DbError::UnsupportedProtocol(other.to_string())),
     };
 
     Ok(Node {

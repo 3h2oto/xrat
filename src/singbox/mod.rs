@@ -13,4 +13,5 @@ pub use probe::{SingboxProbeError, SingboxProbeProcess};
 pub use process_mgmt::{
     ManagedSingboxPaths, ManagedSingboxProcess, SingboxRuntimeError, spawn_detached,
 };
+pub use version::SingboxVersionError;
 pub(crate) use version::ensure_supported_binary;

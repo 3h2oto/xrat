@@ -1,5 +1,16 @@
 use crate::app::config::SecretError;
+use crate::singbox::SingboxRuntimeError;
+use crate::support::geoip::GeoIpError;
+use crate::xray::process_mgmt::XrayRuntimeError;
 
+/// Application-facing error.
+///
+/// Layer-owned error types (`DbError`, `GeoIpError`, `XrayRuntimeError`,
+/// `SingboxRuntimeError`) are wrapped as typed variants so the application layer
+/// never fabricates their messages. Infrastructure library errors (`io`,
+/// `toml`, `reqwest`, `serde_json`) are still adapted here; these are the
+/// remaining direct library couplings and are targeted by the HTTP/filesystem
+/// port work.
 #[derive(Debug, thiserror::Error)]
 pub enum AppError {
     #[error("application I/O failed")]
@@ -22,6 +33,21 @@ pub enum AppError {
 
     #[error(transparent)]
     Secret(#[from] SecretError),
+
+    #[error(transparent)]
+    Geoip(#[from] GeoIpError),
+
+    #[error(transparent)]
+    XrayRuntime(#[from] XrayRuntimeError),
+
+    #[error(transparent)]
+    XraySignal(#[from] crate::xray::process_mgmt::XraySignalError),
+
+    #[error(transparent)]
+    SingboxRuntime(#[from] SingboxRuntimeError),
+
+    #[error(transparent)]
+    SingboxVersion(#[from] crate::singbox::SingboxVersionError),
 
     #[error("no supported config found in input")]
     NoSupportedConfig,
@@ -56,24 +82,6 @@ pub enum AppError {
         url: String,
         reason: String,
     },
-
-    #[error("failed to spawn Xray process: {0}")]
-    XraySpawn(String),
-
-    #[error("Xray process exited during startup: {0}")]
-    XrayExited(String),
-
-    #[error("Xray did not open local port {port} before startup timeout")]
-    XrayStartupTimeout { port: u16 },
-
-    #[error("failed to spawn sing-box process: {0}")]
-    SingboxSpawn(String),
-
-    #[error("sing-box process exited during startup: {0}")]
-    SingboxExited(String),
-
-    #[error("sing-box did not open local port {port} before startup timeout")]
-    SingboxStartupTimeout { port: u16 },
 
     #[error(
         "runtime session already active; disconnect first or enable [runtime].replace_active_session"

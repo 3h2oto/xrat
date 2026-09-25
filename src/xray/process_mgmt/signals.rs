@@ -1,9 +1,17 @@
 use std::process::{Command, Stdio};
 use std::time::{Duration, Instant};
 
+use thiserror::Error;
+
 use super::process_is_running;
 
 const PROCESS_POLL_INTERVAL: Duration = Duration::from_millis(100);
+
+#[derive(Debug, Error)]
+pub enum XraySignalError {
+    #[error("failed to signal process: {0}")]
+    Io(#[from] std::io::Error),
+}
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum TerminationOutcome {
@@ -12,7 +20,7 @@ pub enum TerminationOutcome {
     Killed,
 }
 
-pub fn terminate_process(pid: i64) -> Result<bool, crate::app::AppError> {
+pub fn terminate_process(pid: i64) -> Result<bool, XraySignalError> {
     if pid <= 0 {
         return Ok(false);
     }
@@ -33,7 +41,7 @@ pub fn terminate_process(pid: i64) -> Result<bool, crate::app::AppError> {
 pub fn terminate_process_gracefully(
     pid: i64,
     timeout: Duration,
-) -> Result<TerminationOutcome, crate::app::AppError> {
+) -> Result<TerminationOutcome, XraySignalError> {
     if !process_is_running(pid) {
         return Ok(TerminationOutcome::NotRunning);
     }
@@ -58,7 +66,7 @@ pub fn terminate_process_gracefully(
     Ok(TerminationOutcome::Terminated)
 }
 
-fn send_signal(pid: i64, signal: &str) -> Result<bool, crate::app::AppError> {
+fn send_signal(pid: i64, signal: &str) -> Result<bool, XraySignalError> {
     if pid <= 0 {
         return Ok(false);
     }

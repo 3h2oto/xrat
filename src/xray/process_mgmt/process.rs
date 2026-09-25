@@ -4,10 +4,25 @@ use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
 use std::time::{Duration, Instant};
 
+use thiserror::Error;
 use tokio::net::TcpStream;
 use tokio::time::sleep;
 
 use crate::xray::XrayConfig;
+
+#[derive(Debug, Error)]
+pub enum XrayRuntimeError {
+    #[error("failed to prepare Xray runtime files: {0}")]
+    Io(#[from] std::io::Error),
+    #[error("failed to serialize Xray runtime config: {0}")]
+    Json(#[from] serde_json::Error),
+    #[error("failed to spawn Xray process: {0}")]
+    Spawn(String),
+    #[error("Xray process exited during startup: {0}")]
+    ProcessExited(String),
+    #[error("Xray did not open local port {port} before startup timeout")]
+    StartupTimeout { port: u16 },
+}
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct ManagedXrayPaths {
@@ -31,7 +46,7 @@ pub async fn spawn_detached(
     ready_host: &str,
     ready_port: u16,
     startup_timeout: Duration,
-) -> Result<ManagedXrayProcess, crate::app::AppError> {
+) -> Result<ManagedXrayProcess, XrayRuntimeError> {
     std::fs::create_dir_all(runtime_dir)?;
 
     let paths = ManagedXrayPaths {
@@ -56,7 +71,7 @@ pub async fn spawn_detached(
         .stdout(Stdio::from(stdout))
         .stderr(Stdio::from(stderr))
         .spawn()
-        .map_err(|error| crate::app::AppError::XraySpawn(error.to_string()))?;
+        .map_err(|error| XrayRuntimeError::Spawn(error.to_string()))?;
 
     let pid = child.id();
     match wait_for_ready(&mut child, ready_host, ready_port, startup_timeout).await {
@@ -90,14 +105,14 @@ async fn wait_for_ready(
     host: &str,
     port: u16,
     timeout: Duration,
-) -> Result<(), crate::app::AppError> {
+) -> Result<(), XrayRuntimeError> {
     let start = Instant::now();
     let check_interval = Duration::from_millis(100);
     let address = format!("{host}:{port}");
 
     loop {
         if let Some(status) = child.try_wait()? {
-            return Err(crate::app::AppError::XrayExited(status.to_string()));
+            return Err(XrayRuntimeError::ProcessExited(status.to_string()));
         }
 
         if TcpStream::connect(&address).await.is_ok() {
@@ -105,7 +120,7 @@ async fn wait_for_ready(
         }
 
         if start.elapsed() >= timeout {
-            return Err(crate::app::AppError::XrayStartupTimeout { port });
+            return Err(XrayRuntimeError::StartupTimeout { port });
         }
 
         sleep(check_interval).await;
@@ -140,21 +155,19 @@ trait StartupErrorExt {
     fn with_process_stderr(self, stderr_path: &Path) -> Self;
 }
 
-impl StartupErrorExt for crate::app::AppError {
+impl StartupErrorExt for XrayRuntimeError {
     fn with_process_stderr(self, stderr_path: &Path) -> Self {
         let Some(stderr_tail) = read_stderr_tail(stderr_path) else {
             return self;
         };
 
         match self {
-            crate::app::AppError::XrayExited(status) => {
-                crate::app::AppError::XrayExited(format!("{status}; stderr: {stderr_tail}"))
+            XrayRuntimeError::ProcessExited(status) => {
+                XrayRuntimeError::ProcessExited(format!("{status}; stderr: {stderr_tail}"))
             }
-            crate::app::AppError::XrayStartupTimeout { port } => {
-                crate::app::AppError::XraySpawn(format!(
-                    "Xray did not open local port {port} before startup timeout; stderr: {stderr_tail}"
-                ))
-            }
+            XrayRuntimeError::StartupTimeout { port } => XrayRuntimeError::Spawn(format!(
+                "Xray did not open local port {port} before startup timeout; stderr: {stderr_tail}"
+            )),
             other => other,
         }
     }

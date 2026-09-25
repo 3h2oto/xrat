@@ -14,6 +14,9 @@ pub enum DbError {
 
     #[error("invalid runtime session status in database: {0}")]
     InvalidRuntimeSessionStatus(String),
+
+    #[error("unsupported protocol in database: {0}")]
+    UnsupportedProtocol(String),
 }
 
 pub type Result<T> = std::result::Result<T, DbError>;

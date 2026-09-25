@@ -40,12 +40,8 @@ pub enum GeoIpError {
     RateLimited { retry_after_secs: u64 },
     #[error("geoip backend not configured")]
     NotConfigured,
-}
-
-impl From<GeoIpError> for crate::app::AppError {
-    fn from(error: GeoIpError) -> Self {
-        crate::app::AppError::InvalidArgument(error.to_string())
-    }
+    #[error("invalid geoip settings: {0}")]
+    InvalidSettings(String),
 }
 
 #[async_trait::async_trait]

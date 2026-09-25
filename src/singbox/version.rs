@@ -2,8 +2,20 @@ use std::path::Path;
 use std::process::{Command, Stdio};
 
 use semver::Version;
+use thiserror::Error;
 
-use crate::app::{AppError, Result};
+/// Errors raised while validating a managed sing-box binary version.
+#[derive(Debug, Error)]
+pub enum SingboxVersionError {
+    #[error(
+        "unsupported sing-box binary at {path}: detected version {detected}; supported range is >=1.13.0; {detail}. Install sing-box v1.13.21 or newer"
+    )]
+    Unsupported {
+        path: String,
+        detected: String,
+        detail: String,
+    },
+}
 
 /// Minimum supported sing-box version. Newer versions are accepted so users are
 /// not blocked by a hard ceiling; preflight still runs `sing-box check` with the
@@ -12,7 +24,7 @@ const MINIMUM_VERSION: Version = Version::new(1, 13, 0);
 /// Planned conformance range. Versions outside it are accepted with a warning.
 const TESTED_RANGE: &str = ">=1.13.0, <1.15.0";
 
-pub(crate) fn ensure_supported_binary(binary_path: &Path) -> Result<Version> {
+pub(crate) fn ensure_supported_binary(binary_path: &Path) -> Result<Version, SingboxVersionError> {
     let output = Command::new(binary_path)
         .args(["version", "--name"])
         .stdin(Stdio::null())
@@ -57,7 +69,10 @@ fn parse_version_output(output: &str) -> Option<Version> {
     Version::parse(output).ok()
 }
 
-fn ensure_supported_version(binary_path: &Path, version: &Version) -> Result<()> {
+fn ensure_supported_version(
+    binary_path: &Path,
+    version: &Version,
+) -> Result<(), SingboxVersionError> {
     if version >= &MINIMUM_VERSION {
         return Ok(());
     }
@@ -87,14 +102,15 @@ fn is_tested_version(version: &Version) -> bool {
     version.major == 1 && matches!(version.minor, 13 | 14) && version.pre.is_empty()
 }
 
-fn version_error(binary_path: &Path, detected: Option<&str>, detail: &str) -> AppError {
+fn version_error(binary_path: &Path, detected: Option<&str>, detail: &str) -> SingboxVersionError {
     let detected = detected
         .filter(|value| !value.is_empty())
         .unwrap_or("unavailable");
-    AppError::InvalidArgument(format!(
-        "unsupported sing-box binary at {}: detected version {detected}; supported range is >=1.13.0; {detail}. Install sing-box v1.13.21 or newer",
-        binary_path.display()
-    ))
+    SingboxVersionError::Unsupported {
+        path: binary_path.display().to_string(),
+        detected: detected.to_string(),
+        detail: detail.to_string(),
+    }
 }
 
 #[cfg(test)]

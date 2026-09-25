@@ -113,7 +113,7 @@ fn rejects_unknown_protocol() {
 
     assert!(matches!(
         node_from_record(&record),
-        Err(AppError::UnsupportedProtocol(_))
+        Err(crate::db::DbError::UnsupportedProtocol(_))
     ));
 }
 
