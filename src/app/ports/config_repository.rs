@@ -42,4 +42,18 @@ pub trait ConfigRepository: Send + Sync {
     async fn get_config_by_id(&self, id: i64) -> Result<Option<crate::db::ConfigRecord>, DbError>;
 
     async fn list_subscriptions(&self) -> Result<Vec<SubscriptionRecord>, DbError>;
+
+    async fn resolve_subscription_ref_prefix(&self, prefix: &str) -> Result<RefMatch, DbError>;
+
+    async fn get_subscription_by_id(&self, id: i64) -> Result<Option<SubscriptionRecord>, DbError>;
+
+    async fn set_config_enabled(&self, id: i64, is_enabled: bool) -> Result<(), DbError>;
+
+    async fn delete_config(&self, id: i64) -> Result<(), DbError>;
+
+    async fn hard_delete_config(&self, id: i64) -> Result<(), DbError>;
+
+    async fn restore_config(&self, id: i64) -> Result<(), DbError>;
+
+    async fn delete_subscription_with_configs(&self, id: i64) -> Result<(), DbError>;
 }

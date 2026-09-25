@@ -1,10 +1,12 @@
 mod configs;
+mod lifecycle;
 pub mod proxy_pac;
 
 pub use configs::{
     ConfigListRequest, ConfigListResult, ConfigService, DatabaseConfigRepository, MAX_TOP,
     enrich_endpoint_locations, validate_top,
 };
+pub use lifecycle::{ConfigLifecycleService, DeleteOutcome, RestoreOutcome, ToggleOutcome};
 
 #[cfg(test)]
 pub mod test_support;
@@ -22,6 +24,7 @@ use crate::app::ports::{Clock, Filesystem, RealFilesystem, SystemClock};
 #[derive(Clone)]
 pub struct AppServices {
     pub configs: ConfigService,
+    pub lifecycle: ConfigLifecycleService,
     pub clock: Arc<dyn Clock>,
     pub filesystem: Arc<dyn Filesystem>,
 }
@@ -34,11 +37,13 @@ impl AppServices {
 
     /// Wire production services from a database handle alone.
     ///
-    /// Used by hosts that only need config read services, such as the HTTP API
+    /// Used by hosts that only need config services, such as the HTTP API
     /// server, without building a full [`AppContext`].
     pub fn from_database(db: crate::db::Database) -> Self {
+        let repository = Arc::new(DatabaseConfigRepository::new(db));
         Self {
-            configs: ConfigService::new(DatabaseConfigRepository::new(db)),
+            configs: ConfigService::new(Arc::clone(&repository)),
+            lifecycle: ConfigLifecycleService::new(repository),
             clock: Arc::new(SystemClock),
             filesystem: Arc::new(RealFilesystem),
         }
@@ -47,11 +52,13 @@ impl AppServices {
     /// Wire services with explicit ports, for tests and alternative hosts.
     pub fn with_ports(
         configs: ConfigService,
+        lifecycle: ConfigLifecycleService,
         clock: Arc<dyn Clock>,
         filesystem: Arc<dyn Filesystem>,
     ) -> Self {
         Self {
             configs,
+            lifecycle,
             clock,
             filesystem,
         }

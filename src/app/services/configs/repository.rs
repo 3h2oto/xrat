@@ -71,4 +71,32 @@ impl ConfigRepository for DatabaseConfigRepository {
     async fn list_subscriptions(&self) -> Result<Vec<SubscriptionRecord>, DbError> {
         self.db.list_subscriptions().await
     }
+
+    async fn resolve_subscription_ref_prefix(&self, prefix: &str) -> Result<RefMatch, DbError> {
+        self.db.resolve_subscription_ref_prefix(prefix).await
+    }
+
+    async fn get_subscription_by_id(&self, id: i64) -> Result<Option<SubscriptionRecord>, DbError> {
+        self.db.get_subscription_by_id(id).await
+    }
+
+    async fn set_config_enabled(&self, id: i64, is_enabled: bool) -> Result<(), DbError> {
+        self.db.set_config_enabled(id, is_enabled).await
+    }
+
+    async fn delete_config(&self, id: i64) -> Result<(), DbError> {
+        self.db.delete_config(id).await
+    }
+
+    async fn hard_delete_config(&self, id: i64) -> Result<(), DbError> {
+        self.db.hard_delete_config(id).await
+    }
+
+    async fn restore_config(&self, id: i64) -> Result<(), DbError> {
+        self.db.restore_config(id).await
+    }
+
+    async fn delete_subscription_with_configs(&self, id: i64) -> Result<(), DbError> {
+        self.db.delete_subscription_with_configs(id).await
+    }
 }

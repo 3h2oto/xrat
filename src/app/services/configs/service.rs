@@ -65,10 +65,13 @@ pub struct ConfigService {
 }
 
 impl ConfigService {
-    pub fn new(repository: DatabaseConfigRepository) -> Self {
-        Self {
-            repository: Arc::new(repository),
-        }
+    pub fn new(repository: Arc<DatabaseConfigRepository>) -> Self {
+        Self { repository }
+    }
+
+    /// Shared repository access for sibling services.
+    pub fn repository(&self) -> Arc<DatabaseConfigRepository> {
+        Arc::clone(&self.repository)
     }
 
     /// List configs with the latest test joined, applying filter and pagination.
