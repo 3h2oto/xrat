@@ -1,9 +1,10 @@
 ---
 id: TASK-24
 title: Extract Shared Config Query And Listing Use-Cases
-status: To Do
+status: In Progress
 assignee: []
 created_date: '2026-07-05 14:43'
+updated_date: '2026-09-25 00:42'
 labels:
   - legacy-import
   - improvement
@@ -69,3 +70,9 @@ daemon code only map their inputs and outputs.
 the read-only list/detail paths and keep existing route/CLI tests. Add use-case
 tests before removing the duplicated adapter logic.
 <!-- SECTION:DESCRIPTION:END -->
+
+## Implementation Notes
+
+<!-- SECTION:NOTES:BEGIN -->
+P3 target on branch refactor/r1-layering. Service skeleton ready: ConfigService in src/app/services/configs/ already owns list/detail/resolve_id/subscriptions + shared location enrichment. P3 migrates server, then CLI, then TUI onto it.
+<!-- SECTION:NOTES:END -->

@@ -1,9 +1,10 @@
 ---
 id: TASK-32
 title: Centralize DTO And View-Model Mapping
-status: To Do
+status: In Progress
 assignee: []
 created_date: '2026-07-05 14:43'
+updated_date: '2026-09-25 00:42'
 labels:
   - legacy-import
   - improvement
@@ -61,3 +62,9 @@ table rows represent presentation.
 **Risk / migration notes:** Low to medium risk. Introduce read models without
 deleting existing DTOs, then migrate one adapter at a time.
 <!-- SECTION:DESCRIPTION:END -->
+
+## Implementation Notes
+
+<!-- SECTION:NOTES:BEGIN -->
+P3 target. Read models (ConfigSummary/LatestTestSummary/EndpointLocation) landed in P2 at src/app/read_models/.
+<!-- SECTION:NOTES:END -->
