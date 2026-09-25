@@ -1,7 +1,7 @@
 use crate::app::config::{RoutingSettings, ServerSettings};
 use crate::app::services::AppServices;
+use crate::app::services::proxy_pac::PacRules;
 use crate::db::Database;
-use crate::server::routes::pac::PacRules;
 
 #[derive(Clone)]
 pub struct ServerState {

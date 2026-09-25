@@ -1,4 +1,5 @@
 mod configs;
+pub mod proxy_pac;
 
 pub use configs::{
     ConfigListRequest, ConfigListResult, ConfigService, DatabaseConfigRepository, MAX_TOP,

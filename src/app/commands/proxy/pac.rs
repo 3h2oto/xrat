@@ -1,6 +1,6 @@
 use crate::app::commands::output;
 use crate::app::context::AppContext;
-use crate::server::{PacEndpoints, PacRules, render_pac};
+use crate::app::services::proxy_pac::{PacEndpoints, PacRules, render_pac};
 
 use super::resolve_active_endpoints;
 

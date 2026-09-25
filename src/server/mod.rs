@@ -21,7 +21,7 @@ use crate::app::events;
 use crate::db::Database;
 
 pub use error::{ServerError, ServerResult};
-pub use routes::pac::{PacEndpoints, PacRules, render_pac};
+pub use routes::pac::proxy_pac;
 pub use state::ServerState;
 
 pub fn build_router(state: ServerState) -> Router {
