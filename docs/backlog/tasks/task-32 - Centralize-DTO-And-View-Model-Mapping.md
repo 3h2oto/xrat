@@ -4,7 +4,7 @@ title: Centralize DTO And View-Model Mapping
 status: In Progress
 assignee: []
 created_date: '2026-07-05 14:43'
-updated_date: '2026-09-25 00:42'
+updated_date: '2026-09-25 01:02'
 labels:
   - legacy-import
   - improvement
@@ -66,5 +66,5 @@ deleting existing DTOs, then migrate one adapter at a time.
 ## Implementation Notes
 
 <!-- SECTION:NOTES:BEGIN -->
-P3 target. Read models (ConfigSummary/LatestTestSummary/EndpointLocation) landed in P2 at src/app/read_models/.
+P3 progress: ApiConfigSummary/ApiConfigDetail now map from ConfigSummary/ConfigDetail read models; server no longer maps joined rows directly. ConfigDetail added to read models.
 <!-- SECTION:NOTES:END -->
