@@ -1,7 +1,7 @@
 mod connection;
 mod database;
 mod error;
-mod record;
+pub mod record;
 mod repository;
 mod schema;
 
