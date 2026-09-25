@@ -4,6 +4,7 @@ title: Keep Daemon Supervisor Handlers Thin
 status: To Do
 assignee: []
 created_date: '2026-07-05 14:43'
+updated_date: '2026-09-25 02:18'
 labels:
   - legacy-import
   - improvement
@@ -63,3 +64,9 @@ is best-effort inside the use-case layer with structured results.
 regression tests around manual replace, timer replace, health cooldown, and
 metadata updates before moving logic.
 <!-- SECTION:DESCRIPTION:END -->
+
+## Implementation Notes
+
+<!-- SECTION:NOTES:BEGIN -->
+Deferred in this refactor run. Rotation/transition orchestration extraction from daemon supervisor handlers is the highest-risk item (rotation state is subtle). Needs its own focused pass with regression tests for manual replace, timer, health cooldown, and metadata updates. Not attempted in P4 to keep behavior-preserving guarantees.
+<!-- SECTION:NOTES:END -->

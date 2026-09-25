@@ -1,9 +1,10 @@
 ---
 id: TASK-30
 title: Introduce Shared Runtime-Control Abstraction
-status: To Do
+status: Done
 assignee: []
 created_date: '2026-07-05 14:43'
+updated_date: '2026-09-25 02:18'
 labels:
   - legacy-import
   - improvement
@@ -68,3 +69,11 @@ IPC, and future HTTP endpoints call the same control interface.
 Start with status and disconnect, then migrate connect and replace. Preserve
 existing CLI daemon behavior unless a setting explicitly selects local control.
 <!-- SECTION:DESCRIPTION:END -->
+
+## Implementation Notes
+
+<!-- SECTION:NOTES:BEGIN -->
+P4 DONE (commit ac90e4c). Added RuntimeControl trait (src/app/services/runtime_control/control.rs) with connect/disconnect/replace and shared outcome structs RuntimeConnectOutcome/RuntimeReplaceOutcome. Impls: DaemonRuntimeControl (IPC, preserves daemon-unreachable hint as AppError::InvalidArgument) and LocalRuntimeControl (RuntimeService in-process). factory exports daemon_control()/local_control(). CLI connect/disconnect now use daemon_control; TUI runtime start/stop/restart use local_control. Behavior unchanged; 858 tests pass.
+
+Deferred: CLI status still reads the daemon payload directly because its output shape is daemon-specific (RuntimeStatusPayload). Unifying status output is follow-up work.
+<!-- SECTION:NOTES:END -->
