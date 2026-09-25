@@ -200,16 +200,7 @@ async fn config_detail_returns_null_latest_test_when_no_test_exists() {
         .next()
         .expect("config should exist");
 
-    let state = ServerState {
-        db,
-        api_key: None,
-        pac_enabled: true,
-        pac_allowed_hosts: crate::app::config::defaults::DEFAULT_SERVER_PAC_ALLOWED_HOSTS
-            .iter()
-            .map(|host| host.to_string())
-            .collect(),
-        pac_rules: crate::server::PacRules::default(),
-    };
+    let state = ServerState::for_test(db, None);
 
     let Json(detail) = configs::get_config(
         State(state),

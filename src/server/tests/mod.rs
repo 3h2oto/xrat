@@ -90,16 +90,7 @@ pub(super) async fn multi_config_state(api_key: Option<&str>, count: usize) -> S
         .expect("test should insert");
     }
 
-    ServerState {
-        db,
-        api_key: api_key.map(str::to_string),
-        pac_enabled: true,
-        pac_allowed_hosts: crate::app::config::defaults::DEFAULT_SERVER_PAC_ALLOWED_HOSTS
-            .iter()
-            .map(|host| host.to_string())
-            .collect(),
-        pac_rules: crate::server::PacRules::default(),
-    }
+    ServerState::for_test(db, api_key.map(str::to_string))
 }
 
 pub(super) async fn populated_state(api_key: Option<&str>) -> ServerState {
@@ -158,16 +149,7 @@ pub(super) async fn populated_state(api_key: Option<&str>) -> ServerState {
     .await
     .expect("test should insert");
 
-    ServerState {
-        db,
-        api_key: api_key.map(str::to_string),
-        pac_enabled: true,
-        pac_allowed_hosts: crate::app::config::defaults::DEFAULT_SERVER_PAC_ALLOWED_HOSTS
-            .iter()
-            .map(|host| host.to_string())
-            .collect(),
-        pac_rules: crate::server::PacRules::default(),
-    }
+    ServerState::for_test(db, api_key.map(str::to_string))
 }
 
 pub(super) fn test_node() -> Node {

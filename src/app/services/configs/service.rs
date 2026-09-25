@@ -21,6 +21,7 @@ pub struct ConfigListRequest {
     pub protocol: Option<String>,
     pub offset: Option<i64>,
     pub limit: Option<i64>,
+    pub top_by_real_delay: Option<u32>,
 }
 
 impl ConfigListRequest {
@@ -34,6 +35,19 @@ impl ConfigListRequest {
             protocol: self.protocol.clone(),
         }
     }
+}
+
+/// Inclusive upper bound accepted for `top` selections.
+pub const MAX_TOP: u32 = 200;
+
+/// Validate a requested `top` count against the shared limit.
+pub fn validate_top(top: u32) -> Result<u32> {
+    if top == 0 || top > MAX_TOP {
+        return Err(AppError::InvalidArgument(format!(
+            "top must be between 1 and {MAX_TOP}"
+        )));
+    }
+    Ok(top)
 }
 
 /// Result of a config list query.
@@ -60,19 +74,26 @@ impl ConfigService {
     /// List configs with the latest test joined, applying filter and pagination.
     pub async fn list(&self, request: &ConfigListRequest) -> Result<ConfigListResult> {
         let filter = request.filter();
-        let total = self.repository.count_filtered_configs(&filter).await?;
+        let items = if let Some(top) = request.top_by_real_delay {
+            self.repository
+                .list_top_configs_by_real_delay(i64::from(top), &filter)
+                .await?
+        } else if let (Some(offset), Some(limit)) = (request.offset, request.limit) {
+            self.repository
+                .list_configs_paginated_with_latest_tests(&filter, offset, limit)
+                .await?
+        } else {
+            self.repository
+                .list_configs_with_latest_tests(&filter)
+                .await?
+        };
 
-        let items = match (request.offset, request.limit) {
-            (Some(offset), Some(limit)) => {
-                self.repository
-                    .list_configs_paginated_with_latest_tests(&filter, offset, limit)
-                    .await?
-            }
-            _ => {
-                self.repository
-                    .list_configs_with_latest_tests(&filter)
-                    .await?
-            }
+        let total = if request.top_by_real_delay.is_some()
+            || (request.offset.is_none() && request.limit.is_none())
+        {
+            items.len() as i64
+        } else {
+            self.repository.count_filtered_configs(&filter).await?
         };
 
         let summaries = items.iter().map(ConfigSummary::from_joined).collect();
@@ -83,9 +104,39 @@ impl ConfigService {
         })
     }
 
+    /// Raw config links for a filtered selection, in listing order.
+    pub async fn export_raw_configs(&self, request: &ConfigListRequest) -> Result<Vec<String>> {
+        let filter = request.filter();
+        if let Some(top) = request.top_by_real_delay {
+            let rows = self
+                .repository
+                .list_top_configs_by_real_delay(i64::from(top), &filter)
+                .await?;
+            return Ok(rows.into_iter().map(|row| row.config.raw_config).collect());
+        }
+
+        let configs = self.repository.list_configs(&filter).await?;
+        Ok(configs
+            .into_iter()
+            .map(|config| config.raw_config)
+            .collect())
+    }
+
     /// Fetch a single config with its latest test.
     pub async fn detail(&self, id: i64) -> Result<Option<ConfigWithLatestTest>> {
         Ok(self.repository.get_config_with_latest_test(id).await?)
+    }
+
+    /// Fetch a single config as an interface-neutral detail model.
+    pub async fn detail_model(
+        &self,
+        id: i64,
+    ) -> Result<Option<crate::app::read_models::ConfigDetail>> {
+        Ok(self
+            .repository
+            .get_config_with_latest_test(id)
+            .await?
+            .map(|row| crate::app::read_models::ConfigDetail::from_joined(&row)))
     }
 
     /// Resolve a numeric id or ref prefix into a config id.

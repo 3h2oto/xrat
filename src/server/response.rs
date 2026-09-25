@@ -1,6 +1,6 @@
 use serde::Serialize;
 
-use crate::db::ConfigWithLatestTest;
+use crate::app::read_models::{ConfigDetail, ConfigSummary, LatestTestSummary};
 
 #[derive(Debug, Serialize)]
 pub struct ApiErrorResponse {
@@ -76,58 +76,63 @@ pub struct PaginatedResponse<T> {
     pub items: Vec<T>,
 }
 
-pub fn summary_from_joined(row: &ConfigWithLatestTest) -> ApiConfigSummary {
+pub fn summary_from_summary(summary: &ConfigSummary) -> ApiConfigSummary {
+    let latest = summary.latest_test.as_ref();
     ApiConfigSummary {
-        id: row.config.id,
-        r#ref: row.config.r#ref.clone(),
-        name: row.config.name.clone(),
-        protocol: row.config.protocol.clone(),
-        address: row.config.address.clone(),
-        port: row.config.port,
-        network: row.config.network.clone(),
-        tls: row.config.tls.clone(),
-        real_delay_ms: row.real_delay_ms,
-        tcp_ok: row.tcp_ok,
-        last_tested_at: row.tested_at.clone(),
+        id: summary.id,
+        r#ref: summary.r#ref.clone(),
+        name: summary.name.clone(),
+        protocol: summary.protocol.clone(),
+        address: summary.address.clone(),
+        port: summary.port,
+        network: summary.network.clone(),
+        tls: summary.tls.clone(),
+        real_delay_ms: latest.and_then(|test| test.real_delay_ms),
+        tcp_ok: latest.and_then(|test| test.tcp_ok),
+        last_tested_at: latest.and_then(|test| test.tested_at.clone()),
     }
 }
 
-pub fn detail_from_joined(row: ConfigWithLatestTest) -> ApiConfigDetail {
-    let latest_test = row.test_id.map(|_| ApiLatestTest {
-        tcp_ok: row.tcp_ok,
-        tcp_ms: row.tcp_ms,
-        real_delay_ok: row.real_delay_ok,
-        real_delay_ms: row.real_delay_ms,
-        download_mbps: row.download_mbps,
-        upload_mbps: row.upload_mbps,
-        connect_ms: row.connect_ms,
-        ttfb_ms: row.ttfb_ms,
-        http_status: row.http_status,
-        failure_kind: row.failure_kind,
-        failure_reason: row.failure_reason,
-        tested_at: row.tested_at.unwrap_or_default(),
-    });
+fn latest_test_from_summary(latest: &LatestTestSummary) -> ApiLatestTest {
+    ApiLatestTest {
+        tcp_ok: latest.tcp_ok,
+        tcp_ms: latest.tcp_ms,
+        real_delay_ok: latest.real_delay_ok,
+        real_delay_ms: latest.real_delay_ms,
+        download_mbps: latest.download_mbps,
+        upload_mbps: latest.upload_mbps,
+        connect_ms: latest.connect_ms,
+        ttfb_ms: latest.ttfb_ms,
+        http_status: latest.http_status,
+        failure_kind: latest.failure_kind.clone(),
+        failure_reason: latest.failure_reason.clone(),
+        tested_at: latest.tested_at.clone().unwrap_or_default(),
+    }
+}
+
+pub fn detail_from_model(detail: &ConfigDetail) -> ApiConfigDetail {
+    let summary = &detail.summary;
     ApiConfigDetail {
-        id: row.config.id,
-        r#ref: row.config.r#ref,
-        subscription_id: row.config.subscription_id,
-        dedup_key: row.config.dedup_key,
-        protocol: row.config.protocol,
-        address: row.config.address,
-        port: row.config.port,
-        name: row.config.name,
-        network: row.config.network,
-        tls: row.config.tls,
-        sni: row.config.sni,
-        host: row.config.host,
-        path: row.config.path,
-        is_active: row.config.is_active,
-        is_enabled: row.config.is_enabled,
-        is_deleted: row.config.is_deleted,
-        deleted_at: row.config.deleted_at,
-        imported_at: row.config.imported_at,
-        created_at: row.config.created_at,
-        updated_at: row.config.updated_at,
-        latest_test,
+        id: summary.id,
+        r#ref: summary.r#ref.clone(),
+        subscription_id: detail.subscription_id,
+        dedup_key: detail.dedup_key.clone(),
+        protocol: summary.protocol.clone(),
+        address: summary.address.clone(),
+        port: summary.port,
+        name: summary.name.clone(),
+        network: summary.network.clone(),
+        tls: summary.tls.clone(),
+        sni: detail.sni.clone(),
+        host: detail.host.clone(),
+        path: detail.path.clone(),
+        is_active: summary.is_active,
+        is_enabled: summary.is_enabled,
+        is_deleted: summary.is_deleted,
+        deleted_at: detail.deleted_at.clone(),
+        imported_at: detail.imported_at.clone(),
+        created_at: detail.created_at.clone(),
+        updated_at: detail.updated_at.clone(),
+        latest_test: summary.latest_test.as_ref().map(latest_test_from_summary),
     }
 }

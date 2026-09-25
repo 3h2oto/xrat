@@ -48,6 +48,18 @@ impl ConfigRepository for DatabaseConfigRepository {
         self.db.count_filtered_configs(filter).await
     }
 
+    async fn list_top_configs_by_real_delay(
+        &self,
+        limit: i64,
+        filter: &ConfigListFilter,
+    ) -> Result<Vec<ConfigWithLatestTest>, DbError> {
+        self.db.list_top_configs_by_real_delay(limit, filter).await
+    }
+
+    async fn list_configs(&self, filter: &ConfigListFilter) -> Result<Vec<ConfigRecord>, DbError> {
+        self.db.list_configs(filter).await
+    }
+
     async fn resolve_config_ref_prefix(&self, prefix: &str) -> Result<RefMatch, DbError> {
         self.db.resolve_config_ref_prefix(prefix).await
     }

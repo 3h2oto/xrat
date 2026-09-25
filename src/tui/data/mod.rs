@@ -16,7 +16,6 @@ pub use stats::StatsHistory;
 pub use tests_view::TuiTestStatus;
 
 use crate::app::runtime_service::RuntimeService;
-use crate::db::ConfigListFilter;
 
 #[derive(Debug, Clone)]
 pub struct EngineInfo {
@@ -76,23 +75,25 @@ impl TuiData {
         context: &crate::app::context::AppContext,
         include_deleted: bool,
     ) -> crate::app::Result<Self> {
-        let filter = ConfigListFilter {
+        let services = context.services();
+        let request = crate::app::services::ConfigListRequest {
             include_deleted,
-            ..ConfigListFilter::default()
+            ..crate::app::services::ConfigListRequest::default()
         };
-        let mut configs: Vec<_> = context
-            .db
-            .list_configs_with_latest_tests(&filter)
+        let mut configs: Vec<_> = services
+            .configs
+            .list(&request)
             .await?
+            .items
             .into_iter()
             .map(TuiConfigRow::from)
             .collect();
 
         configs.sort_by_key(|row| (row.real_delay_ms.unwrap_or(i64::MAX), row.id));
         let pending_enrichment = apply_geo_cache(context, &mut configs).await;
-        let sources = context
-            .db
-            .list_subscriptions()
+        let sources = services
+            .configs
+            .subscriptions()
             .await?
             .into_iter()
             .map(TuiSourceRow::from)

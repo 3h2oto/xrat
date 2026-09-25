@@ -50,6 +50,38 @@ pub struct EndpointLocation {
     pub fronting: Option<String>,
 }
 
+/// Interface-neutral detail view of a stored config.
+#[derive(Clone, Debug, PartialEq)]
+pub struct ConfigDetail {
+    pub summary: ConfigSummary,
+    pub subscription_id: Option<i64>,
+    pub dedup_key: String,
+    pub sni: Option<String>,
+    pub host: Option<String>,
+    pub path: Option<String>,
+    pub deleted_at: Option<String>,
+    pub imported_at: String,
+    pub created_at: String,
+    pub updated_at: String,
+}
+
+impl ConfigDetail {
+    pub fn from_joined(row: &ConfigWithLatestTest) -> Self {
+        Self {
+            summary: ConfigSummary::from_joined(row),
+            subscription_id: row.config.subscription_id,
+            dedup_key: row.config.dedup_key.clone(),
+            sni: row.config.sni.clone(),
+            host: row.config.host.clone(),
+            path: row.config.path.clone(),
+            deleted_at: row.config.deleted_at.clone(),
+            imported_at: row.config.imported_at.clone(),
+            created_at: row.config.created_at.clone(),
+            updated_at: row.config.updated_at.clone(),
+        }
+    }
+}
+
 impl LatestTestSummary {
     /// Build a summary from a joined config row, or `None` when the config has
     /// never been tested.

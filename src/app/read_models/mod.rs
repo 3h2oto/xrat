@@ -1,3 +1,3 @@
 mod config;
 
-pub use config::{ConfigSummary, EndpointLocation, LatestTestSummary};
+pub use config::{ConfigDetail, ConfigSummary, EndpointLocation, LatestTestSummary};

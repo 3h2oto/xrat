@@ -2,7 +2,7 @@ use crate::app::commands::output::{self, Align, Cell, Column, Style};
 use crate::app::commands::resolve::resolve_subscription_id;
 use crate::app::context::AppContext;
 use crate::cli::{ListArgs, ListConfigsArgs, ListFormat, ListSubscriptionsArgs, ListTarget};
-use crate::db::{ConfigListFilter, ConfigRecord, ConfigWithLatestTest, SubscriptionRecord};
+use crate::db::{ConfigRecord, ConfigWithLatestTest, SubscriptionRecord};
 use crate::support::refs::short_ref;
 use std::collections::HashMap;
 
@@ -16,10 +16,16 @@ pub async fn run(context: &AppContext, command: &ListArgs) -> crate::app::Result
 }
 
 async fn print_configs(context: &AppContext, filters: &ListConfigsArgs) -> crate::app::Result<()> {
-    let filter = build_config_list_filter(context, filters).await?;
-    let mut configs = context.db.list_configs_with_latest_tests(&filter).await?;
-    enrich_config_locations(context, &mut configs).await;
-    let subscriptions = context.db.list_subscriptions().await?;
+    let services = context.services();
+    let request = build_config_list_request(context, filters).await?;
+    let mut configs = services.configs.list(&request).await?.items;
+    crate::app::services::enrich_endpoint_locations(
+        &context.app_config,
+        &context.runtime_paths,
+        &mut configs,
+    )
+    .await;
+    let subscriptions = services.configs.subscriptions().await?;
     let subscription_refs = subscriptions
         .iter()
         .map(|subscription| (subscription.id, subscription.r#ref.as_str()))
@@ -47,7 +53,7 @@ async fn print_subscriptions(
     context: &AppContext,
     filters: &ListSubscriptionsArgs,
 ) -> crate::app::Result<()> {
-    let mut subscriptions = context.db.list_subscriptions().await?;
+    let mut subscriptions = context.services().configs.subscriptions().await?;
     if let Some(kind) = &filters.kind {
         subscriptions.retain(|subscription| subscription.source_kind == kind.as_str());
     }
@@ -534,69 +540,24 @@ fn subscription_ref_tsv_cell(
         .to_string()
 }
 
-async fn build_config_list_filter(
+async fn build_config_list_request(
     context: &AppContext,
     args: &ListConfigsArgs,
-) -> crate::app::Result<ConfigListFilter> {
+) -> crate::app::Result<crate::app::services::ConfigListRequest> {
     let subscription_id = match &args.subscription {
         Some(raw) => Some(resolve_subscription_id(context, raw).await?),
         None => None,
     };
 
-    Ok(ConfigListFilter {
+    Ok(crate::app::services::ConfigListRequest {
         only_enabled: args.enabled_only,
         only_active: args.active_only,
         only_deleted: args.deleted_only,
         include_deleted: args.include_deleted,
         subscription_id,
         protocol: None,
+        ..crate::app::services::ConfigListRequest::default()
     })
-}
-
-async fn enrich_config_locations(context: &AppContext, configs: &mut [ConfigWithLatestTest]) {
-    if !context.app_config.testing.geoip.enabled
-        || !configs.iter().any(|row| row.needs_location_enrichment())
-    {
-        return;
-    }
-
-    let Ok(lookup) =
-        crate::support::geoip::build_lookup_chain(&context.app_config, &context.runtime_paths)
-    else {
-        return;
-    };
-
-    for row in configs
-        .iter_mut()
-        .filter(|row| row.needs_location_enrichment())
-    {
-        let meta =
-            crate::support::geoip::enrich_address(&row.config.address, lookup.as_ref()).await;
-        if !meta.has_lookup_metadata() {
-            continue;
-        }
-        if let Some(location) = meta.location {
-            row.dial_endpoint_location = Some(location);
-        }
-        if let Some(country) = meta.country {
-            row.dial_endpoint_country = Some(country);
-        }
-        if let Some(asn) = meta.asn {
-            row.dial_endpoint_asn = Some(asn);
-        }
-    }
-}
-
-trait ConfigLocationEnrichment {
-    fn needs_location_enrichment(&self) -> bool;
-}
-
-impl ConfigLocationEnrichment for ConfigWithLatestTest {
-    fn needs_location_enrichment(&self) -> bool {
-        self.dial_endpoint_location.is_none()
-            || self.dial_endpoint_country.is_none()
-            || self.dial_endpoint_asn.is_none()
-    }
 }
 
 #[cfg(test)]

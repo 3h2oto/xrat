@@ -2,17 +2,35 @@ use axum::Json;
 use axum::extract::{Query, State};
 use serde::Deserialize;
 
-use crate::db::ConfigListFilter;
+use crate::app::services::{ConfigListRequest, validate_top};
 use crate::server::auth::require_api_key;
-use crate::server::response::{ApiConfigSummary, summary_from_joined};
+use crate::server::response::{ApiConfigSummary, summary_from_summary};
 use crate::server::{ServerError, ServerResult, ServerState};
+
+const DEFAULT_ENABLED_ONLY: bool = true;
 
 #[derive(Debug, Deserialize)]
 pub struct JsonQuery {
     pub key: Option<String>,
-    pub top: Option<u64>,
+    pub top: Option<u32>,
     pub enabled: Option<bool>,
     pub protocol: Option<String>,
+}
+
+impl JsonQuery {
+    /// Translate query parameters into a shared config list request.
+    pub fn to_request(&self) -> ServerResult<ConfigListRequest> {
+        let top_by_real_delay = match self.top {
+            Some(top) => Some(validate_top(top).map_err(ServerError::from)?),
+            None => None,
+        };
+        Ok(ConfigListRequest {
+            only_enabled: self.enabled.unwrap_or(DEFAULT_ENABLED_ONLY),
+            protocol: self.protocol.clone(),
+            top_by_real_delay,
+            ..ConfigListRequest::default()
+        })
+    }
 }
 
 pub async fn json(
@@ -20,39 +38,8 @@ pub async fn json(
     Query(query): Query<JsonQuery>,
 ) -> ServerResult<Json<Vec<ApiConfigSummary>>> {
     require_api_key(&state, query.key.as_deref())?;
-    let rows = list_api_configs(&state, &query).await?;
-    Ok(Json(rows.iter().map(summary_from_joined).collect()))
-}
-
-pub(crate) async fn list_api_configs(
-    state: &ServerState,
-    query: &JsonQuery,
-) -> ServerResult<Vec<crate::db::ConfigWithLatestTest>> {
-    let filter = ConfigListFilter {
-        only_enabled: query.enabled.unwrap_or(true),
-        only_active: false,
-        only_deleted: false,
-        include_deleted: false,
-        subscription_id: None,
-        protocol: query.protocol.clone(),
-    };
-
-    if let Some(top) = query.top {
-        let limit = validate_top(top)?;
-        return Ok(state
-            .db
-            .list_top_configs_by_real_delay(limit as i64, &filter)
-            .await?);
-    }
-
-    Ok(state.db.list_configs_with_latest_tests(&filter).await?)
-}
-
-fn validate_top(top: u64) -> ServerResult<usize> {
-    if top == 0 || top > 200 {
-        return Err(ServerError::InvalidQuery(
-            "top must be between 1 and 200".to_string(),
-        ));
-    }
-    Ok(top as usize)
+    let result = state.services.configs.list(&query.to_request()?).await?;
+    Ok(Json(
+        result.summaries.iter().map(summary_from_summary).collect(),
+    ))
 }

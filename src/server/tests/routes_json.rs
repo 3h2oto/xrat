@@ -80,7 +80,12 @@ async fn json_route_top_zero_returns_error() {
     )
     .await;
 
-    assert!(matches!(result, Err(ServerError::InvalidQuery(_))));
+    assert!(matches!(
+        result,
+        Err(ServerError::Application(
+            crate::app::AppError::InvalidArgument(_)
+        ))
+    ));
 }
 
 #[tokio::test]

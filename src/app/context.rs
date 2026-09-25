@@ -25,6 +25,14 @@ impl AppContext {
         crate::app::runtime_service::log_retention::cleanup(&context).await;
         Ok(context)
     }
+
+    /// Application services wired from this context.
+    ///
+    /// Cheap to build: it only wraps clones of the database handle and default
+    /// ports. Call it at the start of a handler rather than caching a copy.
+    pub fn services(&self) -> crate::app::services::AppServices {
+        crate::app::services::AppServices::from_context(self)
+    }
 }
 
 #[cfg(test)]

@@ -20,6 +20,8 @@ pub enum ServerError {
     PacHostNotAllowed,
     #[error(transparent)]
     Database(#[from] crate::db::DbError),
+    #[error("{0}")]
+    Application(#[from] crate::app::AppError),
 }
 
 impl IntoResponse for ServerError {
@@ -30,6 +32,8 @@ impl IntoResponse for ServerError {
             Self::NotFound => StatusCode::NOT_FOUND,
             Self::PacHostNotAllowed => StatusCode::FORBIDDEN,
             Self::Database(_) => StatusCode::INTERNAL_SERVER_ERROR,
+            Self::Application(crate::app::AppError::InvalidArgument(_)) => StatusCode::BAD_REQUEST,
+            Self::Application(_) => StatusCode::INTERNAL_SERVER_ERROR,
         };
         let body = Json(ApiErrorResponse {
             error: self.to_string(),

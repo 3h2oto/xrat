@@ -1,8 +1,8 @@
 mod configs;
 
 pub use configs::{
-    ConfigListRequest, ConfigListResult, ConfigService, DatabaseConfigRepository,
-    enrich_endpoint_locations,
+    ConfigListRequest, ConfigListResult, ConfigService, DatabaseConfigRepository, MAX_TOP,
+    enrich_endpoint_locations, validate_top,
 };
 
 #[cfg(test)]
@@ -28,8 +28,16 @@ pub struct AppServices {
 impl AppServices {
     /// Wire production services from an application context.
     pub fn from_context(context: &AppContext) -> Self {
+        Self::from_database(context.db.clone())
+    }
+
+    /// Wire production services from a database handle alone.
+    ///
+    /// Used by hosts that only need config read services, such as the HTTP API
+    /// server, without building a full [`AppContext`].
+    pub fn from_database(db: crate::db::Database) -> Self {
         Self {
-            configs: ConfigService::new(DatabaseConfigRepository::new(context.db.clone())),
+            configs: ConfigService::new(DatabaseConfigRepository::new(db)),
             clock: Arc::new(SystemClock),
             filesystem: Arc::new(RealFilesystem),
         }
