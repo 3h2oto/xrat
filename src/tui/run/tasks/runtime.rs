@@ -1,7 +1,7 @@
 use tokio::sync::mpsc;
 
 use crate::app::context::AppContext;
-use crate::app::runtime_service::{ConnectRequest, RuntimeService};
+use crate::app::services::runtime_control;
 use crate::tui::app::TuiApp;
 use crate::tui::data::TuiData;
 use crate::tui::task::{TuiTaskEvent, TuiTaskKind};
@@ -63,10 +63,10 @@ pub fn spawn_runtime_start_config(
         return;
     };
     tokio::spawn(async move {
-        let service = RuntimeService::new(&context);
-        let event = match service.connect(ConnectRequest { config_id }).await {
+        let control = runtime_control::local_control(&context);
+        let event = match control.connect(config_id).await {
             Ok(res) => {
-                let msg = format!("started runtime with config #{}", res.config.id);
+                let msg = format!("started runtime with config #{}", res.config_id);
                 complete_after_reload(context, include_deleted, kind, msg).await
             }
             Err(err) => {
@@ -92,8 +92,8 @@ pub fn spawn_runtime_stop(
         return;
     };
     tokio::spawn(async move {
-        let service = RuntimeService::new(&context);
-        let event = match service.disconnect().await {
+        let control = runtime_control::local_control(&context);
+        let event = match control.disconnect().await {
             Ok(_) => {
                 complete_after_reload(
                     context,
@@ -126,8 +126,8 @@ pub fn spawn_runtime_restart(
         return;
     };
     tokio::spawn(async move {
-        let service = RuntimeService::new(&context);
-        if let Err(err) = service.disconnect().await {
+        let control = runtime_control::local_control(&context);
+        if let Err(err) = control.disconnect().await {
             let _ = task_tx.send(TuiTaskEvent::Failed {
                 kind,
                 error: format!("restart: stop failed: {err}"),
@@ -135,9 +135,9 @@ pub fn spawn_runtime_restart(
             });
             return;
         }
-        let event = match service.connect(ConnectRequest { config_id }).await {
+        let event = match control.connect(config_id).await {
             Ok(res) => {
-                let msg = format!("restarted runtime with config #{}", res.config.id);
+                let msg = format!("restarted runtime with config #{}", res.config_id);
                 complete_after_reload(context, include_deleted, kind, msg).await
             }
             Err(err) => {

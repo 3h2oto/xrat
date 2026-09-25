@@ -1,66 +1,49 @@
 use crate::app::commands::output;
 use crate::app::commands::progress::CliProgress;
-use crate::app::commands::resolve::resolve_config_id;
 use crate::app::context::AppContext;
-use crate::app::daemon::ipc;
+use crate::app::services::runtime_control;
 use crate::cli::ConnectArgs;
 
 pub async fn run(context: &AppContext, args: &ConnectArgs) -> crate::app::Result<()> {
-    let config_id = resolve_config_id(context, &args.id).await?;
-    let socket_path = ipc::default_socket_path(&context.runtime_paths.runtime_dir);
+    let services = context.services();
+    let config_id = services.lifecycle.resolve_config_id(&args.id).await?;
+    let control = runtime_control::daemon_control(context);
     let progress = CliProgress::spinner(!args.json, format!("connecting config {config_id}"));
-    let response = ipc::runtime_connect_daemon(&socket_path, config_id).await;
+    let result = control.connect(config_id).await;
     progress.finish_and_clear();
-    match response {
-        Ok(response) => {
-            if !response.ok {
-                return Err(crate::app::AppError::InvalidArgument(response.message));
-            }
-            let payload = response.payload.ok_or_else(|| {
-                crate::app::AppError::InvalidArgument(
-                    "daemon connect response missing payload".to_string(),
-                )
-            })?;
-            if args.json {
-                println!(
-                    "{}",
-                    serde_json::to_string_pretty(&serde_json::json!({
-                        "status": "connected",
-                        "daemon": true,
-                        "config": { "id": payload.config_id },
-                        "session": { "id": payload.session_id, "pid": payload.pid },
-                    }))?
-                );
-            } else {
-                println!(
-                    "{}",
-                    output::success(
-                        format!("Connected config {} via daemon.", payload.config_id),
-                        output::color_enabled()
-                    )
-                );
-                println!(
-                    "{}",
-                    output::format_kv(
-                        None,
-                        &[
-                            ("session", payload.session_id.to_string()),
-                            ("pid", payload.pid.to_string()),
-                        ],
-                        output::color_enabled(),
-                    )
-                );
-            }
-            Ok(())
-        }
-        Err(err) if ipc::daemon_unreachable(&err) => {
-            Err(crate::app::AppError::InvalidArgument(format!(
-                "daemon is not running. Start it with `xrat daemon start` (socket: {})",
-                socket_path.display()
-            )))
-        }
-        Err(err) => Err(err),
+    let outcome = result?;
+
+    if args.json {
+        println!(
+            "{}",
+            serde_json::to_string_pretty(&serde_json::json!({
+                "status": "connected",
+                "daemon": true,
+                "config": { "id": outcome.config_id },
+                "session": { "id": outcome.session_id, "pid": outcome.pid },
+            }))?
+        );
+    } else {
+        println!(
+            "{}",
+            output::success(
+                format!("Connected config {} via daemon.", outcome.config_id),
+                output::color_enabled()
+            )
+        );
+        println!(
+            "{}",
+            output::format_kv(
+                None,
+                &[
+                    ("session", outcome.session_id.to_string()),
+                    ("pid", outcome.pid.to_string()),
+                ],
+                output::color_enabled(),
+            )
+        );
     }
+    Ok(())
 }
 
 #[cfg(test)]

@@ -1,43 +1,22 @@
 use crate::app::commands::output;
 use crate::app::commands::progress::CliProgress;
 use crate::app::context::AppContext;
-use crate::app::daemon::ipc;
+use crate::app::services::runtime_control;
 use crate::cli::DisconnectArgs;
 
 pub async fn run(context: &AppContext, args: &DisconnectArgs) -> crate::app::Result<()> {
-    let socket_path = ipc::default_socket_path(&context.runtime_paths.runtime_dir);
+    let control = runtime_control::daemon_control(context);
     let progress = CliProgress::spinner(!args.json, "disconnecting runtime");
-    let response = ipc::runtime_disconnect_daemon(&socket_path).await;
+    let result = control.disconnect().await;
     progress.finish_and_clear();
-    let result = match response {
-        Ok(response) => {
-            if !response.ok {
-                return Err(crate::app::AppError::InvalidArgument(response.message));
-            }
-            let payload = response.payload.ok_or_else(|| {
-                crate::app::AppError::InvalidArgument(
-                    "daemon disconnect response missing payload".to_string(),
-                )
-            })?;
-            crate::app::runtime_service::DisconnectResult {
-                stopped_session: payload.stopped_session,
-            }
-        }
-        Err(err) if ipc::daemon_unreachable(&err) => {
-            return Err(crate::app::AppError::InvalidArgument(format!(
-                "daemon is not running. Start it with `xrat daemon start` (socket: {})",
-                socket_path.display()
-            )));
-        }
-        Err(err) => return Err(err),
-    };
+    let stopped_session = result?;
 
     if args.json {
         println!(
             "{}",
             serde_json::to_string_pretty(&serde_json::json!({
-                "stopped_session": result.stopped_session,
-                "message": if result.stopped_session {
+                "stopped_session": stopped_session,
+                "message": if stopped_session {
                     "Disconnected active runtime session"
                 } else {
                     "No active runtime session"
@@ -47,7 +26,7 @@ pub async fn run(context: &AppContext, args: &DisconnectArgs) -> crate::app::Res
         return Ok(());
     }
 
-    if result.stopped_session {
+    if stopped_session {
         println!(
             "{}",
             output::success(
