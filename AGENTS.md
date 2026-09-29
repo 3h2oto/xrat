@@ -133,10 +133,11 @@ Releases are driven by `.github/workflows/release.yml` and run on pushed tags
 matching `v*`.
 
 - Before preparing a release commit, run `just fmt ci`.
-- Update the package version in `Cargo.toml`; the release workflow rejects tags
+- Update the workspace version in `[workspace.package]` in the root
+  `Cargo.toml`; every crate inherits it and the release workflow rejects tags
   whose version does not match the tag without the leading `v`.
-- Use an annotated or signed version tag such as `v0.3.0`, matching `Cargo.toml`
-  version `0.3.0`.
+- Use an annotated or signed version tag such as `v0.3.0`, matching the
+  workspace version `0.3.0`.
 - Do not edit released migrations. Add a new ordered migration for database
   changes that ship after a release.
 - Confirm release-facing assets still work when touched: `install.sh`,
@@ -144,8 +145,10 @@ matching `v*`.
   pages, completions, and user docs.
 - The release workflow builds Linux musl archives, bundles man pages,
   completions, and desktop assets, creates `SHASUMS256.txt`, publishes the
-  GitHub release, publishes Docker images to GHCR, and publishes the crate to
-  crates.io.
+  GitHub release, publishes Docker images to GHCR, and publishes the workspace
+  crates to crates.io in dependency order (`xrat-model`, `xrat-support`,
+  `xrat-config`, `xrat-engines`, `xrat-db`, `xrat-prober`, `xrat-app`,
+  `xrat-sdk`, then `xrat`), skipping versions that already exist.
 - Prepare or inspect release notes with `gh` when publishing or validating a
   release, keeping notes focused on user-visible changes, fixes, packaging
   changes, and upgrade notes.

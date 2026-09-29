@@ -59,6 +59,25 @@ The `Justfile` (`ci`, `test`, `lint`, `fmt-rust-check`) and
 `.github/workflows/ci.yml` use these commands. The test contract is preserved
 across crates: the same total test count passes as before the split.
 
+## Publishing
+
+All crates share one version, single-sourced from `[workspace.package]` in the
+root `Cargo.toml`, and internal dependencies are declared once in
+`[workspace.dependencies]` with both a `path` and a `version`, so publishing
+never fails on a missing version requirement.
+
+The release workflow publishes to crates.io in dependency order, skipping any
+version that already exists, so a partially completed release can be re-run:
+
+```text
+xrat-model -> xrat-support -> xrat-config -> xrat-engines -> xrat-db
+-> xrat-prober -> xrat-app -> xrat-sdk -> xrat
+```
+
+The service templates embedded by `xrat daemon install` live in
+`crates/xrat-app/templates/` (not the repository-root `packaging/`) so that
+`xrat-app` remains a self-contained, publishable package.
+
 ## Residual work
 
 - Split `xrat-app` into interface-neutral `xrat-engine` plus thin
