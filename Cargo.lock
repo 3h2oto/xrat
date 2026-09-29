@@ -5103,6 +5103,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "xrat-sdk"
+version = "0.20.0"
+dependencies = [
+ "xrat-app",
+ "xrat-config",
+ "xrat-model",
+ "xrat-prober",
+]
+
+[[package]]
 name = "xrat-support"
 version = "0.20.0"
 dependencies = [
