@@ -1,7 +1,7 @@
 use url::Url;
 
-use crate::config::ConfigParseError;
-use crate::model::{Node, Protocol};
+use crate::ConfigParseError;
+use xrat_model::{Node, Protocol};
 
 use super::super::parsing_helpers::{
     empty_to_none, parse_query_pairs, percent_decode, query_extensions, username_or_none,

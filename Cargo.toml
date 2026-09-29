@@ -70,8 +70,9 @@ if-addrs = "0.15.0"
 xrat-model = { path = "crates/xrat-model" }
 xrat-support = { path = "crates/xrat-support" }
 xrat-engines = { path = "crates/xrat-engines" }
+xrat-config = { path = "crates/xrat-config" }
 
 [workspace]
-members = ["crates/xrat-model", "crates/xrat-support", "crates/xrat-engines"]
+members = ["crates/xrat-model", "crates/xrat-support", "crates/xrat-engines", "crates/xrat-config"]
 resolver = "3"
 

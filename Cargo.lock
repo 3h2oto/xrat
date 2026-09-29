@@ -4968,10 +4968,28 @@ dependencies = [
  "unicode-width",
  "url",
  "uuid",
+ "xrat-config",
  "xrat-engines",
  "xrat-model",
  "xrat-support",
  "zip",
+]
+
+[[package]]
+name = "xrat-config"
+version = "0.20.0"
+dependencies = [
+ "base64",
+ "percent-encoding",
+ "reqwest",
+ "serde_json",
+ "thiserror 2.0.18",
+ "tracing",
+ "url",
+ "uuid",
+ "xrat-engines",
+ "xrat-model",
+ "xrat-support",
 ]
 
 [[package]]

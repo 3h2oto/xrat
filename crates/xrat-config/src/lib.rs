@@ -8,7 +8,7 @@ mod protocols;
 
 use std::collections::HashSet;
 
-use crate::model::Node;
+use xrat_model::Node;
 
 pub use error::ConfigParseError;
 pub use import::{ImportMode, ImportResult, SubscriptionMetadata, parse_import};

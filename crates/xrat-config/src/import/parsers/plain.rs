@@ -21,9 +21,9 @@ pub fn parse_plain_list(input: &str) -> Result<ImportResult, ImportParseError> {
             continue;
         }
 
-        match crate::config::line::parse_line(line) {
+        match crate::line::parse_line(line) {
             Some(mut node) => {
-                crate::config::normalize::normalize(&mut node);
+                crate::normalize::normalize(&mut node);
                 nodes.push(node);
             }
             None => errors.push((

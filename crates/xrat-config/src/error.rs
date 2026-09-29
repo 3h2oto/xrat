@@ -1,6 +1,6 @@
 use thiserror::Error;
 
-use crate::support::decode::DecodeError;
+use xrat_support::decode::DecodeError;
 
 #[derive(Debug, Error)]
 pub enum ConfigParseError {

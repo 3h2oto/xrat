@@ -1,8 +1,8 @@
 use thiserror::Error;
 
-use crate::config::ConfigParseError;
-use crate::support::decode::DecodeError;
-use crate::xray::parsing::XrayConfigError;
+use crate::ConfigParseError;
+use xrat_engines::xray::parsing::XrayConfigError;
+use xrat_support::decode::DecodeError;
 
 #[derive(Debug, Error)]
 pub enum ImportParseError {

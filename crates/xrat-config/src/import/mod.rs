@@ -4,7 +4,7 @@ mod parsers;
 #[allow(dead_code)]
 mod subscription;
 
-use crate::model::Node;
+use xrat_model::Node;
 
 pub use error::ImportParseError;
 

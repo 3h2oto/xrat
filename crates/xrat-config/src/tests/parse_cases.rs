@@ -1,6 +1,6 @@
 use super::super::{parse_link, parse_text};
-use crate::model::Protocol;
 use base64::Engine;
+use xrat_model::Protocol;
 
 #[test]
 fn parses_vless_like_python_reference() {

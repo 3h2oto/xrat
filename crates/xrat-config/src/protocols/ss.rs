@@ -1,8 +1,8 @@
 use url::Url;
 
-use crate::config::ConfigParseError;
-use crate::model::{Node, Protocol};
-use crate::support::decode::b64_decode_text;
+use crate::ConfigParseError;
+use xrat_model::{Node, Protocol};
+use xrat_support::decode::b64_decode_text;
 
 use super::super::parsing_helpers::{empty_to_none, percent_decode, query_extensions};
 

@@ -1,7 +1,7 @@
 use thiserror::Error;
 
 use super::{ImportParseError, ImportResult, SubscriptionMetadata};
-use crate::support::decode::DecodeError;
+use xrat_support::decode::DecodeError;
 
 #[derive(Debug, Error)]
 pub enum SubscriptionFetchError {
@@ -34,7 +34,7 @@ pub async fn fetch_subscription(url: &str) -> Result<ImportResult, SubscriptionF
     let body = response.text().await?;
     let body = body.trim_start_matches('\u{feff}');
 
-    let decoded = match crate::support::decode::b64_decode_text(body) {
+    let decoded = match xrat_support::decode::b64_decode_text(body) {
         Ok(decoded) => decoded,
         Err(_) => body.to_string(),
     };
@@ -57,7 +57,7 @@ fn normalize_subscription_url(url: &str) -> Result<String, DecodeError> {
 
     if url.starts_with("sub://") {
         let encoded = url.trim_start_matches("sub://");
-        let decoded = crate::support::decode::b64_decode_text(encoded)?;
+        let decoded = xrat_support::decode::b64_decode_text(encoded)?;
         return Ok(decoded);
     }
 

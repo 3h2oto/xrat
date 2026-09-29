@@ -1,7 +1,7 @@
 use thiserror::Error;
 
-use crate::config::{ConfigParseError, parse_link};
-use crate::model::{Node, Protocol};
+use crate::{ConfigParseError, parse_link};
+use xrat_model::{Node, Protocol};
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum EngineMode {

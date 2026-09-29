@@ -1,5 +1,5 @@
 use super::super::{ImportParseError, ImportResult};
-use crate::model::Node;
+use xrat_model::Node;
 
 pub fn parse_sip008_json(input: &str) -> Result<ImportResult, ImportParseError> {
     use serde_json::Value;
@@ -27,7 +27,7 @@ pub fn parse_sip008_json(input: &str) -> Result<ImportResult, ImportParseError> 
 }
 
 fn parse_sip008_server(server: &serde_json::Value) -> Result<Node, ImportParseError> {
-    use crate::model::Protocol;
+    use xrat_model::Protocol;
 
     let address = server
         .get("server")

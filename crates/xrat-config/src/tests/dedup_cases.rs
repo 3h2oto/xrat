@@ -1,5 +1,5 @@
 use super::super::parse_text;
-use crate::model::Protocol;
+use xrat_model::Protocol;
 
 #[test]
 fn keeps_nodes_with_different_runtime_settings() {

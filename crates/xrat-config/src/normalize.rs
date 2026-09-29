@@ -1,4 +1,4 @@
-use crate::model::Node;
+use xrat_model::Node;
 
 pub fn normalize(node: &mut Node) {
     if node.network.is_empty() {

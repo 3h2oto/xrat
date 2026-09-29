@@ -1,4 +1,4 @@
-use crate::model::Node;
+use xrat_model::Node;
 
 use super::protocols;
 
