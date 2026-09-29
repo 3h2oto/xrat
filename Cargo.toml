@@ -68,8 +68,10 @@ unicode-width = "0.2.2"
 zip = { version = "7.2.0", default-features = false, features = ["deflate"] }
 if-addrs = "0.15.0"
 xrat-model = { path = "crates/xrat-model" }
+xrat-support = { path = "crates/xrat-support" }
+xrat-engines = { path = "crates/xrat-engines" }
 
 [workspace]
-members = ["crates/xrat-model"]
+members = ["crates/xrat-model", "crates/xrat-support", "crates/xrat-engines"]
 resolver = "3"
 

@@ -5,6 +5,7 @@ pub mod context;
 pub mod daemon;
 mod error;
 pub mod events;
+mod geoip_backend;
 pub mod import;
 pub mod input;
 pub mod paths;

@@ -14,7 +14,7 @@ pub(crate) async fn run(context: &AppContext, args: &GeoIpLookupArgs) -> crate::
         })?;
     let config =
         override_backend_config(&context.app_config, args.backend.as_deref(), args.no_cache)?;
-    let lookup = crate::support::geoip::build_lookup_chain(&config, &context.runtime_paths)?;
+    let lookup = crate::app::geoip_backend::build_lookup_chain(&config, &context.runtime_paths)?;
 
     let result = LookupResult {
         input: args.ip.clone(),

@@ -15,7 +15,8 @@ pub async fn enrich_endpoint_locations(
         return;
     }
 
-    let Ok(lookup) = crate::support::geoip::build_lookup_chain(app_config, runtime_paths) else {
+    let Ok(lookup) = crate::app::geoip_backend::build_lookup_chain(app_config, runtime_paths)
+    else {
         return;
     };
 

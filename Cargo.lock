@@ -4968,8 +4968,33 @@ dependencies = [
  "unicode-width",
  "url",
  "uuid",
+ "xrat-engines",
  "xrat-model",
+ "xrat-support",
  "zip",
+]
+
+[[package]]
+name = "xrat-engines"
+version = "0.20.0"
+dependencies = [
+ "async-trait",
+ "base64",
+ "prost",
+ "reqwest",
+ "semver",
+ "serde",
+ "serde_json",
+ "tempfile",
+ "thiserror 2.0.18",
+ "tokio",
+ "tonic",
+ "tracing",
+ "url",
+ "uuid",
+ "xrat",
+ "xrat-model",
+ "xrat-support",
 ]
 
 [[package]]
@@ -4978,6 +5003,25 @@ version = "0.20.0"
 dependencies = [
  "serde",
  "serde_json",
+]
+
+[[package]]
+name = "xrat-support"
+version = "0.20.0"
+dependencies = [
+ "async-trait",
+ "axum 0.8.9",
+ "base64",
+ "if-addrs",
+ "maxminddb",
+ "reqwest",
+ "serde",
+ "serde_json",
+ "sysinfo",
+ "thiserror 2.0.18",
+ "tokio",
+ "url",
+ "uuid",
 ]
 
 [[package]]

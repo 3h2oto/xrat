@@ -1,6 +1,6 @@
 use super::*;
+use crate::app::geoip_backend::build_lookup_chain;
 use crate::app::paths::mmdb;
-use crate::support::geoip;
 
 pub(crate) fn resolve_test_settings(
     request: &TestRunRequest,
@@ -59,7 +59,7 @@ pub(crate) fn resolve_test_settings(
         &app_config.testing.geoip.asn_path,
         "GeoLite2-ASN.mmdb",
     );
-    let geoip_lookup = geoip::build_lookup_chain(app_config, runtime_paths)?;
+    let geoip_lookup = build_lookup_chain(app_config, runtime_paths)?;
     let xray_binary_path = resolve_engine_binary_path(app_config, runtime_paths);
     let probe_engine = if app_config.runtime.engine == "sing-box" {
         crate::prober::ProbeEngineKind::Singbox
