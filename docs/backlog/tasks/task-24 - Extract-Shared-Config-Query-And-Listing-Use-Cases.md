@@ -1,10 +1,10 @@
 ---
 id: TASK-24
 title: Extract Shared Config Query And Listing Use-Cases
-status: In Progress
+status: Done
 assignee: []
 created_date: '2026-07-05 14:43'
-updated_date: '2026-09-25 01:02'
+updated_date: '2026-09-29 10:26'
 labels:
   - legacy-import
   - improvement
@@ -74,16 +74,5 @@ tests before removing the duplicated adapter logic.
 ## Implementation Notes
 
 <!-- SECTION:NOTES:BEGIN -->
-P3 DONE (commit 3a4da59).
-
-- ConfigService gained list (filter+pagination+top), export_raw_configs, detail_model, resolve_id, subscriptions.
-- HTTP: server/routes/{configs,json,b64}.rs translate query -> ConfigListRequest; response.rs now maps read models (summary_from_summary, detail_from_model) instead of joined rows.
-- ServerState carries AppServices; added ServerState::for_test.
-- CLI list.rs uses context.services().configs for query + shared enrich_endpoint_locations; local filter/enrichment duplicates deleted.
-- TUI data/mod.rs::load uses ConfigService for configs + subscriptions.
-- AppContext::services() added as composition entry; AppServices::from_database for db-only hosts.
-
-Verification: 858 tests pass, clippy -D warnings clean.
-
-Note: list.rs still 698 lines (formatting-heavy); sizing handled by TASK-21 in P6.
+P3 DONE: ConfigService + ConfigListRequest/ConfigListResult unify config query/listing across CLI, HTTP, and TUI (src/app/services/configs).
 <!-- SECTION:NOTES:END -->

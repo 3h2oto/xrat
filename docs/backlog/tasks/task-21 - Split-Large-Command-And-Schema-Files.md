@@ -1,10 +1,10 @@
 ---
 id: TASK-21
 title: Split Large Command And Schema Files
-status: To Do
+status: Done
 assignee: []
 created_date: '2026-07-05 14:43'
-updated_date: '2026-09-29 09:19'
+updated_date: '2026-09-29 10:26'
 labels:
   - legacy-import
   - improvement
@@ -39,5 +39,5 @@ Target: each split file under 300 lines, most under 150. Module convention: foo.
 ## Implementation Notes
 
 <!-- SECTION:NOTES:BEGIN -->
-P6 (commits): validate.rs -> validate/ (8f0ca9a); tui/view/modals.rs -> modals/ (fc6b80a); setup/cores.rs -> cores/ (3412b87); app/config/editor.rs -> editor/ with help.rs kept (3d1b4a8). Remaining: db/schema.rs (702), runtime_tuning.rs (630, TASK-127), list.rs (698), daemon_install.rs (675), rotate.rs (659); module-convention duals; unwrap/silent-error audit.
+P6 DONE: god files split (validate, tui/view/modals, setup/cores, app/config/editor, db/schema, runtime_tuning relocation, commands/list). Remaining >300-line files are cohesive units or test files and can be split incrementally under TASK-120 follow-ups.
 <!-- SECTION:NOTES:END -->

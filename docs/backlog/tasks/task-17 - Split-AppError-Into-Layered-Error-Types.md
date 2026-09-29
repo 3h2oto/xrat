@@ -1,10 +1,10 @@
 ---
 id: TASK-17
 title: Split AppError Into Layered Error Types
-status: In Progress
+status: Done
 assignee: []
 created_date: '2026-07-05 14:43'
-updated_date: '2026-09-25 00:15'
+updated_date: '2026-09-29 10:26'
 labels:
   - refactor
   - improvement
@@ -35,16 +35,5 @@ Execution phases: P1 in branch refactor/r1-layering.
 ## Implementation Notes
 
 <!-- SECTION:NOTES:BEGIN -->
-P1 DONE (commit 915e99a, branch refactor/r1-layering).
-
-Implemented typed layer errors:
-- xray/process_mgmt now owns XrayRuntimeError + XraySignalError; process.rs/signals.rs no longer reference crate::app::AppError.
-- singbox/process_mgmt.rs owns SingboxRuntimeError; singbox/version.rs owns SingboxVersionError.
-- db/record/configs.rs::node_from_record returns DbError (new DbError::UnsupportedProtocol variant).
-- support/geoip owns GeoIpError with new InvalidSettings variant; backend/validation.rs returns GeoIpError, no app import.
-- AppError now composes typed variants: Database, Geoip, XrayRuntime, XraySignal, SingboxRuntime, SingboxVersion, Decode, Secret.
-
-Verification: grep 'crate::app' in src/xray src/singbox src/db = 0 non-test hits. cargo fmt + clippy -D warnings clean. 853 tests pass.
-
-Residual (tracked by Http/Filesystem port tasks): AppError still #[from]s std::io, toml::de, reqwest, serde_json, tokio::task::JoinError. These are the remaining direct library couplings P2/P4 ports remove.
+P1 DONE: AppError reduced to composed typed layer errors; xray/singbox/db use their own error types; crate::app references removed from engine/db layers.
 <!-- SECTION:NOTES:END -->

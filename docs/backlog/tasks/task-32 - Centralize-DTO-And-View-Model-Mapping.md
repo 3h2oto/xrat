@@ -1,10 +1,10 @@
 ---
 id: TASK-32
 title: Centralize DTO And View-Model Mapping
-status: In Progress
+status: Done
 assignee: []
 created_date: '2026-07-05 14:43'
-updated_date: '2026-09-25 01:02'
+updated_date: '2026-09-29 10:26'
 labels:
   - legacy-import
   - improvement
@@ -66,5 +66,5 @@ deleting existing DTOs, then migrate one adapter at a time.
 ## Implementation Notes
 
 <!-- SECTION:NOTES:BEGIN -->
-P3 progress: ApiConfigSummary/ApiConfigDetail now map from ConfigSummary/ConfigDetail read models; server no longer maps joined rows directly. ConfigDetail added to read models.
+P3 DONE: read models (ConfigSummary/ConfigDetail/LatestTestSummary/EndpointLocation) are the single source; server/response.rs maps ApiConfigSummary/ApiConfigDetail from them.
 <!-- SECTION:NOTES:END -->
