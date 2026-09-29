@@ -22,7 +22,7 @@ pub(super) use crate::singbox::{
 };
 pub(super) use crate::xray::config::{Inbound, enable_stats_api};
 pub(super) use crate::xray::{
-    generate_runtime_config_for_inbounds_with_options, process_mgmt as xray_runtime,
+    generate_runtime_config_for_inbounds_with_options, runtime_process as xray_runtime,
 };
 
 pub(super) use crate::support::time::now_string;

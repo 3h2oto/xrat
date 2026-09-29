@@ -93,9 +93,9 @@ pub(super) fn preflight_runtime(
         }
     }
     let output = command.stdin(Stdio::null()).output().map_err(|error| {
-        AppError::XrayRuntime(crate::xray::process_mgmt::XrayRuntimeError::Spawn(format!(
-            "native config validation failed to start: {error}"
-        )))
+        AppError::XrayRuntime(crate::xray::runtime_process::XrayRuntimeError::Spawn(
+            format!("native config validation failed to start: {error}"),
+        ))
     })?;
     if output.status.success() {
         return Ok(());

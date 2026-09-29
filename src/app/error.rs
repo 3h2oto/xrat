@@ -1,7 +1,7 @@
 use crate::app::config::SecretError;
 use crate::singbox::SingboxRuntimeError;
 use crate::support::geoip::GeoIpError;
-use crate::xray::process_mgmt::XrayRuntimeError;
+use crate::xray::runtime_process::XrayRuntimeError;
 
 /// Application-facing error.
 ///
@@ -41,7 +41,7 @@ pub enum AppError {
     XrayRuntime(#[from] XrayRuntimeError),
 
     #[error(transparent)]
-    XraySignal(#[from] crate::xray::process_mgmt::XraySignalError),
+    XraySignal(#[from] crate::xray::runtime_process::XraySignalError),
 
     #[error(transparent)]
     SingboxRuntime(#[from] SingboxRuntimeError),
