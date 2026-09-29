@@ -155,9 +155,11 @@ mod tests {
     #[tokio::test]
     async fn supplied_name_is_persisted_and_updates_existing_url() {
         let root = tempfile::tempdir().expect("temp directory should be created");
-        let database = Database::connect_sqlite(&root.path().join("db.sqlite"))
-            .await
-            .expect("database should connect");
+        let database = Database::connect(&crate::db::DatabaseConnectionConfig::Sqlite {
+            path: root.path().join("db.sqlite"),
+        })
+        .await
+        .expect("database should connect");
 
         for name in ["First", "Second"] {
             let (_, node) = load_single_node("vless://uuid-123@example.com:443#One")
@@ -183,9 +185,11 @@ mod tests {
     #[tokio::test]
     async fn omitted_name_preserves_existing_import_behavior() {
         let root = tempfile::tempdir().expect("temp directory should be created");
-        let database = Database::connect_sqlite(&root.path().join("db.sqlite"))
-            .await
-            .expect("database should connect");
+        let database = Database::connect(&crate::db::DatabaseConnectionConfig::Sqlite {
+            path: root.path().join("db.sqlite"),
+        })
+        .await
+        .expect("database should connect");
         let (_, node) =
             load_single_node("vless://uuid-123@example.com:443#One").expect("config should parse");
         let source = ImportSource {

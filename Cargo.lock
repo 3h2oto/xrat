@@ -4969,6 +4969,7 @@ dependencies = [
  "url",
  "uuid",
  "xrat-config",
+ "xrat-db",
  "xrat-engines",
  "xrat-model",
  "xrat-support",
@@ -4988,6 +4989,21 @@ dependencies = [
  "url",
  "uuid",
  "xrat-engines",
+ "xrat-model",
+ "xrat-support",
+]
+
+[[package]]
+name = "xrat-db"
+version = "0.20.0"
+dependencies = [
+ "serde_json",
+ "sqlx",
+ "thiserror 2.0.18",
+ "tokio",
+ "tracing",
+ "uuid",
+ "xrat-config",
  "xrat-model",
  "xrat-support",
 ]
