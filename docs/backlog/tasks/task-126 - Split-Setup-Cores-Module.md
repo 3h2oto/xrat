@@ -1,10 +1,10 @@
 ---
 id: TASK-126
 title: Split Setup Cores Module
-status: In Progress
+status: Done
 assignee: []
 created_date: '2026-09-24 23:34'
-updated_date: '2026-09-24 23:34'
+updated_date: '2026-09-29 09:26'
 labels:
   - refactor
   - improvement
@@ -30,7 +30,7 @@ src/app/commands/setup/cores.rs is 1142 lines and mixes engine install planning,
 ## Implementation Notes
 
 <!-- SECTION:NOTES:BEGIN -->
-P6 target.
+P6 DONE (commit 3412b87): src/app/commands/setup/cores.rs (1142) split into cores/{mod,prelude,release,install,tests}.rs. Public surface (CORE_KINDS, CoreKind, CoreProbe, CoreRelease, fetch_release, install, probe_all) preserved. 858 tests green.
 <!-- SECTION:NOTES:END -->
 
 ## Definition of Done

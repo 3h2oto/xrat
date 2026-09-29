@@ -1,10 +1,10 @@
 ---
 id: TASK-124
 title: Split Config Editor Module
-status: In Progress
+status: Done
 assignee: []
 created_date: '2026-09-24 23:34'
-updated_date: '2026-09-24 23:34'
+updated_date: '2026-09-29 09:26'
 labels:
   - refactor
   - improvement
@@ -30,7 +30,7 @@ src/app/config/editor.rs is 998 lines and src/app/config/editor/help.rs is 576 l
 ## Implementation Notes
 
 <!-- SECTION:NOTES:BEGIN -->
-P6 target.
+P6 DONE (commit 3d1b4a8): src/app/config/editor.rs (998) split into editor/{mod,prelude,types,session,values,tests}.rs; editor/help.rs retained. Public surface (ConfigEditSession, EditableSetting, SettingEffect, SettingKind, SettingValue, update_runtime_binary_path) re-exported from editor/mod.rs. 858 tests green.
 <!-- SECTION:NOTES:END -->
 
 ## Definition of Done

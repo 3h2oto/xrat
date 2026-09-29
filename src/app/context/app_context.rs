@@ -1,10 +1,7 @@
-mod paths;
-
+use super::paths::{self, RuntimePaths};
 use crate::app::config::AppConfig;
 use crate::cli;
 use crate::db::Database;
-
-pub use paths::{RuntimePaths, resolve_config_path};
 
 #[derive(Clone)]
 pub struct AppContext {
@@ -34,6 +31,3 @@ impl AppContext {
         crate::app::services::AppServices::from_context(self)
     }
 }
-
-#[cfg(test)]
-mod tests;

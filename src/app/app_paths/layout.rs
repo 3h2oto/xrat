@@ -53,7 +53,7 @@ pub fn ensure_config_file(config_path: &Path) -> crate::app::Result<()> {
     Ok(())
 }
 
-fn ensure_layout_at(root_dir: &Path) -> crate::app::Result<AppPaths> {
+pub(crate) fn ensure_layout_at(root_dir: &Path) -> crate::app::Result<AppPaths> {
     let paths = AppPaths::new(root_dir.to_path_buf());
     std::fs::create_dir_all(&paths.root_dir)?;
     ensure_config_file(&paths.config_path)?;
@@ -61,7 +61,7 @@ fn ensure_layout_at(root_dir: &Path) -> crate::app::Result<AppPaths> {
     Ok(paths)
 }
 
-fn resolve_root_dir_from(
+pub(crate) fn resolve_root_dir_from(
     xrat_path: Option<PathBuf>,
     home_dir: Option<PathBuf>,
 ) -> crate::app::Result<PathBuf> {
@@ -72,6 +72,3 @@ fn resolve_root_dir_from(
     let home_dir = home_dir.ok_or(AppError::MissingHomeDirectory)?;
     Ok(home_dir.join(".config").join(APP_DIR_NAME))
 }
-
-#[cfg(test)]
-mod tests;

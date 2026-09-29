@@ -1,4 +1,4 @@
-use super::{AppPaths, ensure_config_file, ensure_layout_at, resolve_root_dir_from};
+use super::layout::{AppPaths, ensure_config_file, ensure_layout_at, resolve_root_dir_from};
 
 #[test]
 fn uses_xrat_path_when_present() {
