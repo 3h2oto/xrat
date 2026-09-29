@@ -1,11 +1,8 @@
-pub mod app;
-pub mod cli;
+pub use xrat_app::{app, cli, server, tui};
 pub mod config;
 pub mod db;
 pub mod model;
 pub mod prober;
-pub mod server;
 pub mod singbox;
 pub mod support;
-pub mod tui;
 pub mod xray;

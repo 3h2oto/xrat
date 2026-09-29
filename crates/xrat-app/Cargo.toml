@@ -1,23 +1,17 @@
 [package]
-name = "xrat"
+name = "xrat-app"
 version = "0.20.0"
 edition = "2024"
-description = "A fast, polished CLI and TUI proxy manager for Xray-core and sing-box"
 license = "MIT"
-repository = "https://github.com/mhyrzt/xrat"
-homepage = "https://mhyrzt.github.io/xrat/"
-documentation = "https://mhyrzt.github.io/xrat/"
-readme = "README.md"
-keywords = ["xray", "sing-box", "ratatui", "tunnel", "cli"]
-categories = ["command-line-utilities", "network-programming"]
-exclude = ["testdata/", "docs/", "packaging/desktop/"]
-
-[package.metadata.binstall]
-pkg-url = "{ repo }/releases/download/v{ version }/{ name }-v{ version }-{ target }{ archive-suffix }"
-pkg-fmt = "tgz"
-bin-dir = "{ bin }"
+description = "Application, CLI, TUI, and HTTP layers for xrat"
 
 [dependencies]
+xrat-config = { path = "../xrat-config" }
+xrat-db = { path = "../xrat-db" }
+xrat-engines = { path = "../xrat-engines" }
+xrat-model = { path = "../xrat-model" }
+xrat-prober = { path = "../xrat-prober" }
+xrat-support = { path = "../xrat-support" }
 async-trait = "0.1.89"
 axum = "0.8.9"
 base64 = "0.22.1"
@@ -67,15 +61,3 @@ arboard = "3.6.1"
 unicode-width = "0.2.2"
 zip = { version = "7.2.0", default-features = false, features = ["deflate"] }
 if-addrs = "0.15.0"
-xrat-model = { path = "crates/xrat-model" }
-xrat-support = { path = "crates/xrat-support" }
-xrat-engines = { path = "crates/xrat-engines" }
-xrat-config = { path = "crates/xrat-config" }
-xrat-db = { path = "crates/xrat-db" }
-xrat-prober = { path = "crates/xrat-prober" }
-xrat-app = { path = "crates/xrat-app" }
-
-[workspace]
-members = ["crates/xrat-model", "crates/xrat-support", "crates/xrat-engines", "crates/xrat-config", "crates/xrat-db", "crates/xrat-prober", "crates/xrat-app"]
-resolver = "3"
-
