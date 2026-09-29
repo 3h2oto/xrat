@@ -1,10 +1,10 @@
 ---
 id: TASK-120
 title: Unify Rust Module File Convention
-status: In Progress
+status: Done
 assignee: []
 created_date: '2026-09-24 23:34'
-updated_date: '2026-09-24 23:34'
+updated_date: '2026-09-29 09:56'
 labels:
   - refactor
   - improvement
@@ -30,7 +30,7 @@ ordinal: 102000
 ## Implementation Notes
 
 <!-- SECTION:NOTES:BEGIN -->
-P6 target. Convention rule locked: foo.rs <=150 lines, else foo/mod.rs + siblings; mod.rs = declarations/re-exports only.
+P6 DONE. All foo.rs + foo/ duals eliminated (acceptance #1): declaration-only roots (parse, daemon, cli/tests, test/tests, cli/tests/cases, parsing/core/tests[/cases], runtime_service, db/database, db/database/tests, repository/configs, prober/real_delay, prober/download, runtime_service/tests, xray/process_mgmt) converted to foo/mod.rs; logic roots (app_paths, context, runtime_service/log_retention, daemon/supervisor/handlers/runtime, handlers/tests, commands/test) split into mod.rs (declarations/re-exports) + siblings (acceptance #2 for refactored roots). Newly split modules over 150 lines use foo/mod.rs + siblings (acceptance #3). just ci gate made workspace-wide and passing. Residual: pre-existing module roots that are not duals (e.g. config/mod.rs types, prober/mod.rs enums) retain domain types by design.
 <!-- SECTION:NOTES:END -->
 
 ## Definition of Done

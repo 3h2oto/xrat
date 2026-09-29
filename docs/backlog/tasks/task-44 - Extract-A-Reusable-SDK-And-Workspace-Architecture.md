@@ -1,9 +1,10 @@
 ---
 id: TASK-44
 title: Extract A Reusable SDK And Workspace Architecture
-status: To Do
+status: In Progress
 assignee: []
 created_date: '2026-07-05 14:44'
+updated_date: '2026-09-29 09:56'
 labels:
   - legacy-import
   - improvement
@@ -180,3 +181,9 @@ only parsing/config-generation/probing reuse is needed first, extract
 `xrat-model`, `xrat-config`, and `xrat-prober` before moving the stateful engine
 and adapter crates.
 <!-- SECTION:DESCRIPTION:END -->
+
+## Implementation Notes
+
+<!-- SECTION:NOTES:BEGIN -->
+P7 (timeboxed, partial). DONE: root Cargo.toml now declares [workspace] (resolver 3) with crates/xrat-model extracted (Node/Protocol/NodeDedupKey); src/model.rs is a re-export shim; CI and Justfile updated to fmt/clippy/test --workspace so all members are gated. Full 858-test contract preserved (848 root + 10 model). BLOCKED for further extraction by real dependency cycles documented in docs/src/06-architecture/workspace.md: support->app (geoip::backend uses AppConfig/RuntimePaths/mmdb), config<->xray (import parses xray::parsing; xray tests use config::parse_link), prober->app, app<->cli/tui/server. Unblocking steps recorded in the doc (move geoip backend up, add non-CLI AppContext ctor, move xray::parsing below engines, then extract support/engines/config/db/prober/engine/sdk). Per task guidance, did not force a broken split.
+<!-- SECTION:NOTES:END -->

@@ -53,6 +53,7 @@
   - [Error Codes](05-reference/error-codes.md)
 - [Architecture](06-architecture/README.md)
   - [Module Structure](06-architecture/module-structure.md)
+  - [Cargo Workspace](06-architecture/workspace.md)
   - [Config Generation](06-architecture/config-generation.md)
   - [sing-box Compatibility](06-architecture/singbox-compatibility.md)
   - [Import Pipeline](06-architecture/import-pipeline.md)
