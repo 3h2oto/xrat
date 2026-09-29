@@ -4,7 +4,7 @@ title: Split Large Command And Schema Files
 status: To Do
 assignee: []
 created_date: '2026-07-05 14:43'
-updated_date: '2026-09-29 09:02'
+updated_date: '2026-09-29 09:19'
 labels:
   - legacy-import
   - improvement
@@ -39,5 +39,5 @@ Target: each split file under 300 lines, most under 150. Module convention: foo.
 ## Implementation Notes
 
 <!-- SECTION:NOTES:BEGIN -->
-P6 progress: validate.rs (1492) split into src/app/commands/validate/ (diagnostic, entry, semantics, toml_structure, prelude, tests) at commit 8f0ca9a. modals.rs (1506) split into src/tui/view/modals/ at commit fc6b80a. Remaining: setup/cores.rs (1142), app/config/editor.rs (998)+help.rs (576), db/schema.rs (702), runtime_tuning.rs (630, see TASK-127), list.rs (698), daemon_install.rs (675), rotate.rs (659).
+P6 (commits): validate.rs -> validate/ (8f0ca9a); tui/view/modals.rs -> modals/ (fc6b80a); setup/cores.rs -> cores/ (3412b87); app/config/editor.rs -> editor/ with help.rs kept (3d1b4a8). Remaining: db/schema.rs (702), runtime_tuning.rs (630, TASK-127), list.rs (698), daemon_install.rs (675), rotate.rs (659); module-convention duals; unwrap/silent-error audit.
 <!-- SECTION:NOTES:END -->
