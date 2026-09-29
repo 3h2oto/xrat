@@ -1,10 +1,10 @@
 ---
 id: TASK-121
 title: Split TUI Modals View Module
-status: In Progress
+status: Done
 assignee: []
 created_date: '2026-09-24 23:34'
-updated_date: '2026-09-24 23:34'
+updated_date: '2026-09-29 09:02'
 labels:
   - refactor
   - improvement
@@ -30,7 +30,7 @@ src/tui/view/modals.rs is 1506 lines and mixes every modal renderer (import, del
 ## Implementation Notes
 
 <!-- SECTION:NOTES:BEGIN -->
-P6 target.
+P6 DONE (commit fc6b80a). src/tui/view/modals.rs (1506) replaced by src/tui/view/modals/ with mod.rs (11 lines, declarations/re-exports only), prelude.rs, help.rs (242), settings.rs (550), dialogs.rs (244), tests.rs (463). All modal tests moved and pass. 858 tests green, clippy -D warnings clean.
 <!-- SECTION:NOTES:END -->
 
 ## Definition of Done
