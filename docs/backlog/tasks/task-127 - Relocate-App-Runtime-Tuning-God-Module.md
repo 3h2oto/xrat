@@ -1,10 +1,10 @@
 ---
 id: TASK-127
 title: Relocate App Runtime Tuning God Module
-status: In Progress
+status: Done
 assignee: []
 created_date: '2026-09-24 23:34'
-updated_date: '2026-09-24 23:34'
+updated_date: '2026-09-29 09:26'
 labels:
   - refactor
   - improvement
@@ -30,7 +30,7 @@ src/app/runtime_tuning.rs is 630 lines at the application root and bridges both 
 ## Implementation Notes
 
 <!-- SECTION:NOTES:BEGIN -->
-P6 target.
+P6 DONE (commit 5f8c7e6): src/app/runtime_tuning.rs (630) relocated to src/app/services/runtime_tuning/ (mod, prelude, xray, singbox, network, tests). Callers updated to crate::app::services::runtime_tuning. 858 tests green, clippy clean.
 <!-- SECTION:NOTES:END -->
 
 ## Definition of Done
