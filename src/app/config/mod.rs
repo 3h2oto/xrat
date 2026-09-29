@@ -3,7 +3,7 @@ use std::path::{Path, PathBuf};
 use serde::Deserialize;
 
 mod database;
-pub(crate) mod defaults;
+pub mod defaults;
 mod dns;
 mod editor;
 mod geo;

@@ -1,10 +1,10 @@
 use super::*;
-use crate::model::Node;
-use crate::model::Protocol;
-use crate::prober::FailureKind;
-use crate::prober::download::check::calculate_mbps;
+use crate::FailureKind;
+use crate::download::check::calculate_mbps;
 use std::path::Path;
 use std::time::Duration;
+use xrat_model::Node;
+use xrat_model::Protocol;
 
 #[test]
 fn calculates_download_mbps() {
@@ -34,12 +34,12 @@ async fn download_speed_check_rejects_invalid_config() {
 
     let result = download_speed_check(
         &node,
-        crate::app::config::defaults::DEFAULT_DOWNLOAD_TEST_URL,
-        crate::prober::ProbeEngineKind::Xray,
+        xrat::app::config::defaults::DEFAULT_DOWNLOAD_TEST_URL,
+        crate::ProbeEngineKind::Xray,
         Path::new("xray"),
         Duration::from_secs(5),
         Duration::from_secs(10),
-        &crate::xray::XrayGenOptions::default(),
+        &xrat_engines::xray::XrayGenOptions::default(),
     )
     .await;
 

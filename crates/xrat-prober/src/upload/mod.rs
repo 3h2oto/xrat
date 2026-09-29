@@ -1,9 +1,9 @@
 use std::path::Path;
 use std::time::Duration;
 
-use crate::model::Node;
-use crate::prober::probe::{ProbeEngineKind, ProbeProcess};
-use crate::xray::XrayGenOptions;
+use crate::probe::{ProbeEngineKind, ProbeProcess};
+use xrat_engines::xray::XrayGenOptions;
+use xrat_model::Node;
 
 use super::FailureKind;
 

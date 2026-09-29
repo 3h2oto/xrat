@@ -1,10 +1,10 @@
 use reqwest::Proxy;
 use std::time::{Duration, Instant};
 
-use crate::prober::FailureKind;
+use crate::FailureKind;
 
 use super::result::DownloadResult;
-use crate::prober::download::errors::classify_request_error;
+use crate::download::errors::classify_request_error;
 
 pub(super) async fn find_available_port() -> Result<u16, std::io::Error> {
     use tokio::net::TcpListener;

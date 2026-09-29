@@ -1,12 +1,8 @@
 use super::*;
-use crate::model::Node;
-use crate::model::Protocol;
-use crate::prober::FailureKind;
-use crate::prober::real_delay::AcceptedHttpStatuses;
-use crate::prober::real_delay::check::find_available_port;
-use crate::prober::real_delay::check::request::{
-    make_proxied_request, make_request, redirect_policy,
-};
+use crate::FailureKind;
+use crate::real_delay::AcceptedHttpStatuses;
+use crate::real_delay::check::find_available_port;
+use crate::real_delay::check::request::{make_proxied_request, make_request, redirect_policy};
 use axum::Router;
 use axum::http::StatusCode;
 use axum::response::Redirect;
@@ -14,6 +10,8 @@ use axum::routing::get;
 use reqwest::Client;
 use std::path::Path;
 use std::time::Duration;
+use xrat_model::Node;
+use xrat_model::Protocol;
 
 async fn spawn_http_server() -> (String, tokio::task::JoinHandle<()>) {
     let app = Router::new()
@@ -72,12 +70,12 @@ async fn test_real_delay_check_invalid_config() {
 
     let result = real_delay_check(
         &node,
-        crate::app::config::defaults::DEFAULT_REAL_DELAY_TEST_URL,
-        crate::prober::ProbeEngineKind::Xray,
+        xrat::app::config::defaults::DEFAULT_REAL_DELAY_TEST_URL,
+        crate::ProbeEngineKind::Xray,
         Path::new("xray"),
         Duration::from_secs(5),
         Duration::from_secs(10),
-        &crate::xray::XrayGenOptions::default(),
+        &xrat_engines::xray::XrayGenOptions::default(),
         &AcceptedHttpStatuses::default(),
         true,
     )

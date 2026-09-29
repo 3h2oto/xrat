@@ -1,5 +1,5 @@
-use crate::prober::FailureKind;
-use crate::prober::real_delay::check::request::MAX_REDIRECTS;
+use crate::FailureKind;
+use crate::real_delay::check::request::MAX_REDIRECTS;
 
 pub(super) fn classify_request_error(error: &reqwest::Error) -> (FailureKind, String) {
     if error.is_timeout() {

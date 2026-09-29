@@ -4972,6 +4972,7 @@ dependencies = [
  "xrat-db",
  "xrat-engines",
  "xrat-model",
+ "xrat-prober",
  "xrat-support",
  "zip",
 ]
@@ -5037,6 +5038,18 @@ version = "0.20.0"
 dependencies = [
  "serde",
  "serde_json",
+]
+
+[[package]]
+name = "xrat-prober"
+version = "0.20.0"
+dependencies = [
+ "axum 0.8.9",
+ "reqwest",
+ "tokio",
+ "xrat",
+ "xrat-engines",
+ "xrat-model",
 ]
 
 [[package]]

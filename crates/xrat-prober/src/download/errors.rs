@@ -1,4 +1,4 @@
-use crate::prober::FailureKind;
+use crate::FailureKind;
 
 pub(super) fn classify_request_error(error: &reqwest::Error) -> (FailureKind, String) {
     if error.is_timeout() {

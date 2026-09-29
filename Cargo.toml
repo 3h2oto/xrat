@@ -72,8 +72,9 @@ xrat-support = { path = "crates/xrat-support" }
 xrat-engines = { path = "crates/xrat-engines" }
 xrat-config = { path = "crates/xrat-config" }
 xrat-db = { path = "crates/xrat-db" }
+xrat-prober = { path = "crates/xrat-prober" }
 
 [workspace]
-members = ["crates/xrat-model", "crates/xrat-support", "crates/xrat-engines", "crates/xrat-config", "crates/xrat-db"]
+members = ["crates/xrat-model", "crates/xrat-support", "crates/xrat-engines", "crates/xrat-config", "crates/xrat-db", "crates/xrat-prober"]
 resolver = "3"
 

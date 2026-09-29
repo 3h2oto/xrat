@@ -1,11 +1,13 @@
 use std::path::Path;
 use std::time::Duration;
 
-use crate::model::Node;
-use crate::singbox::{SingboxProbeError, SingboxProbeProcess, generate_singbox_probe_config};
-use crate::xray::{
+use xrat_engines::singbox::{
+    SingboxProbeError, SingboxProbeProcess, generate_singbox_probe_config,
+};
+use xrat_engines::xray::{
     XrayGenOptions, XrayProcess, XrayProcessError, generate_probe_config_with_options,
 };
+use xrat_model::Node;
 
 use super::FailureKind;
 
@@ -124,8 +126,8 @@ fn classify_singbox(error: &SingboxProbeError) -> (FailureKind, String) {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::model::Protocol;
     use std::path::Path;
+    use xrat_model::Protocol;
 
     fn node(protocol: Protocol) -> Node {
         Node {

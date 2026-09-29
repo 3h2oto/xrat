@@ -4,8 +4,8 @@ use std::time::{Duration, Instant};
 
 use super::super::errors::classify_request_error;
 use super::model::RealDelayResult;
-use crate::prober::FailureKind;
-use crate::prober::real_delay::AcceptedHttpStatuses;
+use crate::FailureKind;
+use crate::real_delay::AcceptedHttpStatuses;
 
 pub(crate) const MAX_REDIRECTS: usize = 10;
 
@@ -34,7 +34,7 @@ pub(crate) async fn make_proxied_request(
     .await
 }
 
-pub(crate) async fn make_proxied_request_via(
+pub async fn make_proxied_request_via(
     proxy_url: &str,
     test_url: &str,
     timeout_duration: Duration,

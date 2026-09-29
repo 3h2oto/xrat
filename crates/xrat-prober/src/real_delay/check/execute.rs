@@ -4,11 +4,11 @@ use std::time::Duration;
 use super::model::RealDelayResult;
 use super::port::find_available_port;
 use super::request::make_proxied_request;
-use crate::model::Node;
-use crate::prober::FailureKind;
-use crate::prober::probe::{ProbeEngineKind, ProbeProcess};
-use crate::prober::real_delay::AcceptedHttpStatuses;
-use crate::xray::XrayGenOptions;
+use crate::FailureKind;
+use crate::probe::{ProbeEngineKind, ProbeProcess};
+use crate::real_delay::AcceptedHttpStatuses;
+use xrat_engines::xray::XrayGenOptions;
+use xrat_model::Node;
 
 #[allow(clippy::too_many_arguments)]
 pub async fn real_delay_check(

@@ -1,4 +1,4 @@
-use crate::prober::FailureKind;
+use crate::FailureKind;
 
 #[derive(Debug, Clone)]
 pub struct RealDelayResult {
