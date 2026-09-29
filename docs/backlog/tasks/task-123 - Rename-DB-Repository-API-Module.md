@@ -1,10 +1,10 @@
 ---
 id: TASK-123
 title: Rename DB Repository API Module
-status: In Progress
+status: Done
 assignee: []
 created_date: '2026-09-24 23:34'
-updated_date: '2026-09-24 23:34'
+updated_date: '2026-09-29 09:41'
 labels:
   - refactor
   - improvement
@@ -29,7 +29,7 @@ src/db/repository/api/ holds persistence primitives but is named like the HTTP A
 ## Implementation Notes
 
 <!-- SECTION:NOTES:BEGIN -->
-P6 target.
+P6 DONE: src/db/repository/api renamed to src/db/repository/primitives; repository/mod.rs updated. 858 tests green, clippy clean.
 <!-- SECTION:NOTES:END -->
 
 ## Definition of Done

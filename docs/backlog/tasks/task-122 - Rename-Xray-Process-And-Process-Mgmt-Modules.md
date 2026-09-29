@@ -1,10 +1,10 @@
 ---
 id: TASK-122
 title: Rename Xray Process And Process-Mgmt Modules
-status: In Progress
+status: Done
 assignee: []
 created_date: '2026-09-24 23:34'
-updated_date: '2026-09-24 23:34'
+updated_date: '2026-09-29 09:41'
 labels:
   - refactor
   - improvement
@@ -29,7 +29,7 @@ src/xray/process/ and src/xray/process_mgmt/ (plus src/xray/process_mgmt.rs) ove
 ## Implementation Notes
 
 <!-- SECTION:NOTES:BEGIN -->
-P6 target.
+P6 DONE: src/xray/process -> src/xray/probe_process; src/xray/process_mgmt -> src/xray/runtime_process. xray/mod.rs and all crate::xray::process_mgmt callers updated (app/error.rs, runtime_service, supervisor tests). singbox::process_mgmt intentionally unchanged. 858 tests green, clippy clean.
 <!-- SECTION:NOTES:END -->
 
 ## Definition of Done
