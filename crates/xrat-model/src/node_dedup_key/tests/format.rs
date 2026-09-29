@@ -1,5 +1,5 @@
 use super::super::NodeDedupKey;
-use crate::model::Protocol;
+use crate::Protocol;
 
 #[test]
 fn formats_as_versioned_length_prefixed_key() {

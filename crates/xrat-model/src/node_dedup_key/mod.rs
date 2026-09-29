@@ -1,7 +1,7 @@
 use std::collections::BTreeMap;
 use std::fmt;
 
-use crate::model::Protocol;
+use crate::Protocol;
 
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct NodeDedupKey {

@@ -1,5 +1,5 @@
 use super::super::NodeDedupKey;
-use crate::model::Protocol;
+use crate::Protocol;
 
 #[test]
 fn covers_all_protocol_variants() {

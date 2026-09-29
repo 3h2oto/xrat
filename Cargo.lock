@@ -4968,7 +4968,16 @@ dependencies = [
  "unicode-width",
  "url",
  "uuid",
+ "xrat-model",
  "zip",
+]
+
+[[package]]
+name = "xrat-model"
+version = "0.20.0"
+dependencies = [
+ "serde",
+ "serde_json",
 ]
 
 [[package]]

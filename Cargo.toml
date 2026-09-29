@@ -67,3 +67,9 @@ arboard = "3.6.1"
 unicode-width = "0.2.2"
 zip = { version = "7.2.0", default-features = false, features = ["deflate"] }
 if-addrs = "0.15.0"
+xrat-model = { path = "crates/xrat-model" }
+
+[workspace]
+members = ["crates/xrat-model"]
+resolver = "3"
+
