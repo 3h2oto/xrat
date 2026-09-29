@@ -1,74 +1,7 @@
-use crate::app::commands::output::{self, Align, Cell, Column, Style};
-use crate::app::commands::resolve::resolve_subscription_id;
-use crate::app::context::AppContext;
-use crate::cli::{ListArgs, ListConfigsArgs, ListFormat, ListSubscriptionsArgs, ListTarget};
-use crate::db::{ConfigRecord, ConfigWithLatestTest, SubscriptionRecord};
-use crate::support::refs::short_ref;
-use std::collections::HashMap;
+use super::prelude::*;
+use crate::app::commands::output;
 
-pub async fn run(context: &AppContext, command: &ListArgs) -> crate::app::Result<()> {
-    match &command.target {
-        ListTarget::Configs(filters) => print_configs(context, filters).await?,
-        ListTarget::Subscriptions(filters) => print_subscriptions(context, filters).await?,
-    }
-
-    Ok(())
-}
-
-async fn print_configs(context: &AppContext, filters: &ListConfigsArgs) -> crate::app::Result<()> {
-    let services = context.services();
-    let request = build_config_list_request(context, filters).await?;
-    let mut configs = services.configs.list(&request).await?.items;
-    crate::app::services::enrich_endpoint_locations(
-        &context.app_config,
-        &context.runtime_paths,
-        &mut configs,
-    )
-    .await;
-    let subscriptions = services.configs.subscriptions().await?;
-    let subscription_refs = subscriptions
-        .iter()
-        .map(|subscription| (subscription.id, subscription.r#ref.as_str()))
-        .collect::<HashMap<_, _>>();
-
-    if configs.is_empty() {
-        println!("{}", output::empty_message("No configs matched."));
-        return Ok(());
-    }
-
-    println!(
-        "{}",
-        format_configs(
-            &configs,
-            &subscription_refs,
-            filters.format,
-            Some(&context.app_config.testing),
-        )?
-    );
-
-    Ok(())
-}
-
-async fn print_subscriptions(
-    context: &AppContext,
-    filters: &ListSubscriptionsArgs,
-) -> crate::app::Result<()> {
-    let mut subscriptions = context.services().configs.subscriptions().await?;
-    if let Some(kind) = &filters.kind {
-        subscriptions.retain(|subscription| subscription.source_kind == kind.as_str());
-    }
-
-    if subscriptions.is_empty() {
-        println!("{}", output::empty_message("No subscriptions matched."));
-        return Ok(());
-    }
-
-    println!("{}", format_subscriptions(&subscriptions, filters.format)?);
-
-    Ok(())
-}
-
-fn format_configs(
+pub(crate) fn format_configs(
     configs: &[ConfigWithLatestTest],
     subscription_refs: &HashMap<i64, &str>,
     format: ListFormat,
@@ -86,7 +19,7 @@ fn format_configs(
     }
 }
 
-fn format_config_table(
+pub(crate) fn format_config_table(
     configs: &[ConfigWithLatestTest],
     subscription_refs: &HashMap<i64, &str>,
     settings: Option<&crate::app::config::TestingSettings>,
@@ -153,7 +86,7 @@ fn format_config_table(
     output::format_table(&columns, &rows, output::color_enabled())
 }
 
-fn format_config_tsv(
+pub(crate) fn format_config_tsv(
     configs: &[ConfigWithLatestTest],
     subscription_refs: &HashMap<i64, &str>,
 ) -> String {
@@ -184,90 +117,7 @@ fn format_config_tsv(
     lines.join("\n")
 }
 
-fn format_subscriptions(
-    subscriptions: &[SubscriptionRecord],
-    format: ListFormat,
-) -> crate::app::Result<String> {
-    match format {
-        ListFormat::Table => Ok(format_subscription_table(subscriptions)),
-        ListFormat::Tsv => Ok(format_subscription_tsv(subscriptions)),
-        ListFormat::Json => Ok(serde_json::to_string_pretty(
-            &subscriptions
-                .iter()
-                .map(subscription_json)
-                .collect::<Vec<_>>(),
-        )?),
-    }
-}
-
-fn format_subscription_table(subscriptions: &[SubscriptionRecord]) -> String {
-    let columns = [
-        Column {
-            header: "REF",
-            align: Align::Left,
-        },
-        Column {
-            header: "KIND",
-            align: Align::Left,
-        },
-        Column {
-            header: "CONFIGS",
-            align: Align::Right,
-        },
-        Column {
-            header: "NAME",
-            align: Align::Left,
-        },
-        Column {
-            header: "SOURCE",
-            align: Align::Left,
-        },
-        Column {
-            header: "UPDATED AT",
-            align: Align::Left,
-        },
-    ];
-    let rows = subscriptions
-        .iter()
-        .map(|subscription| {
-            vec![
-                Cell::plain(short_ref(&subscription.r#ref).to_string()),
-                Cell::plain(subscription.source_kind.clone()),
-                Cell::plain(subscription.config_count.to_string()),
-                Cell::plain(output::truncate(
-                    subscription.name.as_deref().unwrap_or("-"),
-                    24,
-                )),
-                Cell::plain(output::truncate(
-                    subscription.source_url.as_deref().unwrap_or("-"),
-                    56,
-                )),
-                Cell::plain(subscription.updated_at.clone()),
-            ]
-        })
-        .collect::<Vec<_>>();
-
-    output::format_table(&columns, &rows, output::color_enabled())
-}
-
-fn format_subscription_tsv(subscriptions: &[SubscriptionRecord]) -> String {
-    let mut lines = Vec::with_capacity(subscriptions.len() + 1);
-    lines.push("ref\tkind\tconfig_count\tname\tsource\tupdated_at".to_string());
-    for subscription in subscriptions {
-        lines.push(format!(
-            "{}\t{}\t{}\t{}\t{}\t{}",
-            subscription.r#ref,
-            subscription.source_kind,
-            subscription.config_count,
-            tsv_cell(subscription.name.as_deref()),
-            tsv_cell(subscription.source_url.as_deref()),
-            subscription.updated_at,
-        ));
-    }
-    lines.join("\n")
-}
-
-fn format_config_flags(is_enabled: bool, is_active: bool, is_deleted: bool) -> String {
+pub(crate) fn format_config_flags(is_enabled: bool, is_active: bool, is_deleted: bool) -> String {
     let mut flags = Vec::new();
 
     if is_deleted {
@@ -285,7 +135,7 @@ fn format_config_flags(is_enabled: bool, is_active: bool, is_deleted: bool) -> S
     flags.join(",")
 }
 
-fn config_style(config: &ConfigRecord) -> Style {
+pub(crate) fn config_style(config: &ConfigRecord) -> Style {
     if config.is_deleted {
         Style::Red
     } else if config.is_active {
@@ -297,7 +147,7 @@ fn config_style(config: &ConfigRecord) -> Style {
     }
 }
 
-fn config_json(
+pub(crate) fn config_json(
     row: &ConfigWithLatestTest,
     subscription_refs: &HashMap<i64, &str>,
 ) -> serde_json::Value {
@@ -357,36 +207,36 @@ pub(crate) fn subscription_json(subscription: &SubscriptionRecord) -> serde_json
     })
 }
 
-fn tsv_cell(value: Option<&str>) -> String {
+pub(crate) fn tsv_cell(value: Option<&str>) -> String {
     value.unwrap_or_default().replace(['\t', '\r', '\n'], " ")
 }
 
-fn optional_i64(value: Option<i64>) -> String {
+pub(crate) fn optional_i64(value: Option<i64>) -> String {
     value.map(|value| value.to_string()).unwrap_or_default()
 }
 
-fn optional_f64(value: Option<f64>) -> String {
+pub(crate) fn optional_f64(value: Option<f64>) -> String {
     value.map(|value| format!("{value:.2}")).unwrap_or_default()
 }
 
-fn ms_label(value: Option<i64>) -> String {
+pub(crate) fn ms_label(value: Option<i64>) -> String {
     value
         .map(|value| format!("{value}ms"))
         .unwrap_or_else(|| "-".to_string())
 }
 
-fn mbps_label(value: Option<f64>) -> String {
+pub(crate) fn mbps_label(value: Option<f64>) -> String {
     value
         .map(|value| format!("{value:.1}"))
         .unwrap_or_else(|| "-".to_string())
 }
 
-fn location_cell(value: Option<&str>, max_width: usize) -> String {
+pub(crate) fn location_cell(value: Option<&str>, max_width: usize) -> String {
     output::truncate(value.unwrap_or("-"), max_width)
 }
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
-struct MetricColumns {
+pub(crate) struct MetricColumns {
     icmp: bool,
     tcp: bool,
     real_delay: bool,
@@ -519,7 +369,7 @@ impl MetricColumns {
     }
 }
 
-fn subscription_ref_cell(
+pub(crate) fn subscription_ref_cell(
     subscription_id: Option<i64>,
     subscription_refs: &HashMap<i64, &str>,
 ) -> String {
@@ -530,7 +380,7 @@ fn subscription_ref_cell(
         .to_string()
 }
 
-fn subscription_ref_tsv_cell(
+pub(crate) fn subscription_ref_tsv_cell(
     subscription_id: Option<i64>,
     subscription_refs: &HashMap<i64, &str>,
 ) -> String {
@@ -538,161 +388,4 @@ fn subscription_ref_tsv_cell(
         .and_then(|id| subscription_refs.get(&id).copied())
         .unwrap_or_default()
         .to_string()
-}
-
-async fn build_config_list_request(
-    context: &AppContext,
-    args: &ListConfigsArgs,
-) -> crate::app::Result<crate::app::services::ConfigListRequest> {
-    let subscription_id = match &args.subscription {
-        Some(raw) => Some(resolve_subscription_id(context, raw).await?),
-        None => None,
-    };
-
-    Ok(crate::app::services::ConfigListRequest {
-        only_enabled: args.enabled_only,
-        only_active: args.active_only,
-        only_deleted: args.deleted_only,
-        include_deleted: args.include_deleted,
-        subscription_id,
-        protocol: None,
-        ..crate::app::services::ConfigListRequest::default()
-    })
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn config_outputs_include_refs() {
-        let config = config_row("abcdef123456");
-        let subscriptions = HashMap::from([(2, "123456abcdef")]);
-
-        let table = format_config_table(std::slice::from_ref(&config), &subscriptions, None);
-        let tsv = format_config_tsv(std::slice::from_ref(&config), &subscriptions);
-        let json = config_json(&config, &subscriptions);
-
-        assert!(table.contains("REF"));
-        assert!(table.contains("ICMP"));
-        assert!(table.contains("42ms"));
-        assert!(table.contains("COUNTRY"));
-        assert!(table.contains("NL"));
-        assert!(table.contains("abcdef12"));
-        assert!(table.contains("123456ab"));
-        assert!(
-            tsv.starts_with("ref\tsubscription_ref\tstatus\tprotocol\taddress\tport\ticmp_ms\t")
-        );
-        assert!(!tsv.starts_with("ref\tid\t"));
-        assert!(tsv.contains("\t42\t20\t100\t25.50\t5.75\tNL\tNL/Amsterdam\tAS60781 LeaseWeb\t"));
-        assert_eq!(json["ref"], "abcdef123456");
-        assert_eq!(json["subscription_ref"], "123456abcdef");
-        assert_eq!(json["latest_test"]["icmp_ms"], 42);
-        assert_eq!(json["latest_test"]["dial_endpoint_country"], "NL");
-        assert!(json.get("id").is_none());
-        assert!(json.get("subscription_id").is_none());
-    }
-
-    #[test]
-    fn subscription_outputs_include_refs() {
-        let subscription = SubscriptionRecord {
-            id: 2,
-            r#ref: "123456abcdef".to_string(),
-            source_kind: "url".to_string(),
-            source_url: Some("https://example.com/sub".to_string()),
-            name: Some("main".to_string()),
-            created_at: "created".to_string(),
-            updated_at: "updated".to_string(),
-            config_count: 3,
-        };
-
-        let table = format_subscription_table(std::slice::from_ref(&subscription));
-        let tsv = format_subscription_tsv(std::slice::from_ref(&subscription));
-        let json = subscription_json(&subscription);
-
-        assert!(table.contains("REF"));
-        assert!(table.contains("123456ab"));
-        assert!(table.contains("UPDATED AT"));
-        assert!(table.contains("updated"));
-        assert!(tsv.starts_with("ref\tkind\t"));
-        assert_eq!(json["ref"], "123456abcdef");
-        assert!(json.get("id").is_none());
-    }
-
-    #[test]
-    fn config_table_uses_enabled_settings_for_metric_columns() {
-        let config = config_row("abcdef123456");
-        let subscriptions = HashMap::from([(2, "123456abcdef")]);
-        let mut settings = crate::app::config::TestingSettings::default();
-        settings.icmp.enabled = false;
-        settings.tcp.enabled = true;
-        settings.real_delay.enabled = true;
-        settings.download.enabled = false;
-        settings.geoip.enabled = false;
-
-        let table = format_config_table(
-            std::slice::from_ref(&config),
-            &subscriptions,
-            Some(&settings),
-        );
-
-        assert!(!table.contains("ICMP"));
-        assert!(table.contains("TCP"));
-        assert!(table.contains("REAL"));
-        assert!(!table.contains("DOWN"));
-        assert!(!table.contains("COUNTRY"));
-    }
-
-    fn config_row(value_ref: &str) -> ConfigWithLatestTest {
-        ConfigWithLatestTest {
-            config: ConfigRecord {
-                id: 1,
-                r#ref: value_ref.to_string(),
-                subscription_id: Some(2),
-                dedup_key: "key".to_string(),
-                protocol: "vless".to_string(),
-                address: "example.com".to_string(),
-                port: 443,
-                username: None,
-                uuid: Some("uuid".to_string()),
-                password: None,
-                method: None,
-                network: "tcp".to_string(),
-                tls: Some("tls".to_string()),
-                sni: None,
-                host: None,
-                path: None,
-                name: Some("main".to_string()),
-                raw_config: "vless://uuid@example.com:443#main".to_string(),
-                extensions_json: None,
-                is_active: true,
-                is_enabled: true,
-                is_deleted: false,
-                deleted_at: None,
-                imported_at: "imported".to_string(),
-                created_at: "created".to_string(),
-                updated_at: "updated".to_string(),
-            },
-            test_id: Some(9),
-            icmp_ok: Some(true),
-            icmp_ms: Some(42),
-            tcp_ok: Some(true),
-            tcp_ms: Some(20),
-            real_delay_ok: Some(true),
-            real_delay_ms: Some(100),
-            download_mbps: Some(25.5),
-            upload_mbps: Some(5.75),
-            connect_ms: Some(20),
-            ttfb_ms: Some(80),
-            http_status: Some(204),
-            dial_endpoint_location: Some("NL/Amsterdam".to_string()),
-            dial_endpoint_country: Some("NL".to_string()),
-            dial_endpoint_asn: Some("AS60781 LeaseWeb".to_string()),
-            dial_endpoint_geoip_source: None,
-            dial_endpoint_fronting: None,
-            failure_kind: None,
-            failure_reason: None,
-            tested_at: Some("tested".to_string()),
-        }
-    }
 }
