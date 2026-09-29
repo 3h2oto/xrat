@@ -87,7 +87,7 @@ fn parses_minimal_config_with_defaults() {
     assert_eq!(config.testing.geoip.cache.max_entries, 10_000);
     assert_eq!(
         config.parser.parse_mode,
-        xrat_engines::xray::parsing::ParseMode::Strict
+        xrat_config::parsing::ParseMode::Strict
     );
     assert!(!config.server.enabled);
     assert_eq!(config.server.host, "127.0.0.1");

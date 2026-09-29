@@ -70,7 +70,7 @@ async fn test_real_delay_check_invalid_config() {
 
     let result = real_delay_check(
         &node,
-        xrat::app::config::defaults::DEFAULT_REAL_DELAY_TEST_URL,
+        "https://www.gstatic.com/generate_204",
         crate::ProbeEngineKind::Xray,
         Path::new("xray"),
         Duration::from_secs(5),

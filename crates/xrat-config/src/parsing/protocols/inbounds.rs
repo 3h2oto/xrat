@@ -2,8 +2,8 @@ use serde::{Deserialize, Deserializer, Serialize};
 use serde_json::Value;
 
 use super::inbound_settings::*;
-use crate::xray::parsing::shared::{Address, PortValue};
-use crate::xray::parsing::transports::StreamSettingsObject;
+use crate::parsing::shared::{Address, PortValue};
+use crate::parsing::transports::StreamSettingsObject;
 
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]

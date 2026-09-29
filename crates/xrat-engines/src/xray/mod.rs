@@ -1,5 +1,4 @@
 pub mod config;
-pub mod parsing;
 pub mod probe_process;
 pub mod runtime_process;
 pub mod stats;
@@ -11,6 +10,5 @@ pub use config::{
     generate_runtime_config_for_inbounds, generate_runtime_config_for_inbounds_with_options,
     generate_runtime_config_with_inbounds,
 };
-pub use parsing::{ParseMode, XrayConfig as XrayConfigJson, XrayConfigError};
 pub use probe_process::{XrayProcess, XrayProcessError};
 pub use runtime_process::{XrayRuntimeError, XraySignalError};

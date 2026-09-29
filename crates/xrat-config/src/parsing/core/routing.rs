@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
-use crate::xray::parsing::shared::{DurationString, PortValue};
+use crate::parsing::shared::{DurationString, PortValue};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -22,7 +22,7 @@ pub struct RuleObject {
     #[serde(alias = "domains")]
     #[serde(
         default,
-        deserialize_with = "crate::xray::parsing::shared::deserialize_optional_string_list"
+        deserialize_with = "crate::parsing::shared::deserialize_optional_string_list"
     )]
     pub domain: Option<Vec<String>>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -36,21 +36,21 @@ pub struct RuleObject {
     #[serde(skip_serializing_if = "Option::is_none")]
     #[serde(
         default,
-        deserialize_with = "crate::xray::parsing::shared::deserialize_optional_string_list"
+        deserialize_with = "crate::parsing::shared::deserialize_optional_string_list"
     )]
     pub network: Option<Vec<String>>,
     #[serde(skip_serializing_if = "Option::is_none")]
     #[serde(rename = "sourceIP", alias = "source")]
     #[serde(
         default,
-        deserialize_with = "crate::xray::parsing::shared::deserialize_optional_string_list"
+        deserialize_with = "crate::parsing::shared::deserialize_optional_string_list"
     )]
     pub source_ip: Option<Vec<String>>,
     #[serde(skip_serializing_if = "Option::is_none")]
     #[serde(rename = "localIP")]
     #[serde(
         default,
-        deserialize_with = "crate::xray::parsing::shared::deserialize_optional_string_list"
+        deserialize_with = "crate::parsing::shared::deserialize_optional_string_list"
     )]
     pub local_ip: Option<Vec<String>>,
     #[serde(skip_serializing_if = "Option::is_none")]

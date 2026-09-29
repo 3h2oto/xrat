@@ -2,8 +2,8 @@
 
 This page covers the **Linux** systemd deployment. `xrat daemon install` also
 supports other platforms: **launchd** user agents on macOS
-(`~/Library/LaunchAgents/`, templates in `packaging/launchd/`) and **rc.d**
-scripts on FreeBSD/OpenBSD (`packaging/rc.d/`, enabled with `sysrc`+`service` or
+(`~/Library/LaunchAgents/`, templates in `crates/xrat-app/templates/launchd/`) and **rc.d**
+scripts on FreeBSD/OpenBSD (`crates/xrat-app/templates/rc.d/`, enabled with `sysrc`+`service` or
 `rcctl`, root required). The sections below are systemd-specific.
 
 Run xrat as a systemd user service for persistent operation and automatic
@@ -188,7 +188,7 @@ systemctl --user start xrat-daemon.service
 ```
 
 The template files used by `xrat daemon install` are available in the repository
-at `packaging/systemd/`.
+at `crates/xrat-app/templates/systemd/`.
 
 ---
 

@@ -30,9 +30,9 @@
   network, time, and URL handling.
 - `migrations/sqlite/` and `migrations/postgres/` hold ordered SQL migrations.
 - `docs/src/` holds user-facing documentation.
-- `packaging/systemd/` holds user-service templates used by
-  `xrat daemon install`; `packaging/desktop/` holds desktop entry and icon
-  packaging assets.
+- `crates/xrat-app/templates/` holds the systemd, launchd, and rc.d service
+  templates embedded by `xrat daemon install`; `packaging/desktop/` holds
+  desktop entry and icon packaging assets.
 - `install.sh` installs release archives from GitHub and runs optional first-run
   setup.
 - `.github/workflows/` contains CI and release automation, including musl

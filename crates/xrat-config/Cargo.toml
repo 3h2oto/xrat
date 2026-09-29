@@ -1,19 +1,19 @@
 [package]
 name = "xrat-config"
-version = "0.20.0"
-edition = "2024"
-license = "MIT"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
 description = "Subscription import and protocol link parsing for xrat"
 
 [dependencies]
 base64 = "0.22.1"
 percent-encoding = "2.3.2"
 reqwest = { version = "0.13.4", default-features = false, features = ["rustls"] }
+serde = { version = "1.0.228", features = ["derive"] }
 serde_json = "1.0.150"
 thiserror = "2.0.18"
 tracing = "0.1.44"
 url = "2.5.8"
 uuid = { version = "1.23.2", features = ["v4"] }
-xrat-engines = { path = "../xrat-engines" }
-xrat-model = { path = "../xrat-model" }
-xrat-support = { path = "../xrat-support" }
+xrat-model.workspace = true
+xrat-support.workspace = true

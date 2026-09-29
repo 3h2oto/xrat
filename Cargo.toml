@@ -1,9 +1,9 @@
 [package]
 name = "xrat"
-version = "0.20.0"
-edition = "2024"
+version.workspace = true
+edition.workspace = true
 description = "A fast, polished CLI and TUI proxy manager for Xray-core and sing-box"
-license = "MIT"
+license.workspace = true
 repository = "https://github.com/mhyrzt/xrat"
 homepage = "https://mhyrzt.github.io/xrat/"
 documentation = "https://mhyrzt.github.io/xrat/"
@@ -18,64 +18,35 @@ pkg-fmt = "tgz"
 bin-dir = "{ bin }"
 
 [dependencies]
-async-trait = "0.1.89"
-axum = "0.8.9"
-base64 = "0.22.1"
-clap = { version = "4.6.1", features = ["derive"] }
-clap_complete = "4"
-clap_mangen = "0.3.0"
-crossterm = "0.29.0"
-indicatif = "0.18.4"
-flate2 = "1.1.5"
-ratatui = "0.30.0"
-reqwest = { version = "0.13.4", default-features = false, features = [
-    "blocking",
-    "rustls",
-    "socks",
-] }
-serde = { version = "1.0.228", features = ["derive"] }
-serde_json = "1.0.150"
-semver = "1.0.27"
-sha2 = "0.10.9"
-prost = "0.13"
-tonic = { version = "0.12", default-features = false, features = [
-    "transport",
-    "codegen",
-    "prost",
-] }
-percent-encoding = "2.3.2"
-sqlx = { version = "0.8.6", features = [
-    "sqlite",
-    "postgres",
-    "runtime-tokio-rustls",
-] }
 tokio = { version = "1.52.3", features = ["full"] }
-url = "2.5.8"
-serde_path_to_error = "0.1.20"
-sysinfo = "0.37.2"
-uuid = { version = "1.23.2", features = ["v4"] }
-tempfile = "3.27.0"
-thiserror = "2.0.18"
-tar = "0.4.44"
-toml = "1.1.2"
-toml_edit = "0.25.12"
-tracing = "0.1.44"
 tracing-subscriber = { version = "0.3.23", features = ["env-filter", "fmt"] }
-maxminddb = "0.28.1"
-qrcode = { version = "0.14.1", default-features = false }
-arboard = "3.6.1"
-unicode-width = "0.2.2"
-zip = { version = "7.2.0", default-features = false, features = ["deflate"] }
-if-addrs = "0.15.0"
-xrat-model = { path = "crates/xrat-model" }
-xrat-support = { path = "crates/xrat-support" }
-xrat-engines = { path = "crates/xrat-engines" }
-xrat-config = { path = "crates/xrat-config" }
-xrat-db = { path = "crates/xrat-db" }
-xrat-prober = { path = "crates/xrat-prober" }
-xrat-app = { path = "crates/xrat-app" }
+xrat-app.workspace = true
+xrat-config.workspace = true
+xrat-db.workspace = true
+xrat-engines.workspace = true
+xrat-model.workspace = true
+xrat-prober.workspace = true
+xrat-support.workspace = true
+
+[dev-dependencies]
+clap = { version = "4.6.1", features = ["derive"] }
+tempfile = "3.27.0"
 
 [workspace]
 members = ["crates/xrat-model", "crates/xrat-support", "crates/xrat-engines", "crates/xrat-config", "crates/xrat-db", "crates/xrat-prober", "crates/xrat-app", "crates/xrat-sdk"]
 resolver = "3"
 
+[workspace.package]
+version = "0.20.0"
+edition = "2024"
+license = "MIT"
+
+[workspace.dependencies]
+xrat-model = { path = "crates/xrat-model", version = "0.20.0" }
+xrat-support = { path = "crates/xrat-support", version = "0.20.0" }
+xrat-config = { path = "crates/xrat-config", version = "0.20.0" }
+xrat-engines = { path = "crates/xrat-engines", version = "0.20.0" }
+xrat-db = { path = "crates/xrat-db", version = "0.20.0" }
+xrat-prober = { path = "crates/xrat-prober", version = "0.20.0" }
+xrat-app = { path = "crates/xrat-app", version = "0.20.0" }
+xrat-sdk = { path = "crates/xrat-sdk", version = "0.20.0" }

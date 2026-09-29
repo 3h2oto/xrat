@@ -34,7 +34,7 @@ async fn download_speed_check_rejects_invalid_config() {
 
     let result = download_speed_check(
         &node,
-        xrat::app::config::defaults::DEFAULT_DOWNLOAD_TEST_URL,
+        "https://cachefly.cachefly.net/50mb.test",
         crate::ProbeEngineKind::Xray,
         Path::new("xray"),
         Duration::from_secs(5),

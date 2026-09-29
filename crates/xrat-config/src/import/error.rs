@@ -1,7 +1,7 @@
 use thiserror::Error;
 
 use crate::ConfigParseError;
-use xrat_engines::xray::parsing::XrayConfigError;
+use crate::parsing::XrayConfigError;
 use xrat_support::decode::DecodeError;
 
 #[derive(Debug, Error)]

@@ -1,5 +1,5 @@
 use super::super::{ImportParseError, ImportResult};
-use xrat_engines::xray::parsing::XrayConfig;
+use crate::parsing::XrayConfig;
 
 pub fn parse_xray_json(input: &str) -> Result<ImportResult, ImportParseError> {
     let _config: XrayConfig = XrayConfig::from_json_loose(input)?;

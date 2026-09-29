@@ -1,8 +1,8 @@
 [package]
 name = "xrat-db"
-version = "0.20.0"
-edition = "2024"
-license = "MIT"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
 description = "Database connection, records, and repositories for xrat"
 
 [dependencies]
@@ -16,6 +16,6 @@ thiserror = "2.0.18"
 tokio = { version = "1.52.3", features = ["full"] }
 tracing = "0.1.44"
 uuid = { version = "1.23.2", features = ["v4"] }
-xrat-config = { path = "../xrat-config" }
-xrat-model = { path = "../xrat-model" }
-xrat-support = { path = "../xrat-support" }
+xrat-config.workspace = true
+xrat-model.workspace = true
+xrat-support.workspace = true

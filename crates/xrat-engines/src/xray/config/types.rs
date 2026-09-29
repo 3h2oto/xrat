@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 use std::collections::{BTreeMap, HashMap};
 
-use crate::xray::parsing::core::{ApiObject, PolicyObject};
+use xrat_config::parsing::core::{ApiObject, PolicyObject};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct XrayConfig {

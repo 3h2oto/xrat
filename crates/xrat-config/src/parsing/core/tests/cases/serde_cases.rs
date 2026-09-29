@@ -1,4 +1,4 @@
-use crate::xray::parsing::{DnsHostValue, FakeDnsObject, LogObject, XrayConfig};
+use crate::parsing::{DnsHostValue, FakeDnsObject, LogObject, XrayConfig};
 
 #[test]
 fn test_parse_policy_object() {
@@ -57,7 +57,7 @@ fn test_serialize_to_json() {
         log: Some(LogObject {
             access: Some("/var/log/access.log".to_string()),
             error: None,
-            loglevel: Some(crate::xray::parsing::shared::LogLevel::Info),
+            loglevel: Some(crate::parsing::shared::LogLevel::Info),
             dns_log: None,
             mask_address: None,
         }),
@@ -86,7 +86,7 @@ fn test_serialize_to_json() {
 
 #[test]
 fn test_port_value_parsing() {
-    use crate::xray::parsing::shared::PortValue;
+    use crate::parsing::shared::PortValue;
 
     let single: PortValue = serde_json::from_str("443").unwrap();
     assert!(matches!(single, PortValue::Single(443)));

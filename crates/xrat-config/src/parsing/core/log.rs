@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 
-use crate::xray::parsing::shared::{LogLevel, MaskAddress};
+use crate::parsing::shared::{LogLevel, MaskAddress};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]

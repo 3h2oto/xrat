@@ -105,7 +105,7 @@ pub fn generate_runtime_config_for_inbounds_with_options(
 /// a routing rule that dispatches the api inbound to the api handler. Counters
 /// are enabled for system inbound/outbound traffic so totals are available.
 pub fn enable_stats_api(config: &mut XrayConfig, host: &str, port: u16) {
-    use crate::xray::parsing::core::{ApiObject, ApiServiceName, PolicyObject, SystemPolicyObject};
+    use xrat_config::parsing::core::{ApiObject, ApiServiceName, PolicyObject, SystemPolicyObject};
 
     config.inbounds.push(Inbound {
         tag: "api".to_string(),

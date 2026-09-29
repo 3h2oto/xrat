@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 
 use super::super::common::{ReverseTagObject, WireguardPeerObject};
-use crate::xray::parsing::shared::{Address, DomainStrategy};
+use crate::parsing::shared::{Address, DomainStrategy};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]

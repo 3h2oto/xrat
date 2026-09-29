@@ -34,10 +34,10 @@ const API_SERVICE_NAME: &str = "xrat-api.service";
 
 #[cfg(target_os = "linux")]
 const DAEMON_SERVICE_TEMPLATE: &str =
-    include_str!("../../../../../packaging/systemd/xrat-daemon.service.template");
+    include_str!("../../../templates/systemd/xrat-daemon.service.template");
 #[cfg(target_os = "linux")]
 const API_SERVICE_TEMPLATE: &str =
-    include_str!("../../../../../packaging/systemd/xrat-api.service.template");
+    include_str!("../../../templates/systemd/xrat-api.service.template");
 
 #[cfg(target_os = "linux")]
 fn systemd_user_dir() -> crate::app::Result<PathBuf> {
@@ -244,10 +244,9 @@ const API_PLIST_NAME: &str = "com.xrat.api.plist";
 
 #[cfg(target_os = "macos")]
 const DAEMON_PLIST_TEMPLATE: &str =
-    include_str!("../../../../../packaging/launchd/xrat-daemon.plist.template");
+    include_str!("../../../templates/launchd/xrat-daemon.plist.template");
 #[cfg(target_os = "macos")]
-const API_PLIST_TEMPLATE: &str =
-    include_str!("../../../../../packaging/launchd/xrat-api.plist.template");
+const API_PLIST_TEMPLATE: &str = include_str!("../../../templates/launchd/xrat-api.plist.template");
 
 #[cfg(target_os = "macos")]
 fn launchd_agents_dir() -> crate::app::Result<PathBuf> {
@@ -451,9 +450,9 @@ const DAEMON_RC_NAME: &str = "xrat_daemon";
 const API_RC_NAME: &str = "xrat_api";
 
 #[cfg(any(target_os = "freebsd", target_os = "openbsd"))]
-const DAEMON_RC_TEMPLATE: &str = include_str!("../../../../../packaging/rc.d/xrat_daemon.template");
+const DAEMON_RC_TEMPLATE: &str = include_str!("../../../templates/rc.d/xrat_daemon.template");
 #[cfg(any(target_os = "freebsd", target_os = "openbsd"))]
-const API_RC_TEMPLATE: &str = include_str!("../../../../../packaging/rc.d/xrat_api.template");
+const API_RC_TEMPLATE: &str = include_str!("../../../templates/rc.d/xrat_api.template");
 
 #[cfg(target_os = "freebsd")]
 fn rc_d_dir() -> PathBuf {

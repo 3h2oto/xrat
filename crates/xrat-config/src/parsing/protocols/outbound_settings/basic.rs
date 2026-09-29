@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 
 use super::super::common::{FragmentObject, NoiseObject};
-use crate::xray::parsing::shared::{
+use crate::parsing::shared::{
     Address, DomainStrategy, Int32Range, Network, PortValue, deserialize_optional_string_list,
 };
 

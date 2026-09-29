@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 
-use xrat_engines::xray::parsing::ParseMode;
+use xrat_config::parsing::ParseMode;
 
 #[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq)]
 #[serde(default)]

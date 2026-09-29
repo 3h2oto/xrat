@@ -2,7 +2,7 @@ use serde::{Deserialize, Serialize};
 
 use super::super::clients::*;
 use super::super::common::FallbackObject;
-use crate::xray::parsing::shared::deserialize_optional_string_list;
+use crate::parsing::shared::deserialize_optional_string_list;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]

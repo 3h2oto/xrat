@@ -1,8 +1,8 @@
 [package]
 name = "xrat-prober"
-version = "0.20.0"
-edition = "2024"
-license = "MIT"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
 description = "TCP, ICMP, download, upload, and real-delay probing for xrat"
 
 [dependencies]
@@ -12,9 +12,8 @@ reqwest = { version = "0.13.4", default-features = false, features = [
     "socks",
 ] }
 tokio = { version = "1.52.3", features = ["full"] }
-xrat-engines = { path = "../xrat-engines" }
-xrat-model = { path = "../xrat-model" }
+xrat-engines.workspace = true
+xrat-model.workspace = true
 
 [dev-dependencies]
 axum = "0.8.9"
-xrat = { path = "../.." }

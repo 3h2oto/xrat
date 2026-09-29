@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 
-use crate::xray::parsing::shared::Int32Range;
+use crate::parsing::shared::Int32Range;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]

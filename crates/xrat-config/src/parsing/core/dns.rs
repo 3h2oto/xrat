@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
-use crate::xray::parsing::shared::QueryStrategy;
+use crate::parsing::shared::QueryStrategy;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(untagged)]
@@ -19,21 +19,21 @@ pub struct DnsServerObject {
     #[serde(skip_serializing_if = "Option::is_none")]
     #[serde(
         default,
-        deserialize_with = "crate::xray::parsing::shared::deserialize_optional_string_list"
+        deserialize_with = "crate::parsing::shared::deserialize_optional_string_list"
     )]
     pub domains: Option<Vec<String>>,
     #[serde(skip_serializing_if = "Option::is_none")]
     #[serde(rename = "expectedIPs", alias = "expectIPs")]
     #[serde(
         default,
-        deserialize_with = "crate::xray::parsing::shared::deserialize_optional_string_list"
+        deserialize_with = "crate::parsing::shared::deserialize_optional_string_list"
     )]
     pub expected_i_ps: Option<Vec<String>>,
     #[serde(skip_serializing_if = "Option::is_none")]
     #[serde(rename = "unexpectedIPs")]
     #[serde(
         default,
-        deserialize_with = "crate::xray::parsing::shared::deserialize_optional_string_list"
+        deserialize_with = "crate::parsing::shared::deserialize_optional_string_list"
     )]
     pub unexpected_i_ps: Option<Vec<String>>,
     #[serde(skip_serializing_if = "Option::is_none")]

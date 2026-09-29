@@ -3,6 +3,7 @@ mod import;
 mod line;
 mod normalize;
 mod parse_service;
+pub mod parsing;
 mod parsing_helpers;
 mod protocols;
 

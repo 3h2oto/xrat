@@ -7,8 +7,8 @@ use super::{
     LogObject, MetricsObject, ObservatoryObject, PolicyObject, ReverseObject, RoutingObject,
     StatsObject, VersionObject,
 };
-use crate::xray::parsing::protocols::{InboundObject, OutboundObject};
-use crate::xray::parsing::transports::TransportObject;
+use crate::parsing::protocols::{InboundObject, OutboundObject};
+use crate::parsing::transports::TransportObject;
 
 #[derive(Debug, Error)]
 pub enum XrayConfigError {
@@ -99,13 +99,13 @@ impl XrayConfig {
 
     pub fn from_json_with_mode(
         json: &str,
-        mode: crate::xray::parsing::ParseMode,
+        mode: crate::parsing::ParseMode,
     ) -> Result<Self, XrayConfigError> {
         match mode {
-            crate::xray::parsing::ParseMode::Strict => Self::from_json_strict(json),
-            crate::xray::parsing::ParseMode::Lenient
-            | crate::xray::parsing::ParseMode::Auto
-            | crate::xray::parsing::ParseMode::Loose => Self::from_json_loose(json),
+            crate::parsing::ParseMode::Strict => Self::from_json_strict(json),
+            crate::parsing::ParseMode::Lenient
+            | crate::parsing::ParseMode::Auto
+            | crate::parsing::ParseMode::Loose => Self::from_json_loose(json),
         }
     }
 

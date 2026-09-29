@@ -10,7 +10,7 @@ use crate::xray::config::{
 use std::collections::BTreeMap;
 use std::io::Write;
 use std::process::Command;
-use xrat::config::parse_link;
+use xrat_config::parse_link;
 use xrat_model::{Node, Protocol};
 
 fn vless_tls_node() -> Node {
@@ -244,7 +244,7 @@ fn default_options_leave_config_unchanged() {
 fn generated_runtime_config_satisfies_strict_xray_schema() {
     let config = generate_runtime_config(&vless_tls_node(), 1080, Some(8080)).unwrap();
     let json = serde_json::to_string(&config).unwrap();
-    crate::xray::parsing::XrayConfig::from_json_strict(&json).unwrap();
+    xrat_config::parsing::XrayConfig::from_json_strict(&json).unwrap();
 }
 
 #[test]
@@ -334,7 +334,7 @@ fn managed_and_probe_configs_emit_xray_dns() {
         "192.0.2.10"
     );
 
-    serde_json::from_value::<crate::xray::parsing::core::DnsObject>(runtime_json["dns"].clone())
+    serde_json::from_value::<xrat_config::parsing::core::DnsObject>(runtime_json["dns"].clone())
         .expect("generated Xray DNS object should satisfy the parser schema");
 
     let probe = generate_probe_config_with_options(&node, 1080, &options).unwrap();

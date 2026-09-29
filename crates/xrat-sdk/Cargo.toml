@@ -1,12 +1,12 @@
 [package]
 name = "xrat-sdk"
-version = "0.20.0"
-edition = "2024"
-license = "MIT"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
 description = "Stable public facade for embedding xrat proxy-management logic"
 
 [dependencies]
-xrat-app = { path = "../xrat-app" }
-xrat-config = { path = "../xrat-config" }
-xrat-model = { path = "../xrat-model" }
-xrat-prober = { path = "../xrat-prober" }
+xrat-app.workspace = true
+xrat-config.workspace = true
+xrat-model.workspace = true
+xrat-prober.workspace = true

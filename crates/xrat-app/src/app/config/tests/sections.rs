@@ -160,7 +160,7 @@ fn parses_parser_settings() {
 
     assert_eq!(
         config.parser.parse_mode,
-        xrat_engines::xray::parsing::ParseMode::Lenient
+        xrat_config::parsing::ParseMode::Lenient
     );
 }
 

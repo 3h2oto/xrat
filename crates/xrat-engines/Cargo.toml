@@ -1,8 +1,8 @@
 [package]
 name = "xrat-engines"
-version = "0.20.0"
-edition = "2024"
-license = "MIT"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
 description = "Xray and sing-box config parsing and runtime config generation"
 
 [dependencies]
@@ -24,8 +24,6 @@ tonic = { version = "0.12", default-features = false, features = [
     "prost",
 ] }
 uuid = { version = "1.23.2", features = ["v4"] }
-xrat-model = { path = "../xrat-model" }
-xrat-support = { path = "../xrat-support" }
-
-[dev-dependencies]
-xrat = { path = "../.." }
+xrat-config.workspace = true
+xrat-model.workspace = true
+xrat-support.workspace = true
