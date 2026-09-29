@@ -11,7 +11,7 @@ pub mod paths;
 pub mod ports;
 pub mod read_models;
 pub mod runtime_service;
-pub mod runtime_tuning;
+
 pub mod services;
 pub mod subscription_refresh;
 

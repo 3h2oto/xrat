@@ -56,7 +56,7 @@ impl<'a> RuntimeService<'a> {
             other => PathBuf::from(other),
         };
         let mut gen_options = build_xray_gen_options(runtime);
-        gen_options.compatibility = crate::app::runtime_tuning::detect_xray_compatibility(
+        gen_options.compatibility = crate::app::services::runtime_tuning::detect_xray_compatibility(
             runtime.xray_compatibility,
             &binary_path,
         );

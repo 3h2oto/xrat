@@ -2,6 +2,7 @@ mod configs;
 mod lifecycle;
 pub mod proxy_pac;
 pub mod runtime_control;
+pub mod runtime_tuning;
 pub mod testing;
 
 pub use configs::{

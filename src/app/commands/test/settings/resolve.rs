@@ -66,12 +66,16 @@ pub(crate) fn resolve_test_settings(
     } else {
         crate::prober::ProbeEngineKind::Xray
     };
-    let mut gen_options = crate::app::runtime_tuning::build_xray_gen_options(&app_config.runtime);
-    gen_options.compatibility = crate::app::runtime_tuning::detect_xray_compatibility(
+    let mut gen_options =
+        crate::app::services::runtime_tuning::build_xray_gen_options(&app_config.runtime);
+    gen_options.compatibility = crate::app::services::runtime_tuning::detect_xray_compatibility(
         app_config.runtime.xray_compatibility,
         &xray_binary_path,
     );
-    crate::app::runtime_tuning::apply_xray_dns_options(&mut gen_options, &app_config.dns)?;
+    crate::app::services::runtime_tuning::apply_xray_dns_options(
+        &mut gen_options,
+        &app_config.dns,
+    )?;
 
     Ok(ResolvedTestSettings {
         stage_order: app_config.testing.order.clone(),
