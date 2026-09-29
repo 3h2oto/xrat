@@ -1,10 +1,6 @@
 use crate::db::RuntimeSessionRecord;
 
-mod tests_cooldown;
-mod tests_health;
-mod tests_replace;
-
-fn session_with_cooldown(cooldown_until: Option<&str>) -> RuntimeSessionRecord {
+pub(crate) fn session_with_cooldown(cooldown_until: Option<&str>) -> RuntimeSessionRecord {
     RuntimeSessionRecord {
         id: 1,
         config_id: Some(1),

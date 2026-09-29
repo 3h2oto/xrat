@@ -6,10 +6,8 @@ use crate::app::daemon::supervisor::{
 };
 use tokio::sync::oneshot;
 
-mod runtime_lifecycle;
-mod runtime_status_connect;
-
-pub(super) async fn handle_runtime_status(
+use super::{runtime_lifecycle, runtime_status_connect};
+pub(crate) async fn handle_runtime_status(
     state: &SupervisorState,
     context: &AppContext,
     respond_to: oneshot::Sender<RuntimeStatusResult>,
@@ -17,7 +15,7 @@ pub(super) async fn handle_runtime_status(
     runtime_status_connect::handle_runtime_status(state, context, respond_to).await;
 }
 
-pub(super) async fn handle_runtime_connect(
+pub(crate) async fn handle_runtime_connect(
     state: &SupervisorState,
     context: &AppContext,
     config_id: i64,
@@ -26,7 +24,7 @@ pub(super) async fn handle_runtime_connect(
     runtime_status_connect::handle_runtime_connect(state, context, config_id, respond_to).await;
 }
 
-pub(super) async fn handle_runtime_disconnect(
+pub(crate) async fn handle_runtime_disconnect(
     state: &SupervisorState,
     context: &AppContext,
     respond_to: oneshot::Sender<RuntimeDisconnectResult>,
@@ -34,7 +32,7 @@ pub(super) async fn handle_runtime_disconnect(
     runtime_lifecycle::handle_runtime_disconnect(state, context, respond_to).await;
 }
 
-pub(super) async fn handle_runtime_replace(
+pub(crate) async fn handle_runtime_replace(
     state: &mut SupervisorState,
     context: &AppContext,
     trigger: RotationTrigger,
@@ -45,14 +43,14 @@ pub(super) async fn handle_runtime_replace(
         .await;
 }
 
-pub(super) async fn handle_daemon_shutdown(
+pub(crate) async fn handle_daemon_shutdown(
     context: &AppContext,
     respond_to: oneshot::Sender<DaemonShutdownResult>,
 ) {
     runtime_lifecycle::handle_daemon_shutdown(context, respond_to).await;
 }
 
-pub(super) async fn handle_proxy_start(
+pub(crate) async fn handle_proxy_start(
     state: &mut SupervisorState,
     context: &AppContext,
     respond_to: oneshot::Sender<ProxyControlResult>,
@@ -60,7 +58,7 @@ pub(super) async fn handle_proxy_start(
     runtime_lifecycle::handle_proxy_start(state, context, respond_to).await;
 }
 
-pub(super) async fn handle_proxy_status(
+pub(crate) async fn handle_proxy_status(
     state: &SupervisorState,
     context: &AppContext,
     respond_to: oneshot::Sender<ProxyStatusResult>,
@@ -68,7 +66,7 @@ pub(super) async fn handle_proxy_status(
     runtime_lifecycle::handle_proxy_status(state, context, respond_to).await;
 }
 
-pub(super) async fn handle_proxy_stop(
+pub(crate) async fn handle_proxy_stop(
     state: &mut SupervisorState,
     context: &AppContext,
     respond_to: oneshot::Sender<ProxyControlResult>,

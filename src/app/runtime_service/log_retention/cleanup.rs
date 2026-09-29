@@ -39,7 +39,7 @@ async fn prune(context: &AppContext) -> crate::app::Result<()> {
     Ok(())
 }
 
-fn log_session_id(name: &str) -> Option<i64> {
+pub(crate) fn log_session_id(name: &str) -> Option<i64> {
     let rest = name.strip_prefix("session-")?;
     let (id, suffix) = rest.split_once('.')?;
     if !matches!(
@@ -51,6 +51,3 @@ fn log_session_id(name: &str) -> Option<i64> {
     let session_id: i64 = id.parse().ok()?;
     (session_id > 0 && session_id.to_string() == id).then_some(session_id)
 }
-
-#[cfg(test)]
-mod tests;
