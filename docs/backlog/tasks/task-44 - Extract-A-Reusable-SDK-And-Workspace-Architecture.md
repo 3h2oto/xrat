@@ -1,10 +1,10 @@
 ---
 id: TASK-44
 title: Extract A Reusable SDK And Workspace Architecture
-status: In Progress
+status: Done
 assignee: []
 created_date: '2026-07-05 14:44'
-updated_date: '2026-09-29 09:56'
+updated_date: '2026-09-29 10:23'
 labels:
   - legacy-import
   - improvement
@@ -185,5 +185,5 @@ and adapter crates.
 ## Implementation Notes
 
 <!-- SECTION:NOTES:BEGIN -->
-P7 (timeboxed, partial). DONE: root Cargo.toml now declares [workspace] (resolver 3) with crates/xrat-model extracted (Node/Protocol/NodeDedupKey); src/model.rs is a re-export shim; CI and Justfile updated to fmt/clippy/test --workspace so all members are gated. Full 858-test contract preserved (848 root + 10 model). BLOCKED for further extraction by real dependency cycles documented in docs/src/06-architecture/workspace.md: support->app (geoip::backend uses AppConfig/RuntimePaths/mmdb), config<->xray (import parses xray::parsing; xray tests use config::parse_link), prober->app, app<->cli/tui/server. Unblocking steps recorded in the doc (move geoip backend up, add non-CLI AppContext ctor, move xray::parsing below engines, then extract support/engines/config/db/prober/engine/sdk). Per task guidance, did not force a broken split.
+P7 DONE (timeboxed). Workspace introduced (resolver 3) with 8 crates: xrat-model, xrat-support, xrat-engines (xray+singbox), xrat-config, xrat-db, xrat-prober, xrat-app (app+cli+tui+server), xrat-sdk (curated facade). Root package is now the thin binary + re-export shims. Crate deps are acyclic: support->model; engines->model,support; config->engines,model,support; db->config,model,support; prober->engines,model; app->all; sdk->app/config/model/prober. Cycle-breaking done for support->app (geoip backend moved to app::geoip_backend), config<->xray (xray::parsing stays under engines; xray test uses root via dev-dep), prober->app (test-only, dev-dep). CI/Justfile now run fmt/clippy/test --workspace; migrations stay at repo root (db crate uses ../../migrations). Test contract preserved: 858 lib tests pass across crates. Residual (documented in docs/src/06-architecture/workspace.md): split xrat-app into engine + cli/tui/http adapters (blocked by AppContext::build(&cli::Cli) and frontend->app callbacks), trim unused root deps, broaden SDK + non-CLI AppContext ctor.
 <!-- SECTION:NOTES:END -->
