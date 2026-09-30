@@ -1,9 +1,11 @@
 ---
 id: TASK-23
 title: Improve Observability For Swallowed Async Errors
-status: To Do
-assignee: []
+status: In Progress
+assignee:
+  - '@codex'
 created_date: '2026-07-05 14:43'
+updated_date: '2026-09-30 09:17'
 labels:
   - legacy-import
   - improvement
@@ -62,3 +64,17 @@ records for user-facing operational history.
 **Risk / migration notes:** Low risk if logs are added without changing control
 flow. Keep log levels conservative to avoid noisy TUI or daemon output.
 <!-- SECTION:DESCRIPTION:END -->
+
+## Implementation Plan
+
+<!-- SECTION:PLAN:BEGIN -->
+Add structured tracing for swallowed failures in TUI runtime/test/data tasks and the touched daemon IPC/runtime handler paths, preserving best-effort control flow; run focused tests and CI.
+<!-- SECTION:PLAN:END -->
+
+## Implementation Notes
+
+<!-- SECTION:NOTES:BEGIN -->
+This PR covers the focused adapter slice: TUI runtime, batch-test, data reload/enrichment channel failures; daemon IPC request/socket failures; runtime status/connect response drops and metadata write failures. Added spans for IPC handling and runtime connect/disconnect/replace plus TUI runtime and batch-test tasks. Best-effort control flow is retained. Other daemon supervisor handlers remain for the broader follow-up.
+
+Validation for the focused slice: CARGO_INCREMENTAL=0 just fmt ci passed. Remaining broader scope includes other daemon supervisor handlers with best-effort metadata and response sends; task stays In Progress for a later focused pass.
+<!-- SECTION:NOTES:END -->

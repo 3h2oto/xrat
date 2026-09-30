@@ -5,6 +5,7 @@ mod candidate;
 mod stage;
 
 impl<'a> RuntimeService<'a> {
+    #[tracing::instrument(skip_all)]
     pub async fn replace(&self, request: ReplaceRequest) -> crate::app::Result<ReplaceResult> {
         let active = match self.active_session_state().await? {
             ActiveSessionState::Running(session) => session,

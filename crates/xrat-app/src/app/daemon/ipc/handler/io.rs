@@ -8,6 +8,7 @@ use crate::app::daemon::ipc::{
 };
 use crate::app::daemon::supervisor::SupervisorEvent;
 
+#[tracing::instrument(skip_all)]
 pub(super) async fn handle_connection(
     stream: &mut UnixStream,
     supervisor_tx: mpsc::Sender<SupervisorEvent>,
@@ -33,8 +34,8 @@ pub(super) async fn handle_connection(
 
     let (encoded, should_shutdown) = dispatch_request(request.request, supervisor_tx).await?;
     stream.write_all(&encoded).await?;
-    if should_shutdown {
-        let _ = shutdown_tx.send(()).await;
+    if should_shutdown && let Err(error) = shutdown_tx.send(()).await {
+        tracing::debug!(%error, "daemon shutdown receiver dropped");
     }
     Ok(())
 }

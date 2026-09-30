@@ -70,18 +70,26 @@ pub fn spawn_enrich_locations(
                 }
                 if meta.has_lookup_metadata() {
                     batch.push((id, meta));
-                    if batch.len() >= ENRICH_FLUSH_BATCH {
-                        let _ = task_tx.send(TuiTaskEvent::LocationsEnriched {
-                            updates: std::mem::take(&mut batch),
-                        });
+                    if batch.len() >= ENRICH_FLUSH_BATCH
+                        && task_tx
+                            .send(TuiTaskEvent::LocationsEnriched {
+                                updates: std::mem::take(&mut batch),
+                            })
+                            .is_err()
+                    {
+                        tracing::debug!("TUI location enrichment receiver dropped");
                     }
                 }
             }
             spawn_next(&mut join_set, &mut pending);
         }
 
-        if !batch.is_empty() {
-            let _ = task_tx.send(TuiTaskEvent::LocationsEnriched { updates: batch });
+        if !batch.is_empty()
+            && task_tx
+                .send(TuiTaskEvent::LocationsEnriched { updates: batch })
+                .is_err()
+        {
+            tracing::debug!("TUI location enrichment receiver dropped");
         }
     });
 }
@@ -116,7 +124,9 @@ pub fn spawn_reload_data(
     task_tx: &mpsc::UnboundedSender<TuiTaskEvent>,
 ) {
     let kind = TuiTaskKind::ReloadData;
-    let _ = task_tx.send(TuiTaskEvent::Started { kind });
+    if task_tx.send(TuiTaskEvent::Started { kind }).is_err() {
+        tracing::debug!(?kind, "TUI task receiver dropped before reload");
+    }
 
     let task_tx = task_tx.clone();
     tokio::spawn(async move {
@@ -132,7 +142,9 @@ pub fn spawn_reload_data(
                 data: None,
             },
         };
-        let _ = task_tx.send(event);
+        if task_tx.send(event).is_err() {
+            tracing::debug!(?kind, "TUI task receiver dropped after reload");
+        }
     });
 }
 
@@ -142,7 +154,9 @@ pub fn spawn_reload_logs(
 ) {
     let logs_tx = logs_tx.clone();
     tokio::spawn(async move {
-        let _ = logs_tx.send(TuiLogs::load(&context).await);
+        if logs_tx.send(TuiLogs::load(&context).await).is_err() {
+            tracing::debug!("TUI logs receiver dropped after reload");
+        }
     });
 }
 
@@ -154,7 +168,12 @@ pub fn spawn_probe_engines(
 ) {
     let engines_tx = engines_tx.clone();
     tokio::spawn(async move {
-        let _ = engines_tx.send(crate::tui::data::probe_engines(&context).await);
+        if engines_tx
+            .send(crate::tui::data::probe_engines(&context).await)
+            .is_err()
+        {
+            tracing::debug!("TUI engine probe receiver dropped");
+        }
     });
 }
 

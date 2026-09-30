@@ -1,6 +1,7 @@
 use super::*;
 
 impl<'a> RuntimeService<'a> {
+    #[tracing::instrument(skip_all, fields(config_id = request.config_id))]
     pub async fn connect(&self, request: ConnectRequest) -> crate::app::Result<ConnectResult> {
         let Some(config) = self.context.db.get_config_by_id(request.config_id).await? else {
             return Err(AppError::InvalidArgument(format!(

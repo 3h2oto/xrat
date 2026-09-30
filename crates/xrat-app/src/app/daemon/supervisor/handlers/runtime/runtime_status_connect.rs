@@ -19,21 +19,31 @@ pub(super) async fn handle_runtime_status(
 
     match RuntimeService::new(context).status().await {
         Ok(snapshot) => {
-            let _ = respond_to.send(RuntimeStatusResult::Ok(RuntimeStatusPayload {
-                daemon_ready: state.ready,
-                runtime_owned: snapshot.session.is_some() && snapshot.pid_running,
-                runtime_status: snapshot.status.as_str().to_string(),
-                session_id: snapshot.session.as_ref().map(|session| session.id),
-                active_config_id: snapshot.active_config.as_ref().map(|config| config.id),
-                pid_running: snapshot.pid_running,
-                http_api_enabled,
-                http_api_addr,
-            }));
+            if respond_to
+                .send(RuntimeStatusResult::Ok(RuntimeStatusPayload {
+                    daemon_ready: state.ready,
+                    runtime_owned: snapshot.session.is_some() && snapshot.pid_running,
+                    runtime_status: snapshot.status.as_str().to_string(),
+                    session_id: snapshot.session.as_ref().map(|session| session.id),
+                    active_config_id: snapshot.active_config.as_ref().map(|config| config.id),
+                    pid_running: snapshot.pid_running,
+                    http_api_enabled,
+                    http_api_addr,
+                }))
+                .is_err()
+            {
+                tracing::debug!("runtime status response receiver dropped");
+            }
         }
         Err(err) => {
-            let _ = respond_to.send(RuntimeStatusResult::Err {
-                message: err.to_string(),
-            });
+            if respond_to
+                .send(RuntimeStatusResult::Err {
+                    message: err.to_string(),
+                })
+                .is_err()
+            {
+                tracing::debug!("runtime status error receiver dropped");
+            }
         }
     }
 }
@@ -49,7 +59,7 @@ pub(super) async fn handle_runtime_connect(
         .await
     {
         Ok(result) => {
-            let _ = context
+            if let Err(error) = context
                 .db
                 .update_runtime_session_transition_metadata(
                     result.session_id,
@@ -59,7 +69,10 @@ pub(super) async fn handle_runtime_connect(
                     Some("daemon runtime connect request succeeded"),
                     Some("daemon"),
                 )
-                .await;
+                .await
+            {
+                tracing::warn!(session_id = result.session_id, config_id, %error, "runtime connect metadata update failed");
+            }
             crate::app::events::record(
                 &context.db,
                 crate::app::events::LEVEL_INFO,
@@ -71,11 +84,20 @@ pub(super) async fn handle_runtime_connect(
                 None,
             )
             .await;
-            let _ = respond_to.send(RuntimeConnectResult::Ok(RuntimeConnectPayload {
-                config_id: result.config.id,
-                session_id: result.session_id,
-                pid: result.pid,
-            }));
+            if respond_to
+                .send(RuntimeConnectResult::Ok(RuntimeConnectPayload {
+                    config_id: result.config.id,
+                    session_id: result.session_id,
+                    pid: result.pid,
+                }))
+                .is_err()
+            {
+                tracing::debug!(
+                    config_id,
+                    session_id = result.session_id,
+                    "runtime connect response receiver dropped"
+                );
+            }
         }
         Err(err) => {
             crate::app::events::record(
@@ -89,9 +111,14 @@ pub(super) async fn handle_runtime_connect(
                 None,
             )
             .await;
-            let _ = respond_to.send(RuntimeConnectResult::Err {
-                message: err.to_string(),
-            });
+            if respond_to
+                .send(RuntimeConnectResult::Err {
+                    message: err.to_string(),
+                })
+                .is_err()
+            {
+                tracing::debug!(config_id, "runtime connect error receiver dropped");
+            }
         }
     }
 }

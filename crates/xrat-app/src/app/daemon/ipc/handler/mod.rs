@@ -29,7 +29,9 @@ pub async fn serve_ping(
                 )));
             }
             Err(err) if daemon_unreachable(&err) => {
-                let _ = std::fs::remove_file(socket_path);
+                if let Err(error) = std::fs::remove_file(socket_path) {
+                    tracing::warn!(path = %socket_path.display(), %error, "failed to remove stale daemon socket");
+                }
             }
             Err(err) => return Err(err),
         }
@@ -46,12 +48,16 @@ pub async fn serve_ping(
                 let supervisor_tx = supervisor_tx.clone();
                 let shutdown_tx = shutdown_tx.clone();
                 tokio::spawn(async move {
-                    let _ = io::handle_connection(&mut stream, supervisor_tx, shutdown_tx).await;
+                    if let Err(error) = io::handle_connection(&mut stream, supervisor_tx, shutdown_tx).await {
+                        tracing::debug!(%error, "daemon IPC request failed");
+                    }
                 });
             }
         }
     }
-    let _ = std::fs::remove_file(socket_path);
+    if let Err(error) = std::fs::remove_file(socket_path) {
+        tracing::warn!(path = %socket_path.display(), %error, "failed to remove daemon socket");
+    }
     Ok(())
 }
 

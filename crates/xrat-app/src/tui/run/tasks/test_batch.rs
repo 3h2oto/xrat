@@ -1,4 +1,5 @@
 use tokio::sync::mpsc;
+use tracing::Instrument;
 
 use crate::app::context::AppContext;
 use crate::tui::app::TuiApp;
@@ -25,7 +26,9 @@ pub fn spawn_test_batch(
     let request = test_run_request_for_app(app);
     let include_deleted = app.config_list.include_deleted;
     let (token, receiver) = app.task_state.start(kind);
-    let _ = task_tx.send(TuiTaskEvent::Started { kind });
+    if task_tx.send(TuiTaskEvent::Started { kind }).is_err() {
+        tracing::debug!(?kind, "TUI task receiver dropped before batch test");
+    }
 
     let (progress_tx, mut progress_rx) =
         mpsc::unbounded_channel::<crate::app::services::testing::TestProgressUpdate>();
@@ -40,58 +43,88 @@ pub fn spawn_test_batch(
                 .await
             {
                 Ok(Some(row)) => {
-                    let _ = task_tx_clone.send(TuiTaskEvent::ConfigTested {
-                        row: row.into(),
-                        done: update.done,
-                        total: update.total,
-                    });
+                    if task_tx_clone
+                        .send(TuiTaskEvent::ConfigTested {
+                            row: row.into(),
+                            done: update.done,
+                            total: update.total,
+                        })
+                        .is_err()
+                    {
+                        tracing::debug!(?kind, "TUI progress receiver dropped during batch test");
+                    }
                 }
-                _ => {
-                    let _ = task_tx_clone.send(TuiTaskEvent::Progress {
-                        kind,
-                        done: update.done,
-                        total: update.total,
-                    });
+                Err(error) => {
+                    tracing::debug!(config_id = update.config_id, %error, "failed to load tested config detail");
+                    if task_tx_clone
+                        .send(TuiTaskEvent::Progress {
+                            kind,
+                            done: update.done,
+                            total: update.total,
+                        })
+                        .is_err()
+                    {
+                        tracing::debug!(?kind, "TUI progress receiver dropped during batch test");
+                    }
+                }
+                Ok(None) => {
+                    tracing::debug!(config_id = update.config_id, "tested config detail missing");
+                    if task_tx_clone
+                        .send(TuiTaskEvent::Progress {
+                            kind,
+                            done: update.done,
+                            total: update.total,
+                        })
+                        .is_err()
+                    {
+                        tracing::debug!(?kind, "TUI progress receiver dropped during batch test");
+                    }
                 }
             }
         }
     });
 
     let task_tx = task_tx.clone();
-    tokio::spawn(async move {
-        let result = crate::app::services::testing::run_bulk_for_config_ids_with_progress(
-            &request,
-            &context,
-            &config_ids,
-            receiver,
-            progress_tx,
-        )
-        .await;
+    let batch_span = tracing::debug_span!("tui_test_batch", config_count = config_ids.len());
+    tokio::spawn(
+        async move {
+            let result = crate::app::services::testing::run_bulk_for_config_ids_with_progress(
+                &request,
+                &context,
+                &config_ids,
+                receiver,
+                progress_tx,
+            )
+            .await;
 
-        let was_cancelled = token.is_cancelled();
-        let event = match result {
-            Ok(_) if was_cancelled => TuiTaskEvent::Cancelled { kind },
-            Ok(tested) => match TuiData::load(&context, include_deleted).await {
-                Ok(data) => TuiTaskEvent::Completed {
-                    kind,
-                    message: format!("tested {tested} configs"),
-                    data: Some(data),
+            let was_cancelled = token.is_cancelled();
+            let event = match result {
+                Ok(_) if was_cancelled => TuiTaskEvent::Cancelled { kind },
+                Ok(tested) => match TuiData::load(&context, include_deleted).await {
+                    Ok(data) => TuiTaskEvent::Completed {
+                        kind,
+                        message: format!("tested {tested} configs"),
+                        data: Some(data),
+                    },
+                    Err(error) => TuiTaskEvent::Failed {
+                        kind,
+                        error: format!("test completed but reload failed: {error}"),
+                        data: None,
+                    },
                 },
+                Err(_) if was_cancelled => TuiTaskEvent::Cancelled { kind },
                 Err(error) => TuiTaskEvent::Failed {
                     kind,
-                    error: format!("test completed but reload failed: {error}"),
+                    error: error.to_string(),
                     data: None,
                 },
-            },
-            Err(_) if was_cancelled => TuiTaskEvent::Cancelled { kind },
-            Err(error) => TuiTaskEvent::Failed {
-                kind,
-                error: error.to_string(),
-                data: None,
-            },
-        };
-        let _ = task_tx.send(event);
-    });
+            };
+            if task_tx.send(event).is_err() {
+                tracing::debug!(?kind, "TUI task receiver dropped after batch test");
+            }
+        }
+        .instrument(batch_span),
+    );
 }
 
 #[cfg_attr(not(test), allow(dead_code))]

@@ -7,6 +7,7 @@ impl<'a> RuntimeService<'a> {
         Self { context }
     }
 
+    #[tracing::instrument(skip_all)]
     pub async fn disconnect(&self) -> crate::app::Result<DisconnectResult> {
         let stopped_session = stop_active_session(self.context).await?;
         Ok(DisconnectResult { stopped_session })
