@@ -87,3 +87,13 @@ The service templates embedded by `xrat daemon install` live in
   and database stacks moved into `xrat-app`).
 - Broaden the `xrat-sdk` facade and add a non-CLI `AppContext` constructor so
   the SDK does not require CLI arguments to build.
+
+## Release versions and embedded assets
+
+Run `just set-version 0.21.0` when preparing a release. This updates the
+workspace package version and internal dependency requirements together and
+refreshes `Cargo.lock`. CI and release validation reject mismatched versions.
+
+Migrations live in `crates/xrat-db/migrations/` so published database crates
+embed their own SQL files. The root `migrations` symlink preserves existing
+development commands. SQL contents and migration checksums are unchanged.

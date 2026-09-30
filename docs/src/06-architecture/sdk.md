@@ -44,7 +44,8 @@ extra registry setup is required.
 
 ## Compatibility
 
-The whole workspace shares one version, single-sourced from
+Use `just set-version <version>` to synchronize package and dependency versions.
+The whole workspace shares one package version, inherited from
 `[workspace.package]` in the root `Cargo.toml`. The SDK is pre-1.0: pin an exact
 `=0.20.x` if you need bit-for-bit reproducibility, and expect the curated
 surface (not the internal crates) to be the stable contract.

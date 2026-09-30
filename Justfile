@@ -26,6 +26,16 @@ run *args:
 check:
     cargo check --locked
 
+# Update all workspace versions and refresh the lockfile
+set-version version:
+    python3 scripts/set-version.py {{quote(version)}}
+    cargo update --workspace --offline
+
+# Check workspace version consistency and release tooling
+version-check:
+    python3 scripts/set-version.py --check
+    python3 -m unittest discover -s scripts/tests -q
+
 # Build in release mode
 release:
     cargo build --release --locked
@@ -106,7 +116,7 @@ lint:
     cargo clippy --locked --workspace --all-targets -- -D warnings
 
 # Run the same commands as .github/workflows/ci.yml
-ci: fmt-rust-check lint test
+ci: version-check fmt-rust-check lint test
 
 # Run stricter local checks beyond GitHub CI
 ci-full: fmt-check lint test mdbook-build

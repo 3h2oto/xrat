@@ -28,7 +28,8 @@
 - `src/tui/` contains terminal UI state, views, keymaps, and data adapters.
 - `src/support/` contains small shared helpers for decode, GeoIP, cancellation,
   network, time, and URL handling.
-- `migrations/sqlite/` and `migrations/postgres/` hold ordered SQL migrations.
+- `crates/xrat-db/migrations/` holds ordered SQL migrations. The root
+  `migrations` symlink supports repository commands and documentation.
 - `docs/src/` holds user-facing documentation.
 - `crates/xrat-app/templates/` holds the systemd, launchd, and rc.d service
   templates embedded by `xrat daemon install`; `packaging/desktop/` holds
@@ -133,8 +134,9 @@ Releases are driven by `.github/workflows/release.yml` and run on pushed tags
 matching `v*`.
 
 - Before preparing a release commit, run `just fmt ci`.
-- Update the workspace version in `[workspace.package]` in the root
-  `Cargo.toml`; every crate inherits it and the release workflow rejects tags
+- Run `just set-version <version>` to update `[workspace.package]`, internal
+  dependency requirements, and `Cargo.lock` together; every crate inherits the
+  workspace version and the release workflow rejects inconsistent versions or tags
   whose version does not match the tag without the leading `v`.
 - Use an annotated or signed version tag such as `v0.3.0`, matching the
   workspace version `0.3.0`.
