@@ -1,5 +1,5 @@
 use super::*;
-use crate::app::commands::progress::CliProgress;
+use crate::app::terminal::progress::CliProgress;
 
 pub(super) fn bulk_progress_bar(total: usize, enabled: bool) -> CliProgress {
     CliProgress::bar_with_template(

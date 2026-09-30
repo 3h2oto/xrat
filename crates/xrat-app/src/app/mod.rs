@@ -15,5 +15,6 @@ pub mod runtime_service;
 
 pub mod services;
 pub mod subscription_refresh;
+pub(crate) mod terminal;
 
 pub use error::{AppError, Result};

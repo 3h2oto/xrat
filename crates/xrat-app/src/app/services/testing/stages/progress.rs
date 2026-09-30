@@ -1,5 +1,5 @@
 use super::*;
-use crate::app::commands::output;
+use crate::app::terminal::output;
 
 pub(crate) fn merge_failure(
     result: &mut TestResult,
