@@ -1,9 +1,11 @@
 ---
 id: TASK-20
 title: Add End-To-End CLI Test Harness
-status: To Do
-assignee: []
+status: Done
+assignee:
+  - '@codex'
 created_date: '2026-07-05 14:43'
+updated_date: '2026-09-30 09:17'
 labels:
   - legacy-import
   - improvement
@@ -69,3 +71,21 @@ the read-only flows (`init`, `list`, `show`) which need no external binaries,
 then add mutation flows. Keep e2e tests fast and deterministic so they can stay in
 the default `cargo test` run.
 <!-- SECTION:DESCRIPTION:END -->
+
+## Implementation Plan
+
+<!-- SECTION:PLAN:BEGIN -->
+Add a black-box CLI integration test over a temporary XRAT_PATH covering init, import, list table/JSON, show, delete, and purge; run it in the default cargo test gate.
+<!-- SECTION:PLAN:END -->
+
+## Implementation Notes
+
+<!-- SECTION:NOTES:BEGIN -->
+Added a network- and daemon-free black-box integration test under tests/ using the built xrat binary and temporary XRAT_PATH. It covers init, import, table and JSON listing, show config JSON, soft delete, deleted filter, purge, exit status, and stdout. Uses only existing tempfile plus serde_json dev dependency. Validation: CARGO_INCREMENTAL=0 just fmt ci passed, including the new integration test.
+<!-- SECTION:NOTES:END -->
+
+## Final Summary
+
+<!-- SECTION:FINAL_SUMMARY:BEGIN -->
+Added a complete CLI config lifecycle smoke test against a temporary home; full workspace CI passed.
+<!-- SECTION:FINAL_SUMMARY:END -->
