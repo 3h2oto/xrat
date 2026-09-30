@@ -1,1 +1,1 @@
-../src/app/commands/init_default_config.toml
+../crates/xrat-app/src/app/commands/init_default_config.toml

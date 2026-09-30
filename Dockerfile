@@ -11,7 +11,7 @@ WORKDIR /app
 RUN apk add --no-cache build-base musl-dev
 
 COPY Cargo.toml Cargo.lock ./
-COPY migrations ./migrations
+COPY crates ./crates
 COPY packaging ./packaging
 COPY src ./src
 
