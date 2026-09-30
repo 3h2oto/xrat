@@ -57,10 +57,8 @@ fn migration_checksums(migrator: &sqlx::migrate::Migrator) -> BTreeMap<String, S
         .collect()
 }
 
-const MIGRATION_MANIFEST_PATH: &str = concat!(
-    env!("CARGO_MANIFEST_DIR"),
-    "/../../migrations/checksums.json"
-);
+const MIGRATION_MANIFEST_PATH: &str =
+    concat!(env!("CARGO_MANIFEST_DIR"), "/migrations/checksums.json");
 
 async fn memory_pool() -> SqlitePool {
     SqlitePoolOptions::new()

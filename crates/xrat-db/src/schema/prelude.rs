@@ -6,7 +6,6 @@ pub(crate) use sqlx::{PgPool, Row, SqlitePool};
 
 pub(crate) use crate::DbError;
 
-pub(crate) static SQLITE_MIGRATOR: sqlx::migrate::Migrator =
-    sqlx::migrate!("../../migrations/sqlite");
+pub(crate) static SQLITE_MIGRATOR: sqlx::migrate::Migrator = sqlx::migrate!("migrations/sqlite");
 pub(crate) static POSTGRES_MIGRATOR: sqlx::migrate::Migrator =
-    sqlx::migrate!("../../migrations/postgres");
+    sqlx::migrate!("migrations/postgres");
