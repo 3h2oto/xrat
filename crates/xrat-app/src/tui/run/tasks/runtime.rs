@@ -63,7 +63,17 @@ pub fn spawn_runtime_start_config(
         return;
     };
     tokio::spawn(async move {
-        let control = runtime_control::local_control(&context);
+        let control = match runtime_control::tui_control(&context).await {
+            Ok(control) => control,
+            Err(error) => {
+                let _ = task_tx.send(TuiTaskEvent::Failed {
+                    kind,
+                    error: error.to_string(),
+                    data: None,
+                });
+                return;
+            }
+        };
         let event = match control.connect(config_id).await {
             Ok(res) => {
                 let msg = format!("started runtime with config #{}", res.config_id);
@@ -92,7 +102,17 @@ pub fn spawn_runtime_stop(
         return;
     };
     tokio::spawn(async move {
-        let control = runtime_control::local_control(&context);
+        let control = match runtime_control::tui_control(&context).await {
+            Ok(control) => control,
+            Err(error) => {
+                let _ = task_tx.send(TuiTaskEvent::Failed {
+                    kind,
+                    error: error.to_string(),
+                    data: None,
+                });
+                return;
+            }
+        };
         let event = match control.disconnect().await {
             Ok(_) => {
                 complete_after_reload(
@@ -126,7 +146,17 @@ pub fn spawn_runtime_restart(
         return;
     };
     tokio::spawn(async move {
-        let control = runtime_control::local_control(&context);
+        let control = match runtime_control::tui_control(&context).await {
+            Ok(control) => control,
+            Err(error) => {
+                let _ = task_tx.send(TuiTaskEvent::Failed {
+                    kind,
+                    error: error.to_string(),
+                    data: None,
+                });
+                return;
+            }
+        };
         if let Err(err) = control.disconnect().await {
             let _ = task_tx.send(TuiTaskEvent::Failed {
                 kind,
