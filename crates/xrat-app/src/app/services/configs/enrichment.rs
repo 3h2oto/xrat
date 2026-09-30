@@ -1,6 +1,6 @@
 use crate::app::config::AppConfig;
 use crate::app::context::RuntimePaths;
-use xrat_db::record::ConfigWithLatestTest;
+use crate::app::read_models::ConfigDetail;
 
 /// Fill endpoint geolocation fields on joined rows when GeoIP is enabled.
 ///
@@ -9,7 +9,7 @@ use xrat_db::record::ConfigWithLatestTest;
 pub async fn enrich_endpoint_locations(
     app_config: &AppConfig,
     runtime_paths: &RuntimePaths,
-    configs: &mut [ConfigWithLatestTest],
+    configs: &mut [ConfigDetail],
 ) {
     if !app_config.testing.geoip.enabled || !configs.iter().any(needs_location_enrichment) {
         return;
@@ -24,24 +24,24 @@ pub async fn enrich_endpoint_locations(
         .iter_mut()
         .filter(|row| needs_location_enrichment(row))
     {
-        let meta = xrat_support::geoip::enrich_address(&row.config.address, lookup.as_ref()).await;
+        let meta = xrat_support::geoip::enrich_address(&row.summary.address, lookup.as_ref()).await;
         if !meta.has_lookup_metadata() {
             continue;
         }
         if let Some(location) = meta.location {
-            row.dial_endpoint_location = Some(location);
+            row.endpoint_location.location = Some(location);
         }
         if let Some(country) = meta.country {
-            row.dial_endpoint_country = Some(country);
+            row.endpoint_location.country = Some(country);
         }
         if let Some(asn) = meta.asn {
-            row.dial_endpoint_asn = Some(asn);
+            row.endpoint_location.asn = Some(asn);
         }
     }
 }
 
-fn needs_location_enrichment(row: &ConfigWithLatestTest) -> bool {
-    row.dial_endpoint_location.is_none()
-        || row.dial_endpoint_country.is_none()
-        || row.dial_endpoint_asn.is_none()
+fn needs_location_enrichment(row: &ConfigDetail) -> bool {
+    row.endpoint_location.location.is_none()
+        || row.endpoint_location.country.is_none()
+        || row.endpoint_location.asn.is_none()
 }

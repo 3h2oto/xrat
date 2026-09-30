@@ -42,12 +42,7 @@ pub async fn list_configs(
         ..ConfigListRequest::default()
     };
     let result = state.services.configs.list(&request).await?;
-    let items = result
-        .items
-        .iter()
-        .map(crate::app::read_models::ConfigDetail::from_joined)
-        .map(|detail| detail_from_model(&detail))
-        .collect();
+    let items = result.items.iter().map(detail_from_model).collect();
 
     Ok(Json(PaginatedResponse {
         total: result.total as usize,
@@ -72,7 +67,7 @@ pub async fn get_config(
     let detail = state
         .services
         .configs
-        .detail_model(id)
+        .detail(id)
         .await?
         .ok_or(ServerError::NotFound)?;
 

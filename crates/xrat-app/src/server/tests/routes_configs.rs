@@ -80,6 +80,55 @@ async fn config_detail_accepts_ref_prefix() {
 }
 
 #[tokio::test]
+async fn config_detail_accepts_digit_only_ref_prefix() {
+    let directory = tempfile::tempdir().unwrap();
+    let path = directory.path().join("configs.sqlite");
+    let db = Database::connect(&DatabaseConnectionConfig::Sqlite { path: path.clone() })
+        .await
+        .unwrap();
+    db.import_nodes(
+        &ImportSource {
+            kind: SourceKind::RawText,
+            value: "test".to_string(),
+            name: None,
+        },
+        &[super::test_node()],
+    )
+    .await
+    .unwrap();
+    let config = db
+        .list_configs(&Default::default())
+        .await
+        .unwrap()
+        .remove(0);
+    let pool = sqlx::SqlitePool::connect(&format!("sqlite://{}", path.display()))
+        .await
+        .unwrap();
+    sqlx::query("UPDATE configs SET ref = '12345678abcd' WHERE id = ?")
+        .bind(config.id)
+        .execute(&pool)
+        .await
+        .unwrap();
+
+    let Json(detail) = configs::get_config(
+        State(ServerState::for_test(db, None)),
+        Path("12345678".to_string()),
+        Query(ConfigsQuery {
+            key: None,
+            page: None,
+            per_page: None,
+            enabled: None,
+            protocol: None,
+        }),
+    )
+    .await
+    .expect("digit-only ref prefix should resolve");
+
+    assert_eq!(detail.id, config.id);
+    assert_eq!(detail.r#ref, "12345678abcd");
+}
+
+#[tokio::test]
 async fn config_detail_returns_not_found_for_missing_id() {
     let state = populated_state(None).await;
 

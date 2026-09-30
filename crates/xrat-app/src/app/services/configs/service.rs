@@ -1,9 +1,9 @@
 use std::sync::Arc;
 
 use crate::app::ports::ConfigRepository;
-use crate::app::read_models::ConfigSummary;
+use crate::app::read_models::ConfigDetail;
 use crate::app::{AppError, Result};
-use xrat_db::record::{ConfigListFilter, ConfigWithLatestTest, RefMatch};
+use xrat_db::record::{ConfigListFilter, RefMatch};
 
 use super::repository::DatabaseConfigRepository;
 
@@ -54,8 +54,7 @@ pub fn validate_top(top: u32) -> Result<u32> {
 #[derive(Clone, Debug)]
 pub struct ConfigListResult {
     pub total: i64,
-    pub items: Vec<ConfigWithLatestTest>,
-    pub summaries: Vec<ConfigSummary>,
+    pub items: Vec<ConfigDetail>,
 }
 
 /// Owns config read rules shared by CLI, HTTP, and TUI.
@@ -99,12 +98,8 @@ impl ConfigService {
             self.repository.count_filtered_configs(&filter).await?
         };
 
-        let summaries = items.iter().map(ConfigSummary::from_joined).collect();
-        Ok(ConfigListResult {
-            total,
-            items,
-            summaries,
-        })
+        let items = items.iter().map(ConfigDetail::from_joined).collect();
+        Ok(ConfigListResult { total, items })
     }
 
     /// Raw config links for a filtered selection, in listing order.
@@ -125,28 +120,23 @@ impl ConfigService {
             .collect())
     }
 
-    /// Fetch a single config with its latest test.
-    pub async fn detail(&self, id: i64) -> Result<Option<ConfigWithLatestTest>> {
-        Ok(self.repository.get_config_with_latest_test(id).await?)
-    }
-
-    /// Fetch a single config as an interface-neutral detail model.
-    pub async fn detail_model(
-        &self,
-        id: i64,
-    ) -> Result<Option<crate::app::read_models::ConfigDetail>> {
+    /// Fetch a config as an interface-neutral detail model.
+    pub async fn detail(&self, id: i64) -> Result<Option<ConfigDetail>> {
         Ok(self
             .repository
             .get_config_with_latest_test(id)
             .await?
-            .map(|row| crate::app::read_models::ConfigDetail::from_joined(&row)))
+            .as_ref()
+            .map(ConfigDetail::from_joined))
     }
 
     /// Resolve a numeric id or ref prefix into a config id.
     pub async fn resolve_id(&self, raw: &str) -> Result<Option<i64>> {
         if let Ok(id) = raw.parse::<i64>() {
             let exists = self.repository.get_config_by_id(id).await?.is_some();
-            return Ok(exists.then_some(id));
+            if exists {
+                return Ok(Some(id));
+            }
         }
 
         if !xrat_support::refs::is_ref_prefix(raw) {
@@ -157,6 +147,25 @@ impl ConfigService {
             RefMatch::Unique(id) => Ok(Some(id)),
             RefMatch::Ambiguous => Err(AppError::InvalidArgument(format!(
                 "config ref prefix '{raw}' is ambiguous; provide more characters"
+            ))),
+            RefMatch::None => Ok(None),
+        }
+    }
+
+    /// Resolve a numeric subscription id or ref prefix.
+    pub async fn resolve_subscription_id(&self, raw: &str) -> Result<Option<i64>> {
+        if let Ok(id) = raw.parse::<i64>()
+            && self.repository.get_subscription_by_id(id).await?.is_some()
+        {
+            return Ok(Some(id));
+        }
+        if !xrat_support::refs::is_ref_prefix(raw) {
+            return Ok(None);
+        }
+        match self.repository.resolve_subscription_ref_prefix(raw).await? {
+            RefMatch::Unique(id) => Ok(Some(id)),
+            RefMatch::Ambiguous => Err(AppError::InvalidArgument(format!(
+                "subscription ref prefix '{raw}' is ambiguous; provide more characters"
             ))),
             RefMatch::None => Ok(None),
         }

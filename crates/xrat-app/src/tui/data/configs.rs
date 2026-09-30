@@ -1,4 +1,4 @@
-use xrat_db::ConfigWithLatestTest;
+use crate::app::read_models::ConfigDetail;
 use xrat_support::refs::short_ref;
 
 #[derive(Debug, Clone, PartialEq)]
@@ -201,9 +201,10 @@ impl TuiConfigRow {
     }
 }
 
-impl From<ConfigWithLatestTest> for TuiConfigRow {
-    fn from(value: ConfigWithLatestTest) -> Self {
-        let config = value.config;
+impl From<ConfigDetail> for TuiConfigRow {
+    fn from(value: ConfigDetail) -> Self {
+        let config = value.summary;
+        let test = config.latest_test.unwrap_or_default();
         Self {
             id: config.id,
             r#ref: config.r#ref,
@@ -213,19 +214,19 @@ impl From<ConfigWithLatestTest> for TuiConfigRow {
             port: config.port,
             network: config.network,
             tls: config.tls,
-            icmp_ms: value.icmp_ms,
-            real_delay_ms: value.real_delay_ms,
-            tcp_ms: value.tcp_ms,
-            download_mbps: value.download_mbps,
-            upload_mbps: value.upload_mbps,
-            dial_endpoint_country: value.dial_endpoint_country,
-            dial_endpoint_location: value.dial_endpoint_location,
-            dial_endpoint_asn: value.dial_endpoint_asn,
-            dial_endpoint_fronting: value.dial_endpoint_fronting,
-            failure_reason: value.failure_reason,
+            icmp_ms: test.icmp_ms,
+            real_delay_ms: test.real_delay_ms,
+            tcp_ms: test.tcp_ms,
+            download_mbps: test.download_mbps,
+            upload_mbps: test.upload_mbps,
+            dial_endpoint_country: value.endpoint_location.country,
+            dial_endpoint_location: value.endpoint_location.location,
+            dial_endpoint_asn: value.endpoint_location.asn,
+            dial_endpoint_fronting: value.endpoint_location.fronting,
+            failure_reason: test.failure_reason,
             source_id: config.subscription_id,
-            tested_at: value.tested_at,
-            imported_at: config.imported_at,
+            tested_at: test.tested_at,
+            imported_at: value.imported_at,
             is_active: config.is_active,
             is_enabled: config.is_enabled,
             is_deleted: config.is_deleted,

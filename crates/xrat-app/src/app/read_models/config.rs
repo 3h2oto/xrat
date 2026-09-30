@@ -22,8 +22,9 @@ pub struct ConfigSummary {
 }
 
 /// Interface-neutral latest connection-test facts for a config.
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, Default, PartialEq)]
 pub struct LatestTestSummary {
+    pub id: Option<i64>,
     pub icmp_ok: Option<bool>,
     pub icmp_ms: Option<i64>,
     pub tcp_ok: Option<bool>,
@@ -55,6 +56,7 @@ pub struct EndpointLocation {
 pub struct ConfigDetail {
     pub summary: ConfigSummary,
     pub subscription_id: Option<i64>,
+    pub endpoint_location: EndpointLocation,
     pub dedup_key: String,
     pub sni: Option<String>,
     pub host: Option<String>,
@@ -70,6 +72,7 @@ impl ConfigDetail {
         Self {
             summary: ConfigSummary::from_joined(row),
             subscription_id: row.config.subscription_id,
+            endpoint_location: ConfigSummary::endpoint_location(row),
             dedup_key: row.config.dedup_key.clone(),
             sni: row.config.sni.clone(),
             host: row.config.host.clone(),
@@ -88,6 +91,7 @@ impl LatestTestSummary {
     pub fn from_joined(row: &ConfigWithLatestTest) -> Option<Self> {
         row.test_id?;
         Some(Self {
+            id: row.test_id,
             icmp_ok: row.icmp_ok,
             icmp_ms: row.icmp_ms,
             tcp_ok: row.tcp_ok,
@@ -107,6 +111,27 @@ impl LatestTestSummary {
 }
 
 impl ConfigSummary {
+    pub fn test(&self) -> &LatestTestSummary {
+        const EMPTY: LatestTestSummary = LatestTestSummary {
+            id: None,
+            icmp_ok: None,
+            icmp_ms: None,
+            tcp_ok: None,
+            tcp_ms: None,
+            real_delay_ok: None,
+            real_delay_ms: None,
+            download_mbps: None,
+            upload_mbps: None,
+            connect_ms: None,
+            ttfb_ms: None,
+            http_status: None,
+            failure_kind: None,
+            failure_reason: None,
+            tested_at: None,
+        };
+        self.latest_test.as_ref().unwrap_or(&EMPTY)
+    }
+
     /// Map a joined config/test row into an interface-neutral summary.
     pub fn from_joined(row: &ConfigWithLatestTest) -> Self {
         Self {

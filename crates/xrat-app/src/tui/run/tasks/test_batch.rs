@@ -28,14 +28,15 @@ pub fn spawn_test_batch(
     let _ = task_tx.send(TuiTaskEvent::Started { kind });
 
     let (progress_tx, mut progress_rx) =
-        mpsc::unbounded_channel::<crate::app::commands::test::TestProgressUpdate>();
+        mpsc::unbounded_channel::<crate::app::services::testing::TestProgressUpdate>();
     let task_tx_clone = task_tx.clone();
     let progress_context = context.clone();
     tokio::spawn(async move {
         while let Some(update) = progress_rx.recv().await {
             match progress_context
-                .db
-                .get_config_with_latest_test(update.config_id)
+                .services()
+                .configs
+                .detail(update.config_id)
                 .await
             {
                 Ok(Some(row)) => {
@@ -58,7 +59,7 @@ pub fn spawn_test_batch(
 
     let task_tx = task_tx.clone();
     tokio::spawn(async move {
-        let result = crate::app::commands::test::run_bulk_for_config_ids_with_progress(
+        let result = crate::app::services::testing::run_bulk_for_config_ids_with_progress(
             &request,
             &context,
             &config_ids,

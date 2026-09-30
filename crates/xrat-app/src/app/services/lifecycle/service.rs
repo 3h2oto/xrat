@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use crate::app::ports::ConfigRepository;
 use crate::app::{AppError, Result};
-use xrat_db::{ConfigRecord, RefMatch, SubscriptionRecord};
+use xrat_db::{ConfigRecord, SubscriptionRecord};
 
 use crate::app::services::configs::DatabaseConfigRepository;
 
@@ -47,52 +47,17 @@ impl ConfigLifecycleService {
     /// Resolve a numeric id or ref prefix into a config id, or error when it
     /// does not identify a stored config.
     pub async fn resolve_config_id(&self, raw: &str) -> Result<i64> {
-        if let Ok(id) = raw.parse::<i64>()
-            && self.repository.get_config_by_id(id).await?.is_some()
-        {
-            return Ok(id);
-        }
-
-        if xrat_support::refs::is_ref_prefix(raw) {
-            match self.repository.resolve_config_ref_prefix(raw).await? {
-                RefMatch::Unique(id) => return Ok(id),
-                RefMatch::Ambiguous => {
-                    return Err(AppError::InvalidArgument(format!(
-                        "config ref prefix '{raw}' is ambiguous; provide more characters"
-                    )));
-                }
-                RefMatch::None => {}
-            }
-        }
-
-        Err(AppError::InvalidArgument(format!(
-            "no config found for '{raw}'"
-        )))
+        crate::app::services::ConfigService::new(Arc::clone(&self.repository))
+            .resolve_id(raw)
+            .await?
+            .ok_or_else(|| AppError::InvalidArgument(format!("no config found for '{raw}'")))
     }
 
-    /// Resolve a numeric id or ref prefix into a subscription id.
     pub async fn resolve_subscription_id(&self, raw: &str) -> Result<i64> {
-        if let Ok(id) = raw.parse::<i64>()
-            && self.repository.get_subscription_by_id(id).await?.is_some()
-        {
-            return Ok(id);
-        }
-
-        if xrat_support::refs::is_ref_prefix(raw) {
-            match self.repository.resolve_subscription_ref_prefix(raw).await? {
-                RefMatch::Unique(id) => return Ok(id),
-                RefMatch::Ambiguous => {
-                    return Err(AppError::InvalidArgument(format!(
-                        "subscription ref prefix '{raw}' is ambiguous; provide more characters"
-                    )));
-                }
-                RefMatch::None => {}
-            }
-        }
-
-        Err(AppError::InvalidArgument(format!(
-            "no subscription found for '{raw}'"
-        )))
+        crate::app::services::ConfigService::new(Arc::clone(&self.repository))
+            .resolve_subscription_id(raw)
+            .await?
+            .ok_or_else(|| AppError::InvalidArgument(format!("no subscription found for '{raw}'")))
     }
 
     /// Load a config record or report that the identifier matched nothing.
@@ -158,6 +123,14 @@ impl ConfigLifecycleService {
         Ok(subscription)
     }
 
+    pub async fn rename_subscription(&self, raw: &str, name: &str) -> Result<SubscriptionRecord> {
+        let subscription = self.subscription(raw).await?;
+        self.repository
+            .set_subscription_name(subscription.id, name)
+            .await?;
+        Ok(subscription)
+    }
+
     pub async fn restore(&self, raw: &str) -> Result<(ConfigRecord, RestoreOutcome)> {
         let config = self.config(raw).await?;
         if !config.is_deleted {
@@ -165,5 +138,16 @@ impl ConfigLifecycleService {
         }
         self.repository.restore_config(config.id).await?;
         Ok((config, RestoreOutcome::Restored))
+    }
+    pub async fn delete_many(&self, ids: &[i64], hard: bool) -> Result<u64> {
+        Ok(if hard {
+            self.repository.hard_delete_configs(ids).await?
+        } else {
+            self.repository.delete_configs(ids).await?
+        })
+    }
+
+    pub async fn restore_many(&self, ids: &[i64]) -> Result<u64> {
+        Ok(self.repository.restore_configs(ids).await?)
     }
 }

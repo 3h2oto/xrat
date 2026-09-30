@@ -1,6 +1,7 @@
 use super::configs::*;
 use super::prelude::*;
 use super::subscriptions::*;
+use xrat_db::{ConfigRecord, ConfigWithLatestTest};
 
 #[test]
 fn config_outputs_include_refs() {
@@ -79,8 +80,8 @@ fn config_table_uses_enabled_settings_for_metric_columns() {
     assert!(!table.contains("COUNTRY"));
 }
 
-fn config_row(value_ref: &str) -> ConfigWithLatestTest {
-    ConfigWithLatestTest {
+fn config_row(value_ref: &str) -> ConfigDetail {
+    ConfigDetail::from_joined(&ConfigWithLatestTest {
         config: ConfigRecord {
             id: 1,
             r#ref: value_ref.to_string(),
@@ -129,5 +130,5 @@ fn config_row(value_ref: &str) -> ConfigWithLatestTest {
         failure_kind: None,
         failure_reason: None,
         tested_at: Some("tested".to_string()),
-    }
+    })
 }

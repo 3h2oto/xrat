@@ -99,4 +99,16 @@ impl ConfigRepository for DatabaseConfigRepository {
     async fn delete_subscription_with_configs(&self, id: i64) -> Result<(), DbError> {
         self.db.delete_subscription_with_configs(id).await
     }
+    async fn set_subscription_name(&self, id: i64, name: &str) -> Result<(), DbError> {
+        self.db.set_subscription_name(id, name).await
+    }
+    async fn delete_configs(&self, ids: &[i64]) -> Result<u64, DbError> {
+        self.db.delete_configs(ids).await
+    }
+    async fn hard_delete_configs(&self, ids: &[i64]) -> Result<u64, DbError> {
+        self.db.hard_delete_configs(ids).await
+    }
+    async fn restore_configs(&self, ids: &[i64]) -> Result<u64, DbError> {
+        self.db.restore_configs(ids).await
+    }
 }

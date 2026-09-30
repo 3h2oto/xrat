@@ -1,10 +1,9 @@
 use xrat_db::record::{ConfigListFilter, ConfigWithLatestTest, RefMatch};
 use xrat_db::{DbError, SubscriptionRecord};
 
-/// Persistence operations required by the config read service.
+/// Persistence operations required by config read and lifecycle services.
 ///
-/// This is deliberately narrow: only queries used by `ConfigService`. It is
-/// implemented by the database layer and replaced by fakes in tests.
+/// It is implemented by the database layer and replaced by fakes in tests.
 #[async_trait::async_trait]
 pub trait ConfigRepository: Send + Sync {
     async fn list_configs_with_latest_tests(
@@ -56,4 +55,8 @@ pub trait ConfigRepository: Send + Sync {
     async fn restore_config(&self, id: i64) -> Result<(), DbError>;
 
     async fn delete_subscription_with_configs(&self, id: i64) -> Result<(), DbError>;
+    async fn set_subscription_name(&self, id: i64, name: &str) -> Result<(), DbError>;
+    async fn delete_configs(&self, ids: &[i64]) -> Result<u64, DbError>;
+    async fn hard_delete_configs(&self, ids: &[i64]) -> Result<u64, DbError>;
+    async fn restore_configs(&self, ids: &[i64]) -> Result<u64, DbError>;
 }

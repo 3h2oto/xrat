@@ -40,6 +40,10 @@ pub async fn json(
     require_api_key(&state, query.key.as_deref())?;
     let result = state.services.configs.list(&query.to_request()?).await?;
     Ok(Json(
-        result.summaries.iter().map(summary_from_summary).collect(),
+        result
+            .items
+            .iter()
+            .map(|detail| summary_from_summary(&detail.summary))
+            .collect(),
     ))
 }

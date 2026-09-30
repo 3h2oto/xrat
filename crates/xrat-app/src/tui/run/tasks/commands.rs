@@ -1,6 +1,7 @@
 use tokio::sync::mpsc;
 
 use crate::app::context::AppContext;
+use crate::app::services::ToggleOutcome;
 use crate::tui::app::{TuiApp, TuiConfigCommand};
 use crate::tui::task::TuiTaskEvent;
 
@@ -19,7 +20,12 @@ pub async fn run_config_command(
         TuiConfigCommand::Restore(id) => {
             apply_reload(
                 app,
-                context.db.restore_config(id).await,
+                context
+                    .services()
+                    .lifecycle
+                    .restore(&id.to_string())
+                    .await
+                    .map(|_| ()),
                 id,
                 "restored",
                 task_tx,
@@ -29,7 +35,12 @@ pub async fn run_config_command(
         TuiConfigCommand::SoftDelete(id) => {
             apply_reload(
                 app,
-                context.db.delete_config(id).await,
+                context
+                    .services()
+                    .lifecycle
+                    .delete(&id.to_string(), false)
+                    .await
+                    .map(|_| ()),
                 id,
                 "soft deleted",
                 task_tx,
@@ -39,7 +50,12 @@ pub async fn run_config_command(
         TuiConfigCommand::Purge(id) => {
             apply_reload(
                 app,
-                context.db.hard_delete_config(id).await,
+                context
+                    .services()
+                    .lifecycle
+                    .delete(&id.to_string(), true)
+                    .await
+                    .map(|_| ()),
                 id,
                 "purged",
                 task_tx,
@@ -50,7 +66,16 @@ pub async fn run_config_command(
 }
 
 async fn apply_enabled(context: &AppContext, app: &mut TuiApp, id: i64, enabled: bool) {
-    match context.db.set_config_enabled(id, enabled).await {
+    let lifecycle = context.services().lifecycle;
+    let result = if enabled {
+        lifecycle.enable(&id.to_string()).await
+    } else {
+        lifecycle.disable(&id.to_string()).await
+    };
+    match result {
+        Ok(ToggleOutcome::DeletedConfig) => {
+            app.push_log(format!("Config {id} is deleted; restore it first"))
+        }
         Ok(_) => {
             app.data.set_config_enabled(id, enabled);
             let verb = if enabled { "enabled" } else { "disabled" };
@@ -62,7 +87,7 @@ async fn apply_enabled(context: &AppContext, app: &mut TuiApp, id: i64, enabled:
 
 fn apply_reload(
     app: &mut TuiApp,
-    result: xrat_db::Result<()>,
+    result: crate::app::Result<()>,
     id: i64,
     verb: &str,
     task_tx: &mpsc::UnboundedSender<TuiTaskEvent>,

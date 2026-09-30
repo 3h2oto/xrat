@@ -14,9 +14,6 @@ use crate::app::config::ConnectionTestStage;
 use crate::app::config::{AppConfig, TestFailurePolicy};
 use crate::app::context::AppContext;
 use crate::app::services::testing::*;
-pub(crate) use crate::app::services::testing::{
-    TestProgressUpdate, run_bulk_for_config_ids_with_progress,
-};
 use crate::cli::{TestArgs, TestFormat, TestSortBy};
 #[cfg(test)]
 use xrat_db::DatabaseConnectionConfig;

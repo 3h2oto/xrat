@@ -1,87 +1,23 @@
-//! Resolve user-supplied config/subscription identifiers that may be either a
-//! numeric id (legacy) or a short ref prefix (`xrat connect a1b2`).
+//! Resolve user-facing identifiers through the shared lifecycle service.
 
-use crate::app::AppError;
 use crate::app::context::AppContext;
-use xrat_db::RefMatch;
-use xrat_support::refs::is_ref_prefix;
 
-/// Resolve a config identifier: a numeric id is tried first (transition
-/// compatibility), then a ref prefix.
 pub async fn resolve_config_id(context: &AppContext, raw: &str) -> crate::app::Result<i64> {
-    if let Some(id) = existing_config_numeric_id(context, raw).await? {
-        return Ok(id);
-    }
-    if is_ref_prefix(raw) {
-        match context.db.resolve_config_ref_prefix(raw).await? {
-            RefMatch::Unique(id) => return Ok(id),
-            RefMatch::Ambiguous => {
-                return Err(AppError::InvalidArgument(format!(
-                    "config ref prefix '{raw}' is ambiguous; provide more characters"
-                )));
-            }
-            RefMatch::None => {}
-        }
-    }
-    Err(AppError::InvalidArgument(format!(
-        "no config found for '{raw}'"
-    )))
+    context.services().lifecycle.resolve_config_id(raw).await
 }
 
-/// Resolve a subscription identifier: numeric id first, then a ref prefix.
 pub async fn resolve_subscription_id(context: &AppContext, raw: &str) -> crate::app::Result<i64> {
-    if let Some(id) = existing_subscription_numeric_id(context, raw).await? {
-        return Ok(id);
-    }
-    if is_ref_prefix(raw) {
-        match context.db.resolve_subscription_ref_prefix(raw).await? {
-            RefMatch::Unique(id) => return Ok(id),
-            RefMatch::Ambiguous => {
-                return Err(AppError::InvalidArgument(format!(
-                    "subscription ref prefix '{raw}' is ambiguous; provide more characters"
-                )));
-            }
-            RefMatch::None => {}
-        }
-    }
-    Err(AppError::InvalidArgument(format!(
-        "no subscription found for '{raw}'"
-    )))
-}
-
-async fn existing_config_numeric_id(
-    context: &AppContext,
-    raw: &str,
-) -> crate::app::Result<Option<i64>> {
-    let Ok(id) = raw.parse::<i64>() else {
-        return Ok(None);
-    };
-    Ok(context
-        .db
-        .get_config_by_id(id)
-        .await?
-        .is_some()
-        .then_some(id))
-}
-
-async fn existing_subscription_numeric_id(
-    context: &AppContext,
-    raw: &str,
-) -> crate::app::Result<Option<i64>> {
-    let Ok(id) = raw.parse::<i64>() else {
-        return Ok(None);
-    };
-    Ok(context
-        .db
-        .get_subscription_by_id(id)
-        .await?
-        .is_some()
-        .then_some(id))
+    context
+        .services()
+        .lifecycle
+        .resolve_subscription_id(raw)
+        .await
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::app::AppError;
     use crate::app::config::AppConfig;
     use crate::app::context::RuntimePaths;
     use std::time::{SystemTime, UNIX_EPOCH};
@@ -102,6 +38,41 @@ mod tests {
 
         assert_eq!(by_id, config.id);
         assert_eq!(by_ref, config.id);
+    }
+
+    #[tokio::test]
+    async fn digit_only_config_ref_resolves_through_read_and_lifecycle_services() {
+        let context = test_context("digit-ref").await;
+        let config = seed_config(&context).await;
+        let pool = sqlx::SqlitePool::connect(&format!(
+            "sqlite://{}",
+            context.runtime_paths.database_path.display()
+        ))
+        .await
+        .unwrap();
+        sqlx::query("UPDATE configs SET ref = '12345678abcd' WHERE id = ?")
+            .bind(config.id)
+            .execute(&pool)
+            .await
+            .unwrap();
+        let services = context.services();
+        assert_eq!(
+            services.configs.resolve_id("12345678").await.unwrap(),
+            Some(config.id)
+        );
+        assert_eq!(
+            resolve_config_id(&context, "12345678").await.unwrap(),
+            config.id
+        );
+        assert_eq!(services.configs.resolve_id("87654321").await.unwrap(), None);
+        assert_eq!(
+            services
+                .configs
+                .resolve_id(&config.id.to_string())
+                .await
+                .unwrap(),
+            Some(config.id)
+        );
     }
 
     #[tokio::test]

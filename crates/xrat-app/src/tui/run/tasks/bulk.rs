@@ -15,10 +15,11 @@ pub async fn run_bulk_op(
         return;
     }
 
+    let lifecycle = context.services().lifecycle;
     let result = match op.kind() {
-        BulkKind::SoftDelete => context.db.delete_configs(&ids).await,
-        BulkKind::Purge => context.db.hard_delete_configs(&ids).await,
-        BulkKind::Restore => context.db.restore_configs(&ids).await,
+        BulkKind::SoftDelete => lifecycle.delete_many(&ids, false).await,
+        BulkKind::Purge => lifecycle.delete_many(&ids, true).await,
+        BulkKind::Restore => lifecycle.restore_many(&ids).await,
     };
 
     match result {

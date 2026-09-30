@@ -2,7 +2,7 @@ use super::prelude::*;
 use crate::app::commands::output;
 
 pub(crate) fn format_configs(
-    configs: &[ConfigWithLatestTest],
+    configs: &[ConfigDetail],
     subscription_refs: &HashMap<i64, &str>,
     format: ListFormat,
     settings: Option<&crate::app::config::TestingSettings>,
@@ -20,7 +20,7 @@ pub(crate) fn format_configs(
 }
 
 pub(crate) fn format_config_table(
-    configs: &[ConfigWithLatestTest],
+    configs: &[ConfigDetail],
     subscription_refs: &HashMap<i64, &str>,
     settings: Option<&crate::app::config::TestingSettings>,
 ) -> String {
@@ -59,7 +59,7 @@ pub(crate) fn format_config_table(
     let rows = configs
         .iter()
         .map(|row| {
-            let config = &row.config;
+            let config = &row.summary;
             let mut cells = vec![
                 Cell::plain(short_ref(&config.r#ref)),
                 Cell::plain(subscription_ref_cell(
@@ -87,13 +87,13 @@ pub(crate) fn format_config_table(
 }
 
 pub(crate) fn format_config_tsv(
-    configs: &[ConfigWithLatestTest],
+    configs: &[ConfigDetail],
     subscription_refs: &HashMap<i64, &str>,
 ) -> String {
     let mut lines = Vec::with_capacity(configs.len() + 1);
     lines.push("ref\tsubscription_ref\tstatus\tprotocol\taddress\tport\ticmp_ms\ttcp_ms\treal_delay_ms\tdownload_mbps\tupload_mbps\tdial_endpoint_country\tdial_endpoint_location\tdial_endpoint_asn\tdial_endpoint_fronting\tname".to_string());
     for row in configs {
-        let config = &row.config;
+        let config = &row.summary;
         lines.push(format!(
             "{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}",
             config.r#ref,
@@ -102,15 +102,15 @@ pub(crate) fn format_config_tsv(
             config.protocol,
             config.address,
             config.port,
-            optional_i64(row.icmp_ms),
-            optional_i64(row.tcp_ms),
-            optional_i64(row.real_delay_ms),
-            optional_f64(row.download_mbps),
-            optional_f64(row.upload_mbps),
-            tsv_cell(row.dial_endpoint_country.as_deref()),
-            tsv_cell(row.dial_endpoint_location.as_deref()),
-            tsv_cell(row.dial_endpoint_asn.as_deref()),
-            tsv_cell(row.dial_endpoint_fronting.as_deref()),
+            optional_i64(row.summary.test().icmp_ms),
+            optional_i64(row.summary.test().tcp_ms),
+            optional_i64(row.summary.test().real_delay_ms),
+            optional_f64(row.summary.test().download_mbps),
+            optional_f64(row.summary.test().upload_mbps),
+            tsv_cell(row.endpoint_location.country.as_deref()),
+            tsv_cell(row.endpoint_location.location.as_deref()),
+            tsv_cell(row.endpoint_location.asn.as_deref()),
+            tsv_cell(row.endpoint_location.fronting.as_deref()),
             tsv_cell(config.name.as_deref()),
         ));
     }
@@ -135,7 +135,7 @@ pub(crate) fn format_config_flags(is_enabled: bool, is_active: bool, is_deleted:
     flags.join(",")
 }
 
-pub(crate) fn config_style(config: &ConfigRecord) -> Style {
+pub(crate) fn config_style(config: &ConfigSummary) -> Style {
     if config.is_deleted {
         Style::Red
     } else if config.is_active {
@@ -148,10 +148,10 @@ pub(crate) fn config_style(config: &ConfigRecord) -> Style {
 }
 
 pub(crate) fn config_json(
-    row: &ConfigWithLatestTest,
+    row: &ConfigDetail,
     subscription_refs: &HashMap<i64, &str>,
 ) -> serde_json::Value {
-    let config = &row.config;
+    let config = &row.summary;
     serde_json::json!({
         "ref": &config.r#ref,
         "subscription_ref": config
@@ -167,31 +167,31 @@ pub(crate) fn config_json(
         "is_enabled": config.is_enabled,
         "is_deleted": config.is_deleted,
         "latest_test": {
-            "id": row.test_id,
-            "icmp_ok": row.icmp_ok,
-            "icmp_ms": row.icmp_ms,
-            "tcp_ok": row.tcp_ok,
-            "tcp_ms": row.tcp_ms,
-            "real_delay_ok": row.real_delay_ok,
-            "real_delay_ms": row.real_delay_ms,
-            "download_mbps": row.download_mbps,
-            "upload_mbps": row.upload_mbps,
-            "connect_ms": row.connect_ms,
-            "ttfb_ms": row.ttfb_ms,
-            "http_status": row.http_status,
-            "dial_endpoint_location": row.dial_endpoint_location,
-            "dial_endpoint_country": row.dial_endpoint_country,
-            "dial_endpoint_asn": row.dial_endpoint_asn,
-            "dial_endpoint_geoip_source": row.dial_endpoint_geoip_source,
-            "dial_endpoint_fronting": row.dial_endpoint_fronting,
-            "failure_kind": row.failure_kind,
-            "failure_reason": row.failure_reason,
-            "tested_at": row.tested_at,
+            "id": row.summary.test().id,
+            "icmp_ok": row.summary.test().icmp_ok,
+            "icmp_ms": row.summary.test().icmp_ms,
+            "tcp_ok": row.summary.test().tcp_ok,
+            "tcp_ms": row.summary.test().tcp_ms,
+            "real_delay_ok": row.summary.test().real_delay_ok,
+            "real_delay_ms": row.summary.test().real_delay_ms,
+            "download_mbps": row.summary.test().download_mbps,
+            "upload_mbps": row.summary.test().upload_mbps,
+            "connect_ms": row.summary.test().connect_ms,
+            "ttfb_ms": row.summary.test().ttfb_ms,
+            "http_status": row.summary.test().http_status,
+            "dial_endpoint_location": row.endpoint_location.location,
+            "dial_endpoint_country": row.endpoint_location.country,
+            "dial_endpoint_asn": row.endpoint_location.asn,
+            "dial_endpoint_geoip_source": row.endpoint_location.geoip_source,
+            "dial_endpoint_fronting": row.endpoint_location.fronting,
+            "failure_kind": row.summary.test().failure_kind,
+            "failure_reason": row.summary.test().failure_reason,
+            "tested_at": row.summary.test().tested_at,
         },
-        "deleted_at": config.deleted_at,
-        "imported_at": config.imported_at,
-        "created_at": config.created_at,
-        "updated_at": config.updated_at,
+        "deleted_at": row.deleted_at,
+        "imported_at": row.imported_at,
+        "created_at": row.created_at,
+        "updated_at": row.updated_at,
     })
 }
 
@@ -249,7 +249,7 @@ pub(crate) struct MetricColumns {
 
 impl MetricColumns {
     fn for_configs(
-        configs: &[ConfigWithLatestTest],
+        configs: &[ConfigDetail],
         settings: Option<&crate::app::config::TestingSettings>,
     ) -> Self {
         if let Some(settings) = settings {
@@ -266,18 +266,30 @@ impl MetricColumns {
         }
 
         Self {
-            icmp: configs.iter().any(|row| row.icmp_ms.is_some()),
-            tcp: configs.iter().any(|row| row.tcp_ms.is_some()),
-            real_delay: configs.iter().any(|row| row.real_delay_ms.is_some()),
-            download: configs.iter().any(|row| row.download_mbps.is_some()),
-            upload: configs.iter().any(|row| row.upload_mbps.is_some()),
+            icmp: configs
+                .iter()
+                .any(|row| row.summary.test().icmp_ms.is_some()),
+            tcp: configs
+                .iter()
+                .any(|row| row.summary.test().tcp_ms.is_some()),
+            real_delay: configs
+                .iter()
+                .any(|row| row.summary.test().real_delay_ms.is_some()),
+            download: configs
+                .iter()
+                .any(|row| row.summary.test().download_mbps.is_some()),
+            upload: configs
+                .iter()
+                .any(|row| row.summary.test().upload_mbps.is_some()),
             country: configs
                 .iter()
-                .any(|row| row.dial_endpoint_country.is_some()),
+                .any(|row| row.endpoint_location.country.is_some()),
             location: configs
                 .iter()
-                .any(|row| row.dial_endpoint_location.is_some()),
-            asn: configs.iter().any(|row| row.dial_endpoint_asn.is_some()),
+                .any(|row| row.endpoint_location.location.is_some()),
+            asn: configs
+                .iter()
+                .any(|row| row.endpoint_location.asn.is_some()),
         }
     }
 
@@ -332,37 +344,37 @@ impl MetricColumns {
         }
     }
 
-    fn push_cells(self, row: &ConfigWithLatestTest, cells: &mut Vec<Cell>) {
+    fn push_cells(self, row: &ConfigDetail, cells: &mut Vec<Cell>) {
         if self.icmp {
-            cells.push(Cell::plain(ms_label(row.icmp_ms)));
+            cells.push(Cell::plain(ms_label(row.summary.test().icmp_ms)));
         }
         if self.tcp {
-            cells.push(Cell::plain(ms_label(row.tcp_ms)));
+            cells.push(Cell::plain(ms_label(row.summary.test().tcp_ms)));
         }
         if self.real_delay {
-            cells.push(Cell::plain(ms_label(row.real_delay_ms)));
+            cells.push(Cell::plain(ms_label(row.summary.test().real_delay_ms)));
         }
         if self.download {
-            cells.push(Cell::plain(mbps_label(row.download_mbps)));
+            cells.push(Cell::plain(mbps_label(row.summary.test().download_mbps)));
         }
         if self.upload {
-            cells.push(Cell::plain(mbps_label(row.upload_mbps)));
+            cells.push(Cell::plain(mbps_label(row.summary.test().upload_mbps)));
         }
         if self.country {
             cells.push(Cell::plain(location_cell(
-                row.dial_endpoint_country.as_deref(),
+                row.endpoint_location.country.as_deref(),
                 10,
             )));
         }
         if self.location {
             cells.push(Cell::plain(location_cell(
-                row.dial_endpoint_location.as_deref(),
+                row.endpoint_location.location.as_deref(),
                 24,
             )));
         }
         if self.asn {
             cells.push(Cell::plain(location_cell(
-                row.dial_endpoint_asn.as_deref(),
+                row.endpoint_location.asn.as_deref(),
                 24,
             )));
         }

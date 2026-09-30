@@ -94,7 +94,12 @@ pub async fn run_source_delete(
     source_id: i64,
     task_tx: &mpsc::UnboundedSender<TuiTaskEvent>,
 ) {
-    match context.db.delete_subscription_with_configs(source_id).await {
+    match context
+        .services()
+        .lifecycle
+        .delete_subscription(&source_id.to_string())
+        .await
+    {
         Ok(_) => {
             super::spawn_reload_data(context.clone(), app.config_list.include_deleted, task_tx);
             app.push_log(format!(
@@ -114,7 +119,12 @@ pub async fn run_source_rename(
     name: String,
     task_tx: &mpsc::UnboundedSender<TuiTaskEvent>,
 ) {
-    match context.db.set_subscription_name(source_id, &name).await {
+    match context
+        .services()
+        .lifecycle
+        .rename_subscription(&source_id.to_string(), &name)
+        .await
+    {
         Ok(_) => {
             super::spawn_reload_data(context.clone(), app.config_list.include_deleted, task_tx);
             app.push_log(format!("OK  renamed subscription #{source_id}"));
