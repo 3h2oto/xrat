@@ -12,14 +12,23 @@ pub struct AppContext {
 
 impl AppContext {
     pub async fn build(args: &cli::Cli) -> crate::app::Result<Self> {
+        let started = std::time::Instant::now();
         let (runtime_paths, app_config) = paths::resolve_runtime(args)?;
+        let paths_ms = started.elapsed().as_millis();
         let db = Database::connect(&runtime_paths.database_config).await?;
+        let database_ms = started.elapsed().as_millis() - paths_ms;
         let context = Self {
             db,
             app_config,
             runtime_paths,
         };
         crate::app::runtime_service::log_retention::cleanup(&context).await;
+        tracing::debug!(
+            paths_ms,
+            database_ms,
+            retention_ms = started.elapsed().as_millis() - paths_ms - database_ms,
+            "app context ready"
+        );
         Ok(context)
     }
 

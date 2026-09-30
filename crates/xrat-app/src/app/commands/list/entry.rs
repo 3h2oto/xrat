@@ -13,16 +13,20 @@ pub async fn run(context: &AppContext, command: &ListArgs) -> crate::app::Result
 }
 
 async fn print_configs(context: &AppContext, filters: &ListConfigsArgs) -> crate::app::Result<()> {
+    let started = std::time::Instant::now();
     let services = context.services();
     let request = build_config_list_request(context, filters).await?;
     let mut configs = services.configs.list(&request).await?.items;
+    let query_ms = started.elapsed().as_millis();
     crate::app::services::enrich_endpoint_locations(
         &context.app_config,
         &context.runtime_paths,
         &mut configs,
     )
     .await;
+    let enrichment_ms = started.elapsed().as_millis() - query_ms;
     let subscriptions = services.configs.subscriptions().await?;
+    let subscriptions_ms = started.elapsed().as_millis() - query_ms - enrichment_ms;
     let subscription_refs = subscriptions
         .iter()
         .map(|subscription| (subscription.id, subscription.r#ref.as_str()))
@@ -33,15 +37,21 @@ async fn print_configs(context: &AppContext, filters: &ListConfigsArgs) -> crate
         return Ok(());
     }
 
-    println!(
-        "{}",
-        format_configs(
-            &configs,
-            &subscription_refs,
-            filters.format,
-            Some(&context.app_config.testing),
-        )?
+    let formatted = format_configs(
+        &configs,
+        &subscription_refs,
+        filters.format,
+        Some(&context.app_config.testing),
+    )?;
+    tracing::debug!(
+        query_ms,
+        enrichment_ms,
+        subscriptions_ms,
+        render_ms = started.elapsed().as_millis() - query_ms - enrichment_ms - subscriptions_ms,
+        configs = configs.len(),
+        "config list ready"
     );
+    println!("{formatted}");
 
     Ok(())
 }

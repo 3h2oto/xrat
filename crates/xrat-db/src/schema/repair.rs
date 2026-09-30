@@ -1,5 +1,6 @@
 use super::checksum::*;
 use super::prelude::*;
+use std::collections::HashMap;
 
 /// Reconcile stored migration checksums with the current migration files so that
 /// reformatting an already-applied migration does not break the database. The
@@ -18,6 +19,23 @@ pub(crate) async fn repair_checksums_sqlite(pool: &SqlitePool) -> crate::Result<
     }
 
     sqlx::query(NORM_TABLE_SQLITE).execute(pool).await?;
+    let applied = sqlx::query(
+        "SELECT m.version, m.checksum, n.norm_checksum FROM _sqlx_migrations m \
+         LEFT JOIN _xrat_migration_norms n ON n.version = m.version WHERE m.success = 1",
+    )
+    .fetch_all(pool)
+    .await?
+    .into_iter()
+    .map(|row| {
+        (
+            row.get::<i64, _>("version"),
+            (
+                row.get::<Vec<u8>, _>("checksum"),
+                row.get::<Option<Vec<u8>>, _>("norm_checksum"),
+            ),
+        )
+    })
+    .collect::<HashMap<_, _>>();
 
     for migration in SQLITE_MIGRATOR.iter() {
         if migration.migration_type.is_down_migration() {
@@ -27,28 +45,18 @@ pub(crate) async fn repair_checksums_sqlite(pool: &SqlitePool) -> crate::Result<
         let file_raw = migration.checksum.to_vec();
         let file_norm = normalized_checksum(&migration.sql);
 
-        let applied: Option<Vec<u8>> = sqlx::query_scalar(
-            "SELECT checksum FROM _sqlx_migrations WHERE version = ? AND success = 1",
-        )
-        .bind(version)
-        .fetch_optional(pool)
-        .await?;
-        let Some(applied) = applied else {
+        let Some((applied_checksum, stored_norm)) = applied.get(&version) else {
             continue;
         };
 
-        if applied == file_raw {
-            record_norm_sqlite(pool, version, &file_norm).await?;
+        if *applied_checksum == file_raw {
+            if stored_norm.as_deref() != Some(file_norm.as_slice()) {
+                record_norm_sqlite(pool, version, &file_norm).await?;
+            }
             continue;
         }
 
-        let stored_norm: Option<Vec<u8>> =
-            sqlx::query_scalar("SELECT norm_checksum FROM _xrat_migration_norms WHERE version = ?")
-                .bind(version)
-                .fetch_optional(pool)
-                .await?;
-
-        if matches!(stored_norm, Some(ref norm) if *norm != file_norm) {
+        if matches!(stored_norm, Some(norm) if *norm != file_norm) {
             return Err(semantic_change_error("SQLite", version));
         }
 
@@ -88,6 +96,23 @@ pub(crate) async fn repair_checksums_postgres(pool: &PgPool) -> crate::Result<()
     }
 
     sqlx::query(NORM_TABLE_POSTGRES).execute(pool).await?;
+    let applied = sqlx::query(
+        "SELECT m.version, m.checksum, n.norm_checksum FROM _sqlx_migrations m \
+         LEFT JOIN _xrat_migration_norms n ON n.version = m.version WHERE m.success = true",
+    )
+    .fetch_all(pool)
+    .await?
+    .into_iter()
+    .map(|row| {
+        (
+            row.get::<i64, _>("version"),
+            (
+                row.get::<Vec<u8>, _>("checksum"),
+                row.get::<Option<Vec<u8>>, _>("norm_checksum"),
+            ),
+        )
+    })
+    .collect::<HashMap<_, _>>();
 
     for migration in POSTGRES_MIGRATOR.iter() {
         if migration.migration_type.is_down_migration() {
@@ -97,29 +122,18 @@ pub(crate) async fn repair_checksums_postgres(pool: &PgPool) -> crate::Result<()
         let file_raw = migration.checksum.to_vec();
         let file_norm = normalized_checksum(&migration.sql);
 
-        let applied: Option<Vec<u8>> = sqlx::query_scalar(
-            "SELECT checksum FROM _sqlx_migrations WHERE version = $1 AND success = true",
-        )
-        .bind(version)
-        .fetch_optional(pool)
-        .await?;
-        let Some(applied) = applied else {
+        let Some((applied_checksum, stored_norm)) = applied.get(&version) else {
             continue;
         };
 
-        if applied == file_raw {
-            record_norm_postgres(pool, version, &file_norm).await?;
+        if *applied_checksum == file_raw {
+            if stored_norm.as_deref() != Some(file_norm.as_slice()) {
+                record_norm_postgres(pool, version, &file_norm).await?;
+            }
             continue;
         }
 
-        let stored_norm: Option<Vec<u8>> = sqlx::query_scalar(
-            "SELECT norm_checksum FROM _xrat_migration_norms WHERE version = $1",
-        )
-        .bind(version)
-        .fetch_optional(pool)
-        .await?;
-
-        if matches!(stored_norm, Some(ref norm) if *norm != file_norm) {
+        if matches!(stored_norm, Some(norm) if *norm != file_norm) {
             return Err(semantic_change_error("PostgreSQL", version));
         }
 
