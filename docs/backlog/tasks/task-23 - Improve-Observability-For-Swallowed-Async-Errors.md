@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@codex'
 created_date: '2026-07-05 14:43'
-updated_date: '2026-09-30 09:17'
+updated_date: '2026-10-01 06:20'
 labels:
   - legacy-import
   - improvement
@@ -65,10 +65,17 @@ records for user-facing operational history.
 flow. Keep log levels conservative to avoid noisy TUI or daemon output.
 <!-- SECTION:DESCRIPTION:END -->
 
+## Acceptance Criteria
+<!-- AC:BEGIN -->
+- [ ] #1 Remaining daemon supervisor best-effort metadata and response-send failures emit structured tracing
+- [ ] #2 Best-effort control flow is preserved
+- [ ] #3 just fmt ci passes
+<!-- AC:END -->
+
 ## Implementation Plan
 
 <!-- SECTION:PLAN:BEGIN -->
-Add structured tracing for swallowed failures in TUI runtime/test/data tasks and the touched daemon IPC/runtime handler paths, preserving best-effort control flow; run focused tests and CI.
+Finish the observability slice: audit remaining app/daemon/supervisor/handlers/ for best-effort let _ = / .ok() drops, add minimal structured tracing::debug!/warn! with operation, ids, and error fields. No control-flow change.
 <!-- SECTION:PLAN:END -->
 
 ## Implementation Notes

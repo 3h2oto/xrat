@@ -1,9 +1,11 @@
 ---
 id: TASK-19
 title: Introduce Newtype Identifiers For Config And Subscription IDs
-status: To Do
-assignee: []
+status: In Progress
+assignee:
+  - '@codex'
 created_date: '2026-07-05 14:43'
+updated_date: '2026-10-01 06:20'
 labels:
   - legacy-import
   - improvement
@@ -74,3 +76,21 @@ it before or alongside `01`/`06` so the new use-case and read-model signatures
 adopt newtypes from the start rather than being migrated twice. Keep `From`/`Into`
 conversions at the SQL and CLI edges to localize the churn.
 <!-- SECTION:DESCRIPTION:END -->
+
+## Acceptance Criteria
+<!-- AC:BEGIN -->
+- [ ] #1 ConfigId, SubscriptionId, and ConfigRef exist in xrat-model
+- [ ] #2 Repositories, services, and DTOs speak in newtypes; From/Into only at SQL and CLI edges
+- [ ] #3 resolve.rs maps ConfigRef -> ConfigId explicitly
+- [ ] #4 just fmt ci passes with no behavior change
+<!-- AC:END -->
+
+## Implementation Plan
+
+<!-- SECTION:PLAN:BEGIN -->
+1. Add ConfigId, SubscriptionId, ConfigRef newtypes in crates/xrat-model/src/.
+2. Derive Copy/Clone/Eq/Hash/Ord/Display/Debug/serde and sqlx::Type; keep primitive conversion at SQL and CLI edges only.
+3. Migrate bottom-up: xrat-db records/repositories and ConfigRepository port, then app/services, then adapters (commands, server/routes, tui/data).
+4. Make app/commands/resolve.rs take ConfigRef and return ConfigId so resolved vs unresolved is type-encoded.
+5. Verify: just fmt ci green; behavior unchanged.
+<!-- SECTION:PLAN:END -->
