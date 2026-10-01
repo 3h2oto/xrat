@@ -33,6 +33,19 @@ pub fn build_router(state: ServerState) -> Router {
         .with_state(state)
 }
 
+/// Build a router from an application context.
+///
+/// Convenience seam for hosts that already hold an [`AppContext`]; the HTTP
+/// server itself still builds its state from server and routing settings.
+pub fn build_router_from_context(
+    context: &crate::app::context::AppContext,
+    settings: &ServerSettings,
+    routing: &RoutingSettings,
+) -> crate::app::Result<Router> {
+    let state = ServerState::from_settings(context.db.clone(), settings, routing)?;
+    Ok(build_router(state))
+}
+
 /// Record each handled HTTP request as a best-effort `api` event so the TUI API
 /// tab and `xrat logs` can show server activity. Recording happens on a detached
 /// task and never affects the response.

@@ -73,45 +73,18 @@ async fn run_import(context: &AppContext, import: TuiImport) -> crate::app::Resu
 
 #[cfg(test)]
 mod tests {
-    use std::path::PathBuf;
-
     use tempfile::TempDir;
     use tokio::io::AsyncWriteExt;
     use tokio::net::TcpListener;
 
     use super::{TuiImport, run_import};
-    use crate::app::config::AppConfig;
-    use crate::app::context::{AppContext, RuntimePaths};
-    use xrat_db::{Database, DatabaseConnectionConfig};
+    use crate::app::context::AppContext;
 
     async fn test_context() -> (TempDir, AppContext) {
-        let root = tempfile::tempdir().expect("temp directory should be created");
-        let database_path = root.path().join("db.sqlite");
-        let database_config = DatabaseConnectionConfig::Sqlite {
-            path: database_path.clone(),
-        };
-        let db = Database::connect(&database_config)
-            .await
-            .expect("database should connect");
-        let runtime_paths = RuntimePaths {
-            root_dir: root.path().to_path_buf(),
-            database_config,
-            database_path: database_path.clone(),
-            database_label: database_path.display().to_string(),
-            config_path: root.path().join("config.toml"),
-            runtime_dir: root.path().join("runtime"),
-            xray_path: PathBuf::from("xray"),
-            v2ray_path: PathBuf::from("v2ray"),
-            sing_box_path: PathBuf::from("sing-box"),
-        };
-        (
-            root,
-            AppContext {
-                db,
-                app_config: AppConfig::default(),
-                runtime_paths,
-            },
-        )
+        let (context, root) = crate::app::tests::TestAppBuilder::new("tui-import")
+            .build_with_root()
+            .await;
+        (root, context)
     }
 
     async fn subscription_url(request_count: usize) -> String {

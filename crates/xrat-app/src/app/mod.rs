@@ -17,4 +17,7 @@ pub mod services;
 pub mod subscription_refresh;
 pub(crate) mod terminal;
 
+#[cfg(test)]
+pub mod tests;
+
 pub use error::{AppError, Result};
