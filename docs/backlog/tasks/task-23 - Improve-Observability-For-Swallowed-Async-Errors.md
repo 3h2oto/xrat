@@ -1,11 +1,11 @@
 ---
 id: TASK-23
 title: Improve Observability For Swallowed Async Errors
-status: In Progress
+status: Done
 assignee:
   - '@codex'
 created_date: '2026-07-05 14:43'
-updated_date: '2026-10-01 06:20'
+updated_date: '2026-10-02 18:58'
 labels:
   - legacy-import
   - improvement
@@ -67,15 +67,18 @@ flow. Keep log levels conservative to avoid noisy TUI or daemon output.
 
 ## Acceptance Criteria
 <!-- AC:BEGIN -->
-- [ ] #1 Remaining daemon supervisor best-effort metadata and response-send failures emit structured tracing
-- [ ] #2 Best-effort control flow is preserved
-- [ ] #3 just fmt ci passes
+- [x] #1 Remaining daemon supervisor best-effort metadata and response-send failures emit structured tracing
+- [x] #2 Best-effort control flow is preserved
+- [x] #3 just fmt ci passes
 <!-- AC:END -->
 
 ## Implementation Plan
 
 <!-- SECTION:PLAN:BEGIN -->
-Finish the observability slice: audit remaining app/daemon/supervisor/handlers/ for best-effort let _ = / .ok() drops, add minimal structured tracing::debug!/warn! with operation, ids, and error fields. No control-flow change.
+1. Audit remaining supervisor query fallbacks, metadata writes, health handling and response/event sends.
+2. Add conservative structured tracing with operation, relevant IDs and error; preserve existing fallback and best-effort behavior.
+3. Verify closed receiver and failed-query behavior plus tracing, then run just fmt ci.
+4. Record evidence and commit separately.
 <!-- SECTION:PLAN:END -->
 
 ## Implementation Notes
@@ -85,3 +88,9 @@ This PR covers the focused adapter slice: TUI runtime, batch-test, data reload/e
 
 Validation for the focused slice: CARGO_INCREMENTAL=0 just fmt ci passed. Remaining broader scope includes other daemon supervisor handlers with best-effort metadata and response sends; task stays In Progress for a later focused pass.
 <!-- SECTION:NOTES:END -->
+
+## Final Summary
+
+<!-- SECTION:FINAL_SUMMARY:BEGIN -->
+Added structured debug tracing for supervisor query fallbacks, metadata write failures, health completion and dropped response receivers while preserving best-effort behavior. All 13 supervisor tests passed, including failed-query and closed-receiver tracing regressions. CARGO_INCREMENTAL=0 just fmt ci passed (876 Rust tests and 3 version tests).
+<!-- SECTION:FINAL_SUMMARY:END -->

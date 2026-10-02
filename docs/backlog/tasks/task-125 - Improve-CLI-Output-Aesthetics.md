@@ -4,11 +4,10 @@ title: Improve CLI Output Aesthetics
 status: In Progress
 assignee: []
 created_date: '2026-09-24 23:34'
-updated_date: '2026-09-24 23:34'
+updated_date: '2026-10-02 18:46'
 labels:
   - improvement
   - cli
-milestone: m-2
 dependencies: []
 ordinal: 107000
 ---
@@ -31,6 +30,8 @@ CLI output should be more polished and consistent without breaking --format cont
 
 <!-- SECTION:NOTES:BEGIN -->
 P6 target.
+
+Removed from Refactor: Foundation per approved handoff plan. CLI presentation work remains In Progress and is outside the Foundation completion scope.
 <!-- SECTION:NOTES:END -->
 
 ## Definition of Done

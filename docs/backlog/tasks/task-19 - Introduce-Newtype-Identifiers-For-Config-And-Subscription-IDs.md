@@ -5,7 +5,7 @@ status: Done
 assignee:
   - '@codex'
 created_date: '2026-07-05 14:43'
-updated_date: '2026-10-02 18:28'
+updated_date: '2026-10-02 18:58'
 labels:
   - legacy-import
   - improvement
@@ -99,6 +99,8 @@ conversions at the SQL and CLI edges to localize the churn.
 
 <!-- SECTION:NOTES:BEGIN -->
 Completed ConfigRef resolution, generic typed RefMatch results, HTTP DTOs, TUI state/tasks, daemon IPC and test fixture migration. Standalone cargo check -p xrat-model --features sqlx --locked passed after adding the SQLx macro feature. just fmt ci passed with local socket access: 972 Rust tests plus 3 version-tool tests; all-target Clippy -D warnings clean. Restricted run failed only socket-dependent fixtures (555 app tests passed, 23 failed). Real PostgreSQL verification exposed existing import SQL using boolean literals against integer is_deleted; source comparison confirms unchanged by this migration. User approved separate repair before repeating the backend gate.
+
+Final backend verification: CARGO_INCREMENTAL=0 just test-postgres passed against the real local PostgreSQL database after the separately approved TASK-129 compatibility repair. Final workspace gate passed with 876 Rust tests and 3 version tests.
 <!-- SECTION:NOTES:END -->
 
 ## Final Summary
