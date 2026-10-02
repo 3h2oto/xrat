@@ -1,3 +1,4 @@
+mod observability;
 mod support;
 mod tests_cooldown;
 mod tests_health;

@@ -66,7 +66,10 @@ pub(super) async fn handle_daemon_shutdown(
         .disconnect()
         .await
         .map(|result| result.stopped_session)
-        .unwrap_or(false);
+        .unwrap_or_else(|error| {
+            tracing::debug!(operation = "daemon_shutdown_disconnect", %error, "runtime disconnect failed during shutdown");
+            false
+        });
     crate::app::events::record(
         &context.db,
         crate::app::events::LEVEL_INFO,
@@ -78,10 +81,19 @@ pub(super) async fn handle_daemon_shutdown(
         None,
     )
     .await;
-    let _ = respond_to.send(DaemonShutdownResult::Ok(DaemonShutdownPayload {
-        daemon_ready: false,
-        runtime_disconnected,
-    }));
+    if respond_to
+        .send(DaemonShutdownResult::Ok(DaemonShutdownPayload {
+            daemon_ready: false,
+            runtime_disconnected,
+        }))
+        .is_err()
+    {
+        tracing::debug!(
+            operation = "daemon_shutdown_response",
+            error = "response receiver dropped",
+            "supervisor response dropped"
+        );
+    }
 }
 
 fn rotation_started_reason(trigger: RotationTrigger) -> &'static str {

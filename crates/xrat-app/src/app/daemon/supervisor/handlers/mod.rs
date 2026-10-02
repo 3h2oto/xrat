@@ -63,13 +63,22 @@ async fn handle_event_inner(
                     let event_tx = event_tx.clone();
                     tokio::spawn(async move {
                         let (session_id, success, error) = health::execute_probe(probe).await;
-                        let _ = event_tx
+                        if event_tx
                             .send(SupervisorEvent::HealthProbeCompleted {
                                 session_id,
                                 success,
                                 error,
                             })
-                            .await;
+                            .await
+                            .is_err()
+                        {
+                            tracing::debug!(
+                                operation = "health_probe_completed_send",
+                                session_id,
+                                error = "supervisor event receiver dropped",
+                                "health probe result dropped"
+                            );
+                        }
                     });
                 } else {
                     state.health_probe_in_flight = false;
@@ -97,9 +106,18 @@ async fn handle_event_inner(
         }
         SupervisorEvent::DaemonPing { respond_to } => {
             state.ready = true;
-            let _ = respond_to.send(PingPayload {
-                daemon_ready: state.ready,
-            });
+            if respond_to
+                .send(PingPayload {
+                    daemon_ready: state.ready,
+                })
+                .is_err()
+            {
+                tracing::debug!(
+                    operation = "daemon_ping_response",
+                    error = "response receiver dropped",
+                    "supervisor response dropped"
+                );
+            }
         }
         SupervisorEvent::RuntimeStatus { respond_to } => {
             runtime::handle_runtime_status(state, context, respond_to).await;

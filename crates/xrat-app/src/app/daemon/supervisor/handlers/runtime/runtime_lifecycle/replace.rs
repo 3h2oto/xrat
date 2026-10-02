@@ -12,11 +12,13 @@ pub(super) async fn handle_runtime_replace(
         .db
         .get_running_runtime_session()
         .await
-        .ok()
-        .flatten();
+        .unwrap_or_else(|error| {
+            tracing::debug!(operation = "runtime_replace_session", %error, "failed to load optional supervisor state");
+            None
+        });
     if let Some(session) = &active_session {
         let started_reason = rotation_started_reason(trigger);
-        let _ = context
+        if let Err(error) = context
             .db
             .update_runtime_session_transition_metadata(
                 session.id,
@@ -26,7 +28,10 @@ pub(super) async fn handle_runtime_replace(
                 Some("proxy rotation replacement requested"),
                 Some("daemon"),
             )
-            .await;
+            .await
+        {
+            tracing::debug!(operation = "runtime_replace_started_metadata", session_id = session.id, %error, "failed to persist supervisor metadata");
+        }
     }
 
     match RuntimeService::new(context)
@@ -48,7 +53,7 @@ pub(super) async fn handle_runtime_replace(
                 state.next_timer_epoch_secs =
                     Some(now_epoch_seconds() + state.rotation_interval_secs);
             }
-            let _ = context
+            if let Err(error) = context
                 .db
                 .update_runtime_session_transition_metadata(
                     result.new_session_id,
@@ -58,7 +63,10 @@ pub(super) async fn handle_runtime_replace(
                     Some("daemon replace handoff completed"),
                     Some("daemon"),
                 )
-                .await;
+                .await
+            {
+                tracing::debug!(operation = "runtime_replace_committed_metadata", session_id = result.new_session_id, %error, "failed to persist supervisor metadata");
+            }
             crate::app::events::record(
                 &context.db,
                 crate::app::events::LEVEL_INFO,
@@ -74,14 +82,25 @@ pub(super) async fn handle_runtime_replace(
                 None,
             )
             .await;
-            let _ = respond_to.send(RuntimeReplaceResult::Ok(RuntimeReplacePayload {
-                trigger,
-                replaced: result.old_session_id.is_some(),
-                old_session_id: result.old_session_id,
-                new_config_id: result.new_config_id,
-                new_session_id: result.new_session_id,
-                new_pid: result.new_pid,
-            }));
+            if respond_to
+                .send(RuntimeReplaceResult::Ok(RuntimeReplacePayload {
+                    trigger,
+                    replaced: result.old_session_id.is_some(),
+                    old_session_id: result.old_session_id,
+                    new_config_id: result.new_config_id,
+                    new_session_id: result.new_session_id,
+                    new_pid: result.new_pid,
+                }))
+                .is_err()
+            {
+                tracing::debug!(
+                    operation = "runtime_replace_response",
+                    ?trigger,
+                    ?candidate_id,
+                    error = "response receiver dropped",
+                    "supervisor response dropped"
+                );
+            }
         }
         Err(err) => {
             let message = err.to_string();
@@ -96,8 +115,8 @@ pub(super) async fn handle_runtime_replace(
                 state.next_timer_epoch_secs =
                     Some(now_epoch_seconds() + state.rotation_interval_secs);
             }
-            if let Some(session) = &active_session {
-                let _ = context
+            if let Some(session) = &active_session
+                && let Err(error) = context
                     .db
                     .update_runtime_session_transition_metadata(
                         session.id,
@@ -107,7 +126,9 @@ pub(super) async fn handle_runtime_replace(
                         Some(&message),
                         Some("daemon"),
                     )
-                    .await;
+                    .await
+            {
+                tracing::debug!(operation = "runtime_replace_failed_metadata", session_id = session.id, %error, "failed to persist supervisor metadata");
             }
             crate::app::events::record(
                 &context.db,
@@ -123,7 +144,18 @@ pub(super) async fn handle_runtime_replace(
                 None,
             )
             .await;
-            let _ = respond_to.send(RuntimeReplaceResult::Err { message });
+            if respond_to
+                .send(RuntimeReplaceResult::Err { message })
+                .is_err()
+            {
+                tracing::debug!(
+                    operation = "runtime_replace_error_response",
+                    ?trigger,
+                    ?candidate_id,
+                    error = "response receiver dropped",
+                    "supervisor response dropped"
+                );
+            }
         }
     }
 }

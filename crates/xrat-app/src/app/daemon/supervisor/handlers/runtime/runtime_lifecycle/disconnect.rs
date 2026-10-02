@@ -9,15 +9,16 @@ pub(super) async fn handle_runtime_disconnect(
         .db
         .get_running_runtime_session()
         .await
-        .ok()
-        .flatten()
+        .unwrap_or_else(|error| {
+            tracing::debug!(operation = "runtime_disconnect_session", %error, "failed to load optional supervisor state");
+            None
+        })
         .map(|session| session.id);
     match RuntimeService::new(context).disconnect().await {
         Ok(result) => {
             if result.stopped_session
                 && let Some(session_id) = active_session_id
-            {
-                let _ = context
+                && let Err(error) = context
                     .db
                     .update_runtime_session_transition_metadata(
                         session_id,
@@ -27,7 +28,9 @@ pub(super) async fn handle_runtime_disconnect(
                         Some("daemon runtime disconnect request succeeded"),
                         Some("daemon"),
                     )
-                    .await;
+                    .await
+            {
+                tracing::debug!(operation = "runtime_disconnect_metadata", session_id = session_id, %error, "failed to persist supervisor metadata");
             }
             if result.stopped_session {
                 crate::app::events::record(
@@ -42,14 +45,24 @@ pub(super) async fn handle_runtime_disconnect(
                 )
                 .await;
             }
-            let _ = respond_to.send(RuntimeDisconnectResult::Ok(RuntimeDisconnectPayload {
-                stopped_session: result.stopped_session,
-            }));
+            if respond_to
+                .send(RuntimeDisconnectResult::Ok(RuntimeDisconnectPayload {
+                    stopped_session: result.stopped_session,
+                }))
+                .is_err()
+            {
+                tracing::debug!(operation = "runtime_disconnect_response", session_id = ?active_session_id, error = "response receiver dropped", "supervisor response dropped");
+            }
         }
         Err(err) => {
-            let _ = respond_to.send(RuntimeDisconnectResult::Err {
-                message: err.to_string(),
-            });
+            if respond_to
+                .send(RuntimeDisconnectResult::Err {
+                    message: err.to_string(),
+                })
+                .is_err()
+            {
+                tracing::debug!(operation = "runtime_disconnect_error_response", session_id = ?active_session_id, error = "response receiver dropped", "supervisor response dropped");
+            }
         }
     }
 }

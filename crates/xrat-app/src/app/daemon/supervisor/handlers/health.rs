@@ -29,8 +29,12 @@ pub(super) async fn handle_health_tick(
     context: &AppContext,
 ) -> HealthTickOutcome {
     let now = now_epoch_seconds();
-    let Ok(snapshot) = RuntimeService::new(context).status().await else {
-        return HealthTickOutcome::default();
+    let snapshot = match RuntimeService::new(context).status().await {
+        Ok(snapshot) => snapshot,
+        Err(error) => {
+            tracing::debug!(operation = "health_runtime_status", %error, "failed to load runtime health status");
+            return HealthTickOutcome::default();
+        }
     };
     let Some(session) = snapshot.session else {
         return HealthTickOutcome::default();
@@ -102,7 +106,10 @@ pub(super) async fn handle_health_tick(
                 .map(|ranges| ranges.iter().map(|range| range.bounds()).collect())
                 .unwrap_or_default(),
         )
-        .unwrap_or_default(),
+        .unwrap_or_else(|error| {
+            tracing::debug!(operation = "health_accepted_statuses", session_id = session.id, %error, "using default health status matcher");
+            AcceptedHttpStatuses::default()
+        }),
     };
     state.health_probe_in_flight = true;
     HealthTickOutcome {
@@ -144,8 +151,10 @@ pub(super) async fn handle_probe_completed(
         .db
         .get_running_runtime_session()
         .await
-        .ok()
-        .flatten();
+        .unwrap_or_else(|error| {
+            tracing::debug!(operation = "health_probe_session", %error, "failed to load optional supervisor state");
+            None
+        });
     if current.as_ref().map(|session| session.id) != Some(session_id) {
         return false;
     }
@@ -182,7 +191,7 @@ async fn record_health_failure(
     let failed_at = now_epoch_seconds();
     let cooldown_until = (failed_at + state.cooldown_secs).to_string();
     let failed_at = failed_at.to_string();
-    let _ = context
+    if let Err(error) = context
         .db
         .update_runtime_session_transition_metadata(
             session.id,
@@ -192,8 +201,11 @@ async fn record_health_failure(
             Some("runtime health check requested recovery"),
             Some("daemon"),
         )
-        .await;
-    let _ = context
+        .await
+    {
+        tracing::debug!(operation = "health_transition_metadata", session_id = session.id, %error, "failed to persist supervisor metadata");
+    }
+    if let Err(error) = context
         .db
         .update_runtime_session_failure_tracking(
             session.id,
@@ -201,7 +213,10 @@ async fn record_health_failure(
             Some(&failed_at),
             Some(reason),
         )
-        .await;
+        .await
+    {
+        tracing::debug!(operation = "health_failure_tracking", session_id = session.id, %error, "failed to persist supervisor metadata");
+    }
 }
 
 fn probe_host(host: &str) -> String {
