@@ -58,7 +58,12 @@ pub(super) async fn handle_health_tick(
                 ..Default::default()
             };
         }
-        record_health_failure(state, context, &session, reason).await;
+        crate::app::services::runtime_transitions::RuntimeTransitionService::new(
+            context,
+            &state.instance_id,
+        )
+        .record_health_failure(&session, state.cooldown_secs, reason)
+        .await;
         return HealthTickOutcome {
             health_failure_recorded: true,
             timer_due,
@@ -178,45 +183,13 @@ pub(super) async fn handle_probe_completed(
     }
     state.pending_health_recovery = true;
     state.consecutive_health_failures = 0;
-    record_health_failure(state, context, &session, "runtime_data_plane_failed").await;
+    crate::app::services::runtime_transitions::RuntimeTransitionService::new(
+        context,
+        &state.instance_id,
+    )
+    .record_health_failure(&session, state.cooldown_secs, "runtime_data_plane_failed")
+    .await;
     true
-}
-
-async fn record_health_failure(
-    state: &SupervisorState,
-    context: &AppContext,
-    session: &xrat_db::RuntimeSessionRecord,
-    reason: &str,
-) {
-    let failed_at = now_epoch_seconds();
-    let cooldown_until = (failed_at + state.cooldown_secs).to_string();
-    let failed_at = failed_at.to_string();
-    if let Err(error) = context
-        .db
-        .update_runtime_session_transition_metadata(
-            session.id,
-            Some("daemon"),
-            Some(&state.instance_id),
-            Some(reason),
-            Some("runtime health check requested recovery"),
-            Some("daemon"),
-        )
-        .await
-    {
-        tracing::debug!(operation = "health_transition_metadata", session_id = session.id, %error, "failed to persist supervisor metadata");
-    }
-    if let Err(error) = context
-        .db
-        .update_runtime_session_failure_tracking(
-            session.id,
-            Some(&cooldown_until),
-            Some(&failed_at),
-            Some(reason),
-        )
-        .await
-    {
-        tracing::debug!(operation = "health_failure_tracking", session_id = session.id, %error, "failed to persist supervisor metadata");
-    }
 }
 
 fn probe_host(host: &str) -> String {

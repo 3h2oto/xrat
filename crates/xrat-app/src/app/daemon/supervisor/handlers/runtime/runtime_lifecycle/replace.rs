@@ -1,5 +1,6 @@
 use super::*;
 use crate::app::runtime_service::ReplaceRequest;
+use crate::app::services::rotation::RotationService;
 
 pub(super) async fn handle_runtime_replace(
     state: &mut SupervisorState,
@@ -8,33 +9,7 @@ pub(super) async fn handle_runtime_replace(
     candidate_id: Option<ConfigId>,
     respond_to: oneshot::Sender<RuntimeReplaceResult>,
 ) {
-    let active_session = context
-        .db
-        .get_running_runtime_session()
-        .await
-        .unwrap_or_else(|error| {
-            tracing::debug!(operation = "runtime_replace_session", %error, "failed to load optional supervisor state");
-            None
-        });
-    if let Some(session) = &active_session {
-        let started_reason = rotation_started_reason(trigger);
-        if let Err(error) = context
-            .db
-            .update_runtime_session_transition_metadata(
-                session.id,
-                Some("daemon"),
-                Some(&state.instance_id),
-                Some(started_reason),
-                Some("proxy rotation replacement requested"),
-                Some("daemon"),
-            )
-            .await
-        {
-            tracing::debug!(operation = "runtime_replace_started_metadata", session_id = session.id, %error, "failed to persist supervisor metadata");
-        }
-    }
-
-    match RuntimeService::new(context)
+    match RotationService::new(context, &state.instance_id)
         .replace(ReplaceRequest {
             trigger,
             candidate_id,
@@ -53,35 +28,6 @@ pub(super) async fn handle_runtime_replace(
                 state.next_timer_epoch_secs =
                     Some(now_epoch_seconds() + state.rotation_interval_secs);
             }
-            if let Err(error) = context
-                .db
-                .update_runtime_session_transition_metadata(
-                    result.new_session_id,
-                    Some("daemon"),
-                    Some(&state.instance_id),
-                    Some("replace_commit_success"),
-                    Some("daemon replace handoff completed"),
-                    Some("daemon"),
-                )
-                .await
-            {
-                tracing::debug!(operation = "runtime_replace_committed_metadata", session_id = result.new_session_id, %error, "failed to persist supervisor metadata");
-            }
-            crate::app::events::record(
-                &context.db,
-                crate::app::events::LEVEL_INFO,
-                crate::app::events::SOURCE_ROTATION,
-                "proxy_rotated",
-                format!(
-                    "Rotated to config {} ({})",
-                    result.new_config_id,
-                    rotation_trigger_label(trigger)
-                ),
-                Some(result.new_config_id),
-                Some(result.new_session_id),
-                None,
-            )
-            .await;
             if respond_to
                 .send(RuntimeReplaceResult::Ok(RuntimeReplacePayload {
                     trigger,
@@ -103,8 +49,8 @@ pub(super) async fn handle_runtime_replace(
             }
         }
         Err(err) => {
-            let message = err.to_string();
-            let failure_reason = rotation_failure_reason(&message);
+            let message = err.message;
+            let failure_reason = err.reason.as_str();
             state.last_trigger = Some(trigger);
             state.last_result = failure_reason.to_string();
             state.last_candidate_config_id = candidate_id;
@@ -115,35 +61,6 @@ pub(super) async fn handle_runtime_replace(
                 state.next_timer_epoch_secs =
                     Some(now_epoch_seconds() + state.rotation_interval_secs);
             }
-            if let Some(session) = &active_session
-                && let Err(error) = context
-                    .db
-                    .update_runtime_session_transition_metadata(
-                        session.id,
-                        Some("daemon"),
-                        Some(&state.instance_id),
-                        Some(failure_reason),
-                        Some(&message),
-                        Some("daemon"),
-                    )
-                    .await
-            {
-                tracing::debug!(operation = "runtime_replace_failed_metadata", session_id = session.id, %error, "failed to persist supervisor metadata");
-            }
-            crate::app::events::record(
-                &context.db,
-                crate::app::events::LEVEL_WARN,
-                crate::app::events::SOURCE_ROTATION,
-                "rotation_failed",
-                format!(
-                    "Rotation failed ({}): {message}",
-                    rotation_trigger_label(trigger)
-                ),
-                candidate_id,
-                None,
-                None,
-            )
-            .await;
             if respond_to
                 .send(RuntimeReplaceResult::Err { message })
                 .is_err()

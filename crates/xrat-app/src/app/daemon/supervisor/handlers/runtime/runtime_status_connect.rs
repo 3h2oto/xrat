@@ -2,6 +2,7 @@ use crate::app::context::AppContext;
 use crate::app::daemon::ipc::{RuntimeConnectPayload, RuntimeStatusPayload};
 use crate::app::daemon::supervisor::{RuntimeConnectResult, RuntimeStatusResult, SupervisorState};
 use crate::app::runtime_service::{ConnectRequest, RuntimeService};
+use crate::app::services::runtime_transitions::RuntimeTransitionService;
 use tokio::sync::oneshot;
 use xrat_model::ConfigId;
 
@@ -55,36 +56,11 @@ pub(super) async fn handle_runtime_connect(
     config_id: ConfigId,
     respond_to: oneshot::Sender<RuntimeConnectResult>,
 ) {
-    match RuntimeService::new(context)
+    match RuntimeTransitionService::new(context, &state.instance_id)
         .connect(ConnectRequest { config_id })
         .await
     {
         Ok(result) => {
-            if let Err(error) = context
-                .db
-                .update_runtime_session_transition_metadata(
-                    result.session_id,
-                    Some("daemon"),
-                    Some(&state.instance_id),
-                    Some("manual_connect"),
-                    Some("daemon runtime connect request succeeded"),
-                    Some("daemon"),
-                )
-                .await
-            {
-                tracing::warn!(session_id = result.session_id, config_id = config_id.0, %error, "runtime connect metadata update failed");
-            }
-            crate::app::events::record(
-                &context.db,
-                crate::app::events::LEVEL_INFO,
-                crate::app::events::SOURCE_RUNTIME,
-                "connect",
-                format!("Connected config {}", result.config.id),
-                Some(result.config.id),
-                Some(result.session_id),
-                None,
-            )
-            .await;
             if respond_to
                 .send(RuntimeConnectResult::Ok(RuntimeConnectPayload {
                     config_id: result.config.id,
@@ -101,17 +77,6 @@ pub(super) async fn handle_runtime_connect(
             }
         }
         Err(err) => {
-            crate::app::events::record(
-                &context.db,
-                crate::app::events::LEVEL_ERROR,
-                crate::app::events::SOURCE_RUNTIME,
-                "connect_failed",
-                format!("Connect failed for config {config_id}: {err}"),
-                Some(config_id),
-                None,
-                None,
-            )
-            .await;
             if respond_to
                 .send(RuntimeConnectResult::Err {
                     message: err.to_string(),

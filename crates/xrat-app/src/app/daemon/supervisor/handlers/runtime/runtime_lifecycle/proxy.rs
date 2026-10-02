@@ -8,20 +8,9 @@ pub(super) async fn handle_proxy_start(
     state.rotation_enabled = true;
     state.cooldown_active = false;
     state.next_timer_epoch_secs = Some(now_epoch_seconds() + state.rotation_interval_secs);
-    crate::app::events::record(
-        &context.db,
-        crate::app::events::LEVEL_INFO,
-        crate::app::events::SOURCE_ROTATION,
-        "rotation_enabled",
-        format!(
-            "Auto-rotation enabled (interval {}s)",
-            state.rotation_interval_secs
-        ),
-        None,
-        None,
-        None,
-    )
-    .await;
+    crate::app::services::rotation::RotationService::new(context, &state.instance_id)
+        .enabled(state.rotation_interval_secs)
+        .await;
     if respond_to
         .send(ProxyControlResult::Ok(ProxyControlPayload {
             rotation_enabled: true,
@@ -89,17 +78,9 @@ pub(super) async fn handle_proxy_stop(
     state.rotation_enabled = false;
     state.cooldown_active = false;
     state.next_timer_epoch_secs = None;
-    crate::app::events::record(
-        &context.db,
-        crate::app::events::LEVEL_INFO,
-        crate::app::events::SOURCE_ROTATION,
-        "rotation_disabled",
-        "Auto-rotation disabled",
-        None,
-        None,
-        None,
-    )
-    .await;
+    crate::app::services::rotation::RotationService::new(context, &state.instance_id)
+        .disabled()
+        .await;
     if respond_to
         .send(ProxyControlResult::Ok(ProxyControlPayload {
             rotation_enabled: false,

@@ -27,13 +27,7 @@ pub enum DaemonRequestKind {
     ProxyStop,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "snake_case")]
-pub enum RotationTrigger {
-    Manual,
-    Timer,
-    HealthCheckFailed,
-}
+pub use crate::app::services::rotation::RotationTrigger;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DaemonResponse<T> {

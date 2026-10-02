@@ -4,7 +4,9 @@ pub mod engine_probe;
 mod lifecycle;
 pub mod proxy_pac;
 pub mod releases;
+pub mod rotation;
 pub mod runtime_control;
+pub mod runtime_transitions;
 pub mod runtime_tuning;
 pub mod testing;
 
