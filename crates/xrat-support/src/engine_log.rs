@@ -3,6 +3,8 @@
 //! structured fields where the format is recognized, and kept as raw messages
 //! otherwise.
 
+#![cfg_attr(not(test), deny(clippy::unwrap_used, clippy::expect_used))]
+
 /// Which process stream a log line came from. Recorded so stderr can be
 /// surfaced only when it materially helps diagnose an issue; the feed label
 /// itself stays the engine name (e.g. `xray`).
@@ -147,15 +149,15 @@ fn parse_singbox_line(line: &str) -> Option<ParsedLine> {
     }
 
     let mut date = None;
-    if let Some(token) = rest.split_whitespace().next()
-        && looks_like_singbox_date(token)
+    if let Some(date_token) = rest.split_whitespace().next()
+        && looks_like_singbox_date(date_token)
     {
-        date = Some(token.to_string());
-        rest = rest[token.len()..].trim_start();
+        date = Some(date_token.to_string());
+        rest = rest[date_token.len()..].trim_start();
         if let Some(token) = rest.split_whitespace().next()
             && looks_like_singbox_time(token)
         {
-            date = Some(format!("{} {token}", date.take().unwrap()));
+            date = Some(format!("{date_token} {token}"));
             rest = rest[token.len()..].trim_start();
         }
     }
@@ -355,6 +357,26 @@ mod tests {
         assert_eq!(row.level.as_deref(), Some("WARN"));
         assert_eq!(row.component.as_deref(), Some("inbound/socks"));
         assert_eq!(row.message, "listen error");
+    }
+
+    #[test]
+    fn parses_singbox_date_without_time() {
+        let row = EngineLogRow::parse(
+            "sing-box",
+            ProxyStream::Stdout,
+            "2026-06-06 INFO router: ready",
+        );
+        assert_eq!(row.time.as_deref(), Some("2026-06-06"));
+        assert_eq!(row.level.as_deref(), Some("INFO"));
+        assert_eq!(row.message, "ready");
+    }
+
+    #[test]
+    fn parses_singbox_level_without_timestamp() {
+        let row = EngineLogRow::parse("sing-box", ProxyStream::Stdout, "INFO router: ready");
+        assert!(row.time.is_none());
+        assert_eq!(row.level.as_deref(), Some("INFO"));
+        assert_eq!(row.message, "ready");
     }
 
     #[test]
