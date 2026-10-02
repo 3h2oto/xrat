@@ -103,7 +103,7 @@ pub(super) async fn verify_reconcile_state(db: &Database) {
         "vless://uuid-recon-b@recon-b.example.com:443?type=ws&security=tls#b".to_string();
 
     let initial = db
-        .import_nodes(&source, &[first.clone(), second])
+        .import_nodes(&source, &[first.clone(), second.clone()])
         .await
         .expect("reconcile import should succeed");
     assert_eq!(initial.removed_configs, 0);
@@ -118,7 +118,7 @@ pub(super) async fn verify_reconcile_state(db: &Database) {
     );
 
     let refreshed = db
-        .import_nodes(&source, &[first])
+        .import_nodes(&source, &[first.clone()])
         .await
         .expect("reconcile refresh should succeed");
     assert_eq!(refreshed.removed_configs, 1);
@@ -132,9 +132,34 @@ pub(super) async fn verify_reconcile_state(db: &Database) {
         include_deleted: true,
         ..ConfigListFilter::default()
     };
+    let before_readd = db.list_configs(&all_filter).await.expect("list all");
     assert_eq!(
-        db.list_configs(&all_filter).await.expect("list all").len(),
+        before_readd.len(),
         2,
         "removed config is soft-deleted, not purged"
     );
+    assert_eq!(
+        before_readd
+            .iter()
+            .filter(|config| config.is_deleted)
+            .count(),
+        1
+    );
+
+    let readded = db
+        .import_nodes(&source, &[first, second])
+        .await
+        .expect("re-add");
+    assert_eq!(readded.removed_configs, 0);
+    let active = db
+        .list_configs(&active_filter)
+        .await
+        .expect("active after re-add");
+    assert_eq!(active.len(), 2);
+    for (before, after) in before_readd.iter().zip(&active) {
+        assert_eq!(before.id, after.id);
+        assert_eq!(before.r#ref, after.r#ref);
+        assert!(!after.is_deleted);
+        assert!(after.deleted_at.is_none());
+    }
 }

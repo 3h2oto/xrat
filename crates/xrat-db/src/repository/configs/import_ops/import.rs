@@ -65,14 +65,14 @@ async fn reconcile_removed(
     match pool {
         DbPool::Sqlite(pool) => {
             let mut builder = QueryBuilder::<Sqlite>::new(
-                "UPDATE configs SET is_deleted = TRUE, deleted_at = CURRENT_TIMESTAMP WHERE is_deleted = 0 AND subscription_id = ",
+                "UPDATE configs SET is_deleted = 1, deleted_at = CURRENT_TIMESTAMP WHERE is_deleted = 0 AND subscription_id = ",
             );
             push_reconcile_predicate(&mut builder, subscription_id, nodes);
             Ok(builder.build().execute(pool).await?.rows_affected())
         }
         DbPool::Postgres(pool) => {
             let mut builder = QueryBuilder::<Postgres>::new(
-                "UPDATE configs SET is_deleted = TRUE, deleted_at = CURRENT_TIMESTAMP::TEXT WHERE is_deleted = FALSE AND subscription_id = ",
+                "UPDATE configs SET is_deleted = 1, deleted_at = CURRENT_TIMESTAMP::TEXT WHERE is_deleted = 0 AND subscription_id = ",
             );
             push_reconcile_predicate(&mut builder, subscription_id, nodes);
             Ok(builder.build().execute(pool).await?.rows_affected())
@@ -162,7 +162,7 @@ where
                 name = excluded.name,
                 raw_config = excluded.raw_config,
                 extensions_json = excluded.extensions_json,
-                is_deleted = FALSE,
+                is_deleted = 0,
                 deleted_at = NULL,
                 imported_at = "#,
     );

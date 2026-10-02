@@ -12,11 +12,18 @@ pub(super) async fn verify_database_backend(db: &Database) {
     runtime_session_cases::verify_runtime_session_state(db, second_id).await;
     super::geoip_cache_cases::verify_geoip_cache_state(db).await;
 
-    // Ensure earlier config delete path actually removed the original item.
+    let deleted = db
+        .get_config_by_id(first_id)
+        .await
+        .expect("deleted query")
+        .expect("soft-deleted config remains stored");
+    assert!(deleted.is_deleted);
+    assert!(!deleted.is_active);
+    db.hard_delete_config(first_id).await.expect("purge config");
     assert!(
         db.get_config_by_id(first_id)
             .await
-            .expect("deleted query should succeed")
+            .expect("purged query")
             .is_none()
     );
 }
