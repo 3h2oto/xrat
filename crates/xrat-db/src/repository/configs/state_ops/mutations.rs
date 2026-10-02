@@ -1,6 +1,7 @@
 use sqlx::{Postgres, QueryBuilder, Sqlite};
 
 use crate::connection::DbPool;
+use xrat_model::ConfigId;
 
 pub async fn clear_all_active(pool: &DbPool) -> crate::Result<()> {
     match pool {
@@ -21,7 +22,7 @@ pub async fn clear_all_active(pool: &DbPool) -> crate::Result<()> {
     }
 }
 
-pub async fn mark_active(pool: &DbPool, id: i64) -> crate::Result<()> {
+pub async fn mark_active(pool: &DbPool, id: ConfigId) -> crate::Result<()> {
     execute_id(
         pool,
         "UPDATE configs SET is_active = 1, updated_at = CURRENT_TIMESTAMP WHERE id = ?1",
@@ -31,7 +32,7 @@ pub async fn mark_active(pool: &DbPool, id: i64) -> crate::Result<()> {
     .await
 }
 
-pub async fn set_enabled(pool: &DbPool, id: i64, enabled: bool) -> crate::Result<()> {
+pub async fn set_enabled(pool: &DbPool, id: ConfigId, enabled: bool) -> crate::Result<()> {
     let enabled_flag = if enabled { 1 } else { 0 };
     match pool {
         DbPool::Sqlite(pool) => {
@@ -46,7 +47,7 @@ pub async fn set_enabled(pool: &DbPool, id: i64, enabled: bool) -> crate::Result
     Ok(())
 }
 
-pub async fn soft_delete(pool: &DbPool, id: i64) -> crate::Result<()> {
+pub async fn soft_delete(pool: &DbPool, id: ConfigId) -> crate::Result<()> {
     match pool {
         DbPool::Sqlite(pool) => {
             sqlx::query("UPDATE configs SET is_deleted = 1, deleted_at = CURRENT_TIMESTAMP, is_active = 0, updated_at = CURRENT_TIMESTAMP WHERE id = ?1")
@@ -60,7 +61,7 @@ pub async fn soft_delete(pool: &DbPool, id: i64) -> crate::Result<()> {
     Ok(())
 }
 
-pub async fn restore(pool: &DbPool, id: i64) -> crate::Result<()> {
+pub async fn restore(pool: &DbPool, id: ConfigId) -> crate::Result<()> {
     match pool {
         DbPool::Sqlite(pool) => {
             sqlx::query("UPDATE configs SET is_deleted = 0, deleted_at = NULL, updated_at = CURRENT_TIMESTAMP WHERE id = ?1")
@@ -74,7 +75,7 @@ pub async fn restore(pool: &DbPool, id: i64) -> crate::Result<()> {
     Ok(())
 }
 
-pub async fn hard_delete(pool: &DbPool, id: i64) -> crate::Result<()> {
+pub async fn hard_delete(pool: &DbPool, id: ConfigId) -> crate::Result<()> {
     match pool {
         DbPool::Sqlite(pool) => {
             let mut tx = pool.begin().await?;
@@ -155,7 +156,7 @@ pub async fn purge_deleted(pool: &DbPool) -> crate::Result<u64> {
     Ok(rows_affected)
 }
 
-pub async fn soft_delete_many(pool: &DbPool, ids: &[i64]) -> crate::Result<u64> {
+pub async fn soft_delete_many(pool: &DbPool, ids: &[ConfigId]) -> crate::Result<u64> {
     if ids.is_empty() {
         return Ok(0);
     }
@@ -180,7 +181,7 @@ pub async fn soft_delete_many(pool: &DbPool, ids: &[i64]) -> crate::Result<u64> 
     Ok(rows_affected)
 }
 
-pub async fn restore_many(pool: &DbPool, ids: &[i64]) -> crate::Result<u64> {
+pub async fn restore_many(pool: &DbPool, ids: &[ConfigId]) -> crate::Result<u64> {
     if ids.is_empty() {
         return Ok(0);
     }
@@ -205,7 +206,7 @@ pub async fn restore_many(pool: &DbPool, ids: &[i64]) -> crate::Result<u64> {
     Ok(rows_affected)
 }
 
-pub async fn hard_delete_many(pool: &DbPool, ids: &[i64]) -> crate::Result<u64> {
+pub async fn hard_delete_many(pool: &DbPool, ids: &[ConfigId]) -> crate::Result<u64> {
     if ids.is_empty() {
         return Ok(0);
     }
@@ -251,11 +252,11 @@ pub async fn hard_delete_many(pool: &DbPool, ids: &[i64]) -> crate::Result<u64> 
 fn build_in_delete<'args, DB>(
     table: &str,
     column: &str,
-    ids: &'args [i64],
+    ids: &'args [ConfigId],
 ) -> QueryBuilder<'args, DB>
 where
     DB: sqlx::Database,
-    i64: sqlx::Type<DB> + sqlx::Encode<'args, DB>,
+    ConfigId: sqlx::Type<DB> + sqlx::Encode<'args, DB>,
 {
     let mut builder = QueryBuilder::<DB>::new(format!("DELETE FROM {table} WHERE {column} IN ("));
     push_id_list(&mut builder, ids);
@@ -263,10 +264,10 @@ where
     builder
 }
 
-fn push_id_list<'args, DB>(builder: &mut QueryBuilder<'args, DB>, ids: &'args [i64])
+fn push_id_list<'args, DB>(builder: &mut QueryBuilder<'args, DB>, ids: &'args [ConfigId])
 where
     DB: sqlx::Database,
-    i64: sqlx::Type<DB> + sqlx::Encode<'args, DB>,
+    ConfigId: sqlx::Type<DB> + sqlx::Encode<'args, DB>,
 {
     let mut separated = builder.separated(", ");
     for id in ids {
@@ -290,7 +291,7 @@ async fn execute_id(
     pool: &DbPool,
     sqlite_sql: &str,
     postgres_sql: &str,
-    id: i64,
+    id: ConfigId,
 ) -> crate::Result<()> {
     match pool {
         DbPool::Sqlite(pool) => {

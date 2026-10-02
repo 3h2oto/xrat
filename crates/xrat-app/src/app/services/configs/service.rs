@@ -4,6 +4,7 @@ use crate::app::ports::ConfigRepository;
 use crate::app::read_models::ConfigDetail;
 use crate::app::{AppError, Result};
 use xrat_db::record::{ConfigListFilter, RefMatch};
+use xrat_model::{ConfigId, ConfigRef, SubscriptionId};
 
 use super::repository::DatabaseConfigRepository;
 
@@ -17,7 +18,7 @@ pub struct ConfigListRequest {
     pub only_active: bool,
     pub only_deleted: bool,
     pub include_deleted: bool,
-    pub subscription_id: Option<i64>,
+    pub subscription_id: Option<SubscriptionId>,
     pub protocol: Option<String>,
     pub offset: Option<i64>,
     pub limit: Option<i64>,
@@ -121,7 +122,7 @@ impl ConfigService {
     }
 
     /// Fetch a config as an interface-neutral detail model.
-    pub async fn detail(&self, id: i64) -> Result<Option<ConfigDetail>> {
+    pub async fn detail(&self, id: ConfigId) -> Result<Option<ConfigDetail>> {
         Ok(self
             .repository
             .get_config_with_latest_test(id)
@@ -131,8 +132,10 @@ impl ConfigService {
     }
 
     /// Resolve a numeric id or ref prefix into a config id.
-    pub async fn resolve_id(&self, raw: &str) -> Result<Option<i64>> {
+    pub async fn resolve_id(&self, token: &ConfigRef) -> Result<Option<ConfigId>> {
+        let raw = token.as_ref();
         if let Ok(id) = raw.parse::<i64>() {
+            let id = ConfigId(id);
             let exists = self.repository.get_config_by_id(id).await?.is_some();
             if exists {
                 return Ok(Some(id));
@@ -153,11 +156,12 @@ impl ConfigService {
     }
 
     /// Resolve a numeric subscription id or ref prefix.
-    pub async fn resolve_subscription_id(&self, raw: &str) -> Result<Option<i64>> {
-        if let Ok(id) = raw.parse::<i64>()
-            && self.repository.get_subscription_by_id(id).await?.is_some()
-        {
-            return Ok(Some(id));
+    pub async fn resolve_subscription_id(&self, raw: &str) -> Result<Option<SubscriptionId>> {
+        if let Ok(id) = raw.parse::<i64>() {
+            let id = SubscriptionId(id);
+            if self.repository.get_subscription_by_id(id).await?.is_some() {
+                return Ok(Some(id));
+            }
         }
         if !xrat_support::refs::is_ref_prefix(raw) {
             return Ok(None);

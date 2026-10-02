@@ -14,7 +14,7 @@ pub async fn run(args: &TestArgs, context: &AppContext) -> crate::app::Result<()
         &context.runtime_paths,
     )?;
     let config_id = match args.id.as_deref() {
-        Some(raw) => Some(resolve_config_id(context, raw).await?),
+        Some(raw) => Some(resolve_config_id(context, &xrat_model::ConfigRef::from(raw)).await?),
         None => None,
     };
     let subscription_id = match args.subscription.as_deref() {

@@ -3,7 +3,7 @@ use crate::app::commands::output;
 
 pub(crate) fn format_configs(
     configs: &[ConfigDetail],
-    subscription_refs: &HashMap<i64, &str>,
+    subscription_refs: &HashMap<SubscriptionId, &str>,
     format: ListFormat,
     settings: Option<&crate::app::config::TestingSettings>,
 ) -> crate::app::Result<String> {
@@ -21,7 +21,7 @@ pub(crate) fn format_configs(
 
 pub(crate) fn format_config_table(
     configs: &[ConfigDetail],
-    subscription_refs: &HashMap<i64, &str>,
+    subscription_refs: &HashMap<SubscriptionId, &str>,
     settings: Option<&crate::app::config::TestingSettings>,
 ) -> String {
     let metric_columns = MetricColumns::for_configs(configs, settings);
@@ -88,7 +88,7 @@ pub(crate) fn format_config_table(
 
 pub(crate) fn format_config_tsv(
     configs: &[ConfigDetail],
-    subscription_refs: &HashMap<i64, &str>,
+    subscription_refs: &HashMap<SubscriptionId, &str>,
 ) -> String {
     let mut lines = Vec::with_capacity(configs.len() + 1);
     lines.push("ref\tsubscription_ref\tstatus\tprotocol\taddress\tport\ticmp_ms\ttcp_ms\treal_delay_ms\tdownload_mbps\tupload_mbps\tdial_endpoint_country\tdial_endpoint_location\tdial_endpoint_asn\tdial_endpoint_fronting\tname".to_string());
@@ -149,7 +149,7 @@ pub(crate) fn config_style(config: &ConfigSummary) -> Style {
 
 pub(crate) fn config_json(
     row: &ConfigDetail,
-    subscription_refs: &HashMap<i64, &str>,
+    subscription_refs: &HashMap<SubscriptionId, &str>,
 ) -> serde_json::Value {
     let config = &row.summary;
     serde_json::json!({
@@ -382,8 +382,8 @@ impl MetricColumns {
 }
 
 pub(crate) fn subscription_ref_cell(
-    subscription_id: Option<i64>,
-    subscription_refs: &HashMap<i64, &str>,
+    subscription_id: Option<SubscriptionId>,
+    subscription_refs: &HashMap<SubscriptionId, &str>,
 ) -> String {
     subscription_id
         .and_then(|id| subscription_refs.get(&id).copied())
@@ -393,8 +393,8 @@ pub(crate) fn subscription_ref_cell(
 }
 
 pub(crate) fn subscription_ref_tsv_cell(
-    subscription_id: Option<i64>,
-    subscription_refs: &HashMap<i64, &str>,
+    subscription_id: Option<SubscriptionId>,
+    subscription_refs: &HashMap<SubscriptionId, &str>,
 ) -> String {
     subscription_id
         .and_then(|id| subscription_refs.get(&id).copied())

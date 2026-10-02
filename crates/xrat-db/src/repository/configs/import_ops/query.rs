@@ -3,12 +3,13 @@ use sqlx::{Postgres, QueryBuilder, Sqlite};
 use crate::connection::DbPool;
 use crate::record::{ConfigListFilter, ConfigRecord, RefMatch};
 use crate::repository::row::map_config_row;
+use xrat_model::ConfigId;
 
 /// Resolve a ref prefix to a single config id. Matches across all configs
 /// (including soft-deleted) so refs work everywhere numeric ids do.
-pub async fn resolve_ref_prefix(pool: &DbPool, prefix: &str) -> crate::Result<RefMatch> {
+pub async fn resolve_ref_prefix(pool: &DbPool, prefix: &str) -> crate::Result<RefMatch<ConfigId>> {
     let like = format!("{prefix}%");
-    let ids: Vec<i64> = match pool {
+    let ids: Vec<ConfigId> = match pool {
         DbPool::Sqlite(pool) => {
             sqlx::query_scalar("SELECT id FROM configs WHERE ref LIKE ?1 ORDER BY id ASC LIMIT 2")
                 .bind(&like)
@@ -95,7 +96,7 @@ where
     builder.push(" ORDER BY id ASC");
 }
 
-pub async fn get_by_id(pool: &DbPool, id: i64) -> crate::Result<Option<ConfigRecord>> {
+pub async fn get_by_id(pool: &DbPool, id: ConfigId) -> crate::Result<Option<ConfigRecord>> {
     match pool {
         DbPool::Sqlite(pool) => Ok(sqlx::query(&format!(
             "SELECT {CONFIG_COLUMNS} FROM configs WHERE id = ?1"

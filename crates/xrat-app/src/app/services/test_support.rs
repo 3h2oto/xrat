@@ -76,7 +76,7 @@ impl Filesystem for InMemoryFilesystem {
 pub fn sample_joined_row(id: i64, enabled: bool) -> ConfigWithLatestTest {
     ConfigWithLatestTest {
         config: ConfigRecord {
-            id,
+            id: id.into(),
             r#ref: format!("ref{id}"),
             subscription_id: None,
             dedup_key: format!("key{id}"),
@@ -147,7 +147,7 @@ fn in_memory_filesystem_round_trips() {
 fn summary_maps_config_fields() {
     let row = sample_joined_row(7, true);
     let summary = ConfigSummary::from_joined(&row);
-    assert_eq!(summary.id, 7);
+    assert_eq!(summary.id, xrat_model::ConfigId(7));
     assert_eq!(summary.r#ref, "ref7");
     assert_eq!(summary.name.as_deref(), Some("node-7"));
     assert!(summary.is_enabled);

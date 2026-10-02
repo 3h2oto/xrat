@@ -6,10 +6,11 @@ use crate::app::context::AppContext;
 use crate::app::import;
 use crate::cli::UpdateArgs;
 use xrat_db::SubscriptionRecord;
+use xrat_model::SubscriptionId;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct SubscriptionUpdateResult {
-    pub subscription_id: i64,
+    pub subscription_id: SubscriptionId,
     pub subscription_ref: String,
     pub subscription_name: String,
     pub imported_configs: usize,
@@ -18,7 +19,7 @@ pub struct SubscriptionUpdateResult {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct SubscriptionUpdateError {
-    pub subscription_id: i64,
+    pub subscription_id: SubscriptionId,
     pub subscription_ref: String,
     pub subscription_name: String,
     pub error: String,
@@ -65,7 +66,7 @@ pub async fn run(context: &AppContext, args: &UpdateArgs) -> crate::app::Result<
 
 pub async fn update_by_ids(
     context: &AppContext,
-    ids: &[i64],
+    ids: &[SubscriptionId],
 ) -> crate::app::Result<SubscriptionUpdateSummary> {
     let mut targets = Vec::with_capacity(ids.len());
     for id in ids {
@@ -109,7 +110,7 @@ async fn update_targets(
     targets: Vec<SubscriptionRecord>,
 ) -> crate::app::Result<SubscriptionUpdateSummary> {
     let mut summary = SubscriptionUpdateSummary::default();
-    let mut dedup = HashMap::<i64, SubscriptionRecord>::new();
+    let mut dedup = HashMap::<SubscriptionId, SubscriptionRecord>::new();
     for subscription in targets {
         dedup.insert(subscription.id, subscription);
     }
@@ -218,14 +219,14 @@ mod tests {
             removed_configs: 1,
             successes: vec![
                 SubscriptionUpdateResult {
-                    subscription_id: 1,
+                    subscription_id: 1.into(),
                     subscription_ref: "aabbccdd".to_string(),
                     subscription_name: "main".to_string(),
                     imported_configs: 2,
                     removed_configs: 1,
                 },
                 SubscriptionUpdateResult {
-                    subscription_id: 2,
+                    subscription_id: 2.into(),
                     subscription_ref: "eeff0011".to_string(),
                     subscription_name: "backup".to_string(),
                     imported_configs: 1,
@@ -247,7 +248,7 @@ mod tests {
             imported_configs: 1,
             removed_configs: 0,
             successes: vec![SubscriptionUpdateResult {
-                subscription_id: 1,
+                subscription_id: 1.into(),
                 subscription_ref: "aabbccdd".to_string(),
                 subscription_name: "main".to_string(),
                 imported_configs: 1,

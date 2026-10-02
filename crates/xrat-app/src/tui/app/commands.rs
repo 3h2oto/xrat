@@ -35,7 +35,7 @@ impl TuiApp {
         }
     }
 
-    pub fn test_config_ids(&self) -> Vec<i64> {
+    pub fn test_config_ids(&self) -> Vec<xrat_model::ConfigId> {
         match self.test_state.scope {
             super::TestScope::Focused => self
                 .focused_config()
@@ -78,7 +78,7 @@ impl TuiApp {
 
     /// Config ids targeted by a bulk operation, resolved against current data
     /// and the active filter/search.
-    pub fn bulk_config_ids(&self, op: BulkOp) -> Vec<i64> {
+    pub fn bulk_config_ids(&self, op: BulkOp) -> Vec<xrat_model::ConfigId> {
         match op {
             BulkOp::DeleteFailed | BulkOp::PurgeFailed => self
                 .data

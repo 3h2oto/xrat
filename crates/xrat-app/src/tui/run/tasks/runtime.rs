@@ -63,7 +63,7 @@ pub fn spawn_runtime_start_config(
     context: AppContext,
     app: &mut TuiApp,
     task_tx: &mpsc::UnboundedSender<TuiTaskEvent>,
-    config_id: i64,
+    config_id: xrat_model::ConfigId,
 ) {
     let Some((kind, include_deleted, task_tx)) = begin_runtime_op(app, task_tx) else {
         return;
@@ -83,7 +83,7 @@ pub fn spawn_runtime_start_config(
                     {
                         tracing::debug!(
                             ?kind,
-                            config_id,
+                            config_id = config_id.0,
                             "TUI task receiver dropped after runtime control failure"
                         );
                     }
@@ -108,12 +108,15 @@ pub fn spawn_runtime_start_config(
             if task_tx.send(event).is_err() {
                 tracing::debug!(
                     ?kind,
-                    config_id,
+                    config_id = config_id.0,
                     "TUI task receiver dropped after runtime start"
                 );
             }
         }
-        .instrument(tracing::debug_span!("tui_runtime_start", config_id)),
+        .instrument(tracing::debug_span!(
+            "tui_runtime_start",
+            config_id = config_id.0
+        )),
     );
 }
 
@@ -197,7 +200,7 @@ pub fn spawn_runtime_restart(
                     {
                         tracing::debug!(
                             ?kind,
-                            config_id,
+                            config_id = config_id.0,
                             "TUI task receiver dropped after runtime control failure"
                         );
                     }
@@ -215,7 +218,7 @@ pub fn spawn_runtime_restart(
                 {
                     tracing::debug!(
                         ?kind,
-                        config_id,
+                        config_id = config_id.0,
                         "TUI task receiver dropped after restart stop failure"
                     );
                 }
@@ -239,11 +242,14 @@ pub fn spawn_runtime_restart(
             if task_tx.send(event).is_err() {
                 tracing::debug!(
                     ?kind,
-                    config_id,
+                    config_id = config_id.0,
                     "TUI task receiver dropped after runtime restart"
                 );
             }
         }
-        .instrument(tracing::debug_span!("tui_runtime_restart", config_id)),
+        .instrument(tracing::debug_span!(
+            "tui_runtime_restart",
+            config_id = config_id.0
+        )),
     );
 }

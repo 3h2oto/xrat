@@ -19,7 +19,7 @@ use crate::tui::app::{
 fn rename_modal_identifies_subscription_by_ref_and_name() {
     let app = TuiApp {
         rename_modal: Some(RenameModalState {
-            source_id: 7,
+            source_id: xrat_model::SubscriptionId(7),
             source_ref: "sub-a1b2c3".to_string(),
             current_name: "Primary".to_string(),
             input: "Primary".to_string(),

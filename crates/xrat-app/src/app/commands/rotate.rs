@@ -6,6 +6,7 @@ use crate::app::daemon::ipc;
 use crate::cli::{RotateAction, RotateArgs};
 use tokio::time::Duration;
 use xrat_db::{ConfigListFilter, EventFilter, EventRecord};
+use xrat_model::ConfigId;
 
 pub async fn run(context: &AppContext, args: &RotateArgs) -> crate::app::Result<()> {
     let socket_path = ipc::default_socket_path(&context.runtime_paths.runtime_dir);
@@ -255,7 +256,7 @@ async fn now(
     }
 
     let config_id = match config_id {
-        Some(raw) => Some(resolve_config_id(context, raw).await?),
+        Some(raw) => Some(resolve_config_id(context, &xrat_model::ConfigRef::from(raw)).await?),
         None => None,
     };
 
@@ -320,7 +321,7 @@ async fn now(
 async fn connect_initial_runtime(
     context: &AppContext,
     socket_path: &std::path::Path,
-    config_id: Option<i64>,
+    config_id: Option<ConfigId>,
 ) -> crate::app::Result<()> {
     let config_id = match config_id {
         Some(config_id) => config_id,
@@ -366,7 +367,7 @@ async fn connect_initial_runtime(
     }
 }
 
-async fn initial_rotation_config_id(context: &AppContext) -> crate::app::Result<i64> {
+async fn initial_rotation_config_id(context: &AppContext) -> crate::app::Result<ConfigId> {
     let filter = ConfigListFilter {
         only_enabled: true,
         ..Default::default()
@@ -518,7 +519,7 @@ fn daemon_unreachable_message(socket_path: &std::path::Path) -> String {
 
 async fn config_ref(
     context: &AppContext,
-    config_id: Option<i64>,
+    config_id: Option<ConfigId>,
 ) -> crate::app::Result<Option<String>> {
     let Some(config_id) = config_id else {
         return Ok(None);

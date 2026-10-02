@@ -5,7 +5,7 @@ impl<'a> RuntimeService<'a> {
         &self,
         next_config: ConfigRecord,
         launch: ResolvedLaunch,
-    ) -> crate::app::Result<(i64, i64, u32)> {
+    ) -> crate::app::Result<(ConfigId, i64, u32)> {
         if !next_config.is_enabled {
             return Err(AppError::InvalidArgument(format!(
                 "config {} is disabled",

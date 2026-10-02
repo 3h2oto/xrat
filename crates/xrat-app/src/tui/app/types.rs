@@ -1,4 +1,5 @@
 use std::time::Instant;
+use xrat_model::{ConfigId, SubscriptionId};
 
 use crate::tui::data::TuiData;
 
@@ -162,18 +163,18 @@ pub enum TuiAction {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum TuiConfigCommand {
-    Enable(i64),
-    Disable(i64),
-    Restore(i64),
-    SoftDelete(i64),
-    Purge(i64),
+    Enable(ConfigId),
+    Disable(ConfigId),
+    Restore(ConfigId),
+    SoftDelete(ConfigId),
+    Purge(ConfigId),
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ConfirmKind {
-    SoftDeleteConfig(i64),
-    PurgeConfig(i64),
-    DeleteSource(i64),
+    SoftDeleteConfig(ConfigId),
+    PurgeConfig(ConfigId),
+    DeleteSource(SubscriptionId),
     ClearEvents,
     RestartAfterSettings,
 }
@@ -265,7 +266,7 @@ impl Default for ImportModalState {
 
 #[derive(Debug, Default)]
 pub struct RenameModalState {
-    pub source_id: i64,
+    pub source_id: SubscriptionId,
     pub source_ref: String,
     pub current_name: String,
     pub input: String,
@@ -403,7 +404,7 @@ pub struct TuiApp {
     pub event_log: Vec<String>,
     pub chrome_message: Option<ChromeMessage>,
     pub needs_full_clear: bool,
-    pub testing_config_ids: Vec<i64>,
+    pub testing_config_ids: Vec<ConfigId>,
     pub spinner_tick: usize,
     /// Newer release tag discovered by the startup version check, if any.
     pub latest_version: Option<String>,
@@ -440,7 +441,7 @@ pub enum SourceFilter {
     #[default]
     All,
     Orphans,
-    Source(i64),
+    Source(SubscriptionId),
 }
 
 #[derive(Debug, Default)]

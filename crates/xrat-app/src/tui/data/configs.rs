@@ -1,9 +1,10 @@
 use crate::app::read_models::ConfigDetail;
+use xrat_model::{ConfigId, SubscriptionId};
 use xrat_support::refs::short_ref;
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct TuiConfigRow {
-    pub id: i64,
+    pub id: ConfigId,
     pub r#ref: String,
     pub name: String,
     pub protocol: String,
@@ -21,7 +22,7 @@ pub struct TuiConfigRow {
     pub dial_endpoint_asn: Option<String>,
     pub dial_endpoint_fronting: Option<String>,
     pub failure_reason: Option<String>,
-    pub source_id: Option<i64>,
+    pub source_id: Option<SubscriptionId>,
     pub tested_at: Option<String>,
     pub imported_at: String,
     pub is_active: bool,

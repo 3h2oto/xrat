@@ -14,6 +14,7 @@ use crate::{
     ImportSource, RuntimeSessionInsert, RuntimeSessionStatus,
 };
 #[cfg(test)]
+#[cfg(test)]
 use test_support::test_database_path;
 
 #[cfg(test)]

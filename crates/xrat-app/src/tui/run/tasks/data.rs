@@ -26,7 +26,7 @@ const ENRICH_FLUSH_BATCH: usize = 16;
 pub fn spawn_enrich_locations(
     db: xrat_db::Database,
     lookup: Arc<CachedLookup>,
-    targets: Vec<(i64, String)>,
+    targets: Vec<(xrat_model::ConfigId, String)>,
     task_tx: &mpsc::UnboundedSender<TuiTaskEvent>,
 ) {
     if targets.is_empty() {
@@ -39,7 +39,7 @@ pub fn spawn_enrich_locations(
         let mut pending = targets.into_iter();
         let spawn_next =
             |join_set: &mut tokio::task::JoinSet<_>,
-             pending: &mut std::vec::IntoIter<(i64, String)>| {
+             pending: &mut std::vec::IntoIter<(xrat_model::ConfigId, String)>| {
                 if let Some((id, address)) = pending.next() {
                     let lookup = lookup.clone();
                     join_set.spawn(async move {
@@ -114,7 +114,7 @@ async fn persist_geo(
 
 /// The `(config_id, address)` rows still needing a network location lookup after
 /// DB test geo and the persistent cache have been applied during load.
-pub fn enrichment_targets(data: &TuiData) -> Vec<(i64, String)> {
+pub fn enrichment_targets(data: &TuiData) -> Vec<(xrat_model::ConfigId, String)> {
     data.pending_enrichment.clone()
 }
 

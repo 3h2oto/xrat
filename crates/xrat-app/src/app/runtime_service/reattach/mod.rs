@@ -16,7 +16,7 @@ impl<'a> RuntimeService<'a> {
     pub async fn reconcile_reattach_on_daemon_start(
         &self,
         daemon_instance_id: &str,
-    ) -> crate::app::Result<Option<i64>> {
+    ) -> crate::app::Result<Option<ConfigId>> {
         self.reconcile_reattach_with_inspector(&process::SystemProcessInspector, daemon_instance_id)
             .await
     }
@@ -25,7 +25,7 @@ impl<'a> RuntimeService<'a> {
         &self,
         inspector: &dyn ProcessInspector,
         daemon_instance_id: &str,
-    ) -> crate::app::Result<Option<i64>> {
+    ) -> crate::app::Result<Option<ConfigId>> {
         let Some(session) = self.context.db.get_running_runtime_session().await? else {
             return Ok(None);
         };

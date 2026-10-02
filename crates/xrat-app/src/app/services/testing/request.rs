@@ -1,4 +1,5 @@
 use xrat_db::ConfigListFilter;
+use xrat_model::SubscriptionId;
 
 /// Stage and filter selection for a connection-test run.
 ///
@@ -34,7 +35,7 @@ pub struct TestRunRequest {
 
 impl TestRunRequest {
     /// Build the list filter for bulk selection.
-    pub fn config_filter(&self, subscription_id: Option<i64>) -> ConfigListFilter {
+    pub fn config_filter(&self, subscription_id: Option<SubscriptionId>) -> ConfigListFilter {
         ConfigListFilter {
             only_enabled: self.enabled_only,
             only_active: self.active_only,

@@ -8,6 +8,7 @@ use crate::app::daemon::ipc::{
     PingPayload, ProxyControlPayload, ProxyStatusPayload, RotationTrigger, RuntimeConnectPayload,
     RuntimeDisconnectPayload, RuntimeReplacePayload, RuntimeStatusPayload,
 };
+use xrat_model::ConfigId;
 
 pub async fn ping_daemon(socket_path: &Path) -> crate::app::Result<DaemonResponse<PingPayload>> {
     request_response(socket_path, DaemonRequestKind::DaemonPing).await
@@ -21,7 +22,7 @@ pub async fn runtime_status_daemon(
 
 pub async fn runtime_connect_daemon(
     socket_path: &Path,
-    config_id: i64,
+    config_id: ConfigId,
 ) -> crate::app::Result<DaemonResponse<RuntimeConnectPayload>> {
     request_response(socket_path, DaemonRequestKind::RuntimeConnect { config_id }).await
 }
@@ -35,7 +36,7 @@ pub async fn runtime_disconnect_daemon(
 pub async fn runtime_replace_daemon(
     socket_path: &Path,
     trigger: RotationTrigger,
-    candidate_id: Option<i64>,
+    candidate_id: Option<ConfigId>,
 ) -> crate::app::Result<DaemonResponse<RuntimeReplacePayload>> {
     request_response(
         socket_path,

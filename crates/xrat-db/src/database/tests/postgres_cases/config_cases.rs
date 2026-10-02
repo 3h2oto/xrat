@@ -1,6 +1,6 @@
 use super::*;
 
-pub(super) async fn verify_import_and_config_state(db: &Database) -> (i64, i64) {
+pub(super) async fn verify_import_and_config_state(db: &Database) -> (ConfigId, ConfigId) {
     let source = ImportSource {
         kind: SourceKind::Url,
         value: "https://example.com/sub".to_string(),
@@ -33,6 +33,20 @@ pub(super) async fn verify_import_and_config_state(db: &Database) -> (i64, i64) 
         .expect("configs should load");
     let first_id = configs[0].id;
     let second_id = configs[1].id;
+
+    assert_eq!(configs[0].subscription_id, Some(subscriptions[0].id));
+    assert_eq!(
+        db.resolve_config_ref_prefix(&configs[0].r#ref)
+            .await
+            .expect("config ref"),
+        crate::RefMatch::Unique(first_id)
+    );
+    assert_eq!(
+        db.resolve_subscription_ref_prefix(&subscriptions[0].r#ref)
+            .await
+            .expect("subscription ref"),
+        crate::RefMatch::Unique(subscriptions[0].id)
+    );
 
     db.set_active_config(first_id)
         .await

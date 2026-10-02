@@ -6,7 +6,7 @@ use xrat_db::{ConfigRecord, ConfigWithLatestTest};
 #[test]
 fn config_outputs_include_refs() {
     let config = config_row("abcdef123456");
-    let subscriptions = HashMap::from([(2, "123456abcdef")]);
+    let subscriptions = HashMap::from([(xrat_model::SubscriptionId(2), "123456abcdef")]);
 
     let table = format_config_table(std::slice::from_ref(&config), &subscriptions, None);
     let tsv = format_config_tsv(std::slice::from_ref(&config), &subscriptions);
@@ -33,7 +33,7 @@ fn config_outputs_include_refs() {
 #[test]
 fn subscription_outputs_include_refs() {
     let subscription = SubscriptionRecord {
-        id: 2,
+        id: xrat_model::SubscriptionId(2),
         r#ref: "123456abcdef".to_string(),
         source_kind: "url".to_string(),
         source_url: Some("https://example.com/sub".to_string()),
@@ -59,7 +59,7 @@ fn subscription_outputs_include_refs() {
 #[test]
 fn config_table_uses_enabled_settings_for_metric_columns() {
     let config = config_row("abcdef123456");
-    let subscriptions = HashMap::from([(2, "123456abcdef")]);
+    let subscriptions = HashMap::from([(xrat_model::SubscriptionId(2), "123456abcdef")]);
     let mut settings = crate::app::config::TestingSettings::default();
     settings.icmp.enabled = false;
     settings.tcp.enabled = true;
@@ -83,9 +83,9 @@ fn config_table_uses_enabled_settings_for_metric_columns() {
 fn config_row(value_ref: &str) -> ConfigDetail {
     ConfigDetail::from_joined(&ConfigWithLatestTest {
         config: ConfigRecord {
-            id: 1,
+            id: xrat_model::ConfigId(1),
             r#ref: value_ref.to_string(),
-            subscription_id: Some(2),
+            subscription_id: Some(xrat_model::SubscriptionId(2)),
             dedup_key: "key".to_string(),
             protocol: "vless".to_string(),
             address: "example.com".to_string(),

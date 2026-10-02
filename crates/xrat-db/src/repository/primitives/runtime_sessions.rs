@@ -1,6 +1,7 @@
 use crate::connection::DbPool;
 use crate::record::{RuntimeSessionInsert, RuntimeSessionRecord, RuntimeSessionStatus};
 use crate::repository::runtime_sessions;
+use xrat_model::ConfigId;
 
 pub async fn get_runtime_session_count(pool: &DbPool) -> crate::Result<i64> {
     runtime_sessions::get_count(pool).await
@@ -27,7 +28,7 @@ pub async fn get_running_runtime_session(
 
 pub async fn get_latest_runtime_session_for_config(
     pool: &DbPool,
-    config_id: i64,
+    config_id: ConfigId,
 ) -> crate::Result<Option<RuntimeSessionRecord>> {
     runtime_sessions::get_latest_for_config(pool, config_id).await
 }

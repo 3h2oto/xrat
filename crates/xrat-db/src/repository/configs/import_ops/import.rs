@@ -2,13 +2,13 @@ use sqlx::{Postgres, QueryBuilder, Sqlite};
 
 use crate::connection::DbPool;
 use crate::record::ImportSummary;
-use xrat_model::Node;
+use xrat_model::{Node, SubscriptionId};
 
 use super::query::get_count;
 
 pub async fn import_nodes(
     pool: &DbPool,
-    subscription_id: i64,
+    subscription_id: SubscriptionId,
     nodes: &[Node],
 ) -> crate::Result<ImportSummary> {
     let mut removed_configs = 0u64;
@@ -59,7 +59,7 @@ pub async fn import_nodes(
 /// payload, so a provider blip returning zero nodes cannot wipe a source.
 async fn reconcile_removed(
     pool: &DbPool,
-    subscription_id: i64,
+    subscription_id: SubscriptionId,
     nodes: &[Node],
 ) -> crate::Result<u64> {
     match pool {
@@ -82,7 +82,7 @@ async fn reconcile_removed(
 
 fn push_reconcile_predicate<'args, DB>(
     builder: &mut QueryBuilder<'args, DB>,
-    subscription_id: i64,
+    subscription_id: SubscriptionId,
     nodes: &'args [Node],
 ) where
     DB: sqlx::Database,
@@ -101,7 +101,7 @@ fn push_reconcile_predicate<'args, DB>(
 
 fn push_node_values<'args, DB>(
     builder: &mut QueryBuilder<'args, DB>,
-    subscription_id: i64,
+    subscription_id: SubscriptionId,
     refs: &'args [String],
     nodes: &'args [Node],
 ) where

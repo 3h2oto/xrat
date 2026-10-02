@@ -108,7 +108,7 @@ async fn get_config_with_latest_test_returns_joined_record() {
     assert_eq!(row.real_delay_ms, Some(150));
 
     let missing = db
-        .get_config_with_latest_test(-1)
+        .get_config_with_latest_test(ConfigId(-1))
         .await
         .expect("missing should succeed");
     assert!(missing.is_none());

@@ -9,6 +9,7 @@ use crate::app::daemon::supervisor::{
 };
 use crate::app::runtime_service::RuntimeService;
 use tokio::sync::oneshot;
+use xrat_model::ConfigId;
 use xrat_support::time::now_epoch_seconds;
 
 mod disconnect;
@@ -27,7 +28,7 @@ pub(super) async fn handle_runtime_replace(
     state: &mut SupervisorState,
     context: &AppContext,
     trigger: RotationTrigger,
-    candidate_id: Option<i64>,
+    candidate_id: Option<ConfigId>,
     respond_to: oneshot::Sender<RuntimeReplaceResult>,
 ) {
     replace::handle_runtime_replace(state, context, trigger, candidate_id, respond_to).await;

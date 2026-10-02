@@ -44,7 +44,7 @@ pub async fn get_running(pool: &DbPool) -> crate::Result<Option<RuntimeSessionRe
 
 pub async fn get_latest_for_config(
     pool: &DbPool,
-    config_id: i64,
+    config_id: xrat_model::ConfigId,
 ) -> crate::Result<Option<RuntimeSessionRecord>> {
     let sqlite_sql = format!(
         "SELECT {RUNTIME_SESSION_COLUMNS} FROM runtime_sessions WHERE config_id = ?1 ORDER BY created_at DESC, id DESC LIMIT 1"

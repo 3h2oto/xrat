@@ -142,7 +142,7 @@ mod tests {
         ConnectionTestRecord {
             id,
             run_id: None,
-            config_id: 1,
+            config_id: xrat_model::ConfigId(1),
             icmp_ok: None,
             icmp_ms: None,
             tcp_ok: None,

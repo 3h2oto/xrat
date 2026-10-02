@@ -1,6 +1,7 @@
 use crate::app::commands::output;
 use crate::app::context::AppContext;
 use crate::app::daemon::ipc::{DaemonResponse, RuntimeStatusPayload};
+use xrat_model::ConfigId;
 
 pub(super) async fn print_daemon_status(
     context: &AppContext,
@@ -78,7 +79,7 @@ pub(super) async fn print_daemon_status(
 
 async fn config_ref(
     context: &AppContext,
-    config_id: Option<i64>,
+    config_id: Option<ConfigId>,
 ) -> crate::app::Result<Option<String>> {
     let Some(config_id) = config_id else {
         return Ok(None);

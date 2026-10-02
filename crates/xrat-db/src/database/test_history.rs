@@ -30,14 +30,14 @@ impl Database {
 
     pub async fn list_connection_tests(
         &self,
-        config_id: i64,
+        config_id: ConfigId,
     ) -> crate::Result<Vec<ConnectionTestRecord>> {
         repository::list_connection_tests(&self.pool, config_id).await
     }
 
     pub async fn get_latest_connection_test(
         &self,
-        config_id: i64,
+        config_id: ConfigId,
     ) -> crate::Result<Option<ConnectionTestRecord>> {
         repository::get_latest_connection_test(&self.pool, config_id).await
     }

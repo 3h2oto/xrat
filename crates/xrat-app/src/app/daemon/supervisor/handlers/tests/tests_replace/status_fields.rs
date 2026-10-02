@@ -10,7 +10,7 @@ async fn proxy_status_reports_candidate_and_cooldown_fields() {
     state.rotation_enabled = true;
     state.last_trigger = Some(crate::app::daemon::ipc::RotationTrigger::Timer);
     state.last_result = "rotation_no_candidate".to_string();
-    state.last_candidate_config_id = Some(42);
+    state.last_candidate_config_id = Some(xrat_model::ConfigId(42));
     state.last_candidate_result = "rotation_no_candidate".to_string();
     state.cooldown_active = true;
 
@@ -25,7 +25,10 @@ async fn proxy_status_reports_candidate_and_cooldown_fields() {
         ProxyStatusResult::Ok(payload) => payload,
         other => panic!("expected proxy status payload, got {other:?}"),
     };
-    assert_eq!(payload.last_candidate_config_id, Some(42));
+    assert_eq!(
+        payload.last_candidate_config_id,
+        Some(xrat_model::ConfigId(42))
+    );
     assert_eq!(payload.last_candidate_result, "rotation_no_candidate");
     assert!(payload.cooldown_active);
 }

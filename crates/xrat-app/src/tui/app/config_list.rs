@@ -47,8 +47,17 @@ impl ConfigSort {
                 .protocol
                 .cmp(&right.protocol)
                 .then_with(|| left.id.cmp(&right.id)),
-            Self::Source => (left.source_id.unwrap_or(i64::MAX), left.id)
-                .cmp(&(right.source_id.unwrap_or(i64::MAX), right.id)),
+            Self::Source => (
+                left.source_id
+                    .unwrap_or(xrat_model::SubscriptionId(i64::MAX)),
+                left.id,
+            )
+                .cmp(&(
+                    right
+                        .source_id
+                        .unwrap_or(xrat_model::SubscriptionId(i64::MAX)),
+                    right.id,
+                )),
             Self::LastTested => {
                 // newest first; untested ("0000") sorts last
                 let l = left.tested_at.as_deref().unwrap_or("0000");

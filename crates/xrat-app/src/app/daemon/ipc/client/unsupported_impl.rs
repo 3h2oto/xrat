@@ -5,6 +5,7 @@ use crate::app::daemon::ipc::{
     RotationTrigger, RuntimeConnectPayload, RuntimeDisconnectPayload, RuntimeReplacePayload,
     RuntimeStatusPayload,
 };
+use xrat_model::ConfigId;
 
 pub async fn ping_daemon(_socket_path: &Path) -> crate::app::Result<DaemonResponse<PingPayload>> {
     unsupported_client()
@@ -18,7 +19,7 @@ pub async fn runtime_status_daemon(
 
 pub async fn runtime_connect_daemon(
     _socket_path: &Path,
-    _config_id: i64,
+    _config_id: ConfigId,
 ) -> crate::app::Result<DaemonResponse<RuntimeConnectPayload>> {
     unsupported_client()
 }
@@ -32,7 +33,7 @@ pub async fn runtime_disconnect_daemon(
 pub async fn runtime_replace_daemon(
     _socket_path: &Path,
     _trigger: RotationTrigger,
-    _candidate_id: Option<i64>,
+    _candidate_id: Option<ConfigId>,
 ) -> crate::app::Result<DaemonResponse<RuntimeReplacePayload>> {
     unsupported_client()
 }

@@ -7,4 +7,5 @@ pub(crate) use crate::cli::{
 };
 pub(crate) use std::collections::HashMap;
 pub(crate) use xrat_db::SubscriptionRecord;
+pub(crate) use xrat_model::SubscriptionId;
 pub(crate) use xrat_support::refs::short_ref;

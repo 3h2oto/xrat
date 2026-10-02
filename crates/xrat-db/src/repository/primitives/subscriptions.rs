@@ -1,11 +1,11 @@
 use crate::connection::DbPool;
-use crate::record::{RefMatch, RefreshableSubscription, SubscriptionRecord};
+use crate::record::{RefMatch, RefreshableSubscription, SubscriptionId, SubscriptionRecord};
 use crate::repository::subscriptions;
 
 pub async fn resolve_subscription_ref_prefix(
     pool: &DbPool,
     prefix: &str,
-) -> crate::Result<RefMatch> {
+) -> crate::Result<RefMatch<SubscriptionId>> {
     subscriptions::resolve_ref_prefix(pool, prefix).await
 }
 
@@ -26,15 +26,22 @@ pub async fn list_subscriptions(pool: &DbPool) -> crate::Result<Vec<Subscription
 
 pub async fn get_subscription_by_id(
     pool: &DbPool,
-    id: i64,
+    id: SubscriptionId,
 ) -> crate::Result<Option<SubscriptionRecord>> {
     subscriptions::get_by_id(pool, id).await
 }
 
-pub async fn set_subscription_name(pool: &DbPool, id: i64, name: &str) -> crate::Result<()> {
+pub async fn set_subscription_name(
+    pool: &DbPool,
+    id: SubscriptionId,
+    name: &str,
+) -> crate::Result<()> {
     subscriptions::set_name(pool, id, name).await
 }
 
-pub async fn delete_subscription_with_configs(pool: &DbPool, id: i64) -> crate::Result<()> {
+pub async fn delete_subscription_with_configs(
+    pool: &DbPool,
+    id: SubscriptionId,
+) -> crate::Result<()> {
     subscriptions::delete_with_configs(pool, id).await
 }

@@ -56,7 +56,7 @@ async fn manual_replace_failure_persists_rotation_reason_code_on_active_session(
         &mut state,
         SupervisorEvent::RuntimeReplace {
             trigger: crate::app::daemon::ipc::RotationTrigger::Manual,
-            candidate_id: Some(-1),
+            candidate_id: Some(xrat_model::ConfigId(-1)),
             respond_to: tx,
         },
         &context,

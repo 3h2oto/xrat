@@ -39,7 +39,7 @@ async fn imports_nodes_and_creates_subscription() {
     assert_eq!(fetched.config_count, 1);
     assert_eq!(fetched.name.as_deref(), Some("Example"));
     assert!(
-        db.get_subscription_by_id(9999)
+        db.get_subscription_by_id(SubscriptionId(9999))
             .await
             .expect("query should succeed")
             .is_none()

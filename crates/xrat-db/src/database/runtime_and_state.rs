@@ -27,7 +27,7 @@ impl Database {
 
     pub async fn get_latest_runtime_session_for_config(
         &self,
-        config_id: i64,
+        config_id: ConfigId,
     ) -> crate::Result<Option<RuntimeSessionRecord>> {
         repository::get_latest_runtime_session_for_config(&self.pool, config_id).await
     }

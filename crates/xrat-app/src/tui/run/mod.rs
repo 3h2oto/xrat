@@ -251,7 +251,7 @@ pub async fn run(context: &AppContext) -> crate::app::Result<()> {
                         } else {
                             None
                         };
-                    let all_source_values: Vec<(i64, String)> =
+                    let all_source_values: Vec<(xrat_model::SubscriptionId, String)> =
                         if matches!(action, crate::tui::app::TuiAction::RefreshAllSources) {
                             app.data
                                 .sources

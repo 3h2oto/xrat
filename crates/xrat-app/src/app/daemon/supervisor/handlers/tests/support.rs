@@ -3,7 +3,7 @@ use xrat_db::RuntimeSessionRecord;
 pub(crate) fn session_with_cooldown(cooldown_until: Option<&str>) -> RuntimeSessionRecord {
     RuntimeSessionRecord {
         id: 1,
-        config_id: Some(1),
+        config_id: Some(xrat_model::ConfigId(1)),
         status: xrat_db::RuntimeSessionStatus::Running,
         socks_host: Some("127.0.0.1".to_string()),
         socks_port: Some(1080),

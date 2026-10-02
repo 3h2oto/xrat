@@ -18,6 +18,7 @@ use crate::cli::{TestArgs, TestFormat, TestSortBy};
 #[cfg(test)]
 use xrat_db::DatabaseConnectionConfig;
 use xrat_db::{ConfigRecord, ConnectionTestRunInsert, Database};
+use xrat_model::{ConfigId, SubscriptionId};
 #[cfg(test)]
 use xrat_support::geoip;
 

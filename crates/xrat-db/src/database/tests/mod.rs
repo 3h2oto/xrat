@@ -1,5 +1,6 @@
 pub(super) use super::*;
 pub(super) use crate::SourceKind;
+pub(super) use xrat_model::ConfigId;
 
 mod events_cases;
 mod geoip_cache_cases;

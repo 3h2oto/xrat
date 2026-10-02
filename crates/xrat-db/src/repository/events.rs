@@ -111,6 +111,7 @@ fn push_insert_values<'args, DB>(builder: &mut QueryBuilder<'args, DB>, event: &
 where
     DB: sqlx::Database,
     Option<i64>: sqlx::Encode<'args, DB> + sqlx::Type<DB>,
+    Option<xrat_model::ConfigId>: sqlx::Encode<'args, DB> + sqlx::Type<DB>,
     Option<&'args str>: sqlx::Encode<'args, DB> + sqlx::Type<DB>,
     &'args str: sqlx::Encode<'args, DB> + sqlx::Type<DB>,
 {

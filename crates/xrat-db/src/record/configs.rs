@@ -4,7 +4,7 @@ pub struct ConfigListFilter {
     pub only_active: bool,
     pub only_deleted: bool,
     pub include_deleted: bool,
-    pub subscription_id: Option<i64>,
+    pub subscription_id: Option<xrat_model::SubscriptionId>,
     pub protocol: Option<String>,
 }
 
@@ -35,9 +35,9 @@ pub struct ConfigWithLatestTest {
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct ConfigRecord {
-    pub id: i64,
+    pub id: xrat_model::ConfigId,
     pub r#ref: String,
-    pub subscription_id: Option<i64>,
+    pub subscription_id: Option<xrat_model::SubscriptionId>,
     pub dedup_key: String,
     pub protocol: String,
     pub address: String,
@@ -120,7 +120,7 @@ mod tests {
 
     fn reality_record() -> ConfigRecord {
         ConfigRecord {
-            id: 1,
+            id: 1.into(),
             r#ref: "ref".to_string(),
             subscription_id: None,
             dedup_key: "dedup".to_string(),

@@ -1,6 +1,7 @@
 use super::super::row::{map_connection_test_row, map_connection_test_run_row};
 use crate::connection::DbPool;
 use crate::record::{ConnectionTestRecord, ConnectionTestRunRecord};
+use xrat_model::ConfigId;
 
 pub async fn get_count(pool: &DbPool) -> crate::Result<i64> {
     match pool {
@@ -19,7 +20,7 @@ pub async fn get_count(pool: &DbPool) -> crate::Result<i64> {
 
 pub async fn list_by_config(
     pool: &DbPool,
-    config_id: i64,
+    config_id: ConfigId,
 ) -> crate::Result<Vec<ConnectionTestRecord>> {
     match pool {
         DbPool::Sqlite(pool) => Ok(sqlx::query(
@@ -33,7 +34,7 @@ pub async fn list_by_config(
 
 pub async fn get_latest_by_config(
     pool: &DbPool,
-    config_id: i64,
+    config_id: ConfigId,
 ) -> crate::Result<Option<ConnectionTestRecord>> {
     match pool {
         DbPool::Sqlite(pool) => Ok(sqlx::query(

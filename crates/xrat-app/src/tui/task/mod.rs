@@ -32,7 +32,7 @@ pub enum TuiTaskEvent {
         total: usize,
     },
     LocationsEnriched {
-        updates: Vec<(i64, xrat_support::geoip::EndpointGeoMeta)>,
+        updates: Vec<(xrat_model::ConfigId, xrat_support::geoip::EndpointGeoMeta)>,
     },
     Completed {
         kind: TuiTaskKind,

@@ -230,7 +230,7 @@ mod tests {
 
     fn row() -> TuiConfigRow {
         TuiConfigRow {
-            id: 1,
+            id: xrat_model::ConfigId(1),
             r#ref: "abcdef123456".to_string(),
             name: "main".to_string(),
             protocol: "vless".to_string(),

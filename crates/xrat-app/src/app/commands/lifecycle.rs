@@ -9,9 +9,14 @@ use crate::cli::{
 
 pub async fn enable(context: &AppContext, args: &EnableArgs) -> crate::app::Result<()> {
     let lifecycle = context.services().lifecycle;
-    match lifecycle.enable(&args.id).await? {
+    match lifecycle
+        .enable(&xrat_model::ConfigRef::from(args.id.as_str()))
+        .await?
+    {
         ToggleOutcome::Changed => {
-            let config = lifecycle.config(&args.id).await?;
+            let config = lifecycle
+                .config(&xrat_model::ConfigRef::from(args.id.as_str()))
+                .await?;
             println!(
                 "{}",
                 output::success(
@@ -33,9 +38,14 @@ pub async fn enable(context: &AppContext, args: &EnableArgs) -> crate::app::Resu
 
 pub async fn disable(context: &AppContext, args: &DisableArgs) -> crate::app::Result<()> {
     let lifecycle = context.services().lifecycle;
-    match lifecycle.disable(&args.id).await? {
+    match lifecycle
+        .disable(&xrat_model::ConfigRef::from(args.id.as_str()))
+        .await?
+    {
         ToggleOutcome::Changed => {
-            let config = lifecycle.config(&args.id).await?;
+            let config = lifecycle
+                .config(&xrat_model::ConfigRef::from(args.id.as_str()))
+                .await?;
             println!(
                 "{}",
                 output::success(
@@ -68,7 +78,9 @@ pub async fn delete(context: &AppContext, args: &DeleteArgs) -> crate::app::Resu
 
 async fn delete_config(context: &AppContext, args: &DeleteConfigArgs) -> crate::app::Result<()> {
     let lifecycle = context.services().lifecycle;
-    let (config, outcome) = lifecycle.delete(&args.id, args.hard).await?;
+    let (config, outcome) = lifecycle
+        .delete(&xrat_model::ConfigRef::from(args.id.as_str()), args.hard)
+        .await?;
     match outcome {
         DeleteOutcome::HardDeleted => println!(
             "{}",
@@ -124,7 +136,9 @@ async fn delete_subscription(
 
 pub async fn restore(context: &AppContext, args: &RestoreArgs) -> crate::app::Result<()> {
     let lifecycle = context.services().lifecycle;
-    let (config, outcome) = lifecycle.restore(&args.id).await?;
+    let (config, outcome) = lifecycle
+        .restore(&xrat_model::ConfigRef::from(args.id.as_str()))
+        .await?;
     match outcome {
         RestoreOutcome::Restored => println!(
             "{}",
@@ -152,7 +166,11 @@ fn print_notice(message: String) {
 }
 
 async fn show_config(context: &AppContext, args: &ShowConfigArgs) -> crate::app::Result<()> {
-    let config = context.services().lifecycle.config(&args.id).await?;
+    let config = context
+        .services()
+        .lifecycle
+        .config(&xrat_model::ConfigRef::from(args.id.as_str()))
+        .await?;
 
     if args.json {
         let subscription_ref = match config.subscription_id {
@@ -326,7 +344,7 @@ mod tests {
         assert!(!fetch(&context, id).await.is_enabled);
     }
 
-    async fn fetch(context: &AppContext, id: i64) -> xrat_db::ConfigRecord {
+    async fn fetch(context: &AppContext, id: xrat_model::ConfigId) -> xrat_db::ConfigRecord {
         context
             .db
             .get_config_by_id(id)
@@ -335,7 +353,7 @@ mod tests {
             .expect("config should exist")
     }
 
-    async fn seed_config(context: &AppContext) -> i64 {
+    async fn seed_config(context: &AppContext) -> xrat_model::ConfigId {
         let source = xrat_db::ImportSource {
             kind: xrat_db::SourceKind::File,
             value: "seed.txt".to_string(),

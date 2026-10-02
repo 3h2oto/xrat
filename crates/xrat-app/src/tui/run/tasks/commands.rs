@@ -23,7 +23,7 @@ pub async fn run_config_command(
                 context
                     .services()
                     .lifecycle
-                    .restore(&id.to_string())
+                    .restore(&xrat_model::ConfigRef::from(id.to_string()))
                     .await
                     .map(|_| ()),
                 id,
@@ -38,7 +38,7 @@ pub async fn run_config_command(
                 context
                     .services()
                     .lifecycle
-                    .delete(&id.to_string(), false)
+                    .delete(&xrat_model::ConfigRef::from(id.to_string()), false)
                     .await
                     .map(|_| ()),
                 id,
@@ -53,7 +53,7 @@ pub async fn run_config_command(
                 context
                     .services()
                     .lifecycle
-                    .delete(&id.to_string(), true)
+                    .delete(&xrat_model::ConfigRef::from(id.to_string()), true)
                     .await
                     .map(|_| ()),
                 id,
@@ -65,12 +65,21 @@ pub async fn run_config_command(
     }
 }
 
-async fn apply_enabled(context: &AppContext, app: &mut TuiApp, id: i64, enabled: bool) {
+async fn apply_enabled(
+    context: &AppContext,
+    app: &mut TuiApp,
+    id: xrat_model::ConfigId,
+    enabled: bool,
+) {
     let lifecycle = context.services().lifecycle;
     let result = if enabled {
-        lifecycle.enable(&id.to_string()).await
+        lifecycle
+            .enable(&xrat_model::ConfigRef::from(id.to_string()))
+            .await
     } else {
-        lifecycle.disable(&id.to_string()).await
+        lifecycle
+            .disable(&xrat_model::ConfigRef::from(id.to_string()))
+            .await
     };
     match result {
         Ok(ToggleOutcome::DeletedConfig) => {
@@ -88,7 +97,7 @@ async fn apply_enabled(context: &AppContext, app: &mut TuiApp, id: i64, enabled:
 fn apply_reload(
     app: &mut TuiApp,
     result: crate::app::Result<()>,
-    id: i64,
+    id: xrat_model::ConfigId,
     verb: &str,
     task_tx: &mpsc::UnboundedSender<TuiTaskEvent>,
     context: &AppContext,

@@ -4,7 +4,7 @@ use super::{TuiConfigRow, TuiData, TuiRuntimeStatus, TuiSourceRow, TuiTestStatus
 
 fn row(id: i64, delay: Option<i64>) -> TuiConfigRow {
     TuiConfigRow {
-        id,
+        id: xrat_model::ConfigId(id),
         r#ref: format!("ref{id:09}"),
         name: format!("config-{id}"),
         protocol: "vless".to_string(),
@@ -91,9 +91,13 @@ fn formats_network_and_delay_labels() {
 fn clears_test_fields_for_selected_configs() {
     let mut data = TuiData::from_configs(vec![row(1, Some(100)), row(2, Some(200))]);
 
-    data.clear_test_fields_for_configs(&[2]);
+    data.clear_test_fields_for_configs(&[xrat_model::ConfigId(2)]);
 
-    let cleared = data.configs.iter().find(|config| config.id == 2).unwrap();
+    let cleared = data
+        .configs
+        .iter()
+        .find(|config| config.id == xrat_model::ConfigId(2))
+        .unwrap();
     assert_eq!(cleared.delay_label(), "-");
     assert_eq!(cleared.icmp_label(), "-");
     assert_eq!(cleared.tcp_label(), "-");
@@ -101,7 +105,11 @@ fn clears_test_fields_for_selected_configs() {
     assert_eq!(cleared.country_label(), "-");
     assert!(cleared.tested_at.is_none());
 
-    let untouched = data.configs.iter().find(|config| config.id == 1).unwrap();
+    let untouched = data
+        .configs
+        .iter()
+        .find(|config| config.id == xrat_model::ConfigId(1))
+        .unwrap();
     assert_eq!(untouched.delay_label(), "100ms");
     assert_eq!(untouched.country_label(), "NL");
 }
@@ -197,7 +205,7 @@ fn ignores_empty_location_meta() {
 #[test]
 fn maps_subscription_record_to_source_row() {
     let row = TuiSourceRow::from(SubscriptionRecord {
-        id: 7,
+        id: xrat_model::SubscriptionId(7),
         r#ref: "ref000000007".to_string(),
         source_kind: "url".to_string(),
         source_url: Some("https://example.com/sub".to_string()),
@@ -207,7 +215,7 @@ fn maps_subscription_record_to_source_row() {
         config_count: 42,
     });
 
-    assert_eq!(row.id, 7);
+    assert_eq!(row.id, xrat_model::SubscriptionId(7));
     assert_eq!(row.display_ref(), "ref00000");
     assert_eq!(row.display_name(), "main");
     assert_eq!(row.value_label(), "https://example.com/sub");
@@ -280,7 +288,7 @@ fn test_record(id: i64, config_id: i64, failure_reason: Option<&str>) -> Connect
     ConnectionTestRecord {
         id,
         run_id: Some(5),
-        config_id,
+        config_id: xrat_model::ConfigId(config_id),
         icmp_ok: None,
         icmp_ms: None,
         tcp_ok: Some(failure_reason.is_none()),

@@ -4,7 +4,7 @@ pub(super) async fn run_bulk(
     args: &TestArgs,
     context: &AppContext,
     settings: ResolvedTestSettings,
-    subscription_id: Option<i64>,
+    subscription_id: Option<SubscriptionId>,
 ) -> crate::app::Result<()> {
     let configs = context
         .db

@@ -56,7 +56,7 @@ pub struct TuiData {
     pub test_stage_names: Vec<String>,
     /// `(config_id, address)` rows still needing a network location lookup after
     /// DB test geo and the persistent cache have been applied.
-    pub pending_enrichment: Vec<(i64, String)>,
+    pub pending_enrichment: Vec<(xrat_model::ConfigId, String)>,
     metric_columns_from_settings: bool,
 }
 
@@ -196,20 +196,24 @@ impl TuiData {
         self.refresh_config_counts();
     }
 
-    pub fn set_config_enabled(&mut self, id: i64, enabled: bool) {
+    pub fn set_config_enabled(&mut self, id: xrat_model::ConfigId, enabled: bool) {
         if let Some(config) = self.configs.iter_mut().find(|config| config.id == id) {
             config.is_enabled = enabled;
         }
         self.refresh_config_counts();
     }
 
-    pub fn apply_location_meta_for(&mut self, id: i64, meta: xrat_support::geoip::EndpointGeoMeta) {
+    pub fn apply_location_meta_for(
+        &mut self,
+        id: xrat_model::ConfigId,
+        meta: xrat_support::geoip::EndpointGeoMeta,
+    ) {
         if let Some(config) = self.configs.iter_mut().find(|config| config.id == id) {
             config.apply_location_meta(meta);
         }
     }
 
-    pub fn clear_test_fields_for_configs(&mut self, config_ids: &[i64]) {
+    pub fn clear_test_fields_for_configs(&mut self, config_ids: &[xrat_model::ConfigId]) {
         for config in self
             .configs
             .iter_mut()
@@ -303,8 +307,8 @@ const GEO_CACHE_TTL_SECS: i64 = 86_400;
 async fn apply_geo_cache(
     context: &crate::app::context::AppContext,
     configs: &mut [TuiConfigRow],
-) -> Vec<(i64, String)> {
-    let targets: Vec<(usize, i64, String, String)> = configs
+) -> Vec<(xrat_model::ConfigId, String)> {
+    let targets: Vec<(usize, xrat_model::ConfigId, String, String)> = configs
         .iter()
         .enumerate()
         .filter(|(_, config)| config.needs_location_enrichment())

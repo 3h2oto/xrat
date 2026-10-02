@@ -7,7 +7,7 @@ impl<'a> RuntimeService<'a> {
     pub(super) async fn resolve_initial_rotation_candidate_id(
         &self,
         request: &ReplaceRequest,
-    ) -> crate::app::Result<i64> {
+    ) -> crate::app::Result<ConfigId> {
         if let Some(candidate_id) = request.candidate_id {
             let Some(config) = self.context.db.get_config_by_id(candidate_id).await? else {
                 return Err(AppError::InvalidArgument(format!(
@@ -32,8 +32,8 @@ impl<'a> RuntimeService<'a> {
             ..Default::default()
         };
         let configs = self.context.db.list_configs(&filter).await?;
-        let mut eligible_ids: Vec<i64> = Vec::new();
-        let mut passing: Vec<(i64, i64, Option<f64>)> = Vec::new();
+        let mut eligible_ids: Vec<ConfigId> = Vec::new();
+        let mut passing: Vec<(ConfigId, i64, Option<f64>)> = Vec::new();
         for config in configs {
             if !matches!(request.trigger, RotationTrigger::Manual)
                 && self.config_is_on_cooldown(config.id).await?
@@ -63,7 +63,7 @@ impl<'a> RuntimeService<'a> {
         &self,
         active: &RuntimeSessionRecord,
         request: &ReplaceRequest,
-    ) -> crate::app::Result<i64> {
+    ) -> crate::app::Result<ConfigId> {
         if let Some(candidate_id) = request.candidate_id {
             let Some(config) = self.context.db.get_config_by_id(candidate_id).await? else {
                 return Err(AppError::InvalidArgument(format!(
@@ -97,8 +97,8 @@ impl<'a> RuntimeService<'a> {
             ..Default::default()
         };
         let configs = self.context.db.list_configs(&filter).await?;
-        let mut eligible_ids: Vec<i64> = Vec::new();
-        let mut passing: Vec<(i64, i64, Option<f64>)> = Vec::new();
+        let mut eligible_ids: Vec<ConfigId> = Vec::new();
+        let mut passing: Vec<(ConfigId, i64, Option<f64>)> = Vec::new();
         for config in configs.into_iter().filter(|cfg| cfg.id != active_config_id) {
             if !matches!(request.trigger, RotationTrigger::Manual)
                 && self.config_is_on_cooldown(config.id).await?
@@ -123,7 +123,7 @@ impl<'a> RuntimeService<'a> {
         Err(no_passing_candidate_error())
     }
 
-    async fn config_is_on_cooldown(&self, config_id: i64) -> crate::app::Result<bool> {
+    async fn config_is_on_cooldown(&self, config_id: ConfigId) -> crate::app::Result<bool> {
         let Some(session) = self
             .context
             .db
@@ -179,8 +179,8 @@ impl<'a> RuntimeService<'a> {
     async fn collect_passing_rotation_candidates(
         &self,
         _request: &ReplaceRequest,
-        eligible_ids: &[i64],
-        passing: &mut Vec<(i64, i64, Option<f64>)>,
+        eligible_ids: &[ConfigId],
+        passing: &mut Vec<(ConfigId, i64, Option<f64>)>,
     ) -> crate::app::Result<()> {
         let fresh_results = run_rotation_bulk_tests(self.context, eligible_ids).await?;
         for row in &fresh_results {

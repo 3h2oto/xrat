@@ -12,11 +12,12 @@ use crate::app::daemon::supervisor::{
     RuntimeConnectResult, RuntimeDisconnectResult, RuntimeReplaceResult, RuntimeStatusResult,
     SupervisorEvent,
 };
+use xrat_model::ConfigId;
 
 pub async fn runtime_replace_response_via_supervisor(
     supervisor_tx: mpsc::Sender<SupervisorEvent>,
     trigger: RotationTrigger,
-    candidate_id: Option<i64>,
+    candidate_id: Option<ConfigId>,
 ) -> crate::app::Result<DaemonResponse<RuntimeReplacePayload>> {
     let payload = roundtrip(supervisor_tx, |respond_to| {
         SupervisorEvent::RuntimeReplace {
@@ -34,7 +35,7 @@ pub async fn runtime_replace_response_via_supervisor(
 
 pub async fn runtime_connect_response_via_supervisor(
     supervisor_tx: mpsc::Sender<SupervisorEvent>,
-    config_id: i64,
+    config_id: ConfigId,
 ) -> crate::app::Result<DaemonResponse<RuntimeConnectPayload>> {
     let payload = roundtrip(supervisor_tx, |respond_to| {
         SupervisorEvent::RuntimeConnect {

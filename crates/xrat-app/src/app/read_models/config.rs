@@ -1,4 +1,5 @@
 use xrat_db::record::ConfigWithLatestTest;
+use xrat_model::{ConfigId, SubscriptionId};
 
 /// Interface-neutral summary of a stored config.
 ///
@@ -6,7 +7,7 @@ use xrat_db::record::ConfigWithLatestTest;
 /// config field only needs mapping in one place.
 #[derive(Clone, Debug, PartialEq)]
 pub struct ConfigSummary {
-    pub id: i64,
+    pub id: ConfigId,
     pub r#ref: String,
     pub name: Option<String>,
     pub protocol: String,
@@ -17,7 +18,7 @@ pub struct ConfigSummary {
     pub is_active: bool,
     pub is_enabled: bool,
     pub is_deleted: bool,
-    pub subscription_id: Option<i64>,
+    pub subscription_id: Option<SubscriptionId>,
     pub latest_test: Option<LatestTestSummary>,
 }
 
@@ -55,7 +56,7 @@ pub struct EndpointLocation {
 #[derive(Clone, Debug, PartialEq)]
 pub struct ConfigDetail {
     pub summary: ConfigSummary,
-    pub subscription_id: Option<i64>,
+    pub subscription_id: Option<SubscriptionId>,
     pub endpoint_location: EndpointLocation,
     pub dedup_key: String,
     pub sni: Option<String>,

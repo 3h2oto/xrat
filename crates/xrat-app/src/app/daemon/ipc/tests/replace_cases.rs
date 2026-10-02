@@ -21,9 +21,13 @@ async fn runtime_replace_request_returns_payload() {
     let server_task = tokio::spawn(async move { serve_ping(&server_socket, tx).await });
     wait_until_reachable(&socket_path).await;
 
-    let response = runtime_replace_daemon(&socket_path, RotationTrigger::Manual, Some(99))
-        .await
-        .expect("replace request should succeed");
+    let response = runtime_replace_daemon(
+        &socket_path,
+        RotationTrigger::Manual,
+        Some(xrat_model::ConfigId(99)),
+    )
+    .await
+    .expect("replace request should succeed");
     assert!(response.ok);
     assert!(matches!(response.code, DaemonResponseCode::Ok));
     assert_eq!(response.message, "runtime replaced");
@@ -31,7 +35,7 @@ async fn runtime_replace_request_returns_payload() {
     assert!(matches!(payload.trigger, RotationTrigger::Manual));
     assert!(payload.replaced);
     assert_eq!(payload.old_session_id, Some(10));
-    assert_eq!(payload.new_config_id, 99);
+    assert_eq!(payload.new_config_id, xrat_model::ConfigId(99));
     assert_eq!(payload.new_session_id, 30);
     assert_eq!(payload.new_pid, 40);
 

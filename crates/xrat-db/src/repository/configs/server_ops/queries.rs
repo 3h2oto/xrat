@@ -6,6 +6,7 @@ use super::select::{
 };
 use crate::connection::DbPool;
 use crate::record::{ConfigListFilter, ConfigWithLatestTest};
+use xrat_model::ConfigId;
 
 pub async fn list_with_latest_tests(
     pool: &DbPool,
@@ -144,7 +145,7 @@ pub async fn list_paginated_with_latest_tests(
 
 pub async fn get_with_latest_test(
     pool: &DbPool,
-    id: i64,
+    id: ConfigId,
 ) -> crate::Result<Option<ConfigWithLatestTest>> {
     let select = format!(
         "SELECT {CONFIG_COLUMNS_ALIASED}, {LATEST_TEST_COLUMNS} FROM configs c {LATEST_TEST_JOIN} WHERE c.id = "

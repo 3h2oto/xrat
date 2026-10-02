@@ -33,7 +33,7 @@ impl Database {
 
     pub async fn get_config_with_latest_test(
         &self,
-        id: i64,
+        id: ConfigId,
     ) -> crate::Result<Option<ConfigWithLatestTest>> {
         repository::get_config_with_latest_test(&self.pool, id).await
     }

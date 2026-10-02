@@ -3,14 +3,17 @@ use sqlx::{Postgres, QueryBuilder, Sqlite};
 use super::row::map_subscription_row;
 use crate::connection::DbPool;
 use crate::record::{
-    ImportSource, RefMatch, RefreshableSubscription, SourceKind, SubscriptionRecord,
+    ImportSource, RefMatch, RefreshableSubscription, SourceKind, SubscriptionId, SubscriptionRecord,
 };
 use xrat_support::time::now_epoch_seconds;
 
 /// Resolve a ref prefix to a single subscription id.
-pub async fn resolve_ref_prefix(pool: &DbPool, prefix: &str) -> crate::Result<RefMatch> {
+pub async fn resolve_ref_prefix(
+    pool: &DbPool,
+    prefix: &str,
+) -> crate::Result<RefMatch<SubscriptionId>> {
     let like = format!("{prefix}%");
-    let ids: Vec<i64> = match pool {
+    let ids: Vec<SubscriptionId> = match pool {
         DbPool::Sqlite(pool) => {
             sqlx::query_scalar(
                 "SELECT id FROM subscriptions WHERE ref LIKE ?1 ORDER BY id ASC LIMIT 2",
@@ -35,7 +38,7 @@ pub async fn resolve_ref_prefix(pool: &DbPool, prefix: &str) -> crate::Result<Re
     })
 }
 
-pub async fn insert(pool: &DbPool, source: &ImportSource) -> crate::Result<i64> {
+pub async fn insert(pool: &DbPool, source: &ImportSource) -> crate::Result<SubscriptionId> {
     let new_ref = xrat_support::refs::generate_ref();
     match pool {
         DbPool::Sqlite(pool) => {
@@ -44,7 +47,10 @@ pub async fn insert(pool: &DbPool, source: &ImportSource) -> crate::Result<i64> 
             );
             push_insert_values(&mut builder, &new_ref, source);
             builder.push(") RETURNING id");
-            Ok(builder.build_query_scalar::<i64>().fetch_one(pool).await?)
+            Ok(builder
+                .build_query_scalar::<SubscriptionId>()
+                .fetch_one(pool)
+                .await?)
         }
         DbPool::Postgres(pool) => {
             let mut builder = QueryBuilder::<Postgres>::new(
@@ -52,7 +58,10 @@ pub async fn insert(pool: &DbPool, source: &ImportSource) -> crate::Result<i64> 
             );
             push_insert_values(&mut builder, &new_ref, source);
             builder.push(") RETURNING id");
-            Ok(builder.build_query_scalar::<i64>().fetch_one(pool).await?)
+            Ok(builder
+                .build_query_scalar::<SubscriptionId>()
+                .fetch_one(pool)
+                .await?)
         }
     }
 }
@@ -77,7 +86,7 @@ fn push_insert_values<'args, DB>(
         .push_bind(source.name.as_deref());
 }
 
-pub async fn delete_with_configs(pool: &DbPool, id: i64) -> crate::Result<()> {
+pub async fn delete_with_configs(pool: &DbPool, id: SubscriptionId) -> crate::Result<()> {
     const SQLITE_CONFIG_IDS: &str = "SELECT id FROM configs WHERE subscription_id = ?1";
     const POSTGRES_CONFIG_IDS: &str = "SELECT id FROM configs WHERE subscription_id = $1";
     match pool {
@@ -133,7 +142,7 @@ pub async fn delete_with_configs(pool: &DbPool, id: i64) -> crate::Result<()> {
     Ok(())
 }
 
-pub async fn find_or_create(pool: &DbPool, source: &ImportSource) -> crate::Result<i64> {
+pub async fn find_or_create(pool: &DbPool, source: &ImportSource) -> crate::Result<SubscriptionId> {
     if matches!(source.kind, SourceKind::Url) && !source.value.is_empty() {
         let existing = match pool {
             DbPool::Sqlite(pool) => {
@@ -154,13 +163,13 @@ pub async fn find_or_create(pool: &DbPool, source: &ImportSource) -> crate::Resu
             }
         };
         if let Some(id) = existing {
-            return Ok(id);
+            return Ok(id.into());
         }
     }
     insert(pool, source).await
 }
 
-pub async fn set_name(pool: &DbPool, id: i64, name: &str) -> crate::Result<()> {
+pub async fn set_name(pool: &DbPool, id: SubscriptionId, name: &str) -> crate::Result<()> {
     match pool {
         DbPool::Sqlite(pool) => {
             sqlx::query(
@@ -187,7 +196,7 @@ pub async fn set_name(pool: &DbPool, id: i64, name: &str) -> crate::Result<()> {
 /// Stamp a subscription as refreshed now. `last_refreshed_at` holds epoch
 /// seconds as text (matching the `cooldown_until` convention) so the scheduler
 /// can compare it without timezone parsing.
-pub async fn mark_refreshed(pool: &DbPool, id: i64) -> crate::Result<()> {
+pub async fn mark_refreshed(pool: &DbPool, id: SubscriptionId) -> crate::Result<()> {
     let now = now_epoch_seconds().to_string();
     match pool {
         DbPool::Sqlite(pool) => {
@@ -243,7 +252,7 @@ pub async fn list_refreshable_due(
 
     let map = |row: (i64, Option<String>)| {
         row.1.map(|source_url| RefreshableSubscription {
-            id: row.0,
+            id: row.0.into(),
             source_url,
         })
     };
@@ -281,7 +290,10 @@ pub async fn get_count(pool: &DbPool) -> crate::Result<i64> {
     }
 }
 
-pub async fn get_by_id(pool: &DbPool, id: i64) -> crate::Result<Option<SubscriptionRecord>> {
+pub async fn get_by_id(
+    pool: &DbPool,
+    id: SubscriptionId,
+) -> crate::Result<Option<SubscriptionRecord>> {
     const SQLITE_SQL: &str = r#"
         SELECT
             subscriptions.id,

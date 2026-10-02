@@ -1,9 +1,10 @@
 use xrat_db::SubscriptionRecord;
+use xrat_model::SubscriptionId;
 use xrat_support::refs::short_ref;
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct TuiSourceRow {
-    pub id: i64,
+    pub id: SubscriptionId,
     pub r#ref: String,
     pub kind: String,
     pub value: String,

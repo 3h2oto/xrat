@@ -2,11 +2,17 @@
 
 use crate::app::context::AppContext;
 
-pub async fn resolve_config_id(context: &AppContext, raw: &str) -> crate::app::Result<i64> {
+pub async fn resolve_config_id(
+    context: &AppContext,
+    raw: &xrat_model::ConfigRef,
+) -> crate::app::Result<xrat_model::ConfigId> {
     context.services().lifecycle.resolve_config_id(raw).await
 }
 
-pub async fn resolve_subscription_id(context: &AppContext, raw: &str) -> crate::app::Result<i64> {
+pub async fn resolve_subscription_id(
+    context: &AppContext,
+    raw: &str,
+) -> crate::app::Result<xrat_model::SubscriptionId> {
     context
         .services()
         .lifecycle
@@ -26,10 +32,13 @@ mod tests {
         let context = test_context("config").await;
         let config = seed_config(&context).await;
 
-        let by_id = resolve_config_id(&context, &config.id.to_string())
-            .await
-            .expect("numeric id should resolve");
-        let by_ref = resolve_config_id(&context, &config.r#ref[..8])
+        let by_id = resolve_config_id(
+            &context,
+            &xrat_model::ConfigRef::from(config.id.to_string()),
+        )
+        .await
+        .expect("numeric id should resolve");
+        let by_ref = resolve_config_id(&context, &xrat_model::ConfigRef::from(&config.r#ref[..8]))
             .await
             .expect("ref prefix should resolve");
 
@@ -54,18 +63,31 @@ mod tests {
             .unwrap();
         let services = context.services();
         assert_eq!(
-            services.configs.resolve_id("12345678").await.unwrap(),
+            services
+                .configs
+                .resolve_id(&xrat_model::ConfigRef::from("12345678"))
+                .await
+                .unwrap(),
             Some(config.id)
         );
         assert_eq!(
-            resolve_config_id(&context, "12345678").await.unwrap(),
+            resolve_config_id(&context, &xrat_model::ConfigRef::from("12345678"))
+                .await
+                .unwrap(),
             config.id
         );
-        assert_eq!(services.configs.resolve_id("87654321").await.unwrap(), None);
         assert_eq!(
             services
                 .configs
-                .resolve_id(&config.id.to_string())
+                .resolve_id(&xrat_model::ConfigRef::from("87654321"))
+                .await
+                .unwrap(),
+            None
+        );
+        assert_eq!(
+            services
+                .configs
+                .resolve_id(&xrat_model::ConfigRef::from(config.id.to_string()))
                 .await
                 .unwrap(),
             Some(config.id)
@@ -91,7 +113,7 @@ mod tests {
     #[tokio::test]
     async fn missing_identifier_returns_invalid_argument() {
         let context = test_context("missing").await;
-        let err = resolve_config_id(&context, "missing")
+        let err = resolve_config_id(&context, &xrat_model::ConfigRef::from("missing"))
             .await
             .expect_err("missing config should error");
 

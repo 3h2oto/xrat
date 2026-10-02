@@ -3,6 +3,7 @@ use std::sync::Arc;
 use crate::app::ports::ConfigRepository;
 use crate::app::{AppError, Result};
 use xrat_db::{ConfigRecord, SubscriptionRecord};
+use xrat_model::{ConfigId, ConfigRef, SubscriptionId};
 
 use crate::app::services::configs::DatabaseConfigRepository;
 
@@ -46,14 +47,14 @@ impl ConfigLifecycleService {
 
     /// Resolve a numeric id or ref prefix into a config id, or error when it
     /// does not identify a stored config.
-    pub async fn resolve_config_id(&self, raw: &str) -> Result<i64> {
+    pub async fn resolve_config_id(&self, raw: &ConfigRef) -> Result<ConfigId> {
         crate::app::services::ConfigService::new(Arc::clone(&self.repository))
             .resolve_id(raw)
             .await?
             .ok_or_else(|| AppError::InvalidArgument(format!("no config found for '{raw}'")))
     }
 
-    pub async fn resolve_subscription_id(&self, raw: &str) -> Result<i64> {
+    pub async fn resolve_subscription_id(&self, raw: &str) -> Result<SubscriptionId> {
         crate::app::services::ConfigService::new(Arc::clone(&self.repository))
             .resolve_subscription_id(raw)
             .await?
@@ -61,7 +62,7 @@ impl ConfigLifecycleService {
     }
 
     /// Load a config record or report that the identifier matched nothing.
-    pub async fn config(&self, raw: &str) -> Result<ConfigRecord> {
+    pub async fn config(&self, raw: &ConfigRef) -> Result<ConfigRecord> {
         let id = self.resolve_config_id(raw).await?;
         self.repository
             .get_config_by_id(id)
@@ -78,7 +79,7 @@ impl ConfigLifecycleService {
             .ok_or_else(|| AppError::InvalidArgument(format!("subscription {raw} not found")))
     }
 
-    pub async fn enable(&self, raw: &str) -> Result<ToggleOutcome> {
+    pub async fn enable(&self, raw: &ConfigRef) -> Result<ToggleOutcome> {
         let config = self.config(raw).await?;
         if config.is_deleted {
             return Ok(ToggleOutcome::DeletedConfig);
@@ -90,7 +91,7 @@ impl ConfigLifecycleService {
         Ok(ToggleOutcome::Changed)
     }
 
-    pub async fn disable(&self, raw: &str) -> Result<ToggleOutcome> {
+    pub async fn disable(&self, raw: &ConfigRef) -> Result<ToggleOutcome> {
         let config = self.config(raw).await?;
         if config.is_deleted {
             return Ok(ToggleOutcome::DeletedConfig);
@@ -102,7 +103,11 @@ impl ConfigLifecycleService {
         Ok(ToggleOutcome::Changed)
     }
 
-    pub async fn delete(&self, raw: &str, hard: bool) -> Result<(ConfigRecord, DeleteOutcome)> {
+    pub async fn delete(
+        &self,
+        raw: &ConfigRef,
+        hard: bool,
+    ) -> Result<(ConfigRecord, DeleteOutcome)> {
         let config = self.config(raw).await?;
         if hard {
             self.repository.hard_delete_config(config.id).await?;
@@ -131,7 +136,7 @@ impl ConfigLifecycleService {
         Ok(subscription)
     }
 
-    pub async fn restore(&self, raw: &str) -> Result<(ConfigRecord, RestoreOutcome)> {
+    pub async fn restore(&self, raw: &ConfigRef) -> Result<(ConfigRecord, RestoreOutcome)> {
         let config = self.config(raw).await?;
         if !config.is_deleted {
             return Ok((config, RestoreOutcome::NotDeleted));
@@ -139,7 +144,7 @@ impl ConfigLifecycleService {
         self.repository.restore_config(config.id).await?;
         Ok((config, RestoreOutcome::Restored))
     }
-    pub async fn delete_many(&self, ids: &[i64], hard: bool) -> Result<u64> {
+    pub async fn delete_many(&self, ids: &[ConfigId], hard: bool) -> Result<u64> {
         Ok(if hard {
             self.repository.hard_delete_configs(ids).await?
         } else {
@@ -147,7 +152,7 @@ impl ConfigLifecycleService {
         })
     }
 
-    pub async fn restore_many(&self, ids: &[i64]) -> Result<u64> {
+    pub async fn restore_many(&self, ids: &[ConfigId]) -> Result<u64> {
         Ok(self.repository.restore_configs(ids).await?)
     }
 }

@@ -21,15 +21,21 @@ impl Database {
         repository::list_configs(&self.pool, filter).await
     }
 
-    pub async fn get_config_by_id(&self, id: i64) -> crate::Result<Option<ConfigRecord>> {
+    pub async fn get_config_by_id(&self, id: ConfigId) -> crate::Result<Option<ConfigRecord>> {
         repository::get_config_by_id(&self.pool, id).await
     }
 
-    pub async fn resolve_config_ref_prefix(&self, prefix: &str) -> crate::Result<RefMatch> {
+    pub async fn resolve_config_ref_prefix(
+        &self,
+        prefix: &str,
+    ) -> crate::Result<RefMatch<ConfigId>> {
         repository::resolve_config_ref_prefix(&self.pool, prefix).await
     }
 
-    pub async fn resolve_subscription_ref_prefix(&self, prefix: &str) -> crate::Result<RefMatch> {
+    pub async fn resolve_subscription_ref_prefix(
+        &self,
+        prefix: &str,
+    ) -> crate::Result<RefMatch<SubscriptionId>> {
         repository::resolve_subscription_ref_prefix(&self.pool, prefix).await
     }
 
@@ -54,16 +60,16 @@ impl Database {
 
     pub async fn get_subscription_by_id(
         &self,
-        id: i64,
+        id: SubscriptionId,
     ) -> crate::Result<Option<SubscriptionRecord>> {
         repository::get_subscription_by_id(&self.pool, id).await
     }
 
-    pub async fn set_subscription_name(&self, id: i64, name: &str) -> crate::Result<()> {
+    pub async fn set_subscription_name(&self, id: SubscriptionId, name: &str) -> crate::Result<()> {
         repository::set_subscription_name(&self.pool, id, name).await
     }
 
-    pub async fn delete_subscription_with_configs(&self, id: i64) -> crate::Result<()> {
+    pub async fn delete_subscription_with_configs(&self, id: SubscriptionId) -> crate::Result<()> {
         repository::delete_subscription_with_configs(&self.pool, id).await
     }
 

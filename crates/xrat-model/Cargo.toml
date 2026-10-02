@@ -8,3 +8,11 @@ description = "Shared domain types for xrat"
 [dependencies]
 serde = { version = "1.0.228", features = ["derive"] }
 serde_json = "1.0.150"
+sqlx = { version = "0.8.6", optional = true, default-features = false, features = [
+    "macros",
+    "sqlite",
+    "postgres",
+] }
+
+[features]
+sqlx = ["dep:sqlx"]

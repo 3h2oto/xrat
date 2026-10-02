@@ -27,7 +27,7 @@ pub async fn record(
     source: &str,
     kind: &str,
     message: impl Into<String>,
-    config_id: Option<i64>,
+    config_id: Option<xrat_model::ConfigId>,
     session_id: Option<i64>,
     detail: Option<String>,
 ) {

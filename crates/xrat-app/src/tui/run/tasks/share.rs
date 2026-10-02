@@ -9,7 +9,7 @@ thread_local! {
 pub async fn open_qr_for_config(
     context: &AppContext,
     app: &mut TuiApp,
-    config_id: i64,
+    config_id: xrat_model::ConfigId,
     config_name: String,
 ) {
     match context.db.get_config_by_id(config_id).await {
@@ -26,7 +26,11 @@ pub async fn open_qr_for_config(
     }
 }
 
-pub async fn copy_config_uri(context: &AppContext, app: &mut TuiApp, config_id: i64) {
+pub async fn copy_config_uri(
+    context: &AppContext,
+    app: &mut TuiApp,
+    config_id: xrat_model::ConfigId,
+) {
     match context.db.get_config_by_id(config_id).await {
         Ok(Some(record)) => {
             let config_ref = record.r#ref;

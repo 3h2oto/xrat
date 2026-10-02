@@ -1,6 +1,6 @@
 use super::*;
 
-pub(super) async fn verify_connection_test_state(db: &Database, config_id: i64) {
+pub(super) async fn verify_connection_test_state(db: &Database, config_id: ConfigId) {
     db.insert_connection_test(&ConnectionTestInsert {
         run_id: None,
         config_id,

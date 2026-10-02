@@ -55,7 +55,7 @@ pub fn spawn_test_batch(
                     }
                 }
                 Err(error) => {
-                    tracing::debug!(config_id = update.config_id, %error, "failed to load tested config detail");
+                    tracing::debug!(config_id = update.config_id.0, %error, "failed to load tested config detail");
                     if task_tx_clone
                         .send(TuiTaskEvent::Progress {
                             kind,
@@ -68,7 +68,10 @@ pub fn spawn_test_batch(
                     }
                 }
                 Ok(None) => {
-                    tracing::debug!(config_id = update.config_id, "tested config detail missing");
+                    tracing::debug!(
+                        config_id = update.config_id.0,
+                        "tested config detail missing"
+                    );
                     if task_tx_clone
                         .send(TuiTaskEvent::Progress {
                             kind,

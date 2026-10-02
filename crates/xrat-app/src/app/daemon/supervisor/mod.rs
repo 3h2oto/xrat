@@ -17,6 +17,7 @@ use crate::app::context::AppContext;
 use crate::app::events;
 use crate::app::runtime_service::{ConnectRequest, RuntimeService};
 use crate::app::subscription_refresh;
+use xrat_model::ConfigId;
 use xrat_support::time::now_epoch_seconds;
 
 const HEALTH_TICK_SECONDS: u64 = 15;
@@ -90,7 +91,7 @@ pub async fn run(mut rx: mpsc::Receiver<SupervisorEvent>, context: AppContext) {
 /// Relaunch the persisted runtime config after a stale-PID reattach rejection
 /// (typically after a reboot left a dead proxy PID). Records a readable event
 /// for either outcome so recovery is visible in `xrat logs`.
-async fn recover_runtime_after_stale_pid(context: &AppContext, config_id: i64) {
+async fn recover_runtime_after_stale_pid(context: &AppContext, config_id: ConfigId) {
     match RuntimeService::new(context)
         .connect(ConnectRequest { config_id })
         .await

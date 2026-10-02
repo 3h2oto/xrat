@@ -6,7 +6,10 @@ use crate::cli::ConnectArgs;
 
 pub async fn run(context: &AppContext, args: &ConnectArgs) -> crate::app::Result<()> {
     let services = context.services();
-    let config_id = services.lifecycle.resolve_config_id(&args.id).await?;
+    let config_id = services
+        .lifecycle
+        .resolve_config_id(&xrat_model::ConfigRef::from(args.id.as_str()))
+        .await?;
     let control = runtime_control::daemon_control(context);
     let progress = CliProgress::spinner(!args.json, format!("connecting config {config_id}"));
     let result = control.connect(config_id).await;

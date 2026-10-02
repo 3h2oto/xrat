@@ -116,10 +116,13 @@ fn filters_visible_configs_by_search_text() {
     let visible: Vec<_> = app
         .visible_configs()
         .into_iter()
-        .map(|row| row.id)
+        .map(|row| row.id.0)
         .collect();
     assert_eq!(visible, vec![2]);
-    assert_eq!(app.focused_config().map(|row| row.id), Some(2));
+    assert_eq!(
+        app.focused_config().map(|row| row.id),
+        Some(xrat_model::ConfigId(2))
+    );
 }
 
 #[test]
@@ -150,7 +153,7 @@ fn cycles_config_sort_order() {
     let visible: Vec<_> = app
         .visible_configs()
         .into_iter()
-        .map(|row| row.id)
+        .map(|row| row.id.0)
         .collect();
     assert_eq!(visible, vec![1, 2]);
 
@@ -184,12 +187,12 @@ fn cycles_protocol_filter() {
 
     app.apply(TuiAction::CycleProtocolFilter);
     assert_eq!(app.config_list.protocol_filter.as_deref(), Some("trojan"));
-    let visible: Vec<i64> = app.visible_configs().iter().map(|r| r.id).collect();
+    let visible: Vec<i64> = app.visible_configs().iter().map(|r| r.id.0).collect();
     assert_eq!(visible, vec![2]);
 
     app.apply(TuiAction::CycleProtocolFilter);
     assert_eq!(app.config_list.protocol_filter.as_deref(), Some("vless"));
-    let visible: Vec<i64> = app.visible_configs().iter().map(|r| r.id).collect();
+    let visible: Vec<i64> = app.visible_configs().iter().map(|r| r.id.0).collect();
     assert_eq!(visible.len(), 2);
     assert!(visible.contains(&1));
     assert!(visible.contains(&3));
@@ -230,19 +233,19 @@ fn cycles_config_filter() {
 
     app.apply(TuiAction::CycleFilter);
     assert_eq!(app.config_list.filter, ConfigFilter::EnabledOnly);
-    let visible_ids: Vec<i64> = app.visible_configs().iter().map(|r| r.id).collect();
+    let visible_ids: Vec<i64> = app.visible_configs().iter().map(|r| r.id.0).collect();
     assert!(visible_ids.contains(&1));
     assert!(!visible_ids.contains(&2));
     assert_eq!(visible_ids.len(), 3); // 1, 3, 4 are enabled
 
     app.apply(TuiAction::CycleFilter);
     assert_eq!(app.config_list.filter, ConfigFilter::FailedOnly);
-    let visible_ids: Vec<i64> = app.visible_configs().iter().map(|r| r.id).collect();
+    let visible_ids: Vec<i64> = app.visible_configs().iter().map(|r| r.id.0).collect();
     assert_eq!(visible_ids, vec![3]);
 
     app.apply(TuiAction::CycleFilter);
     assert_eq!(app.config_list.filter, ConfigFilter::HasDelay);
-    let visible_ids: Vec<i64> = app.visible_configs().iter().map(|r| r.id).collect();
+    let visible_ids: Vec<i64> = app.visible_configs().iter().map(|r| r.id.0).collect();
     assert_eq!(visible_ids, vec![4]);
 
     app.apply(TuiAction::CycleFilter);

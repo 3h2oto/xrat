@@ -14,6 +14,7 @@ pub(super) use crate::record::{
     RuntimeSessionStatus, SubscriptionRecord,
 };
 pub(super) use crate::repository;
+pub(super) use xrat_model::{ConfigId, SubscriptionId};
 
 #[derive(Clone)]
 pub struct Database {

@@ -23,7 +23,7 @@ pub(super) use xrat_engines::xray::config::{Inbound, enable_stats_api};
 pub(super) use xrat_engines::xray::{
     generate_runtime_config_for_inbounds_with_options, runtime_process as xray_runtime,
 };
-pub(super) use xrat_model::Protocol;
+pub(super) use xrat_model::{ConfigId, Protocol};
 
 pub(super) use xrat_support::time::now_string;
 
@@ -32,13 +32,13 @@ pub(super) const INBOUND_LIVENESS_TIMEOUT: Duration = Duration::from_millis(300)
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct ConnectRequest {
-    pub config_id: i64,
+    pub config_id: ConfigId,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct ReplaceRequest {
     pub trigger: crate::app::daemon::ipc::RotationTrigger,
-    pub candidate_id: Option<i64>,
+    pub candidate_id: Option<ConfigId>,
 }
 
 #[derive(Clone, Debug)]
@@ -58,7 +58,7 @@ pub struct DisconnectResult {
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct ReplaceResult {
     pub old_session_id: Option<i64>,
-    pub new_config_id: i64,
+    pub new_config_id: ConfigId,
     pub new_session_id: i64,
     pub new_pid: u32,
 }

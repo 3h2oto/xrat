@@ -4,9 +4,12 @@ use crate::record::{
     SourceKind,
 };
 use crate::repository::{configs, subscriptions};
-use xrat_model::Node;
+use xrat_model::{ConfigId, Node};
 
-pub async fn resolve_config_ref_prefix(pool: &DbPool, prefix: &str) -> crate::Result<RefMatch> {
+pub async fn resolve_config_ref_prefix(
+    pool: &DbPool,
+    prefix: &str,
+) -> crate::Result<RefMatch<ConfigId>> {
     configs::resolve_ref_prefix(pool, prefix).await
 }
 
@@ -34,7 +37,7 @@ pub async fn list_configs(
     configs::list(pool, filter).await
 }
 
-pub async fn get_config_by_id(pool: &DbPool, id: i64) -> crate::Result<Option<ConfigRecord>> {
+pub async fn get_config_by_id(pool: &DbPool, id: ConfigId) -> crate::Result<Option<ConfigRecord>> {
     configs::get_by_id(pool, id).await
 }
 
@@ -42,27 +45,27 @@ pub async fn get_active_config(pool: &DbPool) -> crate::Result<Option<ConfigReco
     configs::get_active(pool).await
 }
 
-pub async fn delete_config(pool: &DbPool, id: i64) -> crate::Result<()> {
+pub async fn delete_config(pool: &DbPool, id: ConfigId) -> crate::Result<()> {
     configs::soft_delete(pool, id).await
 }
 
-pub async fn restore_config(pool: &DbPool, id: i64) -> crate::Result<()> {
+pub async fn restore_config(pool: &DbPool, id: ConfigId) -> crate::Result<()> {
     configs::restore(pool, id).await
 }
 
-pub async fn hard_delete_config(pool: &DbPool, id: i64) -> crate::Result<()> {
+pub async fn hard_delete_config(pool: &DbPool, id: ConfigId) -> crate::Result<()> {
     configs::hard_delete(pool, id).await
 }
 
-pub async fn delete_configs(pool: &DbPool, ids: &[i64]) -> crate::Result<u64> {
+pub async fn delete_configs(pool: &DbPool, ids: &[ConfigId]) -> crate::Result<u64> {
     configs::soft_delete_many(pool, ids).await
 }
 
-pub async fn restore_configs(pool: &DbPool, ids: &[i64]) -> crate::Result<u64> {
+pub async fn restore_configs(pool: &DbPool, ids: &[ConfigId]) -> crate::Result<u64> {
     configs::restore_many(pool, ids).await
 }
 
-pub async fn hard_delete_configs(pool: &DbPool, ids: &[i64]) -> crate::Result<u64> {
+pub async fn hard_delete_configs(pool: &DbPool, ids: &[ConfigId]) -> crate::Result<u64> {
     configs::hard_delete_many(pool, ids).await
 }
 
@@ -74,7 +77,7 @@ pub async fn purge_deleted_configs(pool: &DbPool) -> crate::Result<u64> {
     configs::purge_deleted(pool).await
 }
 
-pub async fn set_active_config(pool: &DbPool, id: i64) -> crate::Result<()> {
+pub async fn set_active_config(pool: &DbPool, id: ConfigId) -> crate::Result<()> {
     configs::clear_all_active(pool).await?;
     configs::mark_active(pool, id).await
 }
@@ -83,7 +86,11 @@ pub async fn clear_active_config(pool: &DbPool) -> crate::Result<()> {
     configs::clear_all_active(pool).await
 }
 
-pub async fn set_config_enabled(pool: &DbPool, id: i64, is_enabled: bool) -> crate::Result<()> {
+pub async fn set_config_enabled(
+    pool: &DbPool,
+    id: ConfigId,
+    is_enabled: bool,
+) -> crate::Result<()> {
     configs::set_enabled(pool, id, is_enabled).await
 }
 
@@ -120,7 +127,7 @@ pub async fn list_configs_paginated_with_latest_tests(
 
 pub async fn get_config_with_latest_test(
     pool: &DbPool,
-    id: i64,
+    id: ConfigId,
 ) -> crate::Result<Option<ConfigWithLatestTest>> {
     configs::get_with_latest_test(pool, id).await
 }

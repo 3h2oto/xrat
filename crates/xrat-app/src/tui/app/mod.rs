@@ -195,7 +195,7 @@ impl TuiApp {
             || self.data.runtime.status == "stopping"
     }
 
-    pub fn is_testing_config(&self, config_id: i64) -> bool {
+    pub fn is_testing_config(&self, config_id: xrat_model::ConfigId) -> bool {
         self.task_state.running == Some(crate::tui::task::TuiTaskKind::TestBatch)
             && self.testing_config_ids.contains(&config_id)
     }

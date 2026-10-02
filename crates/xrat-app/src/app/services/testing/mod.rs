@@ -19,7 +19,7 @@ use crate::app::config::defaults;
 use crate::app::config::{AppConfig, ConnectionTestStage, TestFailurePolicy};
 use crate::app::context::{AppContext, RuntimePaths};
 use xrat_db::{ConfigRecord, ConnectionTestInsert, ConnectionTestRunInsert, Database};
-use xrat_model::Node;
+use xrat_model::{ConfigId, Node};
 use xrat_prober::{
     AcceptedHttpStatuses, FailureKind, TestResult, download_speed_check, icmp_ping,
     real_delay_check, tcp_check, upload_speed_check,

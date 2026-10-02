@@ -1,6 +1,6 @@
 use super::*;
 
-pub(super) async fn verify_runtime_session_state(db: &Database, config_id: i64) {
+pub(super) async fn verify_runtime_session_state(db: &Database, config_id: ConfigId) {
     let session_id = db
         .insert_runtime_session(&RuntimeSessionInsert {
             config_id: Some(config_id),

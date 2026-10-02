@@ -1,7 +1,7 @@
 #[derive(Clone, Debug, PartialEq)]
 pub struct ConnectionTestInsert {
     pub run_id: Option<i64>,
-    pub config_id: i64,
+    pub config_id: xrat_model::ConfigId,
     pub icmp_ok: Option<bool>,
     pub icmp_ms: Option<i64>,
     pub tcp_ok: Option<bool>,
@@ -27,7 +27,7 @@ pub struct ConnectionTestInsert {
 pub struct ConnectionTestRecord {
     pub id: i64,
     pub run_id: Option<i64>,
-    pub config_id: i64,
+    pub config_id: xrat_model::ConfigId,
     pub icmp_ok: Option<bool>,
     pub icmp_ms: Option<i64>,
     pub tcp_ok: Option<bool>,

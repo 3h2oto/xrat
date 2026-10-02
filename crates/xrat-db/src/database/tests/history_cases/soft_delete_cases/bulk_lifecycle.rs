@@ -1,7 +1,7 @@
 use super::super::super::import_cases::test_node;
 use super::*;
 
-async fn seed_three(db: &Database) -> Vec<i64> {
+async fn seed_three(db: &Database) -> Vec<ConfigId> {
     let source = ImportSource {
         kind: SourceKind::File,
         value: "sample.txt".to_string(),
@@ -22,7 +22,7 @@ async fn seed_three(db: &Database) -> Vec<i64> {
         include_deleted: true,
         ..Default::default()
     };
-    let mut ids: Vec<i64> = db
+    let mut ids: Vec<ConfigId> = db
         .list_configs(&filter)
         .await
         .expect("list should succeed")

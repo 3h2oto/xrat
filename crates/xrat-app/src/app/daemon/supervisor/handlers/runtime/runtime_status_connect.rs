@@ -3,6 +3,7 @@ use crate::app::daemon::ipc::{RuntimeConnectPayload, RuntimeStatusPayload};
 use crate::app::daemon::supervisor::{RuntimeConnectResult, RuntimeStatusResult, SupervisorState};
 use crate::app::runtime_service::{ConnectRequest, RuntimeService};
 use tokio::sync::oneshot;
+use xrat_model::ConfigId;
 
 pub(super) async fn handle_runtime_status(
     state: &SupervisorState,
@@ -51,7 +52,7 @@ pub(super) async fn handle_runtime_status(
 pub(super) async fn handle_runtime_connect(
     state: &SupervisorState,
     context: &AppContext,
-    config_id: i64,
+    config_id: ConfigId,
     respond_to: oneshot::Sender<RuntimeConnectResult>,
 ) {
     match RuntimeService::new(context)
@@ -71,7 +72,7 @@ pub(super) async fn handle_runtime_connect(
                 )
                 .await
             {
-                tracing::warn!(session_id = result.session_id, config_id, %error, "runtime connect metadata update failed");
+                tracing::warn!(session_id = result.session_id, config_id = config_id.0, %error, "runtime connect metadata update failed");
             }
             crate::app::events::record(
                 &context.db,
@@ -93,7 +94,7 @@ pub(super) async fn handle_runtime_connect(
                 .is_err()
             {
                 tracing::debug!(
-                    config_id,
+                    config_id = config_id.0,
                     session_id = result.session_id,
                     "runtime connect response receiver dropped"
                 );
@@ -117,7 +118,10 @@ pub(super) async fn handle_runtime_connect(
                 })
                 .is_err()
             {
-                tracing::debug!(config_id, "runtime connect error receiver dropped");
+                tracing::debug!(
+                    config_id = config_id.0,
+                    "runtime connect error receiver dropped"
+                );
             }
         }
     }

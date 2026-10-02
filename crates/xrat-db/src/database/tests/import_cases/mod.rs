@@ -1,6 +1,6 @@
 use super::{ConfigListFilter, Database, ImportSource, test_database_path};
 use crate::record::SourceKind;
-use xrat_model::{Node, Protocol};
+use xrat_model::{Node, Protocol, SubscriptionId};
 
 mod config_state;
 mod import_subscription;

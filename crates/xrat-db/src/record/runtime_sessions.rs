@@ -32,7 +32,7 @@ impl RuntimeSessionStatus {
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct RuntimeSessionInsert {
-    pub config_id: Option<i64>,
+    pub config_id: Option<xrat_model::ConfigId>,
     pub status: RuntimeSessionStatus,
     pub socks_host: Option<String>,
     pub socks_port: Option<i64>,
@@ -49,7 +49,7 @@ pub struct RuntimeSessionInsert {
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct RuntimeSessionRecord {
     pub id: i64,
-    pub config_id: Option<i64>,
+    pub config_id: Option<xrat_model::ConfigId>,
     pub status: RuntimeSessionStatus,
     pub socks_host: Option<String>,
     pub socks_port: Option<i64>,

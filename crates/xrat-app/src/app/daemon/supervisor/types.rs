@@ -4,6 +4,7 @@ use crate::app::daemon::ipc::{
     DaemonShutdownPayload, PingPayload, ProxyControlPayload, ProxyStatusPayload, RotationTrigger,
     RuntimeConnectPayload, RuntimeDisconnectPayload, RuntimeReplacePayload, RuntimeStatusPayload,
 };
+use xrat_model::ConfigId;
 
 #[derive(Debug)]
 pub enum SupervisorEvent {
@@ -20,7 +21,7 @@ pub enum SupervisorEvent {
         respond_to: oneshot::Sender<RuntimeStatusResult>,
     },
     RuntimeConnect {
-        config_id: i64,
+        config_id: ConfigId,
         respond_to: oneshot::Sender<RuntimeConnectResult>,
     },
     RuntimeDisconnect {
@@ -28,7 +29,7 @@ pub enum SupervisorEvent {
     },
     RuntimeReplace {
         trigger: RotationTrigger,
-        candidate_id: Option<i64>,
+        candidate_id: Option<ConfigId>,
         respond_to: oneshot::Sender<RuntimeReplaceResult>,
     },
     DaemonShutdown {
@@ -98,7 +99,7 @@ pub struct SupervisorState {
     pub next_timer_epoch_secs: Option<u64>,
     pub last_trigger: Option<RotationTrigger>,
     pub last_result: String,
-    pub last_candidate_config_id: Option<i64>,
+    pub last_candidate_config_id: Option<ConfigId>,
     pub last_candidate_result: String,
     pub cooldown_active: bool,
     pub health_failure_threshold: u32,

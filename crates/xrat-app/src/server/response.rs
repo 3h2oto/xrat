@@ -1,4 +1,5 @@
 use serde::Serialize;
+use xrat_model::{ConfigId, SubscriptionId};
 
 use crate::app::read_models::{ConfigDetail, ConfigSummary, LatestTestSummary};
 
@@ -30,7 +31,7 @@ pub struct ApiLatestTest {
 
 #[derive(Debug, Serialize)]
 pub struct ApiConfigSummary {
-    pub id: i64,
+    pub id: ConfigId,
     pub r#ref: String,
     pub name: Option<String>,
     pub protocol: String,
@@ -45,9 +46,9 @@ pub struct ApiConfigSummary {
 
 #[derive(Debug, Serialize)]
 pub struct ApiConfigDetail {
-    pub id: i64,
+    pub id: ConfigId,
     pub r#ref: String,
-    pub subscription_id: Option<i64>,
+    pub subscription_id: Option<SubscriptionId>,
     pub dedup_key: String,
     pub protocol: String,
     pub address: String,

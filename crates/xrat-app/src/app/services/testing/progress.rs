@@ -1,10 +1,11 @@
 use crate::app::context::AppContext;
+use xrat_model::ConfigId;
 
 use super::{TestRunRequest, resolve_test_settings, run_bulk_for_configs_cancellable};
 
 #[derive(Debug, Clone, Copy)]
 pub struct TestProgressUpdate {
-    pub config_id: i64,
+    pub config_id: ConfigId,
     pub done: usize,
     pub total: usize,
 }
@@ -12,7 +13,7 @@ pub struct TestProgressUpdate {
 pub async fn run_bulk_for_config_ids_with_progress(
     request: &TestRunRequest,
     context: &AppContext,
-    config_ids: &[i64],
+    config_ids: &[ConfigId],
     cancel_rx: xrat_support::cancel::CancellationReceiver,
     progress_tx: tokio::sync::mpsc::UnboundedSender<TestProgressUpdate>,
 ) -> crate::app::Result<usize> {

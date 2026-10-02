@@ -3,6 +3,7 @@ use std::path::PathBuf;
 use crate::app::daemon::ipc;
 use crate::app::daemon::ipc::RotationTrigger;
 use crate::app::{AppError, Result};
+use xrat_model::ConfigId;
 
 use super::control::{RuntimeConnectOutcome, RuntimeControl, RuntimeReplaceOutcome};
 
@@ -27,7 +28,7 @@ impl DaemonRuntimeControl {
 
 #[async_trait::async_trait]
 impl RuntimeControl for DaemonRuntimeControl {
-    async fn connect(&self, config_id: i64) -> Result<RuntimeConnectOutcome> {
+    async fn connect(&self, config_id: ConfigId) -> Result<RuntimeConnectOutcome> {
         let response = match ipc::runtime_connect_daemon(&self.socket_path, config_id).await {
             Ok(response) => response,
             Err(err) if ipc::daemon_unreachable(&err) => return Err(self.unreachable_hint()),
@@ -64,7 +65,7 @@ impl RuntimeControl for DaemonRuntimeControl {
     async fn replace(
         &self,
         trigger: RotationTrigger,
-        candidate_id: Option<i64>,
+        candidate_id: Option<ConfigId>,
     ) -> Result<RuntimeReplaceOutcome> {
         let response =
             match ipc::runtime_replace_daemon(&self.socket_path, trigger, candidate_id).await {

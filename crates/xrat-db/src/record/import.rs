@@ -24,7 +24,7 @@ pub struct ImportSource {
 
 #[derive(Debug, Default, PartialEq, Eq)]
 pub struct ImportSummary {
-    pub subscription_id: i64,
+    pub subscription_id: xrat_model::SubscriptionId,
     pub imported_configs: usize,
     pub removed_configs: u64,
     pub total_configs: i64,
@@ -33,13 +33,13 @@ pub struct ImportSummary {
 /// A URL-backed subscription eligible for automatic refresh.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct RefreshableSubscription {
-    pub id: i64,
+    pub id: xrat_model::SubscriptionId,
     pub source_url: String,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct SubscriptionRecord {
-    pub id: i64,
+    pub id: xrat_model::SubscriptionId,
     pub r#ref: String,
     pub source_kind: String,
     pub source_url: Option<String>,

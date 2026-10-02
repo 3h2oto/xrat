@@ -20,7 +20,7 @@ pub(super) async fn import_single_config(context: &AppContext) -> ConfigRecord {
 
 pub(super) async fn insert_dead_pid_session(
     context: &AppContext,
-    config_id: i64,
+    config_id: xrat_model::ConfigId,
     status: RuntimeSessionStatus,
 ) -> i64 {
     context

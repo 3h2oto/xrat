@@ -5,6 +5,7 @@ use crate::app::daemon::supervisor::{
     RuntimeDisconnectResult, RuntimeReplaceResult, RuntimeStatusResult, SupervisorState,
 };
 use tokio::sync::oneshot;
+use xrat_model::ConfigId;
 
 use super::{runtime_lifecycle, runtime_status_connect};
 pub(crate) async fn handle_runtime_status(
@@ -18,7 +19,7 @@ pub(crate) async fn handle_runtime_status(
 pub(crate) async fn handle_runtime_connect(
     state: &SupervisorState,
     context: &AppContext,
-    config_id: i64,
+    config_id: ConfigId,
     respond_to: oneshot::Sender<RuntimeConnectResult>,
 ) {
     runtime_status_connect::handle_runtime_connect(state, context, config_id, respond_to).await;
@@ -36,7 +37,7 @@ pub(crate) async fn handle_runtime_replace(
     state: &mut SupervisorState,
     context: &AppContext,
     trigger: RotationTrigger,
-    candidate_id: Option<i64>,
+    candidate_id: Option<ConfigId>,
     respond_to: oneshot::Sender<RuntimeReplaceResult>,
 ) {
     runtime_lifecycle::handle_runtime_replace(state, context, trigger, candidate_id, respond_to)

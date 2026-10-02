@@ -68,7 +68,7 @@ pub(super) fn spawn_sleep(seconds: u64) -> Child {
 
 pub(super) async fn set_running_session(
     context: &crate::app::context::AppContext,
-    config_id: i64,
+    config_id: xrat_model::ConfigId,
     pid: i64,
 ) -> i64 {
     context

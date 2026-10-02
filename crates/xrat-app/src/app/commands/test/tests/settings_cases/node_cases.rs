@@ -3,9 +3,9 @@ use super::super::super::*;
 #[test]
 fn rebuilds_node_from_config_record() {
     let record = ConfigRecord {
-        id: 1,
+        id: xrat_model::ConfigId(1),
         r#ref: "ref000000001".to_string(),
-        subscription_id: Some(2),
+        subscription_id: Some(xrat_model::SubscriptionId(2)),
         dedup_key: "key".to_string(),
         protocol: "vmess".to_string(),
         address: "example.com".to_string(),

@@ -11,7 +11,7 @@ pub struct TuiRuntimeStatus {
     pub process_id: Option<i64>,
     pub session_status: Option<String>,
     pub active_config: Option<String>,
-    pub active_config_id: Option<i64>,
+    pub active_config_id: Option<xrat_model::ConfigId>,
     pub session_config: Option<String>,
     pub socks: Option<String>,
     pub http: Option<String>,

@@ -2,6 +2,7 @@ use crate::app::Result;
 use crate::app::context::AppContext;
 use crate::app::daemon::ipc::RotationTrigger;
 use crate::app::runtime_service::{ConnectRequest, ReplaceRequest, RuntimeService};
+use xrat_model::ConfigId;
 
 use super::control::{RuntimeConnectOutcome, RuntimeControl, RuntimeReplaceOutcome};
 
@@ -19,7 +20,7 @@ impl LocalRuntimeControl {
 
 #[async_trait::async_trait]
 impl RuntimeControl for LocalRuntimeControl {
-    async fn connect(&self, config_id: i64) -> Result<RuntimeConnectOutcome> {
+    async fn connect(&self, config_id: ConfigId) -> Result<RuntimeConnectOutcome> {
         let result = RuntimeService::new(&self.context)
             .connect(ConnectRequest { config_id })
             .await?;
@@ -38,7 +39,7 @@ impl RuntimeControl for LocalRuntimeControl {
     async fn replace(
         &self,
         trigger: RotationTrigger,
-        candidate_id: Option<i64>,
+        candidate_id: Option<ConfigId>,
     ) -> Result<RuntimeReplaceOutcome> {
         let result = RuntimeService::new(&self.context)
             .replace(ReplaceRequest {

@@ -4,7 +4,7 @@ use super::super::*;
 #[test]
 fn formats_csv_results_with_download_speed() {
     let output = TestOutputRow {
-        id: 7,
+        id: xrat_model::ConfigId(7),
         r#ref: "abcdef123456".to_string(),
         name: Some("node, one".to_string()),
         protocol: "vless".to_string(),
@@ -46,7 +46,7 @@ fn formats_csv_results_with_download_speed() {
 #[test]
 fn test_table_shows_only_ran_metrics_with_dashes_for_missing_values() {
     let mut output = TestOutputRow {
-        id: 7,
+        id: xrat_model::ConfigId(7),
         r#ref: "abcdef123456".to_string(),
         name: Some("node".to_string()),
         protocol: "vless".to_string(),
@@ -93,7 +93,7 @@ fn test_table_shows_only_ran_metrics_with_dashes_for_missing_values() {
 #[test]
 fn table_shows_geoip_columns_only_when_present() {
     let mut output = TestOutputRow {
-        id: 7,
+        id: xrat_model::ConfigId(7),
         r#ref: "abcdef123456".to_string(),
         name: Some("node".to_string()),
         protocol: "vless".to_string(),
@@ -146,7 +146,7 @@ fn table_shows_geoip_columns_only_when_present() {
 #[test]
 fn table_groups_failures_by_reason() {
     let make = |r#ref: &str, reason: &str| TestOutputRow {
-        id: 0,
+        id: xrat_model::ConfigId(0),
         r#ref: r#ref.to_string(),
         name: None,
         protocol: "vless".to_string(),
@@ -203,7 +203,7 @@ fn filters_latest_run_rows_by_country_and_asn() {
         xrat_db::ConnectionTestRecord {
             id: 1,
             run_id: Some(1),
-            config_id: 10,
+            config_id: xrat_model::ConfigId(10),
             icmp_ok: Some(true),
             icmp_ms: Some(10),
             tcp_ok: Some(true),
@@ -228,7 +228,7 @@ fn filters_latest_run_rows_by_country_and_asn() {
         xrat_db::ConnectionTestRecord {
             id: 2,
             run_id: Some(1),
-            config_id: 11,
+            config_id: xrat_model::ConfigId(11),
             icmp_ok: Some(true),
             icmp_ms: Some(11),
             tcp_ok: Some(true),
@@ -254,7 +254,7 @@ fn filters_latest_run_rows_by_country_and_asn() {
 
     let filtered = filter_latest_run_rows(rows, Some("us"), Some("cloudflare"));
     assert_eq!(filtered.len(), 1);
-    assert_eq!(filtered[0].config_id, 10);
+    assert_eq!(filtered[0].config_id, xrat_model::ConfigId(10));
 }
 
 #[test]

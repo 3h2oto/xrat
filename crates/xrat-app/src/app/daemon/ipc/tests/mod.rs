@@ -63,7 +63,7 @@ fn spawn_test_supervisor(mut rx: mpsc::Receiver<SupervisorEvent>) -> tokio::task
                         trigger,
                         replaced: true,
                         old_session_id: Some(10),
-                        new_config_id: candidate_id.unwrap_or(20),
+                        new_config_id: candidate_id.unwrap_or(xrat_model::ConfigId(20)),
                         new_session_id: 30,
                         new_pid: 40,
                     }));

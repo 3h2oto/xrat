@@ -154,7 +154,7 @@ fn applies_completed_config_test_row_during_batch() {
 
     let mut app = TuiApp::with_data(TuiData::from_configs(vec![row(1), row(2)]));
     let (_token, _receiver) = app.task_state.start(TuiTaskKind::TestBatch);
-    app.testing_config_ids = vec![1, 2];
+    app.testing_config_ids = vec![xrat_model::ConfigId(1), xrat_model::ConfigId(2)];
     app.config_list.focused = 1;
 
     app.apply_task_event(TuiTaskEvent::ConfigTested {
@@ -165,14 +165,17 @@ fn applies_completed_config_test_row_during_batch() {
 
     assert_eq!(app.task_state.progress_done, 1);
     assert_eq!(app.task_state.progress_total, 2);
-    assert_eq!(app.testing_config_ids, vec![1]);
+    assert_eq!(app.testing_config_ids, vec![xrat_model::ConfigId(1)]);
     assert_eq!(
         app.data
             .configs
             .iter()
-            .find(|config| config.id == 2)
+            .find(|config| config.id == xrat_model::ConfigId(2))
             .and_then(|config| config.real_delay_ms),
         Some(50)
     );
-    assert_eq!(app.focused_config().map(|config| config.id), Some(2));
+    assert_eq!(
+        app.focused_config().map(|config| config.id),
+        Some(xrat_model::ConfigId(2))
+    );
 }

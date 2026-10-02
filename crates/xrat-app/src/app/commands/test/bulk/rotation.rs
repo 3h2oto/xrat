@@ -2,7 +2,7 @@ use super::super::*;
 
 pub(crate) async fn run_rotation_bulk_tests(
     context: &AppContext,
-    candidate_ids: &[i64],
+    candidate_ids: &[ConfigId],
 ) -> crate::app::Result<Vec<TestOutputRow>> {
     if candidate_ids.is_empty() {
         return Ok(Vec::new());

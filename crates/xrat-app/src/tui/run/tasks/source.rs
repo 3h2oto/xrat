@@ -7,7 +7,7 @@ use crate::tui::task::{TuiTaskEvent, TuiTaskKind};
 
 pub fn spawn_source_refresh(
     context: AppContext,
-    source_id: i64,
+    source_id: xrat_model::SubscriptionId,
     include_deleted: bool,
     task_tx: &mpsc::UnboundedSender<TuiTaskEvent>,
 ) {
@@ -22,7 +22,7 @@ pub fn spawn_source_refresh(
 
 pub fn spawn_source_refresh_all(
     context: AppContext,
-    source_ids: Vec<i64>,
+    source_ids: Vec<xrat_model::SubscriptionId>,
     include_deleted: bool,
     task_tx: &mpsc::UnboundedSender<TuiTaskEvent>,
 ) {
@@ -60,7 +60,11 @@ pub fn spawn_source_refresh_all(
     });
 }
 
-async fn refresh_one(context: &AppContext, source_id: i64, include_deleted: bool) -> TuiTaskEvent {
+async fn refresh_one(
+    context: &AppContext,
+    source_id: xrat_model::SubscriptionId,
+    include_deleted: bool,
+) -> TuiTaskEvent {
     let kind = TuiTaskKind::SourceRefresh;
     match update_by_ids(context, &[source_id]).await {
         Ok(summary) if summary.failed == 0 => match TuiData::load(context, include_deleted).await {
@@ -91,7 +95,7 @@ async fn refresh_one(context: &AppContext, source_id: i64, include_deleted: bool
 pub async fn run_source_delete(
     context: &AppContext,
     app: &mut crate::tui::app::TuiApp,
-    source_id: i64,
+    source_id: xrat_model::SubscriptionId,
     task_tx: &mpsc::UnboundedSender<TuiTaskEvent>,
 ) {
     match context
@@ -115,7 +119,7 @@ pub async fn run_source_delete(
 pub async fn run_source_rename(
     context: &AppContext,
     app: &mut crate::tui::app::TuiApp,
-    source_id: i64,
+    source_id: xrat_model::SubscriptionId,
     name: String,
     task_tx: &mpsc::UnboundedSender<TuiTaskEvent>,
 ) {

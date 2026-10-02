@@ -18,7 +18,7 @@ async fn fetch_optional_runtime_session(
     pool: &DbPool,
     sqlite_sql: &str,
     postgres_sql: &str,
-    bind_config_id: Option<i64>,
+    bind_config_id: Option<xrat_model::ConfigId>,
 ) -> crate::Result<Option<RuntimeSessionRecord>> {
     match pool {
         DbPool::Sqlite(pool) => {

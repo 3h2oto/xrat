@@ -1,10 +1,11 @@
 use crate::app::Result;
 use crate::app::daemon::ipc::RotationTrigger;
+use xrat_model::ConfigId;
 
 /// Result of a successful connect operation, independent of control path.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct RuntimeConnectOutcome {
-    pub config_id: i64,
+    pub config_id: ConfigId,
     pub session_id: i64,
     pub pid: u32,
 }
@@ -15,7 +16,7 @@ pub struct RuntimeReplaceOutcome {
     pub trigger: RotationTrigger,
     pub replaced: bool,
     pub old_session_id: Option<i64>,
-    pub new_config_id: i64,
+    pub new_config_id: ConfigId,
     pub new_session_id: i64,
     pub new_pid: u32,
 }
@@ -29,7 +30,7 @@ pub struct RuntimeReplaceOutcome {
 #[async_trait::async_trait]
 pub trait RuntimeControl: Send + Sync {
     /// Connect a runtime session for the given config.
-    async fn connect(&self, config_id: i64) -> Result<RuntimeConnectOutcome>;
+    async fn connect(&self, config_id: ConfigId) -> Result<RuntimeConnectOutcome>;
 
     /// Disconnect the active runtime session. Returns whether a session stopped.
     async fn disconnect(&self) -> Result<bool>;
@@ -38,6 +39,6 @@ pub trait RuntimeControl: Send + Sync {
     async fn replace(
         &self,
         trigger: RotationTrigger,
-        candidate_id: Option<i64>,
+        candidate_id: Option<ConfigId>,
     ) -> Result<RuntimeReplaceOutcome>;
 }

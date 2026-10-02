@@ -140,7 +140,7 @@ async fn replace_validation_failure_keeps_old_runtime_active() {
     let result = RuntimeService::new(&context)
         .replace(ReplaceRequest {
             trigger: RotationTrigger::Manual,
-            candidate_id: Some(-1),
+            candidate_id: Some(xrat_model::ConfigId(-1)),
         })
         .await;
 

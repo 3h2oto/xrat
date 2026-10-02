@@ -19,3 +19,5 @@ pub use import::{
 };
 pub use refs::RefMatch;
 pub use runtime_sessions::{RuntimeSessionInsert, RuntimeSessionRecord, RuntimeSessionStatus};
+
+pub use xrat_model::{ConfigId, ConfigRef, SubscriptionId};

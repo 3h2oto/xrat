@@ -5,7 +5,7 @@ pub(super) async fn handle_runtime_replace(
     state: &mut SupervisorState,
     context: &AppContext,
     trigger: RotationTrigger,
-    candidate_id: Option<i64>,
+    candidate_id: Option<ConfigId>,
     respond_to: oneshot::Sender<RuntimeReplaceResult>,
 ) {
     let active_session = context

@@ -4,11 +4,11 @@ pub(super) async fn run_single(
     _args: &TestArgs,
     context: &AppContext,
     settings: ResolvedTestSettings,
-    config_id: i64,
+    config_id: ConfigId,
 ) -> crate::app::Result<()> {
     let config = context.db.get_config_by_id(config_id).await?;
     let Some(config) = config else {
-        tracing::warn!(config_id, "config not found");
+        tracing::warn!(config_id = config_id.0, "config not found");
         return Ok(());
     };
 

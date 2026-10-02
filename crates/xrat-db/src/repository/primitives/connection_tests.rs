@@ -3,6 +3,7 @@ use crate::record::{
     ConnectionTestInsert, ConnectionTestRecord, ConnectionTestRunInsert, ConnectionTestRunRecord,
 };
 use crate::repository::connection_tests;
+use xrat_model::ConfigId;
 
 pub async fn get_connection_test_count(pool: &DbPool) -> crate::Result<i64> {
     connection_tests::get_count(pool).await
@@ -24,14 +25,14 @@ pub async fn insert_connection_test_run(
 
 pub async fn list_connection_tests(
     pool: &DbPool,
-    config_id: i64,
+    config_id: ConfigId,
 ) -> crate::Result<Vec<ConnectionTestRecord>> {
     connection_tests::list_by_config(pool, config_id).await
 }
 
 pub async fn get_latest_connection_test(
     pool: &DbPool,
-    config_id: i64,
+    config_id: ConfigId,
 ) -> crate::Result<Option<ConnectionTestRecord>> {
     connection_tests::get_latest_by_config(pool, config_id).await
 }

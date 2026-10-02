@@ -9,11 +9,11 @@ fn maps_focused_config_actions_to_commands() {
 
     assert_eq!(
         app.config_command_for_action(TuiAction::EnableFocused),
-        Some(TuiConfigCommand::Enable(1))
+        Some(TuiConfigCommand::Enable(xrat_model::ConfigId(1)))
     );
     assert_eq!(
         app.config_command_for_action(TuiAction::DisableFocused),
-        Some(TuiConfigCommand::Disable(1))
+        Some(TuiConfigCommand::Disable(xrat_model::ConfigId(1)))
     );
 }
 
@@ -28,11 +28,11 @@ fn opens_and_cancels_delete_confirmation() {
 
     assert_eq!(
         app.confirm.as_ref().map(|confirm| confirm.kind),
-        Some(ConfirmKind::SoftDeleteConfig(1))
+        Some(ConfirmKind::SoftDeleteConfig(xrat_model::ConfigId(1)))
     );
     assert_eq!(
         app.pending_confirm_command(),
-        Some(TuiConfigCommand::SoftDelete(1))
+        Some(TuiConfigCommand::SoftDelete(xrat_model::ConfigId(1)))
     );
 
     app.apply(TuiAction::Cancel);
@@ -50,7 +50,7 @@ fn restore_command_only_applies_to_deleted_configs() {
 
     assert_eq!(
         app.config_command_for_action(TuiAction::RestoreFocused),
-        Some(TuiConfigCommand::Restore(1))
+        Some(TuiConfigCommand::Restore(xrat_model::ConfigId(1)))
     );
 }
 
@@ -78,10 +78,17 @@ fn collects_config_ids_for_current_test_scope() {
     let data = TuiData::from_configs(vec![row(1), row(2), failed]);
     let mut app = TuiApp::with_data(data);
 
-    assert_eq!(app.test_config_ids(), vec![1, 2, 3]);
+    assert_eq!(
+        app.test_config_ids(),
+        vec![
+            xrat_model::ConfigId(1),
+            xrat_model::ConfigId(2),
+            xrat_model::ConfigId(3)
+        ]
+    );
 
     app.test_state.scope = TestScope::Failed;
-    assert_eq!(app.test_config_ids(), vec![3]);
+    assert_eq!(app.test_config_ids(), vec![xrat_model::ConfigId(3)]);
 }
 
 #[test]
@@ -113,11 +120,26 @@ fn collects_config_ids_for_bulk_scopes() {
     let data = TuiData::from_configs(vec![row(1), failed, disabled, deleted]);
     let app = TuiApp::with_data(data);
 
-    assert_eq!(app.bulk_config_ids(BulkOp::DeleteFailed), vec![2]);
-    assert_eq!(app.bulk_config_ids(BulkOp::PurgeFailed), vec![2]);
-    assert_eq!(app.bulk_config_ids(BulkOp::DeleteDisabled), vec![3]);
-    assert_eq!(app.bulk_config_ids(BulkOp::PurgeAllDeleted), vec![4]);
-    assert_eq!(app.bulk_config_ids(BulkOp::RestoreAllDeleted), vec![4]);
+    assert_eq!(
+        app.bulk_config_ids(BulkOp::DeleteFailed),
+        vec![xrat_model::ConfigId(2)]
+    );
+    assert_eq!(
+        app.bulk_config_ids(BulkOp::PurgeFailed),
+        vec![xrat_model::ConfigId(2)]
+    );
+    assert_eq!(
+        app.bulk_config_ids(BulkOp::DeleteDisabled),
+        vec![xrat_model::ConfigId(3)]
+    );
+    assert_eq!(
+        app.bulk_config_ids(BulkOp::PurgeAllDeleted),
+        vec![xrat_model::ConfigId(4)]
+    );
+    assert_eq!(
+        app.bulk_config_ids(BulkOp::RestoreAllDeleted),
+        vec![xrat_model::ConfigId(4)]
+    );
 }
 
 #[test]
@@ -154,14 +176,20 @@ fn refresh_focused_source_action_targets_correct_source() {
         .focused_source()
         .map(|s| (s.id, s.value.clone()))
         .filter(|(_, v)| !v.is_empty());
-    assert_eq!(focused.as_ref().map(|(id, _)| *id), Some(1));
+    assert_eq!(
+        focused.as_ref().map(|(id, _)| *id),
+        Some(xrat_model::SubscriptionId(1))
+    );
 
     app.apply(TuiAction::MoveDown);
     let focused = app
         .focused_source()
         .map(|s| (s.id, s.value.clone()))
         .filter(|(_, v)| !v.is_empty());
-    assert_eq!(focused.as_ref().map(|(id, _)| *id), Some(2));
+    assert_eq!(
+        focused.as_ref().map(|(id, _)| *id),
+        Some(xrat_model::SubscriptionId(2))
+    );
 }
 
 #[test]
@@ -177,11 +205,20 @@ fn focused_source_returns_current_source() {
     assert_eq!(app.focused_source().map(|s| s.id), None);
 
     app.apply(TuiAction::MoveDown);
-    assert_eq!(app.focused_source().map(|s| s.id), Some(1));
+    assert_eq!(
+        app.focused_source().map(|s| s.id),
+        Some(xrat_model::SubscriptionId(1))
+    );
 
     app.apply(TuiAction::MoveDown);
-    assert_eq!(app.focused_source().map(|s| s.id), Some(2));
+    assert_eq!(
+        app.focused_source().map(|s| s.id),
+        Some(xrat_model::SubscriptionId(2))
+    );
 
     app.apply(TuiAction::MoveDown);
-    assert_eq!(app.focused_source().map(|s| s.id), Some(2));
+    assert_eq!(
+        app.focused_source().map(|s| s.id),
+        Some(xrat_model::SubscriptionId(2))
+    );
 }

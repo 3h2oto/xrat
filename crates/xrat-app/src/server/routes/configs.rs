@@ -61,7 +61,7 @@ pub async fn get_config(
     let id = state
         .services
         .configs
-        .resolve_id(&id)
+        .resolve_id(&xrat_model::ConfigRef::from(id))
         .await?
         .ok_or(ServerError::NotFound)?;
     let detail = state

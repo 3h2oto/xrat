@@ -19,7 +19,11 @@ pub(super) async fn import_single_config(context: &AppContext) -> ConfigRecord {
         .expect("config should exist")
 }
 
-pub(super) async fn insert_passing_test(context: &AppContext, config_id: i64, real_delay_ms: i64) {
+pub(super) async fn insert_passing_test(
+    context: &AppContext,
+    config_id: xrat_model::ConfigId,
+    real_delay_ms: i64,
+) {
     context
         .db
         .insert_connection_test(&ConnectionTestInsert {
@@ -49,7 +53,11 @@ pub(super) async fn insert_passing_test(context: &AppContext, config_id: i64, re
         .expect("connection test should insert");
 }
 
-pub(super) async fn insert_tcp_passing_test(context: &AppContext, config_id: i64, tcp_ms: i64) {
+pub(super) async fn insert_tcp_passing_test(
+    context: &AppContext,
+    config_id: xrat_model::ConfigId,
+    tcp_ms: i64,
+) {
     context
         .db
         .insert_connection_test(&ConnectionTestInsert {
@@ -79,7 +87,7 @@ pub(super) async fn insert_tcp_passing_test(context: &AppContext, config_id: i64
         .expect("connection test should insert");
 }
 
-pub(super) async fn insert_failing_test(context: &AppContext, config_id: i64) {
+pub(super) async fn insert_failing_test(context: &AppContext, config_id: xrat_model::ConfigId) {
     context
         .db
         .insert_connection_test(&ConnectionTestInsert {
@@ -119,7 +127,11 @@ pub(super) fn spawn_sleep(seconds: u64) -> Child {
         .expect("sleep process should spawn")
 }
 
-pub(super) async fn set_running_session(context: &AppContext, config_id: i64, pid: i64) -> i64 {
+pub(super) async fn set_running_session(
+    context: &AppContext,
+    config_id: xrat_model::ConfigId,
+    pid: i64,
+) -> i64 {
     context
         .db
         .set_active_config(config_id)
@@ -175,7 +187,7 @@ pub(super) async fn import_two_configs(
 
 pub(super) async fn insert_failed_cooldown_session(
     context: &AppContext,
-    config_id: i64,
+    config_id: xrat_model::ConfigId,
     first_failed_at: &str,
 ) -> i64 {
     let cooldown_session_id = context
