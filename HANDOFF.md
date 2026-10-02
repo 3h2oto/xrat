@@ -1,4 +1,4 @@
-# HANDOFF — Refactor: Foundation complete
+# HANDOFF — Refactor: Use Cases progress
 
 Last updated: 2026-10-02
 Branch: `refactor/r1-layering`
@@ -49,17 +49,35 @@ were not verified in this work.
 
 Backlog closure and this handoff are committed separately from source changes.
 
+## TASK-25 complete
+
+TASK-25 is Done, implemented in `2f8b137`.
+
+- ConfigExportRequest centralizes enabled defaults, protocol filtering and top
+  validation for summary and subscription exports. ConfigService returns summaries
+  or newline-delimited raw links; HTTP adapters retain auth, DTOs and encoding.
+- The SDK exposes ConfigExportRequest alongside ConfigService.
+- Shared proxy_pac services resolve active endpoints and render PAC for both HTTP
+  and CLI; PAC host validation remains in HTTP. CLI list selection already used
+  ConfigService, so its table/TSV/JSON formatting was preserved.
+- Six regression tests cover filter/empty selection, top bounds, JSON/base64 top
+  ordering, auth precedence, active PAC parity and invalid runtime endpoints.
+- `CARGO_INCREMENTAL=0 just fmt ci` passed: 882 Rust tests, three version tests,
+  strict Clippy and formatting. Log: `/tmp/xrat-task25-ci.log`.
+
+No HTTP schema, CLI flag, database schema or engine setting changed. Hosted CI
+and live browser PAC execution were not verified. TASK-130 separately tracks
+high-priority IPv6 preference with IPv4 fallback and remains To Do.
+
 ## Next work
 
-The next refactoring milestone is m-3, **Refactor: Use Cases**:
+Milestone m-3, **Refactor: Use Cases**, now has TASK-25 Done. Remaining work:
 
-1. TASK-25: consolidate export and subscription rendering; audit current paths
-   and define acceptance criteria before extracting shared use cases.
-2. TASK-26: separate TUI data loading from direct I/O and process probing.
-3. TASK-31: keep daemon supervisor handlers thin.
+1. TASK-26: separate TUI data loading from direct I/O and process probing.
+2. TASK-31: keep daemon supervisor handlers thin.
 
-Begin with TASK-25, preserving HTTP query/encoding behavior and CLI output.
-No m-3 implementation has started in this session.
+Begin with TASK-26 by auditing current TUI data loading and defining acceptance
+criteria before implementing. Neither remaining task has started in this session.
 
 ## Local environment
 
