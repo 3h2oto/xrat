@@ -94,17 +94,37 @@ TASK-26 is Done, implemented in `a684347`.
 This is local verification. Hosted CI, live GitHub fetching and an interactive
 TUI session were not verified.
 
+## TASK-31 complete
+
+TASK-31 is Done, implemented in `917b022`.
+
+- RuntimeTransitionService owns connect/disconnect metadata and events, shutdown
+  orchestration and health-failure persistence.
+- RotationService owns replacement metadata/events and typed failure outcomes.
+  RotationTrigger belongs to the application layer and is re-exported by IPC;
+  serialization and payload fields are unchanged.
+- Supervisor handlers retain scheduling, daemon state updates, health thresholds,
+  probe scheduling and response mapping. Manual, timer and health recovery
+  behavior remains covered by the existing 13 handler regressions, which passed
+  before and after extraction. Runtime ownership selection was not changed.
+- Three direct service tests verify persisted failure/owner metadata and events,
+  typed no-candidate outcomes and best-effort event persistence without IPC.
+- `CARGO_INCREMENTAL=0 just fmt ci` passed: 893 Rust tests, three version tests,
+  strict Clippy and formatting. Log: `/tmp/xrat-task31-ci.log`.
+
+This is local verification. Hosted CI and deployed engine behavior were not
+verified. Source changes and Backlog/handoff closure are committed separately.
+
 ## Next work
 
-Milestone m-3, **Refactor: Use Cases**, has TASK-25 and TASK-26 Done.
-TASK-31, keep daemon supervisor handlers thin, is the remaining task.
+Milestone m-3, **Refactor: Use Cases**, is complete and archived through Backlog.
+TASK-25, TASK-26 and TASK-31 are Done. The next refactor milestone is m-4,
+**Refactor: Ports**; audit its open tasks against the current source before
+choosing the first implementation. TASK-130 remains a separate high-priority
+IPv6 preference feature. Neither workstream was started as part of TASK-31.
 
-Begin with TASK-31 by auditing orchestration in supervisor handlers and defining
-acceptance criteria before extracting application services. TASK-31 has not
-started in this session. TASK-130 remains a separate high-priority feature.
-
-At TASK-26 closure, unrelated completed-task moves (TASK-116, TASK-128, TASK-20,
-TASK-22) and the TASK-130 backlog entry were left outside the focused commits.
+Unrelated completed-task moves (TASK-116, TASK-128, TASK-20, TASK-22) and the
+TASK-130 backlog entry were left outside the focused commits.
 
 ## Local environment
 
