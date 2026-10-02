@@ -10,7 +10,7 @@ internals.
 - `xrat_sdk::model` — `Node`, `Protocol`, `NodeDedupKey`
 - `xrat_sdk::config` — `parse_link`, `parse_text`, `parse_import`, import types
 - `xrat_sdk::prober` — probe result types
-- `xrat_sdk::services` — `AppServices`, `ConfigService`, lifecycle outcomes,
+- `xrat_sdk::services` — `AppServices`, `ConfigService`, `ConfigExportRequest`, lifecycle outcomes,
   read models (`ConfigSummary`, `ConfigDetail`), and `TestRunRequest`
 
 ```rust
@@ -20,6 +20,22 @@ let node = parse_link("vless://uuid@example.com:443#edge")?
     .expect("a share link");
 println!("{}:{}", node.address, node.port);
 ```
+
+## Export services
+
+`ConfigService::export_summaries` returns interface-neutral config summaries.
+`ConfigService::export_subscription` returns raw config links joined by newlines,
+without a trailing newline or transport encoding. Both accept
+`ConfigExportRequest`: enabled-only defaults to true, `enabled = Some(false)`
+includes disabled configs, `protocol` filters the protocol, and `top` selects
+1–200 configs ordered by measured real delay. Deleted configs are excluded.
+HTTP handlers retain authentication, response DTO mapping and base64 encoding;
+CLI listing retains its own presentation over the shared config list service.
+
+Within `xrat-app`, `app::services::proxy_pac::active_pac` combines running-session
+endpoint selection with PAC rendering. HTTP and CLI PAC adapters call this same
+function. PAC HTTP host validation remains in the HTTP adapter, and Shadowsocks
+endpoints are excluded from PAC output.
 
 ## Adding the dependency
 

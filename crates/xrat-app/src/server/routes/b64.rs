@@ -13,13 +13,12 @@ pub async fn b64(
     Query(query): Query<JsonQuery>,
 ) -> ServerResult<Response<Body>> {
     require_api_key(&state, query.key.as_deref())?;
-    let raw_configs = state
+    let payload = state
         .services
         .configs
-        .export_raw_configs(&query.to_request()?)
+        .export_subscription(&query.to_request())
         .await?;
 
-    let payload = raw_configs.join("\n");
     let encoded = STANDARD.encode(payload);
     let mut response = Response::new(Body::from(encoded));
     response.headers_mut().insert(

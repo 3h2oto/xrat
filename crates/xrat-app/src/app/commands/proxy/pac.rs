@@ -1,8 +1,6 @@
 use crate::app::commands::output;
 use crate::app::context::AppContext;
-use crate::app::services::proxy_pac::{PacEndpoints, PacRules, render_pac};
-
-use super::resolve_active_endpoints;
+use crate::app::services::proxy_pac::{PacRules, active_pac};
 
 pub(super) fn print_pac_url(context: &AppContext) {
     let server = &context.app_config.server;
@@ -27,17 +25,13 @@ pub(super) fn print_pac_url(context: &AppContext) {
 }
 
 pub(super) async fn print_pac_file(context: &AppContext) -> crate::app::Result<()> {
-    let active = resolve_active_endpoints(context).await?;
-    let endpoints = PacEndpoints {
-        http: active.http,
-        socks: active.socks,
-    };
     print!(
         "{}",
-        render_pac(
-            &endpoints,
+        active_pac(
+            &context.db,
             &PacRules::from_routing(&context.app_config.routing)
         )
+        .await?
     );
     Ok(())
 }

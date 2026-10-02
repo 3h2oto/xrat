@@ -2,7 +2,7 @@ use axum::body::Body;
 use axum::extract::State;
 use axum::http::{HeaderMap, HeaderValue, Response, header};
 
-use crate::app::services::proxy_pac::{PacEndpoints, render_pac};
+use crate::app::services::proxy_pac::active_pac;
 use crate::server::{ServerError, ServerResult, ServerState};
 /// `GET /proxy.pac` — unauthenticated local helper. PAC consumers (browsers,
 /// desktop proxy settings) usually cannot send auth headers, and the file only
@@ -16,8 +16,7 @@ pub async fn proxy_pac(
     }
     require_allowed_pac_host(&state, &headers)?;
 
-    let endpoints = active_endpoints(&state).await?;
-    let body = render_pac(&endpoints, &state.pac_rules);
+    let body = active_pac(&state.db, &state.pac_rules).await?;
 
     let mut response = Response::new(Body::from(body));
     response.headers_mut().insert(
@@ -56,26 +55,6 @@ fn host_without_port(value: &str) -> Option<&str> {
         return rest.split_once(']').map(|(host, _)| host);
     }
     Some(value.split_once(':').map_or(value, |(host, _)| host))
-}
-
-async fn active_endpoints(state: &ServerState) -> ServerResult<PacEndpoints> {
-    let Some(session) = state.db.get_running_runtime_session().await? else {
-        return Ok(PacEndpoints::default());
-    };
-
-    let http = inbound(session.http_host.as_deref(), session.http_port);
-    let socks = inbound(session.socks_host.as_deref(), session.socks_port);
-
-    Ok(PacEndpoints { http, socks })
-}
-
-fn inbound(host: Option<&str>, port: Option<i64>) -> Option<(String, u16)> {
-    match (host, port) {
-        (Some(host), Some(port)) if (1..=i64::from(u16::MAX)).contains(&port) => {
-            Some((host.to_string(), port as u16))
-        }
-        _ => None,
-    }
 }
 
 #[cfg(test)]

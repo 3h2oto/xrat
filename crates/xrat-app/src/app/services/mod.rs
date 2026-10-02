@@ -6,8 +6,8 @@ pub mod runtime_tuning;
 pub mod testing;
 
 pub use configs::{
-    ConfigListRequest, ConfigListResult, ConfigService, DatabaseConfigRepository, MAX_TOP,
-    enrich_endpoint_locations, validate_top,
+    ConfigExportRequest, ConfigListRequest, ConfigListResult, ConfigService,
+    DatabaseConfigRepository, MAX_TOP, enrich_endpoint_locations, validate_top,
 };
 pub use lifecycle::{ConfigLifecycleService, DeleteOutcome, RestoreOutcome, ToggleOutcome};
 

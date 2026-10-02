@@ -30,7 +30,7 @@ pub mod services {
     };
     pub use xrat_app::app::services::testing::TestRunRequest;
     pub use xrat_app::app::services::{
-        AppServices, ConfigLifecycleService, ConfigListRequest, ConfigListResult, ConfigService,
-        DeleteOutcome, RestoreOutcome, ToggleOutcome,
+        AppServices, ConfigExportRequest, ConfigLifecycleService, ConfigListRequest,
+        ConfigListResult, ConfigService, DeleteOutcome, RestoreOutcome, ToggleOutcome,
     };
 }
