@@ -69,15 +69,42 @@ No HTTP schema, CLI flag, database schema or engine setting changed. Hosted CI
 and live browser PAC execution were not verified. TASK-130 separately tracks
 high-priority IPv6 preference with IPv4 fallback and remains To Do.
 
+## TASK-26 complete
+
+TASK-26 is Done, implemented in `a684347`.
+
+- DashboardService assembles application snapshots with configs, sources, runtime,
+  tests, history, logs, daemon facts, API address and pending enrichment.
+- TuiData::from(DashboardSnapshot) is pure. Startup and existing refresh tasks
+  delegate through the same thin loading adapter.
+- Logs, GeoIP cache and progressive enrichment live in application services.
+  Cache expiry and fresh-empty suppression, concurrency/timeouts and batching
+  retain their previous behavior. Runtime bind addresses remain raw facts;
+  separately discovered local addresses are used for display.
+- Engine probes use RuntimeEngineProbe and a bounded process adapter. Release
+  checks use ReleaseProvider/ReleaseService shared by CLI upgrade and TUI;
+  optional TUI failures remain nonfatal and emit debug diagnostics.
+- Runtime ownership selection was not changed.
+- `CARGO_INCREMENTAL=0 just fmt ci` passed: 890 Rust tests, three version tests,
+  strict Clippy and formatting. Log: `/tmp/xrat-task26-ci.log`.
+- Eight new regressions cover fake providers, process timeout, cache/log behavior,
+  progressive enrichment and pure TUI conversion. Existing policy tests moved
+  alongside their application owners.
+
+This is local verification. Hosted CI, live GitHub fetching and an interactive
+TUI session were not verified.
+
 ## Next work
 
-Milestone m-3, **Refactor: Use Cases**, now has TASK-25 Done. Remaining work:
+Milestone m-3, **Refactor: Use Cases**, has TASK-25 and TASK-26 Done.
+TASK-31, keep daemon supervisor handlers thin, is the remaining task.
 
-1. TASK-26: separate TUI data loading from direct I/O and process probing.
-2. TASK-31: keep daemon supervisor handlers thin.
+Begin with TASK-31 by auditing orchestration in supervisor handlers and defining
+acceptance criteria before extracting application services. TASK-31 has not
+started in this session. TASK-130 remains a separate high-priority feature.
 
-Begin with TASK-26 by auditing current TUI data loading and defining acceptance
-criteria before implementing. Neither remaining task has started in this session.
+At TASK-26 closure, unrelated completed-task moves (TASK-116, TASK-128, TASK-20,
+TASK-22) and the TASK-130 backlog entry were left outside the focused commits.
 
 ## Local environment
 
