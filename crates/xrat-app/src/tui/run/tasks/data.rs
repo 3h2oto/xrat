@@ -8,21 +8,6 @@ use crate::tui::data::{TuiData, TuiLogs};
 use crate::tui::task::{TuiTaskEvent, TuiTaskKind};
 use xrat_support::geoip::CachedLookup;
 
-/// Bound on concurrent address resolutions so enrichment does not fan out one
-/// DNS query per config serially.
-const ENRICH_CONCURRENCY: usize = 64;
-
-/// Per-address cap so an unresolvable or slow host cannot stall enrichment.
-const ENRICH_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(2);
-
-/// Number of resolved rows accumulated before flushing a batch back to the UI so
-/// locations fill in progressively instead of all at once.
-const ENRICH_FLUSH_BATCH: usize = 16;
-
-/// Resolve missing endpoint locations off the critical path, feed results back
-/// through the task channel so the first frame never waits on DNS, and persist
-/// every resolution (including empty ones) so dead hosts stop re-resolving on
-/// later boots.
 pub fn spawn_enrich_locations(
     db: xrat_db::Database,
     lookup: Arc<CachedLookup>,
@@ -32,84 +17,18 @@ pub fn spawn_enrich_locations(
     if targets.is_empty() {
         return;
     }
-
     let task_tx = task_tx.clone();
     tokio::spawn(async move {
-        let mut join_set = tokio::task::JoinSet::new();
-        let mut pending = targets.into_iter();
-        let spawn_next =
-            |join_set: &mut tokio::task::JoinSet<_>,
-             pending: &mut std::vec::IntoIter<(xrat_model::ConfigId, String)>| {
-                if let Some((id, address)) = pending.next() {
-                    let lookup = lookup.clone();
-                    join_set.spawn(async move {
-                        let host = xrat_support::geoip::address_host(&address);
-                        let meta = tokio::time::timeout(
-                            ENRICH_TIMEOUT,
-                            xrat_support::geoip::enrich_address(&address, lookup.as_ref()),
-                        )
-                        .await
-                        .unwrap_or_default();
-                        (id, host, meta)
-                    });
-                }
-            };
-
-        for _ in 0..ENRICH_CONCURRENCY {
-            spawn_next(&mut join_set, &mut pending);
-        }
-
-        let mut batch = Vec::new();
-        let mut persisted = std::collections::HashSet::new();
-        while let Some(joined) = join_set.join_next().await {
-            if let Ok((id, host, meta)) = joined {
-                if let Some(host) = host
-                    && persisted.insert(host.clone())
-                {
-                    persist_geo(&db, host, &meta).await;
-                }
-                if meta.has_lookup_metadata() {
-                    batch.push((id, meta));
-                    if batch.len() >= ENRICH_FLUSH_BATCH
-                        && task_tx
-                            .send(TuiTaskEvent::LocationsEnriched {
-                                updates: std::mem::take(&mut batch),
-                            })
-                            .is_err()
-                    {
-                        tracing::debug!("TUI location enrichment receiver dropped");
-                    }
-                }
-            }
-            spawn_next(&mut join_set, &mut pending);
-        }
-
-        if !batch.is_empty()
-            && task_tx
-                .send(TuiTaskEvent::LocationsEnriched { updates: batch })
+        crate::app::services::dashboard::enrich_locations(db, lookup, targets, |updates| {
+            if task_tx
+                .send(TuiTaskEvent::LocationsEnriched { updates })
                 .is_err()
-        {
-            tracing::debug!("TUI location enrichment receiver dropped");
-        }
+            {
+                tracing::debug!("TUI location enrichment receiver dropped");
+            }
+        })
+        .await;
     });
-}
-
-async fn persist_geo(
-    db: &xrat_db::Database,
-    host: String,
-    meta: &xrat_support::geoip::EndpointGeoMeta,
-) {
-    let entry = xrat_db::GeoIpCacheUpsert {
-        host,
-        ip: None,
-        country: meta.country.clone(),
-        location: meta.location.clone(),
-        asn: meta.asn.clone(),
-        resolved_at: crate::tui::data::unix_now_secs(),
-    };
-    if let Err(error) = db.upsert_geoip_cache(&entry).await {
-        tracing::debug!("geoip cache upsert failed: {error}");
-    }
 }
 
 /// The `(config_id, address)` rows still needing a network location lookup after
@@ -169,7 +88,13 @@ pub fn spawn_probe_engines(
     let engines_tx = engines_tx.clone();
     tokio::spawn(async move {
         if engines_tx
-            .send(crate::tui::data::probe_engines(&context).await)
+            .send(
+                crate::app::services::engine_probe::probe_engines(
+                    &context,
+                    &crate::app::services::engine_probe::ProcessRuntimeEngineProbe,
+                )
+                .await,
+            )
             .is_err()
         {
             tracing::debug!("TUI engine probe receiver dropped");
@@ -185,7 +110,10 @@ pub async fn run_clear_events(
     app: &mut TuiApp,
     logs_tx: &mpsc::UnboundedSender<crate::app::Result<TuiLogs>>,
 ) {
-    match context.db.clear_events().await {
+    match crate::app::services::dashboard::DashboardService::new(context)
+        .clear_events()
+        .await
+    {
         Ok(count) => {
             spawn_reload_logs(context.clone(), logs_tx);
             app.push_log(format!("OK  cleared {count} persisted event(s) from db"));

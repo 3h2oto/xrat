@@ -37,6 +37,25 @@ endpoint selection with PAC rendering. HTTP and CLI PAC adapters call this same
 function. PAC HTTP host validation remains in the HTTP adapter, and Shadowsocks
 endpoints are excluded from PAC output.
 
+## Dashboard loading boundaries
+
+Within `xrat-app`, `app::services::dashboard::DashboardService` assembles a
+`DashboardSnapshot` containing config and source data, runtime and daemon facts,
+test results, history, logs, display addresses and pending GeoIP enrichment.
+`TuiData::from(snapshot)` only converts these facts into view models. Startup
+and refresh use the same loading service; log reloads use `DashboardLogs`.
+
+GeoIP cache reads and progressive enrichment live in the dashboard service
+modules. Fresh empty cache entries still suppress repeated lookups; background
+work retains its concurrency, timeout and batch limits.
+
+Engine versions are queried through `RuntimeEngineProbe`, with the production
+process adapter enforcing a two-second timeout. `ReleaseService` uses an
+injectable `ReleaseProvider`; the TUI and CLI upgrade share latest-release
+fetching. TUI release failures are logged at debug level and remain nonfatal.
+These internal services are available from `xrat-app`, rather than the curated
+SDK facade.
+
 ## Adding the dependency
 
 Once the workspace version is published:

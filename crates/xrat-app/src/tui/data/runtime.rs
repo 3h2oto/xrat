@@ -50,6 +50,12 @@ impl Default for TuiRuntimeStatus {
 
 impl From<RuntimeStatusSnapshot> for TuiRuntimeStatus {
     fn from(value: RuntimeStatusSnapshot) -> Self {
+        Self::from_snapshot(value, None)
+    }
+}
+
+impl TuiRuntimeStatus {
+    pub fn from_snapshot(value: RuntimeStatusSnapshot, local_address: Option<&str>) -> Self {
         let session = value.session;
         Self {
             status: value.status.as_str().to_string(),
@@ -66,17 +72,17 @@ impl From<RuntimeStatusSnapshot> for TuiRuntimeStatus {
                 .inbound_health
                 .socks
                 .as_ref()
-                .map(|health| endpoint_health_label("socks5", health)),
+                .map(|health| endpoint_health_label("socks5", health, local_address)),
             http: value
                 .inbound_health
                 .http
                 .as_ref()
-                .map(|health| endpoint_health_label("http", health)),
+                .map(|health| endpoint_health_label("http", health, local_address)),
             shadowsocks: value
                 .inbound_health
                 .shadowsocks
                 .as_ref()
-                .map(|health| endpoint_health_label("ss", health)),
+                .map(|health| endpoint_health_label("ss", health, local_address)),
             started_at: session
                 .as_ref()
                 .and_then(|session| session.started_at.clone()),
@@ -105,9 +111,13 @@ fn config_label(config: &ConfigRecord) -> String {
     format!("#{} {name}", config.id)
 }
 
-fn endpoint_health_label(scheme: &str, health: &RuntimeEndpointHealth) -> String {
+fn endpoint_health_label(
+    scheme: &str,
+    health: &RuntimeEndpointHealth,
+    local_address: Option<&str>,
+) -> String {
     let host = match health.endpoint.host.as_str() {
-        "0.0.0.0" | "::" => xrat_support::net::primary_local_ip().unwrap_or_else(|| {
+        "0.0.0.0" | "::" => local_address.map(str::to_string).unwrap_or_else(|| {
             xrat_support::net::connect_host_for_bind_host(&health.endpoint.host)
         }),
         _ => health.endpoint.host.clone(),

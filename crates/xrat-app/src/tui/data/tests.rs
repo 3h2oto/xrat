@@ -46,34 +46,6 @@ fn summarizes_config_counts() {
 }
 
 #[test]
-fn needs_location_enrichment_only_when_geo_missing_and_address_present() {
-    let known = row(1, Some(100));
-    assert!(!known.needs_location_enrichment());
-
-    let mut missing_geo = row(2, Some(100));
-    missing_geo.dial_endpoint_country = None;
-    missing_geo.dial_endpoint_location = None;
-    missing_geo.dial_endpoint_asn = None;
-    assert!(missing_geo.needs_location_enrichment());
-
-    let mut partial_geo = missing_geo.clone();
-    partial_geo.dial_endpoint_asn = Some("AS60781 LeaseWeb".to_string());
-    assert!(!partial_geo.needs_location_enrichment());
-
-    let mut no_address = missing_geo.clone();
-    no_address.address = "   ".to_string();
-    assert!(!no_address.needs_location_enrichment());
-
-    let mut placeholder_geo = missing_geo.clone();
-    placeholder_geo.dial_endpoint_location = Some("loopback_ipv4".to_string());
-    assert!(placeholder_geo.needs_location_enrichment());
-
-    let mut real_geo = missing_geo.clone();
-    real_geo.dial_endpoint_location = Some("US/California/Los Angeles".to_string());
-    assert!(!real_geo.needs_location_enrichment());
-}
-
-#[test]
 fn formats_network_and_delay_labels() {
     let mut active = row(4, Some(88));
     active.is_active = true;

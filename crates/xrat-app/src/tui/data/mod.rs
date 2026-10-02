@@ -15,23 +15,11 @@ pub use stats::StatsHistory;
 pub use tests_view::TuiTestStatus;
 pub use xrat_support::engine_log::{EngineLogRow as TuiProxyLogRow, ProxyStream};
 
-use crate::app::runtime_service::RuntimeService;
+use crate::app::services::dashboard::{DashboardService, DashboardSnapshot};
 
-#[derive(Debug, Clone)]
-pub struct EngineInfo {
-    pub name: &'static str,
-    pub available: bool,
-    pub version: Option<String>,
-}
+pub use crate::app::ports::EngineInfo;
 
-/// Minimal daemon view for the runtime card. Only carries facts not already
-/// shown elsewhere (process liveness and rotation scheduling).
-#[derive(Debug, Clone, Default)]
-pub struct TuiDaemonInfo {
-    pub running: bool,
-    pub rotation_enabled: bool,
-    pub interval_secs: u64,
-}
+pub use crate::app::services::dashboard::DaemonOverview as TuiDaemonInfo;
 
 #[derive(Debug, Default)]
 pub struct TuiData {
@@ -75,59 +63,10 @@ impl TuiData {
         context: &crate::app::context::AppContext,
         include_deleted: bool,
     ) -> crate::app::Result<Self> {
-        let services = context.services();
-        let request = crate::app::services::ConfigListRequest {
-            include_deleted,
-            ..crate::app::services::ConfigListRequest::default()
-        };
-        let mut configs: Vec<_> = services
-            .configs
-            .list(&request)
+        Ok(DashboardService::new(context)
+            .load(include_deleted)
             .await?
-            .items
-            .into_iter()
-            .map(TuiConfigRow::from)
-            .collect();
-
-        configs.sort_by_key(|row| (row.real_delay_ms.unwrap_or(i64::MAX), row.id));
-        let pending_enrichment = apply_geo_cache(context, &mut configs).await;
-        let sources = services
-            .configs
-            .subscriptions()
-            .await?
-            .into_iter()
-            .map(TuiSourceRow::from)
-            .collect();
-        let runtime = RuntimeService::new(context).status().await?.into();
-        let tests = TuiTestStatus::load(context, &configs).await?;
-
-        let logs = TuiLogs::load(context).await?;
-
-        let mut data = Self::from_parts(configs, sources, runtime, tests);
-        data.db_label = context.runtime_paths.database_label.clone();
-        data.config_path = context.runtime_paths.config_path.display().to_string();
-        let server = &context.app_config.server;
-        let api_host = match server.host.as_str() {
-            "0.0.0.0" | "::" => xrat_support::net::primary_local_ip()
-                .unwrap_or_else(|| xrat_support::net::connect_host_for_bind_host(&server.host)),
-            _ => server.host.clone(),
-        };
-        data.api_b64_url = format!("http://{}:{}/b64", api_host, server.port);
-        data.server_enabled = server.enabled;
-        data.daemon = load_daemon_info(context).await;
-        data.logs = logs;
-        if let Some(active_id) = data.runtime.active_config_id {
-            let records = context.db.list_connection_tests(active_id).await?;
-            data.probe_history = TuiProbeHistory::from_records(&records);
-        }
-        data.test_stage_names =
-            normalize_test_stage_names(&context.app_config.runtime.rotation.test_stages);
-        data.test_stage_label = format_test_stage_label(&data.test_stage_names);
-        data.metric_columns =
-            TuiMetricColumns::from_test_stages(&data.configs, &data.test_stage_names);
-        data.metric_columns_from_settings = true;
-        data.pending_enrichment = pending_enrichment;
-        Ok(data)
+            .into())
     }
 
     #[allow(dead_code)]
@@ -295,121 +234,6 @@ fn has_location_data(configs: &[TuiConfigRow]) -> bool {
     })
 }
 
-/// Persisted host -> geo entries older than this are treated as cache misses and
-/// re-resolved. Geo is stable, so a day keeps boots network-free while still
-/// letting dead hosts recover.
-const GEO_CACHE_TTL_SECS: i64 = 86_400;
-
-/// Apply persisted host -> geo to rows still missing location, returning the
-/// `(config_id, address)` rows that need a network lookup. A fresh cache entry
-/// (even an empty one) suppresses re-resolution so unresolvable hosts are not
-/// retried on every boot.
-async fn apply_geo_cache(
-    context: &crate::app::context::AppContext,
-    configs: &mut [TuiConfigRow],
-) -> Vec<(xrat_model::ConfigId, String)> {
-    let targets: Vec<(usize, xrat_model::ConfigId, String, String)> = configs
-        .iter()
-        .enumerate()
-        .filter(|(_, config)| config.needs_location_enrichment())
-        .filter_map(|(index, config)| {
-            xrat_support::geoip::address_host(&config.address)
-                .map(|host| (index, config.id, config.address.clone(), host))
-        })
-        .collect();
-    if targets.is_empty() {
-        return Vec::new();
-    }
-
-    let mut hosts: Vec<String> = targets.iter().map(|(_, _, _, host)| host.clone()).collect();
-    hosts.sort();
-    hosts.dedup();
-
-    let now = unix_now_secs();
-    let cached: std::collections::HashMap<String, xrat_db::GeoIpCacheRecord> = context
-        .db
-        .get_fresh_geoip_cache(&hosts, now - GEO_CACHE_TTL_SECS)
-        .await
-        .unwrap_or_default()
-        .into_iter()
-        .map(|record| (record.host.clone(), record))
-        .collect();
-
-    let mut pending = Vec::new();
-    for (index, id, address, host) in targets {
-        match cached.get(&host) {
-            Some(record) => {
-                if record.has_location() {
-                    configs[index].apply_location_meta(xrat_support::geoip::EndpointGeoMeta {
-                        location: record.location.clone(),
-                        country: record.country.clone(),
-                        asn: record.asn.clone(),
-                        source: None,
-                        fronting: None,
-                    });
-                }
-            }
-            None => pending.push((id, address)),
-        }
-    }
-    pending
-}
-
-pub fn unix_now_secs() -> i64 {
-    std::time::SystemTime::now()
-        .duration_since(std::time::UNIX_EPOCH)
-        .map(|duration| duration.as_secs() as i64)
-        .unwrap_or(0)
-}
-
-/// Time-to-live for in-session GeoIP lookups so repeated resolutions of the same
-/// IP reuse the decoded mmdb result instead of re-reading the database.
-const GEO_LOOKUP_TTL: std::time::Duration = std::time::Duration::from_secs(3600);
-
-/// Upper bound on cached IP lookups kept in memory for a single session.
-const GEO_LOOKUP_MAX_ENTRIES: usize = 8192;
-
-/// Build the GeoIP lookup used for background location enrichment, wrapping the
-/// local mmdb backend in an in-session [`CachedLookup`] so the lookup is built
-/// once per session rather than rebuilt on every data load.
-pub fn build_geo_lookup(
-    app_config: &crate::app::config::AppConfig,
-    runtime_paths: &crate::app::context::RuntimePaths,
-) -> std::sync::Arc<xrat_support::geoip::CachedLookup> {
-    let inner = std::sync::Arc::new(local_mmdb_lookup(app_config, runtime_paths));
-    std::sync::Arc::new(xrat_support::geoip::CachedLookup::new(
-        inner,
-        GEO_LOOKUP_TTL,
-        GEO_LOOKUP_MAX_ENTRIES,
-    ))
-}
-
-fn local_mmdb_lookup(
-    app_config: &crate::app::config::AppConfig,
-    runtime_paths: &crate::app::context::RuntimePaths,
-) -> xrat_support::geoip::LocalMmdbLookup {
-    xrat_support::geoip::LocalMmdbLookup::new(
-        crate::app::paths::mmdb::mmdb_path_for(
-            runtime_paths,
-            app_config,
-            &app_config.testing.geoip.country_path,
-            "GeoLite2-Country.mmdb",
-        ),
-        crate::app::paths::mmdb::mmdb_path_for(
-            runtime_paths,
-            app_config,
-            &app_config.testing.geoip.city_path,
-            "GeoLite2-City.mmdb",
-        ),
-        crate::app::paths::mmdb::mmdb_path_for(
-            runtime_paths,
-            app_config,
-            &app_config.testing.geoip.asn_path,
-            "GeoLite2-ASN.mmdb",
-        ),
-    )
-}
-
 fn normalize_test_stage_names(stages: &[String]) -> Vec<String> {
     let mut names = Vec::new();
     for stage in stages {
@@ -456,80 +280,40 @@ mod stage_tests {
     }
 }
 
-/// Probe the proxy engines once (engines don't change during a session). Runs
-/// `<bin> version` for each and records availability plus parsed version.
-pub async fn probe_engines(context: &crate::app::context::AppContext) -> Vec<EngineInfo> {
-    let (xray, sing_box) = tokio::join!(
-        probe_engine("xray", &context.runtime_paths.xray_path),
-        probe_engine("sing-box", &context.runtime_paths.sing_box_path),
-    );
-    vec![xray, sing_box]
-}
+#[cfg(test)]
+mod tests;
 
-/// Upper bound on how long a `<engine> version` probe may block startup. A hung
-/// or missing binary must not freeze the TUI before its event loop starts.
-const ENGINE_PROBE_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(2);
-
-async fn probe_engine(name: &'static str, path: &std::path::Path) -> EngineInfo {
-    let unavailable = EngineInfo {
-        name,
-        available: false,
-        version: None,
-    };
-    let command = tokio::process::Command::new(path)
-        .arg("version")
-        .kill_on_drop(true)
-        .output();
-    match tokio::time::timeout(ENGINE_PROBE_TIMEOUT, command).await {
-        Ok(Ok(output)) if output.status.success() => {
-            let text = String::from_utf8_lossy(&output.stdout);
-            EngineInfo {
-                name,
-                available: true,
-                version: parse_engine_version(&text),
-            }
-        }
-        _ => unavailable,
-    }
-}
-
-/// Pull the first `MAJOR.MINOR...` token out of an engine's version banner.
-fn parse_engine_version(text: &str) -> Option<String> {
-    text.split_whitespace()
-        .map(|token| token.trim_start_matches('v'))
-        .find(|token| {
-            token.contains('.') && token.chars().next().is_some_and(|c| c.is_ascii_digit())
-        })
-        .map(str::to_string)
-}
-
-/// Upper bound on the daemon status IPC during a TUI data load. A daemon that
-/// accepts the connection but never replies must not freeze startup.
-const DAEMON_STATUS_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(1);
-
-async fn load_daemon_info(context: &crate::app::context::AppContext) -> TuiDaemonInfo {
-    let socket = crate::app::daemon::ipc::default_socket_path(&context.runtime_paths.runtime_dir);
-    let status = tokio::time::timeout(
-        DAEMON_STATUS_TIMEOUT,
-        crate::app::daemon::ipc::proxy_status_daemon(&socket),
-    )
-    .await;
-    match status {
-        Ok(Ok(response)) => {
-            let payload = response.payload;
-            TuiDaemonInfo {
-                running: payload.as_ref().map(|p| p.daemon_ready).unwrap_or(false),
-                rotation_enabled: payload
-                    .as_ref()
-                    .map(|p| p.rotation_enabled)
-                    .unwrap_or(false),
-                interval_secs: payload.as_ref().map(|p| p.interval_secs).unwrap_or(0),
-            }
-        }
-        // IPC error or timeout: treat the daemon as unavailable.
-        _ => TuiDaemonInfo::default(),
+impl From<DashboardSnapshot> for TuiData {
+    fn from(value: DashboardSnapshot) -> Self {
+        let configs = value
+            .configs
+            .into_iter()
+            .map(TuiConfigRow::from)
+            .collect::<Vec<_>>();
+        let tests =
+            TuiTestStatus::from_run_and_results(value.latest_run, value.test_results, &configs);
+        let mut data = Self::from_parts(
+            configs,
+            value.sources.into_iter().map(TuiSourceRow::from).collect(),
+            TuiRuntimeStatus::from_snapshot(value.runtime, value.local_address.as_deref()),
+            tests,
+        );
+        data.db_label = value.db_label;
+        data.config_path = value.config_path;
+        data.api_b64_url = value.api_b64_url;
+        data.server_enabled = value.server_enabled;
+        data.daemon = value.daemon;
+        data.logs = value.logs;
+        data.probe_history = TuiProbeHistory::from_records(&value.probe_history);
+        data.test_stage_names = normalize_test_stage_names(&value.test_stages);
+        data.test_stage_label = format_test_stage_label(&data.test_stage_names);
+        data.metric_columns =
+            TuiMetricColumns::from_test_stages(&data.configs, &data.test_stage_names);
+        data.metric_columns_from_settings = true;
+        data.pending_enrichment = value.pending_enrichment;
+        data
     }
 }
 
 #[cfg(test)]
-mod tests;
+mod overview_tests;

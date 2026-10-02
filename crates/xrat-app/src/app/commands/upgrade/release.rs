@@ -119,24 +119,9 @@ fn http_client(timeout_secs: u64) -> crate::app::Result<reqwest::Client> {
 }
 
 async fn fetch_latest_tag(timeout_secs: u64) -> crate::app::Result<String> {
-    let client = http_client(timeout_secs)?;
-    let url = format!("https://api.github.com/repos/{REPO}/releases/latest");
-    let response = client.get(&url).send().await?;
-    if !response.status().is_success() {
-        return Err(AppError::InvalidArgument(format!(
-            "failed to query latest release: HTTP {}",
-            response.status()
-        )));
-    }
-    let body = response.text().await?;
-    let payload: serde_json::Value = serde_json::from_str(&body)?;
-    payload
-        .get("tag_name")
-        .and_then(|value| value.as_str())
-        .map(str::to_string)
-        .ok_or_else(|| {
-            AppError::InvalidArgument("latest release response had no tag_name".to_string())
-        })
+    crate::app::services::releases::ReleaseService::default()
+        .latest_tag(timeout_secs)
+        .await
 }
 
 async fn download(

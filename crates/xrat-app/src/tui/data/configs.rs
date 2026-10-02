@@ -114,19 +114,6 @@ impl TuiConfigRow {
         self.dial_endpoint_fronting.as_deref()
     }
 
-    pub fn needs_location_enrichment(&self) -> bool {
-        if self.address.trim().is_empty() {
-            return false;
-        }
-        let has_real_geo = self.dial_endpoint_country.is_some()
-            || self.dial_endpoint_asn.is_some()
-            || self
-                .dial_endpoint_location
-                .as_deref()
-                .is_some_and(|label| !xrat_support::geoip::is_classified_placeholder(label));
-        !has_real_geo
-    }
-
     pub fn apply_location_meta(&mut self, meta: xrat_support::geoip::EndpointGeoMeta) {
         if !meta.has_lookup_metadata() {
             return;

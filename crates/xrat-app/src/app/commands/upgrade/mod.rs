@@ -7,7 +7,7 @@ use std::process::Command;
 use crate::app::AppError;
 use crate::cli::UpgradeArgs;
 
-pub(crate) const REPO: &str = "mhyrzt/xrat";
+pub(crate) use crate::app::services::releases::REPO;
 
 pub async fn run(config_path: &Path, args: &UpgradeArgs) -> crate::app::Result<()> {
     let target = current_exe()?;

@@ -15,19 +15,6 @@ pub struct TuiTestStatus {
 }
 
 impl TuiTestStatus {
-    pub(super) async fn load(
-        context: &crate::app::context::AppContext,
-        configs: &[TuiConfigRow],
-    ) -> crate::app::Result<Self> {
-        let latest_run = context.db.get_latest_connection_test_run().await?;
-        let results = match latest_run.as_ref() {
-            Some(run) => context.db.list_connection_tests_by_run(run.id).await?,
-            None => Vec::new(),
-        };
-
-        Ok(Self::from_run_and_results(latest_run, results, configs))
-    }
-
     pub fn from_run_and_results(
         run: Option<ConnectionTestRunRecord>,
         results: Vec<ConnectionTestRecord>,

@@ -1,6 +1,9 @@
 mod configs;
+pub mod dashboard;
+pub mod engine_probe;
 mod lifecycle;
 pub mod proxy_pac;
+pub mod releases;
 pub mod runtime_control;
 pub mod runtime_tuning;
 pub mod testing;

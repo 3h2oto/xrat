@@ -32,8 +32,10 @@ pub async fn run(context: &AppContext) -> crate::app::Result<()> {
     let (stats_tx, mut stats_rx) = mpsc::unbounded_channel();
     tasks::spawn_version_check(version_tx);
     tasks::spawn_probe_engines(context.clone(), &engines_tx);
-    let mut geo_lookup =
-        crate::tui::data::build_geo_lookup(&context.app_config, &context.runtime_paths);
+    let mut geo_lookup = crate::app::services::dashboard::build_geo_lookup(
+        &context.app_config,
+        &context.runtime_paths,
+    );
     tasks::spawn_enrich_locations(
         context.db.clone(),
         geo_lookup.clone(),
@@ -308,7 +310,7 @@ pub async fn run(context: &AppContext) -> crate::app::Result<()> {
                                     .filter_map(|path| path.split('.').next())
                                     .collect();
                                 context.app_config = outcome.config;
-                                geo_lookup = crate::tui::data::build_geo_lookup(
+                                geo_lookup = crate::app::services::dashboard::build_geo_lookup(
                                     &context.app_config,
                                     &context.runtime_paths,
                                 );
