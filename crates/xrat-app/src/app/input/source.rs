@@ -7,6 +7,13 @@ use xrat_db::{ImportSource, SourceKind};
 use xrat_support::url::looks_like_url;
 
 pub fn read_input(input: &str) -> crate::app::Result<(ImportSource, Vec<u8>)> {
+    read_input_with_client(input, &xrat_support::http::ReqwestBlockingHttpClient)
+}
+
+pub fn read_input_with_client(
+    input: &str,
+    client: &dyn xrat_support::http::BlockingHttpClient,
+) -> crate::app::Result<(ImportSource, Vec<u8>)> {
     if looks_like_url(input) {
         return Ok((
             ImportSource {
@@ -14,7 +21,7 @@ pub fn read_input(input: &str) -> crate::app::Result<(ImportSource, Vec<u8>)> {
                 value: input.to_string(),
                 name: None,
             },
-            fetch_url(input)?,
+            fetch_url_with_client(input, client)?,
         ));
     }
 
@@ -22,6 +29,13 @@ pub fn read_input(input: &str) -> crate::app::Result<(ImportSource, Vec<u8>)> {
 }
 
 pub async fn read_input_async(input: &str) -> crate::app::Result<(ImportSource, Vec<u8>)> {
+    read_input_async_with_client(input, &xrat_support::http::Client::new()).await
+}
+
+pub async fn read_input_async_with_client(
+    input: &str,
+    client: &xrat_support::http::Client,
+) -> crate::app::Result<(ImportSource, Vec<u8>)> {
     if looks_like_url(input) {
         return Ok((
             ImportSource {
@@ -29,7 +43,7 @@ pub async fn read_input_async(input: &str) -> crate::app::Result<(ImportSource, 
                 value: input.to_string(),
                 name: None,
             },
-            fetch_url_async(input).await?,
+            fetch_url_async_with_client(input, client).await?,
         ));
     }
 
@@ -37,12 +51,26 @@ pub async fn read_input_async(input: &str) -> crate::app::Result<(ImportSource, 
 }
 
 pub fn fetch_url(url: &str) -> crate::app::Result<Vec<u8>> {
-    let response = reqwest::blocking::get(url)?.error_for_status()?;
+    fetch_url_with_client(url, &xrat_support::http::ReqwestBlockingHttpClient)
+}
+
+pub fn fetch_url_with_client(
+    url: &str,
+    client: &dyn xrat_support::http::BlockingHttpClient,
+) -> crate::app::Result<Vec<u8>> {
+    let response = client.get(url)?.error_for_status()?;
     Ok(response.bytes()?.to_vec())
 }
 
 pub async fn fetch_url_async(url: &str) -> crate::app::Result<Vec<u8>> {
-    let response = reqwest::get(url).await?.error_for_status()?;
+    fetch_url_async_with_client(url, &xrat_support::http::Client::new()).await
+}
+
+pub async fn fetch_url_async_with_client(
+    url: &str,
+    client: &xrat_support::http::Client,
+) -> crate::app::Result<Vec<u8>> {
+    let response = client.get(url).send().await?.error_for_status()?;
     Ok(response.bytes().await?.to_vec())
 }
 
@@ -79,4 +107,45 @@ pub fn save_json<T: Serialize>(output_path: &Path, value: &T) -> crate::app::Res
     let body = serde_json::to_string_pretty(value)?;
     fs::write(output_path, body)?;
     Ok(())
+}
+
+#[cfg(test)]
+mod http_port_tests {
+    use super::*;
+    use std::sync::Arc;
+    use xrat_support::http::*;
+    struct FakeHttp {
+        status: StatusCode,
+    }
+    #[async_trait::async_trait]
+    impl HttpClient for FakeHttp {
+        async fn execute(&self, request: HttpRequest) -> Result<HttpResponse, HttpError> {
+            assert_eq!(request.url, "https://example.invalid/sub");
+            Ok(HttpResponse::from_bytes(
+                self.status,
+                b"vless://fixture".to_vec(),
+            ))
+        }
+    }
+    #[tokio::test]
+    async fn import_url_uses_fake_transport_and_keeps_status_validation() {
+        for status in [StatusCode::OK, StatusCode::NOT_FOUND] {
+            let client =
+                Client::with_transport(Arc::new(FakeHttp { status }), HttpOptions::default());
+            let result = read_input_async_with_client("https://example.invalid/sub", &client).await;
+            if status == StatusCode::OK {
+                let (source, bytes) = result.unwrap();
+                assert_eq!(source.kind, SourceKind::Url);
+                assert_eq!(bytes, b"vless://fixture");
+            } else {
+                assert!(matches!(
+                    result,
+                    Err(crate::app::AppError::Http(HttpError {
+                        kind: HttpErrorKind::Status,
+                        ..
+                    }))
+                ));
+            }
+        }
+    }
 }

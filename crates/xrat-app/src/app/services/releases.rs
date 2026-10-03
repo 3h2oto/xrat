@@ -1,5 +1,5 @@
 mod github;
-pub use github::GithubReleaseProvider;
+pub use github::{GithubReleaseProvider, HttpReleaseProvider};
 
 use crate::app::ports::ReleaseProvider;
 use std::sync::Arc;

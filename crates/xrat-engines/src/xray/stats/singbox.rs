@@ -21,15 +21,23 @@ struct ClashConnections {
 pub struct SingboxStatsSource {
     url: String,
     secret: Option<String>,
-    client: reqwest::Client,
+    client: xrat_support::http::Client,
 }
 
 impl SingboxStatsSource {
     pub fn new(controller: &str, secret: Option<String>) -> Self {
+        Self::with_client(controller, secret, xrat_support::http::Client::new())
+    }
+
+    pub fn with_client(
+        controller: &str,
+        secret: Option<String>,
+        client: xrat_support::http::Client,
+    ) -> Self {
         Self {
             url: format!("http://{controller}/connections"),
             secret,
-            client: reqwest::Client::new(),
+            client,
         }
     }
 }

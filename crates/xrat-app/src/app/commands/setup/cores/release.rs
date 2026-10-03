@@ -1,14 +1,14 @@
 use super::prelude::*;
 
 pub(crate) async fn fetch_latest(
-    client: &reqwest::Client,
+    client: &xrat_support::http::Client,
     kind: CoreKind,
 ) -> Result<CoreRelease, String> {
     fetch_release(client, kind, None, false).await
 }
 
 pub(crate) async fn fetch_release(
-    client: &reqwest::Client,
+    client: &xrat_support::http::Client,
     kind: CoreKind,
     version: Option<&Version>,
     prerelease: bool,

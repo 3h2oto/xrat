@@ -26,7 +26,7 @@ pub enum AppError {
     Decode(#[from] xrat_support::decode::DecodeError),
 
     #[error("HTTP request failed")]
-    Http(#[from] reqwest::Error),
+    Http(#[from] xrat_support::http::HttpError),
 
     #[error("JSON serialization failed")]
     Json(#[from] serde_json::Error),

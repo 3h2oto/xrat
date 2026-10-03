@@ -25,7 +25,7 @@ pub use remote_ipwhois::RemoteIpWhoisLookup;
 #[derive(Debug, thiserror::Error)]
 pub enum GeoIpError {
     #[error("geoip HTTP request failed: {0}")]
-    Http(#[from] reqwest::Error),
+    Http(#[from] crate::http::HttpError),
     #[error("geoip service returned status {status} for {ip}")]
     Status {
         ip: String,

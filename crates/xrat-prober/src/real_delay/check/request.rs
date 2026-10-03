@@ -1,6 +1,6 @@
-use reqwest::redirect::Policy;
-use reqwest::{Client, Proxy};
 use std::time::{Duration, Instant};
+use xrat_support::http::RedirectPolicy;
+use xrat_support::http::{Client, Proxy};
 
 use super::super::errors::classify_request_error;
 use super::model::RealDelayResult;
@@ -9,11 +9,11 @@ use crate::real_delay::AcceptedHttpStatuses;
 
 pub(crate) const MAX_REDIRECTS: usize = 10;
 
-pub(crate) fn redirect_policy(follow_redirects: bool) -> Policy {
+pub(crate) fn redirect_policy(follow_redirects: bool) -> RedirectPolicy {
     if follow_redirects {
-        Policy::limited(MAX_REDIRECTS)
+        RedirectPolicy::Limited(MAX_REDIRECTS)
     } else {
-        Policy::none()
+        RedirectPolicy::None
     }
 }
 
@@ -56,7 +56,7 @@ pub async fn make_proxied_request_via(
         }
     };
 
-    let client = match reqwest::Client::builder()
+    let client = match xrat_support::http::Client::builder()
         .proxy(proxy)
         .timeout(timeout_duration)
         .redirect(redirect_policy(follow_redirects))
@@ -79,7 +79,7 @@ pub async fn make_proxied_request_via(
     make_request(&client, test_url, accepted_statuses).await
 }
 
-pub(crate) async fn make_request(
+pub async fn make_request(
     client: &Client,
     test_url: &str,
     accepted_statuses: &AcceptedHttpStatuses,

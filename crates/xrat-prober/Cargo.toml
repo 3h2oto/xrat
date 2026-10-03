@@ -6,11 +6,6 @@ license.workspace = true
 description = "TCP, ICMP, download, upload, and real-delay probing for xrat"
 
 [dependencies]
-reqwest = { version = "0.13.4", default-features = false, features = [
-    "blocking",
-    "rustls",
-    "socks",
-] }
 tokio = { version = "1.52.3", features = ["full"] }
 xrat-engines.workspace = true
 xrat-model.workspace = true

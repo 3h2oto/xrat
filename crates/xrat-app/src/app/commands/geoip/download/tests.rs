@@ -135,7 +135,7 @@ async fn downloads_file_from_stubbed_http_server() {
         mmdb_dir: root.clone(),
         ..test_request(root.clone())
     };
-    let client = reqwest::Client::builder()
+    let client = xrat_support::http::Client::builder()
         .timeout(Duration::from_secs(1))
         .build()
         .unwrap();
@@ -163,7 +163,7 @@ async fn reports_http_error_with_url() {
         mmdb_dir: root.clone(),
         ..test_request(root)
     };
-    let client = reqwest::Client::builder()
+    let client = xrat_support::http::Client::builder()
         .timeout(Duration::from_secs(1))
         .build()
         .unwrap();

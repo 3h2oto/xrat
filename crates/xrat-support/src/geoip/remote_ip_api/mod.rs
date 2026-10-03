@@ -12,7 +12,7 @@ const DEFAULT_IP_API_ENDPOINT: &str = "http://ip-api.com/json";
 
 #[derive(Clone, Debug)]
 pub struct RemoteIpApiLookup {
-    client: reqwest::Client,
+    client: crate::http::Client,
     endpoint: String,
 }
 
@@ -25,8 +25,15 @@ impl RemoteIpApiLookup {
             endpoint.trim_end_matches('/').to_string()
         };
 
-        let client = reqwest::Client::builder().timeout(timeout).build()?;
+        let client = crate::http::Client::builder().timeout(timeout).build()?;
         Ok(Self { client, endpoint })
+    }
+
+    pub fn with_client(endpoint: impl Into<String>, client: crate::http::Client) -> Self {
+        Self {
+            client,
+            endpoint: endpoint.into().trim_end_matches('/').to_string(),
+        }
     }
 
     async fn fetch(&self, ip: IpAddr) -> Result<IpApiResponse, GeoIpError> {

@@ -7,11 +7,11 @@ use axum::Router;
 use axum::http::StatusCode;
 use axum::response::Redirect;
 use axum::routing::get;
-use reqwest::Client;
 use std::path::Path;
 use std::time::Duration;
 use xrat_model::Node;
 use xrat_model::Protocol;
+use xrat_support::http::Client;
 
 async fn spawn_http_server() -> (String, tokio::task::JoinHandle<()>) {
     let app = Router::new()

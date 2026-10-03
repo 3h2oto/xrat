@@ -1,5 +1,5 @@
-use reqwest::Proxy;
 use std::time::{Duration, Instant};
+use xrat_support::http::Proxy;
 
 use crate::FailureKind;
 
@@ -30,7 +30,7 @@ pub(super) async fn make_proxied_download(
         }
     };
 
-    let client = match reqwest::Client::builder()
+    let client = match xrat_support::http::Client::builder()
         .proxy(proxy)
         .timeout(timeout_duration)
         .build()
@@ -43,6 +43,13 @@ pub(super) async fn make_proxied_download(
         }
     };
 
+    make_proxied_download_with_client(&client, test_url).await
+}
+
+pub async fn make_proxied_download_with_client(
+    client: &xrat_support::http::Client,
+    test_url: &str,
+) -> DownloadResult {
     let response = match client.get(test_url).send().await {
         Ok(response) => response,
         Err(error) => {

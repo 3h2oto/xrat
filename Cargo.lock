@@ -4966,7 +4966,6 @@ dependencies = [
  "prost",
  "qrcode",
  "ratatui",
- "reqwest",
  "semver",
  "serde",
  "serde_json",
@@ -5001,7 +5000,6 @@ version = "0.20.0"
 dependencies = [
  "base64",
  "percent-encoding",
- "reqwest",
  "serde",
  "serde_json",
  "thiserror 2.0.18",
@@ -5034,7 +5032,6 @@ dependencies = [
  "async-trait",
  "base64",
  "prost",
- "reqwest",
  "semver",
  "serde",
  "serde_json",
@@ -5064,7 +5061,6 @@ name = "xrat-prober"
 version = "0.20.0"
 dependencies = [
  "axum 0.8.9",
- "reqwest",
  "tokio",
  "xrat-engines",
  "xrat-model",

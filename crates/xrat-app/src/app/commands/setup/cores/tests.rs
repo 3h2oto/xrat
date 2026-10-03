@@ -33,7 +33,7 @@ fn test_release(url: String) -> CoreRelease {
 
 #[tokio::test]
 async fn streams_downloads_with_known_and_unknown_lengths() {
-    let client = reqwest::Client::new();
+    let client = xrat_support::http::Client::new();
     let responses: [(&[u8], &[u8]); 2] = [
         (
             b"HTTP/1.1 200 OK\r\nContent-Length: 11\r\nConnection: close\r\n\r\nhello world",

@@ -31,7 +31,7 @@ pub(crate) async fn install_inner(
     release: &CoreRelease,
     progress_enabled: bool,
 ) -> Result<InstallResult, String> {
-    let client = reqwest::Client::builder()
+    let client = xrat_support::http::Client::builder()
         .timeout(Duration::from_secs(120))
         .user_agent(concat!("xrat/", env!("CARGO_PKG_VERSION")))
         .build()
@@ -41,7 +41,7 @@ pub(crate) async fn install_inner(
 }
 
 pub(crate) async fn download_archive(
-    client: &reqwest::Client,
+    client: &xrat_support::http::Client,
     kind: CoreKind,
     release: &CoreRelease,
     progress_enabled: bool,
@@ -406,7 +406,7 @@ pub(crate) fn resolve_installed_path(configured: &Path) -> Option<PathBuf> {
 }
 
 pub(crate) async fn probe_all(context: &AppContext) -> Vec<CoreProbe> {
-    let client = reqwest::Client::builder()
+    let client = xrat_support::http::Client::builder()
         .timeout(Duration::from_secs(10))
         .user_agent(concat!("xrat/", env!("CARGO_PKG_VERSION")))
         .build();

@@ -118,8 +118,8 @@ fn detect_arch_with_platform(
     }
 }
 
-fn http_client(timeout_secs: u64) -> crate::app::Result<reqwest::Client> {
-    Ok(reqwest::Client::builder()
+fn http_client(timeout_secs: u64) -> crate::app::Result<xrat_support::http::Client> {
+    Ok(xrat_support::http::Client::builder()
         .timeout(Duration::from_secs(timeout_secs))
         .user_agent(concat!("xrat/", env!("CARGO_PKG_VERSION")))
         .build()?)
@@ -132,7 +132,7 @@ async fn fetch_latest_tag(timeout_secs: u64) -> crate::app::Result<String> {
 }
 
 async fn download(
-    client: &reqwest::Client,
+    client: &xrat_support::http::Client,
     url: &str,
     destination: &Path,
 ) -> crate::app::Result<()> {
@@ -149,7 +149,7 @@ async fn download(
 }
 
 async fn download_with_progress(
-    client: &reqwest::Client,
+    client: &xrat_support::http::Client,
     url: &str,
     destination: &Path,
     label: &str,

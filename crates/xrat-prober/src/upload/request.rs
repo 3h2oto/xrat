@@ -1,5 +1,5 @@
-use reqwest::Proxy;
 use std::time::{Duration, Instant};
+use xrat_support::http::Proxy;
 
 use super::{FailureKind, UploadResult, classify_request_error};
 
@@ -29,7 +29,7 @@ pub async fn make_proxied_upload(
         }
     };
 
-    let client = match reqwest::Client::builder()
+    let client = match xrat_support::http::Client::builder()
         .proxy(proxy)
         .timeout(timeout_duration)
         .build()
@@ -45,6 +45,14 @@ pub async fn make_proxied_upload(
         }
     };
 
+    make_proxied_upload_with_client(&client, test_url, payload_bytes).await
+}
+
+pub async fn make_proxied_upload_with_client(
+    client: &xrat_support::http::Client,
+    test_url: &str,
+    payload_bytes: usize,
+) -> UploadResult {
     let payload = vec![0_u8; payload_bytes.max(1024)];
     let start = Instant::now();
     let response = match client.post(test_url).body(payload.clone()).send().await {

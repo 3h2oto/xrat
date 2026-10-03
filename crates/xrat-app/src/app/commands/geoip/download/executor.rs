@@ -99,7 +99,7 @@ async fn download_one_with_progress(
         return Ok(DownloadOutcome::Skipped);
     }
 
-    let client = reqwest::Client::builder()
+    let client = xrat_support::http::Client::builder()
         .timeout(Duration::from_secs(request.timeout_secs))
         .build()?;
     download_one_with_client_and_progress(&client, request, edition, progress).await
@@ -107,7 +107,7 @@ async fn download_one_with_progress(
 
 #[cfg(test)]
 pub(crate) async fn download_one_with_client(
-    client: &reqwest::Client,
+    client: &xrat_support::http::Client,
     request: &DownloadRequest,
     edition: MmdbEdition,
 ) -> crate::app::Result<DownloadOutcome> {
@@ -115,7 +115,7 @@ pub(crate) async fn download_one_with_client(
 }
 
 async fn download_one_with_client_and_progress(
-    client: &reqwest::Client,
+    client: &xrat_support::http::Client,
     request: &DownloadRequest,
     edition: MmdbEdition,
     progress: Option<crate::app::commands::progress::CliProgress>,

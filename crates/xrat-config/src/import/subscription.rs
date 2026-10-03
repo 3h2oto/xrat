@@ -8,14 +8,21 @@ pub enum SubscriptionFetchError {
     #[error("invalid subscription URL")]
     Decode(#[from] DecodeError),
     #[error("request failed")]
-    Request(#[from] reqwest::Error),
+    Request(#[from] xrat_support::http::HttpError),
     #[error("subscription content could not be parsed")]
     Parse(#[from] ImportParseError),
 }
 
 pub async fn fetch_subscription(url: &str) -> Result<ImportResult, SubscriptionFetchError> {
+    fetch_subscription_with_client(url, &xrat_support::http::Client::new()).await
+}
+
+pub async fn fetch_subscription_with_client(
+    url: &str,
+    client: &xrat_support::http::Client,
+) -> Result<ImportResult, SubscriptionFetchError> {
     let url = normalize_subscription_url(url)?;
-    let response = reqwest::get(&url).await?;
+    let response = client.get(&url).send().await?;
 
     let mut metadata = SubscriptionMetadata {
         upload: None,

@@ -28,7 +28,7 @@ pub async fn install(context: &AppContext, args: &InstallArgs) -> crate::app::Re
         InstallCore::V2Ray => cores::CoreKind::V2Ray,
         InstallCore::SingBox => cores::CoreKind::SingBox,
     };
-    let client = reqwest::Client::builder()
+    let client = xrat_support::http::Client::builder()
         .timeout(std::time::Duration::from_secs(10))
         .user_agent(concat!("xrat/", env!("CARGO_PKG_VERSION")))
         .build()?;
