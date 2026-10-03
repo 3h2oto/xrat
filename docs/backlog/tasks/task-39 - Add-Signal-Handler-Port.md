@@ -1,9 +1,11 @@
 ---
 id: TASK-39
 title: Add Signal Handler Port
-status: To Do
-assignee: []
+status: In Progress
+assignee:
+  - codex
 created_date: '2026-07-05 14:43'
+updated_date: '2026-10-03 08:04'
 labels:
   - legacy-import
   - improvement
@@ -58,3 +60,22 @@ termination.
 `ProcessSpawner` and runtime lifecycle ports are in place, since signal handling
 is tightly coupled to process management.
 <!-- SECTION:DESCRIPTION:END -->
+
+## Acceptance Criteria
+<!-- AC:BEGIN -->
+- [ ] #1 Shutdown registration and process signaling are isolated in production adapters
+- [ ] #2 Injected shutdown and signal dependencies reach their consumers without replacing daemon shutdown channels
+- [ ] #3 Graceful stop/escalation and shutdown failure regressions pass with workspace gates
+<!-- AC:END -->
+
+## Implementation Plan
+
+<!-- SECTION:PLAN:BEGIN -->
+Add separate shutdown-notification and typed process-signal ports with OS adapters; preserve daemon shutdown channels and runtime TERM/KILL escalation; inject into server/log-follow/ping and runtime lifecycle; fake tests verify cancellation and signal outcomes.
+<!-- SECTION:PLAN:END -->
+
+## Implementation Notes
+
+<!-- SECTION:NOTES:BEGIN -->
+Implementation committed in 3eba21f. Separate shutdown and process-signal ports reach server/log-follow/ping and runtime stop; daemon shutdown channels are preserved. Fake signal tests cover absent processes, graceful exit, KILL escalation and send errors. CARGO_INCREMENTAL=0 just fmt ci passed with 916 Rust tests and 3 Python tests. Remains In Progress pending shutdown consumer cancellation/registration-failure regressions and final acceptance audit.
+<!-- SECTION:NOTES:END -->

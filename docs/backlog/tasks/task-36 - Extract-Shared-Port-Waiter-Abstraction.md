@@ -1,9 +1,11 @@
 ---
 id: TASK-36
 title: Extract Shared Port Waiter Abstraction
-status: To Do
-assignee: []
+status: In Progress
+assignee:
+  - codex
 created_date: '2026-07-05 14:43'
+updated_date: '2026-10-03 08:04'
 labels:
   - legacy-import
   - improvement
@@ -60,3 +62,22 @@ the readiness-check phase.
 Add tests for the shared implementation first, then replace each inline loop one
 at a time, verifying startup still works after each replacement.
 <!-- SECTION:DESCRIPTION:END -->
+
+## Acceptance Criteria
+<!-- AC:BEGIN -->
+- [ ] #1 Managed and temporary Xray/sing-box startup uses one child-aware TCP readiness implementation
+- [ ] #2 Injected readiness and process dependencies propagate through engine and runtime startup
+- [ ] #3 Success, early exit, timeout and failed-start cleanup regressions pass with workspace gates
+<!-- AC:END -->
+
+## Implementation Plan
+
+<!-- SECTION:PLAN:BEGIN -->
+Share child-aware TCP readiness polling across managed and probe engine startup; inject process and readiness ports together; retain polling intervals, error mappings and cleanup; fake and loopback tests cover readiness, process exit and bounded timeout.
+<!-- SECTION:PLAN:END -->
+
+## Implementation Notes
+
+<!-- SECTION:NOTES:BEGIN -->
+Implementation committed in 3eba21f. Four managed/temporary engine readiness loops use the shared child-aware waiter; fake tests cover retries, stalled connections, partial readiness, process exit and poll-error policy. CARGO_INCREMENTAL=0 just fmt ci passed with 916 Rust tests and 3 Python tests. Remains In Progress pending consumer-level fake startup/cleanup regressions and final acceptance audit.
+<!-- SECTION:NOTES:END -->

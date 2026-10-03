@@ -1,9 +1,11 @@
 ---
 id: TASK-35
 title: Add Process Spawner Port
-status: To Do
-assignee: []
+status: In Progress
+assignee:
+  - codex
 created_date: '2026-07-05 14:43'
+updated_date: '2026-10-03 08:04'
 labels:
   - legacy-import
   - improvement
@@ -76,3 +78,23 @@ engine startup behavior. Add a `MockProcessSpawner` for the existing
 and `PortWaiter` (which handles TCP readiness polling). Consider unifying all
 three into a single `RuntimeProcessManager` port.
 <!-- SECTION:DESCRIPTION:END -->
+
+## Acceptance Criteria
+<!-- AC:BEGIN -->
+- [ ] #1 All external command execution is confined to shared process adapters
+- [ ] #2 Engine and host process use cases accept injected command execution and child handles
+- [ ] #3 Stdio, arguments, environment, ownership and bounded probe behavior remain compatible
+- [ ] #4 Fake lifecycle and real local-child tests plus workspace gates pass
+<!-- AC:END -->
+
+## Implementation Plan
+
+<!-- SECTION:PLAN:BEGIN -->
+Add typed CommandSpec, ProcessSpawner and child handle in xrat-support with sync/async system adapters; preserve default command wrappers and inject spawners into engine/preflight/probe and host command consumers; verify missing binary, exit, capture, cancellation and cleanup without real engines.
+<!-- SECTION:PLAN:END -->
+
+## Implementation Notes
+
+<!-- SECTION:NOTES:BEGIN -->
+Implementation committed in 3eba21f; DNS/ICMP consumers follow in the next source commit. Shared typed commands, fake child handles, sync/async adapters and runtime startup/status/stop injection are present. CARGO_INCREMENTAL=0 just fmt ci passed: strict workspace Clippy, formatting, 916 Rust tests and 3 Python tests. Remains In Progress pending nested consumer dependency review, full fake RuntimeService lifecycle coverage and cancellation regression coverage.
+<!-- SECTION:NOTES:END -->
