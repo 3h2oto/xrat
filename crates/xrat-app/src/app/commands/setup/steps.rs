@@ -179,7 +179,7 @@ pub fn apply_linger_with_spawner(
         return StepOutcome::new(STEP_LINGER, StepStatus::Skipped, false)
             .with_detail("loginctl not found".to_string());
     }
-    if linger_enabled() {
+    if linger_enabled_with_spawner(spawner.clone()) {
         return StepOutcome::new(STEP_LINGER, StepStatus::AlreadyDone, false);
     }
     let Some(user) = current_user() else {

@@ -2,7 +2,7 @@ use std::fs::File;
 use std::io::{Read, Write};
 use std::path::{Path, PathBuf};
 use std::time::Duration;
-use xrat_support::process::{Command, Stdio};
+use xrat_support::process::{Command, StartupChild, Stdio};
 
 use thiserror::Error;
 
@@ -83,7 +83,7 @@ pub async fn spawn_detached_with_ports(
 
     let stdout = File::create(&paths.stdout_path)?;
     let stderr = File::create(&paths.stderr_path)?;
-    let mut child = Command::with_spawner(binary_path, ports.spawner.clone())
+    let child = Command::with_spawner(binary_path, ports.spawner.clone())
         .arg("run")
         .arg("-c")
         .arg(&paths.config_path)
@@ -94,8 +94,9 @@ pub async fn spawn_detached_with_ports(
         .map_err(|error| SingboxRuntimeError::Spawn(error.to_string()))?;
 
     let pid = child.id();
+    let mut startup = StartupChild::new(child);
     match wait_for_ready(
-        &mut child,
+        startup.child_mut(),
         ready_host,
         ready_port,
         startup_timeout,
@@ -103,14 +104,16 @@ pub async fn spawn_detached_with_ports(
     )
     .await
     {
-        Ok(()) => Ok(ManagedSingboxProcess {
-            pid,
-            ready_port,
-            paths,
-        }),
+        Ok(()) => {
+            startup.detach();
+            Ok(ManagedSingboxProcess {
+                pid,
+                ready_port,
+                paths,
+            })
+        }
         Err(error) => {
-            let _ = child.kill();
-            let _ = child.wait();
+            drop(startup);
             Err(error.with_process_stderr(&paths.stderr_path))
         }
     }

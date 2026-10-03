@@ -74,3 +74,105 @@ fn production_child_can_be_inspected_terminated_and_reaped() {
     child.kill().unwrap();
     assert!(!child.wait().unwrap().success());
 }
+
+#[tokio::test]
+async fn production_async_capture_drains_both_pipes() {
+    let output = Command::new("sh")
+        .args([
+            "-c",
+            "head -c 131072 /dev/zero; head -c 131072 /dev/zero >&2; exit 7",
+        ])
+        .output_async()
+        .await
+        .unwrap();
+    assert_eq!(output.status.code(), Some(7));
+    assert_eq!((output.stdout.len(), output.stderr.len()), (131072, 131072));
+}
+
+#[tokio::test]
+async fn cancelling_async_output_with_kill_on_drop_terminates_the_local_child() {
+    let root = tempfile::tempdir().unwrap();
+    let pid_path = root.path().join("pid");
+    let child_path = pid_path.clone();
+    let task = tokio::spawn(async move {
+        Command::new("sh")
+            .args(["-c", "echo $$ > \"$1\"; exec sleep 30", "fixture"])
+            .arg(child_path)
+            .kill_on_drop(true)
+            .output_async()
+            .await
+    });
+    let pid = tokio::time::timeout(std::time::Duration::from_secs(2), async {
+        loop {
+            if let Ok(value) = std::fs::read_to_string(&pid_path)
+                && let Ok(pid) = value.trim().parse::<i64>()
+            {
+                break pid;
+            }
+            tokio::time::sleep(std::time::Duration::from_millis(10)).await;
+        }
+    })
+    .await
+    .unwrap();
+    task.abort();
+    assert!(task.await.unwrap_err().is_cancelled());
+    let signals = crate::signals::SystemProcessSignals::default();
+    use crate::signals::ProcessSignals;
+    tokio::time::timeout(std::time::Duration::from_secs(2), async {
+        while signals.is_running(pid) {
+            tokio::time::sleep(std::time::Duration::from_millis(10)).await;
+        }
+    })
+    .await
+    .unwrap_or_else(|_| {
+        panic!(
+            "cancelled child {pid} remains: {:?}",
+            std::fs::read_to_string(format!("/proc/{pid}/status"))
+        )
+    });
+}
+
+#[tokio::test]
+async fn cancelling_async_output_without_kill_on_drop_preserves_child_and_reaps_its_exit() {
+    let root = tempfile::tempdir().unwrap();
+    let pid_path = root.path().join("pid");
+    let complete_path = root.path().join("completed");
+    let child_pid_path = pid_path.clone();
+    let child_complete_path = complete_path.clone();
+    let task = tokio::spawn(async move {
+        Command::new("sh")
+            .args([
+                "-c",
+                "echo $$ > \"$1\"; sleep 0.2; printf completed > \"$2\"",
+                "fixture",
+            ])
+            .arg(child_pid_path)
+            .arg(child_complete_path)
+            .output_async()
+            .await
+    });
+    let pid = tokio::time::timeout(std::time::Duration::from_secs(2), async {
+        loop {
+            if let Ok(value) = std::fs::read_to_string(&pid_path)
+                && let Ok(pid) = value.trim().parse::<i64>()
+            {
+                break pid;
+            }
+            tokio::time::sleep(std::time::Duration::from_millis(10)).await;
+        }
+    })
+    .await
+    .unwrap();
+    task.abort();
+    assert!(task.await.unwrap_err().is_cancelled());
+    use crate::signals::ProcessSignals;
+    let signals = crate::signals::SystemProcessSignals::default();
+    tokio::time::timeout(std::time::Duration::from_secs(2), async {
+        while !complete_path.exists() || signals.is_running(pid) {
+            tokio::time::sleep(std::time::Duration::from_millis(10)).await;
+        }
+    })
+    .await
+    .expect("detached output must preserve the child and reap its eventual exit");
+    assert_eq!(std::fs::read_to_string(complete_path).unwrap(), "completed");
+}

@@ -1,4 +1,5 @@
 use super::*;
+use tokio::io::{AsyncRead, AsyncReadExt};
 
 pub struct SystemProcessSpawner;
 struct SystemChild(std::process::Child);
@@ -41,6 +42,32 @@ fn command(spec: &CommandSpec) -> io::Result<std::process::Command> {
     }
     Ok(command)
 }
+
+struct AsyncChild {
+    child: Option<tokio::process::Child>,
+    kill_on_drop: bool,
+    runtime: tokio::runtime::Handle,
+}
+impl Drop for AsyncChild {
+    fn drop(&mut self) {
+        if let Some(mut child) = self.child.take() {
+            if self.kill_on_drop {
+                let _ = child.start_kill();
+            }
+            self.runtime.spawn(async move {
+                let _ = child.wait().await;
+            });
+        }
+    }
+}
+
+async fn read_output(reader: Option<impl AsyncRead + Unpin>) -> io::Result<Vec<u8>> {
+    let mut bytes = Vec::new();
+    if let Some(mut reader) = reader {
+        reader.read_to_end(&mut bytes).await?;
+    }
+    Ok(bytes)
+}
 #[async_trait]
 impl ProcessSpawner for SystemProcessSpawner {
     fn spawn(&self, spec: &CommandSpec) -> io::Result<Child> {
@@ -72,7 +99,39 @@ impl ProcessSpawner for SystemProcessSpawner {
         }
     }
     async fn output_async(&self, spec: &CommandSpec) -> io::Result<Output> {
-        let mut command = tokio::process::Command::from(command(spec)?);
-        command.kill_on_drop(spec.kill_on_drop).output().await
+        let mut builder = command(spec)?;
+        if spec.stdin.is_none() {
+            builder.stdin(std::process::Stdio::null());
+        }
+        if spec.stdout.is_none() {
+            builder.stdout(std::process::Stdio::piped());
+        }
+        if spec.stderr.is_none() {
+            builder.stderr(std::process::Stdio::piped());
+        }
+        let mut child = tokio::process::Command::from(builder).spawn()?;
+        drop(child.stdin.take());
+        let stdout = child.stdout.take();
+        let stderr = child.stderr.take();
+        let mut owned = AsyncChild {
+            child: Some(child),
+            kill_on_drop: spec.kill_on_drop,
+            runtime: tokio::runtime::Handle::current(),
+        };
+        let (status, stdout, stderr) = tokio::try_join!(
+            owned
+                .child
+                .as_mut()
+                .expect("child retained until output completes")
+                .wait(),
+            read_output(stdout),
+            read_output(stderr),
+        )?;
+        drop(owned.child.take());
+        Ok(Output {
+            status,
+            stdout,
+            stderr,
+        })
     }
 }

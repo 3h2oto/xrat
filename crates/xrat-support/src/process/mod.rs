@@ -79,6 +79,33 @@ impl Child {
     }
 }
 
+pub struct StartupChild {
+    child: Child,
+    detached: bool,
+}
+impl StartupChild {
+    pub fn new(child: Child) -> Self {
+        Self {
+            child,
+            detached: false,
+        }
+    }
+    pub fn child_mut(&mut self) -> &mut Child {
+        &mut self.child
+    }
+    pub fn detach(mut self) {
+        self.detached = true;
+    }
+}
+impl Drop for StartupChild {
+    fn drop(&mut self) {
+        if !self.detached {
+            let _ = self.child.kill();
+            let _ = self.child.wait();
+        }
+    }
+}
+
 #[async_trait]
 pub trait ProcessSpawner: Send + Sync {
     fn spawn(&self, spec: &CommandSpec) -> io::Result<Child>;

@@ -83,3 +83,71 @@ mod tests {
         );
     }
 }
+
+#[cfg(test)]
+mod cancellation_tests {
+    use super::*;
+    use async_trait::async_trait;
+    use std::io;
+    use std::sync::{
+        Arc,
+        atomic::{AtomicBool, Ordering},
+    };
+    use xrat_support::process::{Child, CommandSpec, ProcessSpawner};
+
+    struct DropGuard(Arc<AtomicBool>);
+    impl Drop for DropGuard {
+        fn drop(&mut self) {
+            self.0.store(true, Ordering::SeqCst);
+        }
+    }
+    struct StalledSpawner {
+        entered: tokio::sync::Notify,
+        dropped: Arc<AtomicBool>,
+    }
+    #[async_trait]
+    impl ProcessSpawner for StalledSpawner {
+        fn spawn(&self, _: &CommandSpec) -> io::Result<Child> {
+            panic!("version probe uses async output")
+        }
+        fn run(&self, _: &CommandSpec, _: bool) -> io::Result<std::process::Output> {
+            panic!("version probe uses async output")
+        }
+        async fn output_async(&self, spec: &CommandSpec) -> io::Result<std::process::Output> {
+            assert!(spec.kill_on_drop);
+            assert_eq!(spec.args, [std::ffi::OsString::from("version")]);
+            let _guard = DropGuard(self.dropped.clone());
+            self.entered.notify_one();
+            std::future::pending().await
+        }
+    }
+    #[tokio::test]
+    async fn cancelling_engine_probe_drops_injected_process_operation() {
+        let spawner = Arc::new(StalledSpawner {
+            entered: tokio::sync::Notify::new(),
+            dropped: Arc::new(AtomicBool::new(false)),
+        });
+        let mut probe = Box::pin(probe_with_spawner(
+            "xray",
+            Path::new("missing-fixture"),
+            spawner.clone(),
+        ));
+        tokio::select! {
+            _ = spawner.entered.notified() => {},
+            result = &mut probe => panic!("stalled probe unexpectedly returned: {result:?}"),
+        }
+        drop(probe);
+        assert!(spawner.dropped.load(Ordering::SeqCst));
+    }
+    #[tokio::test]
+    async fn bounded_engine_probe_drops_stalled_operation_on_timeout() {
+        let spawner = Arc::new(StalledSpawner {
+            entered: tokio::sync::Notify::new(),
+            dropped: Arc::new(AtomicBool::new(false)),
+        });
+        let result =
+            probe_with_spawner("xray", Path::new("missing-fixture"), spawner.clone()).await;
+        assert!(result.unwrap_err().to_string().contains("timed out"));
+        assert!(spawner.dropped.load(Ordering::SeqCst));
+    }
+}
