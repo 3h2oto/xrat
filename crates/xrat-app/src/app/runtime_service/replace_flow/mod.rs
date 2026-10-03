@@ -20,7 +20,11 @@ impl<'a> RuntimeService<'a> {
                         AppError::InvalidArgument(format!("config {next_config_id} was not found"))
                     })?;
                 let launch = self.resolve_launch(&next_config)?;
-                preflight_runtime(&launch, &self.context.runtime_paths.runtime_dir)?;
+                preflight_runtime_with_spawner(
+                    &launch,
+                    &self.context.runtime_paths.runtime_dir,
+                    self.process_ports.spawner.clone(),
+                )?;
                 let connected = self
                     .connect(ConnectRequest {
                         config_id: next_config_id,
@@ -86,9 +90,13 @@ impl<'a> RuntimeService<'a> {
                 AppError::InvalidArgument(format!("config {next_config_id} was not found"))
             })?;
         let launch = self.resolve_launch(&next_config)?;
-        preflight_runtime(&launch, &self.context.runtime_paths.runtime_dir)?;
+        preflight_runtime_with_spawner(
+            &launch,
+            &self.context.runtime_paths.runtime_dir,
+            self.process_ports.spawner.clone(),
+        )?;
 
-        stop_session(self.context, &active).await?;
+        stop_session(self.context, &active, self.process_ports.signals.as_ref()).await?;
         self.context.db.clear_active_config().await?;
 
         let staged = self.stage_replacement_runtime(next_config, launch).await;

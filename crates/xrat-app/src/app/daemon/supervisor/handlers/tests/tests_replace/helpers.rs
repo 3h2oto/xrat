@@ -1,7 +1,7 @@
 use std::fs;
 use std::os::unix::fs::PermissionsExt;
-use std::process::{Child, Command, Stdio};
 use xrat_db::RuntimeSessionInsert;
+use xrat_support::process::{Child, Command, Stdio};
 
 pub(super) fn write_fake_runtime_script(context: &crate::app::context::AppContext) {
     let fake_xray = context.runtime_paths.root_dir.join("fake-xray.py");

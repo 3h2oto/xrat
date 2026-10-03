@@ -107,7 +107,7 @@ mod tests {
 
     #[test]
     fn resolves_exe_and_cmd_for_spawned_process() {
-        let mut child = std::process::Command::new("sleep")
+        let mut child = xrat_support::process::Command::new("sleep")
             .arg("30")
             .spawn()
             .expect("spawn sleep");

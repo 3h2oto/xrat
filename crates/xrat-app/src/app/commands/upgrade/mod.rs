@@ -2,7 +2,7 @@ mod release;
 mod source;
 
 use std::path::{Path, PathBuf};
-use std::process::Command;
+use xrat_support::process::Command;
 
 use crate::app::AppError;
 use crate::cli::UpgradeArgs;
@@ -26,7 +26,19 @@ pub(crate) fn run_post_upgrade_migrations(
     target: &Path,
     config_path: &Path,
 ) -> crate::app::Result<()> {
-    let status = Command::new(target)
+    run_post_upgrade_migrations_with_spawner(
+        target,
+        config_path,
+        std::sync::Arc::new(xrat_support::process::SystemProcessSpawner),
+    )
+}
+
+pub(crate) fn run_post_upgrade_migrations_with_spawner(
+    target: &Path,
+    config_path: &Path,
+    spawner: std::sync::Arc<dyn xrat_support::process::ProcessSpawner>,
+) -> crate::app::Result<()> {
+    let status = Command::with_spawner(target, spawner.clone())
         .arg("--config")
         .arg(config_path)
         .arg("db")

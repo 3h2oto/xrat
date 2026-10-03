@@ -1,11 +1,14 @@
 use super::super::*;
 
-pub(crate) async fn stop_active_session(context: &AppContext) -> crate::app::Result<bool> {
+pub(crate) async fn stop_active_session(
+    context: &AppContext,
+    signals: &dyn xrat_support::signals::ProcessSignals,
+) -> crate::app::Result<bool> {
     let Some(session) = context.db.get_running_runtime_session().await? else {
         context.db.clear_active_config().await?;
         return Ok(false);
     };
-    stop_session(context, &session).await?;
+    stop_session(context, &session, signals).await?;
     context
         .db
         .update_runtime_session_transition_metadata(
@@ -24,6 +27,7 @@ pub(crate) async fn stop_active_session(context: &AppContext) -> crate::app::Res
 pub(crate) async fn stop_session(
     context: &AppContext,
     session: &RuntimeSessionRecord,
+    signals: &dyn xrat_support::signals::ProcessSignals,
 ) -> crate::app::Result<()> {
     context
         .db
@@ -38,7 +42,11 @@ pub(crate) async fn stop_session(
         .await?;
 
     if let Some(pid) = session.process_id {
-        let outcome = xray_runtime::terminate_process_gracefully(pid, SHUTDOWN_TIMEOUT)?;
+        let outcome = xray_runtime::terminate_process_gracefully_with_signals(
+            pid,
+            SHUTDOWN_TIMEOUT,
+            signals,
+        )?;
         tracing::info!(
             session_id = session.id,
             pid,

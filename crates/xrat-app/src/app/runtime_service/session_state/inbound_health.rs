@@ -29,20 +29,28 @@ pub(crate) fn runtime_status_label(
 pub(crate) async fn check_runtime_inbounds(
     session: &RuntimeSessionRecord,
     pid_running: bool,
+    connector: &dyn xrat_support::readiness::TcpConnector,
 ) -> RuntimeInboundHealth {
     RuntimeInboundHealth {
         socks: check_runtime_inbound(
             session.socks_host.as_deref(),
             session.socks_port,
             pid_running,
+            connector,
         )
         .await,
-        http: check_runtime_inbound(session.http_host.as_deref(), session.http_port, pid_running)
-            .await,
+        http: check_runtime_inbound(
+            session.http_host.as_deref(),
+            session.http_port,
+            pid_running,
+            connector,
+        )
+        .await,
         shadowsocks: check_runtime_inbound(
             session.shadowsocks_host.as_deref(),
             session.shadowsocks_port,
             pid_running,
+            connector,
         )
         .await,
     }
@@ -52,13 +60,17 @@ async fn check_runtime_inbound(
     host: Option<&str>,
     port: Option<i64>,
     pid_running: bool,
+    connector: &dyn xrat_support::readiness::TcpConnector,
 ) -> Option<RuntimeEndpointHealth> {
     let endpoint = endpoint_from_parts(host, port)?;
     let state = if pid_running {
         let connect_host = connect_host_for_bind_host(&endpoint.host);
         match timeout(
             INBOUND_LIVENESS_TIMEOUT,
-            TcpStream::connect((connect_host.as_str(), endpoint.port)),
+            connector.connect(&xrat_support::readiness::NetworkEndpoint {
+                host: connect_host,
+                port: endpoint.port,
+            }),
         )
         .await
         {

@@ -24,4 +24,5 @@ url = "2.5.8"
 uuid = { version = "1.23.2", features = ["v4"] }
 
 [dev-dependencies]
+tokio = { version = "1.52.3", features = ["test-util"] }
 axum = "0.8.9"

@@ -69,7 +69,18 @@ fn generate_api_service(exe: &Path, xrat_path: &str) -> String {
 
 #[cfg(target_os = "linux")]
 fn run_systemctl(args: &[&str]) -> std::io::Result<()> {
-    let status = std::process::Command::new("systemctl")
+    run_systemctl_with_spawner(
+        args,
+        std::sync::Arc::new(xrat_support::process::SystemProcessSpawner),
+    )
+}
+
+#[cfg(target_os = "linux")]
+fn run_systemctl_with_spawner(
+    args: &[&str],
+    spawner: std::sync::Arc<dyn xrat_support::process::ProcessSpawner>,
+) -> std::io::Result<()> {
+    let status = xrat_support::process::Command::with_spawner("systemctl", spawner.clone())
         .arg("--user")
         .args(args)
         .status()?;
@@ -85,10 +96,19 @@ fn run_systemctl(args: &[&str]) -> std::io::Result<()> {
 
 #[cfg(target_os = "linux")]
 fn systemctl_available() -> bool {
-    std::process::Command::new("systemctl")
+    systemctl_available_with_spawner(std::sync::Arc::new(
+        xrat_support::process::SystemProcessSpawner,
+    ))
+}
+
+#[cfg(target_os = "linux")]
+fn systemctl_available_with_spawner(
+    spawner: std::sync::Arc<dyn xrat_support::process::ProcessSpawner>,
+) -> bool {
+    xrat_support::process::Command::with_spawner("systemctl", spawner.clone())
         .args(["--user", "status"])
-        .stdout(std::process::Stdio::null())
-        .stderr(std::process::Stdio::null())
+        .stdout(xrat_support::process::Stdio::null())
+        .stderr(xrat_support::process::Stdio::null())
         .status()
         .is_ok()
 }
@@ -177,6 +197,19 @@ pub fn install(
 
 #[cfg(target_os = "linux")]
 pub fn uninstall(_context: &AppContext, args: &DaemonUninstallArgs) -> crate::app::Result<()> {
+    uninstall_with_spawner(
+        _context,
+        args,
+        std::sync::Arc::new(xrat_support::process::SystemProcessSpawner),
+    )
+}
+
+#[cfg(target_os = "linux")]
+pub fn uninstall_with_spawner(
+    _context: &AppContext,
+    args: &DaemonUninstallArgs,
+    spawner: std::sync::Arc<dyn xrat_support::process::ProcessSpawner>,
+) -> crate::app::Result<()> {
     let service_dir = systemd_user_dir()?;
     let daemon_path = service_dir.join(DAEMON_SERVICE_NAME);
     let api_path = service_dir.join(API_SERVICE_NAME);
@@ -202,10 +235,10 @@ pub fn uninstall(_context: &AppContext, args: &DaemonUninstallArgs) -> crate::ap
     let mut removed = false;
 
     if daemon_path.exists() {
-        let _ = std::process::Command::new("systemctl")
+        let _ = xrat_support::process::Command::with_spawner("systemctl", spawner.clone())
             .args(["--user", "stop", DAEMON_SERVICE_NAME])
             .status();
-        let _ = std::process::Command::new("systemctl")
+        let _ = xrat_support::process::Command::with_spawner("systemctl", spawner.clone())
             .args(["--user", "disable", DAEMON_SERVICE_NAME])
             .status();
         std::fs::remove_file(&daemon_path)?;
@@ -216,10 +249,10 @@ pub fn uninstall(_context: &AppContext, args: &DaemonUninstallArgs) -> crate::ap
     }
 
     if api_path.exists() {
-        let _ = std::process::Command::new("systemctl")
+        let _ = xrat_support::process::Command::with_spawner("systemctl", spawner.clone())
             .args(["--user", "stop", API_SERVICE_NAME])
             .status();
-        let _ = std::process::Command::new("systemctl")
+        let _ = xrat_support::process::Command::with_spawner("systemctl", spawner.clone())
             .args(["--user", "disable", API_SERVICE_NAME])
             .status();
         std::fs::remove_file(&api_path)?;
@@ -274,7 +307,16 @@ fn launchd_agents_dir_with_env(
 
 #[cfg(target_os = "macos")]
 fn current_uid() -> crate::app::Result<String> {
-    let output = std::process::Command::new("id")
+    current_uid_with_spawner(std::sync::Arc::new(
+        xrat_support::process::SystemProcessSpawner,
+    ))
+}
+
+#[cfg(target_os = "macos")]
+fn current_uid_with_spawner(
+    spawner: std::sync::Arc<dyn xrat_support::process::ProcessSpawner>,
+) -> crate::app::Result<String> {
+    let output = xrat_support::process::Command::with_spawner("id", spawner.clone())
         .arg("-u")
         .output()
         .map_err(|err| AppError::InvalidArgument(format!("failed to run `id -u`: {err}")))?;
@@ -289,17 +331,37 @@ fn current_uid() -> crate::app::Result<String> {
 
 #[cfg(target_os = "macos")]
 fn launchctl_available() -> bool {
-    std::process::Command::new("launchctl")
+    launchctl_available_with_spawner(std::sync::Arc::new(
+        xrat_support::process::SystemProcessSpawner,
+    ))
+}
+
+#[cfg(target_os = "macos")]
+fn launchctl_available_with_spawner(
+    spawner: std::sync::Arc<dyn xrat_support::process::ProcessSpawner>,
+) -> bool {
+    xrat_support::process::Command::with_spawner("launchctl", spawner.clone())
         .arg("help")
-        .stdout(std::process::Stdio::null())
-        .stderr(std::process::Stdio::null())
+        .stdout(xrat_support::process::Stdio::null())
+        .stderr(xrat_support::process::Stdio::null())
         .status()
         .is_ok()
 }
 
 #[cfg(target_os = "macos")]
 fn run_launchctl(args: &[&str]) -> std::io::Result<()> {
-    let status = std::process::Command::new("launchctl")
+    run_launchctl_with_spawner(
+        args,
+        std::sync::Arc::new(xrat_support::process::SystemProcessSpawner),
+    )
+}
+
+#[cfg(target_os = "macos")]
+fn run_launchctl_with_spawner(
+    args: &[&str],
+    spawner: std::sync::Arc<dyn xrat_support::process::ProcessSpawner>,
+) -> std::io::Result<()> {
+    let status = xrat_support::process::Command::with_spawner("launchctl", spawner.clone())
         .args(args)
         .status()?;
     if !status.success() {
@@ -408,6 +470,19 @@ pub fn install(
 
 #[cfg(target_os = "macos")]
 pub fn uninstall(_context: &AppContext, args: &DaemonUninstallArgs) -> crate::app::Result<()> {
+    uninstall_with_spawner(
+        _context,
+        args,
+        std::sync::Arc::new(xrat_support::process::SystemProcessSpawner),
+    )
+}
+
+#[cfg(target_os = "macos")]
+pub fn uninstall_with_spawner(
+    _context: &AppContext,
+    args: &DaemonUninstallArgs,
+    spawner: std::sync::Arc<dyn xrat_support::process::ProcessSpawner>,
+) -> crate::app::Result<()> {
     let agents_dir = launchd_agents_dir()?;
     let daemon_path = agents_dir.join(DAEMON_PLIST_NAME);
     let api_path = agents_dir.join(API_PLIST_NAME);
@@ -431,7 +506,7 @@ pub fn uninstall(_context: &AppContext, args: &DaemonUninstallArgs) -> crate::ap
     let domain = format!("gui/{uid}");
 
     if daemon_path.exists() {
-        let _ = std::process::Command::new("launchctl")
+        let _ = xrat_support::process::Command::with_spawner("launchctl", spawner.clone())
             .args(["bootout", &format!("{domain}/{DAEMON_LABEL}")])
             .status();
         std::fs::remove_file(&daemon_path)?;
@@ -441,7 +516,7 @@ pub fn uninstall(_context: &AppContext, args: &DaemonUninstallArgs) -> crate::ap
     }
 
     if api_path.exists() {
-        let _ = std::process::Command::new("launchctl")
+        let _ = xrat_support::process::Command::with_spawner("launchctl", spawner.clone())
             .args(["bootout", &format!("{domain}/{API_LABEL}")])
             .status();
         std::fs::remove_file(&api_path)?;
@@ -492,7 +567,22 @@ fn generate_api_rc(exe: &Path, xrat_path: &str) -> String {
 
 #[cfg(any(target_os = "freebsd", target_os = "openbsd"))]
 fn run_status(cmd: &str, args: &[&str]) -> std::io::Result<()> {
-    let status = std::process::Command::new(cmd).args(args).status()?;
+    run_status_with_spawner(
+        cmd,
+        args,
+        std::sync::Arc::new(xrat_support::process::SystemProcessSpawner),
+    )
+}
+
+#[cfg(any(target_os = "freebsd", target_os = "openbsd"))]
+fn run_status_with_spawner(
+    cmd: &str,
+    args: &[&str],
+    spawner: std::sync::Arc<dyn xrat_support::process::ProcessSpawner>,
+) -> std::io::Result<()> {
+    let status = xrat_support::process::Command::with_spawner(cmd, spawner.clone())
+        .args(args)
+        .status()?;
     if !status.success() {
         return Err(std::io::Error::other(format!(
             "{cmd} {} exited with {}",
@@ -513,10 +603,21 @@ fn start_service(rc_name: &str) -> std::io::Result<()> {
 }
 #[cfg(target_os = "freebsd")]
 fn stop_and_disable_service(rc_name: &str) {
-    let _ = std::process::Command::new("service")
+    stop_and_disable_service_with_spawner(
+        rc_name,
+        std::sync::Arc::new(xrat_support::process::SystemProcessSpawner),
+    )
+}
+
+#[cfg(target_os = "freebsd")]
+fn stop_and_disable_service_with_spawner(
+    rc_name: &str,
+    spawner: std::sync::Arc<dyn xrat_support::process::ProcessSpawner>,
+) {
+    let _ = xrat_support::process::Command::with_spawner("service", spawner.clone())
         .args([rc_name, "stop"])
         .status();
-    let _ = std::process::Command::new("sysrc")
+    let _ = xrat_support::process::Command::with_spawner("sysrc", spawner.clone())
         .arg(format!("{rc_name}_enable=NO"))
         .status();
 }
@@ -531,10 +632,21 @@ fn start_service(rc_name: &str) -> std::io::Result<()> {
 }
 #[cfg(target_os = "openbsd")]
 fn stop_and_disable_service(rc_name: &str) {
-    let _ = std::process::Command::new("rcctl")
+    stop_and_disable_service_with_spawner(
+        rc_name,
+        std::sync::Arc::new(xrat_support::process::SystemProcessSpawner),
+    )
+}
+
+#[cfg(target_os = "openbsd")]
+fn stop_and_disable_service_with_spawner(
+    rc_name: &str,
+    spawner: std::sync::Arc<dyn xrat_support::process::ProcessSpawner>,
+) {
+    let _ = xrat_support::process::Command::with_spawner("rcctl", spawner.clone())
         .args(["stop", rc_name])
         .status();
-    let _ = std::process::Command::new("rcctl")
+    let _ = xrat_support::process::Command::with_spawner("rcctl", spawner.clone())
         .args(["disable", rc_name])
         .status();
 }

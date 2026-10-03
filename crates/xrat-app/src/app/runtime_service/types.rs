@@ -1,7 +1,6 @@
 pub(super) use std::path::PathBuf;
 pub(super) use std::time::Duration;
 
-pub(super) use tokio::net::TcpStream;
 pub(super) use tokio::time::timeout;
 
 pub(super) use crate::app::AppError;
@@ -156,4 +155,5 @@ pub enum ActiveSessionState {
 
 pub struct RuntimeService<'a> {
     pub(super) context: &'a AppContext,
+    pub(super) process_ports: xrat_support::readiness::RuntimeProcessPorts,
 }

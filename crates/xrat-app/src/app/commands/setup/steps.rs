@@ -126,10 +126,19 @@ fn current_user_with_env(env: &dyn xrat_support::env::EnvVars) -> Option<String>
 
 #[cfg(target_os = "linux")]
 fn linger_enabled() -> bool {
+    linger_enabled_with_spawner(std::sync::Arc::new(
+        xrat_support::process::SystemProcessSpawner,
+    ))
+}
+
+#[cfg(target_os = "linux")]
+fn linger_enabled_with_spawner(
+    spawner: std::sync::Arc<dyn xrat_support::process::ProcessSpawner>,
+) -> bool {
     let Some(user) = current_user() else {
         return false;
     };
-    let Ok(output) = std::process::Command::new("loginctl")
+    let Ok(output) = xrat_support::process::Command::with_spawner("loginctl", spawner.clone())
         .args(["show-user", &user, "--property=Linger"])
         .output()
     else {
@@ -157,6 +166,15 @@ pub fn probe_linger() -> StepOutcome {
 
 #[cfg(target_os = "linux")]
 pub fn apply_linger() -> StepOutcome {
+    apply_linger_with_spawner(std::sync::Arc::new(
+        xrat_support::process::SystemProcessSpawner,
+    ))
+}
+
+#[cfg(target_os = "linux")]
+pub fn apply_linger_with_spawner(
+    spawner: std::sync::Arc<dyn xrat_support::process::ProcessSpawner>,
+) -> StepOutcome {
     if platform::binary_on_path("loginctl").is_none() {
         return StepOutcome::new(STEP_LINGER, StepStatus::Skipped, false)
             .with_detail("loginctl not found".to_string());
@@ -168,7 +186,7 @@ pub fn apply_linger() -> StepOutcome {
         return StepOutcome::new(STEP_LINGER, StepStatus::Failed, false)
             .with_detail("could not determine current user".to_string());
     };
-    match std::process::Command::new("loginctl")
+    match xrat_support::process::Command::with_spawner("loginctl", spawner.clone())
         .args(["enable-linger", &user])
         .status()
     {

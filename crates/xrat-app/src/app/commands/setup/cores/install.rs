@@ -370,7 +370,20 @@ pub(crate) fn ensure_cli_link(
 }
 
 pub(crate) fn binary_version(path: &Path) -> Option<Version> {
-    let output = Command::new(path).arg("version").output().ok()?;
+    binary_version_with_spawner(
+        path,
+        std::sync::Arc::new(xrat_support::process::SystemProcessSpawner),
+    )
+}
+
+pub(crate) fn binary_version_with_spawner(
+    path: &Path,
+    spawner: std::sync::Arc<dyn xrat_support::process::ProcessSpawner>,
+) -> Option<Version> {
+    let output = Command::with_spawner(path, spawner.clone())
+        .arg("version")
+        .output()
+        .ok()?;
     let mut text = String::from_utf8_lossy(&output.stdout).into_owned();
     text.push_str(&String::from_utf8_lossy(&output.stderr));
     parse_version(&text)

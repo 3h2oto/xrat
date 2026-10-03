@@ -1,12 +1,10 @@
 use std::io::{Read, Write};
 use std::path::{Path, PathBuf};
-use std::process::{Child, Command, Stdio};
-use std::time::{Duration, Instant};
+use std::time::Duration;
+use xrat_support::process::{Child, Command, Stdio};
 
 use tempfile::NamedTempFile;
 use thiserror::Error;
-use tokio::net::TcpStream;
-use tokio::time::sleep;
 
 use super::SingboxConfig;
 
@@ -37,12 +35,29 @@ impl SingboxProbeProcess {
         local_port: u16,
         startup_timeout: Duration,
     ) -> Result<Self, SingboxProbeError> {
+        Self::spawn_with_binary_with_ports(
+            binary_path,
+            config,
+            local_port,
+            startup_timeout,
+            xrat_support::readiness::RuntimeProcessPorts::default(),
+        )
+        .await
+    }
+
+    pub async fn spawn_with_binary_with_ports(
+        binary_path: &Path,
+        config: &SingboxConfig,
+        local_port: u16,
+        startup_timeout: Duration,
+        ports: xrat_support::readiness::RuntimeProcessPorts,
+    ) -> Result<Self, SingboxProbeError> {
         let mut temp_file = tempfile::Builder::new().suffix(".json").tempfile()?;
         temp_file.write_all(serde_json::to_string_pretty(config)?.as_bytes())?;
         temp_file.flush()?;
 
         let config_path = temp_file.path().to_path_buf();
-        let child = Command::new(binary_path)
+        let child = Command::with_spawner(binary_path, ports.spawner.clone())
             .arg("run")
             .arg("-c")
             .arg(&config_path)
@@ -57,29 +72,29 @@ impl SingboxProbeProcess {
             config_file: temp_file,
             local_port,
         };
-        process.wait_for_ready(startup_timeout).await?;
+        process
+            .wait_for_ready(startup_timeout, ports.waiter.as_ref())
+            .await?;
         Ok(process)
     }
 
-    async fn wait_for_ready(&mut self, timeout: Duration) -> Result<(), SingboxProbeError> {
-        let start = Instant::now();
-        let check_interval = Duration::from_millis(100);
-
-        loop {
-            if let Ok(Some(_)) = self.child.try_wait() {
-                return Err(SingboxProbeError::ProcessExited(self.read_stderr()));
+    async fn wait_for_ready(
+        &mut self,
+        timeout: Duration,
+        waiter: &dyn xrat_support::readiness::PortWaiter,
+    ) -> Result<(), SingboxProbeError> {
+        use xrat_support::readiness::{ChildPollErrorPolicy, ReadinessError, ReadinessRequest};
+        let mut request = ReadinessRequest::single("127.0.0.1", self.local_port, timeout);
+        request.child_errors = ChildPollErrorPolicy::Ignore;
+        match waiter.wait(&mut self.child, request).await {
+            Ok(()) => Ok(()),
+            Err(ReadinessError::ProcessExited(_)) => {
+                Err(SingboxProbeError::ProcessExited(self.read_stderr()))
             }
-            if TcpStream::connect(format!("127.0.0.1:{}", self.local_port))
-                .await
-                .is_ok()
-            {
-                return Ok(());
-            }
-            if start.elapsed() >= timeout {
+            Err(_) => {
                 let _ = self.child.kill();
-                return Err(SingboxProbeError::PortNotReady(self.local_port));
+                Err(SingboxProbeError::PortNotReady(self.local_port))
             }
-            sleep(check_interval).await;
         }
     }
 

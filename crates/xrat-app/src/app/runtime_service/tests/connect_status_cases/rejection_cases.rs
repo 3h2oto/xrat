@@ -1,4 +1,4 @@
-use std::process::{Command, Stdio};
+use xrat_support::process::{Command, Stdio};
 
 use super::support::import_single_config;
 use super::*;

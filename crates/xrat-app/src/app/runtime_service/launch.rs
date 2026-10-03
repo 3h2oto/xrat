@@ -56,10 +56,12 @@ impl<'a> RuntimeService<'a> {
             other => PathBuf::from(other),
         };
         let mut gen_options = build_xray_gen_options(runtime);
-        gen_options.compatibility = crate::app::services::runtime_tuning::detect_xray_compatibility(
-            runtime.xray_compatibility,
-            &binary_path,
-        );
+        gen_options.compatibility =
+            crate::app::services::runtime_tuning::detect_xray_compatibility_with_spawner(
+                runtime.xray_compatibility,
+                &binary_path,
+                self.process_ports.spawner.clone(),
+            );
         apply_xray_dns_options(&mut gen_options, &self.context.app_config.dns)?;
         apply_xray_routing_options(&mut gen_options, &self.context.app_config.routing);
         if gen_options.bind_address.is_some() {

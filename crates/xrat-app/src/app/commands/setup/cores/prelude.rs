@@ -1,8 +1,8 @@
 pub(crate) use std::fs;
 pub(crate) use std::io::{Cursor, Write};
 pub(crate) use std::path::{Path, PathBuf};
-pub(crate) use std::process::Command;
 pub(crate) use std::time::Duration;
+pub(crate) use xrat_support::process::Command;
 
 pub(crate) use flate2::read::GzDecoder;
 pub(crate) use semver::Version;

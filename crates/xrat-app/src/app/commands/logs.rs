@@ -118,6 +118,23 @@ async fn follow(
     feeds: &Feeds,
     filter: &EventFilter,
 ) -> crate::app::Result<()> {
+    follow_with_signal(
+        context,
+        args,
+        feeds,
+        filter,
+        &xrat_support::signals::CtrlCShutdown,
+    )
+    .await
+}
+
+async fn follow_with_signal(
+    context: &AppContext,
+    args: &LogsArgs,
+    feeds: &Feeds,
+    filter: &EventFilter,
+    signal: &dyn xrat_support::signals::ShutdownSignal,
+) -> crate::app::Result<()> {
     let color = output::color_enabled();
 
     let mut cursor = 0i64;
@@ -149,7 +166,7 @@ async fn follow(
 
     loop {
         tokio::select! {
-            _ = tokio::signal::ctrl_c() => {
+            _ = signal.wait() => {
                 return Ok(());
             }
             _ = ticker.tick() => {

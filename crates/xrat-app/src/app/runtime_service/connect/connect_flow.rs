@@ -45,7 +45,11 @@ impl<'a> RuntimeService<'a> {
         };
         // Validate the replacement before tearing down a healthy session so a
         // failed preflight leaves the running runtime untouched.
-        preflight_runtime(&launch, &self.context.runtime_paths.runtime_dir)?;
+        preflight_runtime_with_spawner(
+            &launch,
+            &self.context.runtime_paths.runtime_dir,
+            self.process_ports.spawner.clone(),
+        )?;
         if replace_running {
             self.disconnect().await?;
         }
@@ -93,25 +97,30 @@ impl<'a> RuntimeService<'a> {
             })
             .await?;
 
-        let process =
-            match spawn_runtime(&launch, &self.context.runtime_paths.runtime_dir, session_id).await
-            {
-                Ok(process) => process,
-                Err(error) => {
-                    self.context
-                        .db
-                        .update_runtime_session_state(
-                            session_id,
-                            RuntimeSessionStatus::Failed,
-                            None,
-                            None,
-                            Some(&now_string()),
-                            Some(&error.to_string()),
-                        )
-                        .await?;
-                    return Err(error);
-                }
-            };
+        let process = match spawn_runtime_with_ports(
+            &launch,
+            &self.context.runtime_paths.runtime_dir,
+            session_id,
+            self.process_ports.clone(),
+        )
+        .await
+        {
+            Ok(process) => process,
+            Err(error) => {
+                self.context
+                    .db
+                    .update_runtime_session_state(
+                        session_id,
+                        RuntimeSessionStatus::Failed,
+                        None,
+                        None,
+                        Some(&now_string()),
+                        Some(&error.to_string()),
+                    )
+                    .await?;
+                return Err(error);
+            }
+        };
 
         self.context
             .db

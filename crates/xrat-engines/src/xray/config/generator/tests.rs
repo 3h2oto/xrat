@@ -9,9 +9,9 @@ use crate::xray::config::{
 };
 use std::collections::BTreeMap;
 use std::io::Write;
-use std::process::Command;
 use xrat_config::parse_link;
 use xrat_model::{Node, Protocol};
+use xrat_support::process::Command;
 
 fn vless_tls_node() -> Node {
     Node {

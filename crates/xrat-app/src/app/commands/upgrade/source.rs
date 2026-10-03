@@ -1,5 +1,5 @@
 use std::path::Path;
-use std::process::Command;
+use xrat_support::process::Command;
 
 use crate::app::AppError;
 use crate::app::commands::output;
@@ -12,6 +12,21 @@ pub(crate) async fn upgrade(
     args: &UpgradeArgs,
     target: &Path,
     config_path: &Path,
+) -> crate::app::Result<()> {
+    upgrade_with_spawner(
+        args,
+        target,
+        config_path,
+        std::sync::Arc::new(xrat_support::process::SystemProcessSpawner),
+    )
+    .await
+}
+
+pub(crate) async fn upgrade_with_spawner(
+    args: &UpgradeArgs,
+    target: &Path,
+    config_path: &Path,
+    spawner: std::sync::Arc<dyn xrat_support::process::ProcessSpawner>,
 ) -> crate::app::Result<()> {
     let color = output::color_enabled();
     let source_dir = &args.path;
@@ -32,7 +47,7 @@ pub(crate) async fn upgrade(
             color
         )
     );
-    let status = Command::new("cargo")
+    let status = Command::with_spawner("cargo", spawner.clone())
         .args(["build", "--release"])
         .current_dir(source_dir)
         .status()

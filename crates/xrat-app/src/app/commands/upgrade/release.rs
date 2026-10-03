@@ -1,7 +1,7 @@
 use std::io::Write;
 use std::path::Path;
-use std::process::Command;
 use std::time::Duration;
+use xrat_support::process::Command;
 
 use crate::app::AppError;
 use crate::app::commands::output;
@@ -203,7 +203,23 @@ fn extract_binary(work_dir: &Path, filename: &str) -> crate::app::Result<()> {
 }
 
 fn run_in(dir: &Path, program: &str, args: &[&str], context: &str) -> crate::app::Result<()> {
-    let status = Command::new(program)
+    run_in_with_spawner(
+        dir,
+        program,
+        args,
+        context,
+        std::sync::Arc::new(xrat_support::process::SystemProcessSpawner),
+    )
+}
+
+fn run_in_with_spawner(
+    dir: &Path,
+    program: &str,
+    args: &[&str],
+    context: &str,
+    spawner: std::sync::Arc<dyn xrat_support::process::ProcessSpawner>,
+) -> crate::app::Result<()> {
+    let status = Command::with_spawner(program, spawner.clone())
         .args(args)
         .current_dir(dir)
         .status()

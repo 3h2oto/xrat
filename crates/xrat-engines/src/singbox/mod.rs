@@ -14,4 +14,4 @@ pub use process_mgmt::{
     ManagedSingboxPaths, ManagedSingboxProcess, SingboxRuntimeError, spawn_detached,
 };
 pub use version::SingboxVersionError;
-pub use version::ensure_supported_binary;
+pub use version::{ensure_supported_binary, ensure_supported_binary_with_spawner};

@@ -5,9 +5,9 @@ use super::{
 };
 use std::collections::BTreeMap;
 use std::io::Write;
-use std::process::Command;
 use tempfile::NamedTempFile;
 use xrat_model::{Node, Protocol};
+use xrat_support::process::Command;
 
 #[test]
 fn generates_hy2_singbox_config_with_optional_fields() {

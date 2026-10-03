@@ -57,8 +57,13 @@ impl<'a> RuntimeService<'a> {
             })
             .await?;
 
-        let spawned =
-            spawn_runtime(&launch, &self.context.runtime_paths.runtime_dir, session_id).await;
+        let spawned = spawn_runtime_with_ports(
+            &launch,
+            &self.context.runtime_paths.runtime_dir,
+            session_id,
+            self.process_ports.clone(),
+        )
+        .await;
         let spawned = match spawned {
             Ok(process) => process,
             Err(err) => {

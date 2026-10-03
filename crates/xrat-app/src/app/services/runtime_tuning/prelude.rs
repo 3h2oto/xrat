@@ -3,7 +3,7 @@
 
 pub(crate) use std::net::IpAddr;
 pub(crate) use std::path::Path;
-pub(crate) use std::process::Command;
+pub(crate) use xrat_support::process::Command;
 
 pub(crate) use crate::app::AppError;
 pub(crate) use crate::app::config::{

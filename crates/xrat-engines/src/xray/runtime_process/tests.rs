@@ -1,5 +1,5 @@
-use std::process::{Command, Stdio};
 use std::time::Duration;
+use xrat_support::process::{Command, Stdio};
 
 use super::{TerminationOutcome, process_is_running, terminate_process_gracefully};
 

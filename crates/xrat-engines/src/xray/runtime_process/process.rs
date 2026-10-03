@@ -1,12 +1,10 @@
 use std::fs::File;
 use std::io::{Read, Write};
 use std::path::{Path, PathBuf};
-use std::process::{Command, Stdio};
-use std::time::{Duration, Instant};
+use std::time::Duration;
+use xrat_support::process::{Command, Stdio};
 
 use thiserror::Error;
-use tokio::net::TcpStream;
-use tokio::time::sleep;
 
 use crate::xray::XrayConfig;
 
@@ -47,6 +45,30 @@ pub async fn spawn_detached(
     ready_port: u16,
     startup_timeout: Duration,
 ) -> Result<ManagedXrayProcess, XrayRuntimeError> {
+    spawn_detached_with_ports(
+        binary_path,
+        runtime_dir,
+        session_id,
+        config,
+        ready_host,
+        ready_port,
+        startup_timeout,
+        xrat_support::readiness::RuntimeProcessPorts::default(),
+    )
+    .await
+}
+
+#[allow(clippy::too_many_arguments)]
+pub async fn spawn_detached_with_ports(
+    binary_path: &Path,
+    runtime_dir: &Path,
+    session_id: i64,
+    config: &XrayConfig,
+    ready_host: &str,
+    ready_port: u16,
+    startup_timeout: Duration,
+    ports: xrat_support::readiness::RuntimeProcessPorts,
+) -> Result<ManagedXrayProcess, XrayRuntimeError> {
     std::fs::create_dir_all(runtime_dir)?;
 
     let paths = ManagedXrayPaths {
@@ -61,7 +83,7 @@ pub async fn spawn_detached(
 
     let stdout = File::create(&paths.stdout_path)?;
     let stderr = File::create(&paths.stderr_path)?;
-    let mut command = Command::new(binary_path);
+    let mut command = Command::with_spawner(binary_path, ports.spawner.clone());
     configure_asset_path(&mut command, binary_path);
     let mut child = command
         .arg("run")
@@ -74,7 +96,15 @@ pub async fn spawn_detached(
         .map_err(|error| XrayRuntimeError::Spawn(error.to_string()))?;
 
     let pid = child.id();
-    match wait_for_ready(&mut child, ready_host, ready_port, startup_timeout).await {
+    match wait_for_ready(
+        &mut child,
+        ready_host,
+        ready_port,
+        startup_timeout,
+        ports.waiter.as_ref(),
+    )
+    .await
+    {
         Ok(()) => Ok(ManagedXrayProcess {
             pid,
             ready_port,
@@ -101,54 +131,30 @@ fn configure_asset_path(command: &mut Command, binary_path: &Path) {
 }
 
 async fn wait_for_ready(
-    child: &mut std::process::Child,
+    child: &mut xrat_support::process::Child,
     host: &str,
     port: u16,
     timeout: Duration,
+    waiter: &dyn xrat_support::readiness::PortWaiter,
 ) -> Result<(), XrayRuntimeError> {
-    let start = Instant::now();
-    let check_interval = Duration::from_millis(100);
-    let address = format!("{host}:{port}");
-
-    loop {
-        if let Some(status) = child.try_wait()? {
-            return Err(XrayRuntimeError::ProcessExited(status.to_string()));
-        }
-
-        if TcpStream::connect(&address).await.is_ok() {
-            return Ok(());
-        }
-
-        if start.elapsed() >= timeout {
-            return Err(XrayRuntimeError::StartupTimeout { port });
-        }
-
-        sleep(check_interval).await;
-    }
+    use xrat_support::readiness::{ReadinessError, ReadinessRequest};
+    waiter
+        .wait(child, ReadinessRequest::single(host, port, timeout))
+        .await
+        .map_err(|error| match error {
+            ReadinessError::Io(error) => XrayRuntimeError::Io(error),
+            ReadinessError::ProcessExited(status) => {
+                XrayRuntimeError::ProcessExited(status.to_string())
+            }
+            ReadinessError::Timeout { port } => XrayRuntimeError::StartupTimeout { port },
+        })
 }
 
 pub fn process_is_running(pid: i64) -> bool {
-    if pid <= 0 {
-        return false;
-    }
-
-    #[cfg(unix)]
-    {
-        Command::new("kill")
-            .arg("-0")
-            .arg(pid.to_string())
-            .stdout(Stdio::null())
-            .stderr(Stdio::null())
-            .status()
-            .map(|status| status.success())
-            .unwrap_or(false)
-    }
-
-    #[cfg(not(unix))]
-    {
-        let _ = pid;
-        false
-    }
+    xrat_support::signals::ProcessSignals::is_running(
+        &xrat_support::signals::SystemProcessSignals::default(),
+        pid,
+    )
 }
 
 trait StartupErrorExt {

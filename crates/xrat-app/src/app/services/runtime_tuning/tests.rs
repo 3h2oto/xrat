@@ -54,8 +54,8 @@ fn xray_dns_mapping_preserves_documented_wire_fields() {
 #[test]
 fn singbox_dns_outputs_pass_native_check_for_each_server_type() {
     use std::io::Write;
-    use std::process::Command;
     use tempfile::NamedTempFile;
+    use xrat_support::process::Command;
 
     if Command::new("sing-box").arg("version").output().is_err() {
         return;

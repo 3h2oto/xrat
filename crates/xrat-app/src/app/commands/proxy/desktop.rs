@@ -1,4 +1,4 @@
-use std::process::Command;
+use xrat_support::process::Command;
 
 use crate::app::AppError;
 use crate::app::commands::output;
@@ -225,7 +225,17 @@ fn run_gsettings_batch(commands: &[Vec<String>]) -> crate::app::Result<()> {
 }
 
 fn run_gsettings(args: &[String]) -> crate::app::Result<()> {
-    let status = Command::new("gsettings")
+    run_gsettings_with_spawner(
+        args,
+        std::sync::Arc::new(xrat_support::process::SystemProcessSpawner),
+    )
+}
+
+fn run_gsettings_with_spawner(
+    args: &[String],
+    spawner: std::sync::Arc<dyn xrat_support::process::ProcessSpawner>,
+) -> crate::app::Result<()> {
+    let status = Command::with_spawner("gsettings", spawner.clone())
         .args(args)
         .status()
         .map_err(|err| {
@@ -243,9 +253,19 @@ fn run_gsettings(args: &[String]) -> crate::app::Result<()> {
 }
 
 fn run_gsettings_get(args: &[&str]) -> crate::app::Result<String> {
+    run_gsettings_get_with_spawner(
+        args,
+        std::sync::Arc::new(xrat_support::process::SystemProcessSpawner),
+    )
+}
+
+fn run_gsettings_get_with_spawner(
+    args: &[&str],
+    spawner: std::sync::Arc<dyn xrat_support::process::ProcessSpawner>,
+) -> crate::app::Result<String> {
     let mut full = vec!["get"];
     full.extend_from_slice(args);
-    let output = Command::new("gsettings")
+    let output = Command::with_spawner("gsettings", spawner.clone())
         .args(&full)
         .output()
         .map_err(|err| {
@@ -468,7 +488,18 @@ fn networksetup_set_pac(service: &str, url: &str) -> crate::app::Result<()> {
 
 #[cfg(target_os = "macos")]
 fn run_networksetup(args: &[&str]) -> crate::app::Result<()> {
-    let status = Command::new("networksetup")
+    run_networksetup_with_spawner(
+        args,
+        std::sync::Arc::new(xrat_support::process::SystemProcessSpawner),
+    )
+}
+
+#[cfg(target_os = "macos")]
+fn run_networksetup_with_spawner(
+    args: &[&str],
+    spawner: std::sync::Arc<dyn xrat_support::process::ProcessSpawner>,
+) -> crate::app::Result<()> {
+    let status = Command::with_spawner("networksetup", spawner.clone())
         .args(args)
         .status()
         .map_err(|err| AppError::InvalidArgument(format!("could not run networksetup: {err}")))?;
@@ -483,7 +514,18 @@ fn run_networksetup(args: &[&str]) -> crate::app::Result<()> {
 
 #[cfg(target_os = "macos")]
 fn networksetup_output(args: &[&str]) -> crate::app::Result<String> {
-    let output = Command::new("networksetup")
+    networksetup_output_with_spawner(
+        args,
+        std::sync::Arc::new(xrat_support::process::SystemProcessSpawner),
+    )
+}
+
+#[cfg(target_os = "macos")]
+fn networksetup_output_with_spawner(
+    args: &[&str],
+    spawner: std::sync::Arc<dyn xrat_support::process::ProcessSpawner>,
+) -> crate::app::Result<String> {
+    let output = Command::with_spawner("networksetup", spawner.clone())
         .args(args)
         .output()
         .map_err(|err| AppError::InvalidArgument(format!("could not run networksetup: {err}")))?;

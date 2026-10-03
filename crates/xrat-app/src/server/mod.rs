@@ -92,6 +92,21 @@ pub async fn serve(
     settings: &ServerSettings,
     routing: &RoutingSettings,
 ) -> crate::app::Result<()> {
+    serve_with_signal(
+        db,
+        settings,
+        routing,
+        std::sync::Arc::new(xrat_support::signals::CtrlCShutdown),
+    )
+    .await
+}
+
+pub async fn serve_with_signal(
+    db: Database,
+    settings: &ServerSettings,
+    routing: &RoutingSettings,
+    signal: std::sync::Arc<dyn xrat_support::signals::ShutdownSignal>,
+) -> crate::app::Result<()> {
     let state = ServerState::from_settings(db, settings, routing)?;
     let addr = parse_bind_addr(&settings.host, settings.port)?;
     let router = build_router(state);
@@ -99,8 +114,8 @@ pub async fn serve(
 
     tracing::info!(%addr, "HTTP API server listening");
     axum::serve(listener, router)
-        .with_graceful_shutdown(async {
-            if let Err(err) = tokio::signal::ctrl_c().await {
+        .with_graceful_shutdown(async move {
+            if let Err(err) = signal.wait().await {
                 tracing::warn!(error = %err, "failed to listen for shutdown signal");
             }
             tracing::info!("HTTP API server shutting down");

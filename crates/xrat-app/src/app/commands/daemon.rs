@@ -3,8 +3,8 @@ use crate::app::commands::output;
 use crate::app::context::AppContext;
 use crate::app::daemon::{ipc, supervisor};
 use crate::cli::{DaemonAction, DaemonArgs};
-use std::process::Stdio;
 use tokio::time::{Duration, sleep};
+use xrat_support::process::Stdio;
 
 pub async fn run(context: &AppContext, args: &DaemonArgs) -> crate::app::Result<()> {
     let socket_path = ipc::default_socket_path(&context.runtime_paths.runtime_dir);
@@ -255,6 +255,16 @@ fn should_record_daemon_started(socket_already_active: bool) -> bool {
 }
 
 fn spawn_detached_daemon(context: &AppContext) -> crate::app::Result<()> {
+    spawn_detached_daemon_with_spawner(
+        context,
+        std::sync::Arc::new(xrat_support::process::SystemProcessSpawner),
+    )
+}
+
+fn spawn_detached_daemon_with_spawner(
+    context: &AppContext,
+    spawner: std::sync::Arc<dyn xrat_support::process::ProcessSpawner>,
+) -> crate::app::Result<()> {
     let current_exe = std::env::current_exe()?;
     let runtime_dir = &context.runtime_paths.runtime_dir;
     std::fs::create_dir_all(runtime_dir)?;
@@ -265,7 +275,7 @@ fn spawn_detached_daemon(context: &AppContext) -> crate::app::Result<()> {
         .open(&log_path)?;
     let stderr_log = stdout_log.try_clone()?;
 
-    let mut command = std::process::Command::new(current_exe);
+    let mut command = xrat_support::process::Command::with_spawner(current_exe, spawner.clone());
     command
         .arg("--config")
         .arg(&context.runtime_paths.config_path)

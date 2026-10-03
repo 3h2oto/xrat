@@ -6,6 +6,23 @@ pub(super) async fn run_ping_loop(
     settings: ResolvedTestSettings,
     config_id: ConfigId,
 ) -> crate::app::Result<()> {
+    run_ping_loop_with_signal(
+        args,
+        context,
+        settings,
+        config_id,
+        &xrat_support::signals::CtrlCShutdown,
+    )
+    .await
+}
+
+pub(super) async fn run_ping_loop_with_signal(
+    args: &TestArgs,
+    context: &AppContext,
+    settings: ResolvedTestSettings,
+    config_id: ConfigId,
+    signal: &dyn xrat_support::signals::ShutdownSignal,
+) -> crate::app::Result<()> {
     let config = context
         .db
         .get_config_by_id(config_id)
@@ -32,7 +49,7 @@ pub(super) async fn run_ping_loop(
 
     loop {
         tokio::select! {
-            _ = tokio::signal::ctrl_c() => {
+            _ = signal.wait() => {
                 break;
             }
             _ = ticker.tick() => {

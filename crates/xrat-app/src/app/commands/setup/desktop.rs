@@ -144,21 +144,38 @@ fn install_icons(data: &std::path::Path) -> Result<(), String> {
 
 #[cfg(target_os = "linux")]
 fn refresh_caches(apps_dir: &std::path::Path, data: &std::path::Path) {
+    refresh_caches_with_spawner(
+        apps_dir,
+        data,
+        std::sync::Arc::new(xrat_support::process::SystemProcessSpawner),
+    )
+}
+
+#[cfg(target_os = "linux")]
+fn refresh_caches_with_spawner(
+    apps_dir: &std::path::Path,
+    data: &std::path::Path,
+    spawner: std::sync::Arc<dyn xrat_support::process::ProcessSpawner>,
+) {
     use xrat_support::platform;
     if platform::binary_on_path("update-desktop-database").is_some() {
-        let _ = std::process::Command::new("update-desktop-database")
-            .arg(apps_dir)
-            .stdout(std::process::Stdio::null())
-            .stderr(std::process::Stdio::null())
-            .status();
+        let _ = xrat_support::process::Command::with_spawner(
+            "update-desktop-database",
+            spawner.clone(),
+        )
+        .arg(apps_dir)
+        .stdout(xrat_support::process::Stdio::null())
+        .stderr(xrat_support::process::Stdio::null())
+        .status();
     }
     if platform::binary_on_path("gtk-update-icon-cache").is_some() {
-        let _ = std::process::Command::new("gtk-update-icon-cache")
-            .args(["-f", "-t"])
-            .arg(data.join("icons").join("hicolor"))
-            .stdout(std::process::Stdio::null())
-            .stderr(std::process::Stdio::null())
-            .status();
+        let _ =
+            xrat_support::process::Command::with_spawner("gtk-update-icon-cache", spawner.clone())
+                .args(["-f", "-t"])
+                .arg(data.join("icons").join("hicolor"))
+                .stdout(xrat_support::process::Stdio::null())
+                .stderr(xrat_support::process::Stdio::null())
+                .status();
     }
 }
 

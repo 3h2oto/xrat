@@ -1,11 +1,9 @@
 use std::io::{Read, Write};
 use std::path::{Path, PathBuf};
-use std::process::{Child, Command, Stdio};
-use std::time::{Duration, Instant};
+use std::time::Duration;
+use xrat_support::process::{Child, Command, Stdio};
 
 use tempfile::NamedTempFile;
-use tokio::net::TcpStream;
-use tokio::time::sleep;
 
 use super::super::config::XrayConfig;
 use super::errors::XrayProcessError;
@@ -29,6 +27,21 @@ impl XrayProcess {
         config: &XrayConfig,
         startup_timeout: Duration,
     ) -> Result<Self, XrayProcessError> {
+        Self::spawn_with_binary_with_ports(
+            binary_path,
+            config,
+            startup_timeout,
+            xrat_support::readiness::RuntimeProcessPorts::default(),
+        )
+        .await
+    }
+
+    pub async fn spawn_with_binary_with_ports(
+        binary_path: &Path,
+        config: &XrayConfig,
+        startup_timeout: Duration,
+        ports: xrat_support::readiness::RuntimeProcessPorts,
+    ) -> Result<Self, XrayProcessError> {
         let mut temp_file = tempfile::Builder::new().suffix(".json").tempfile()?;
         let config_json = serde_json::to_string_pretty(config)?;
         temp_file.write_all(config_json.as_bytes())?;
@@ -41,7 +54,7 @@ impl XrayProcess {
             .map(|inbound| inbound.port)
             .unwrap_or(0);
 
-        let mut command = Command::new(binary_path);
+        let mut command = Command::with_spawner(binary_path, ports.spawner.clone());
         configure_asset_path(&mut command, binary_path);
         let child = command
             .arg("run")
@@ -58,29 +71,29 @@ impl XrayProcess {
             config_file: temp_file,
             local_port,
         };
-        process.wait_for_ready(startup_timeout).await?;
+        process
+            .wait_for_ready(startup_timeout, ports.waiter.as_ref())
+            .await?;
         Ok(process)
     }
 
-    async fn wait_for_ready(&mut self, timeout: Duration) -> Result<(), XrayProcessError> {
-        let start = Instant::now();
-        let check_interval = Duration::from_millis(100);
-
-        loop {
-            if let Ok(Some(_)) = self.child.try_wait() {
-                return Err(XrayProcessError::ProcessExited(self.read_stderr()));
+    async fn wait_for_ready(
+        &mut self,
+        timeout: Duration,
+        waiter: &dyn xrat_support::readiness::PortWaiter,
+    ) -> Result<(), XrayProcessError> {
+        use xrat_support::readiness::{ChildPollErrorPolicy, ReadinessError, ReadinessRequest};
+        let mut request = ReadinessRequest::single("127.0.0.1", self.local_port, timeout);
+        request.child_errors = ChildPollErrorPolicy::Ignore;
+        match waiter.wait(&mut self.child, request).await {
+            Ok(()) => Ok(()),
+            Err(ReadinessError::ProcessExited(_)) => {
+                Err(XrayProcessError::ProcessExited(self.read_stderr()))
             }
-            if TcpStream::connect(format!("127.0.0.1:{}", self.local_port))
-                .await
-                .is_ok()
-            {
-                return Ok(());
-            }
-            if start.elapsed() >= timeout {
+            Err(_) => {
                 let _ = self.child.kill();
-                return Err(XrayProcessError::PortNotReady(self.local_port));
+                Err(XrayProcessError::PortNotReady(self.local_port))
             }
-            sleep(check_interval).await;
         }
     }
 

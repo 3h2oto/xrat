@@ -1,5 +1,5 @@
 use std::path::Path;
-use std::process::{Command, Stdio};
+use xrat_support::process::{Command, Stdio};
 
 use semver::Version;
 use thiserror::Error;
@@ -25,7 +25,17 @@ const MINIMUM_VERSION: Version = Version::new(1, 13, 0);
 const TESTED_RANGE: &str = ">=1.13.0, <1.15.0";
 
 pub fn ensure_supported_binary(binary_path: &Path) -> Result<Version, SingboxVersionError> {
-    let output = Command::new(binary_path)
+    ensure_supported_binary_with_spawner(
+        binary_path,
+        std::sync::Arc::new(xrat_support::process::SystemProcessSpawner),
+    )
+}
+
+pub fn ensure_supported_binary_with_spawner(
+    binary_path: &Path,
+    spawner: std::sync::Arc<dyn xrat_support::process::ProcessSpawner>,
+) -> Result<Version, SingboxVersionError> {
+    let output = Command::with_spawner(binary_path, spawner.clone())
         .args(["version", "--name"])
         .stdin(Stdio::null())
         .output()

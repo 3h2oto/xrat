@@ -1,20 +1,21 @@
 use super::*;
 use std::io::Write;
-use std::process::{Command, Stdio};
+use xrat_support::process::{Command, Stdio};
 
 pub(super) struct SpawnedRuntime {
     pub(super) pid: u32,
     pub(super) config_path: PathBuf,
 }
 
-pub(super) async fn spawn_runtime(
+pub(super) async fn spawn_runtime_with_ports(
     launch: &ResolvedLaunch,
     runtime_dir: &std::path::Path,
     session_id: i64,
+    ports: xrat_support::readiness::RuntimeProcessPorts,
 ) -> crate::app::Result<SpawnedRuntime> {
     match &launch.config {
         RuntimeLaunchConfig::Xray(config) => {
-            let process = xray_runtime::spawn_detached(
+            let process = xray_runtime::spawn_detached_with_ports(
                 &launch.binary_path,
                 runtime_dir,
                 session_id,
@@ -22,6 +23,7 @@ pub(super) async fn spawn_runtime(
                 &launch.ready_host,
                 launch.ready_port,
                 Duration::from_millis(defaults::DEFAULT_XRAY_STARTUP_TIMEOUT_MS),
+                ports,
             )
             .await?;
             Ok(SpawnedRuntime {
@@ -30,7 +32,7 @@ pub(super) async fn spawn_runtime(
             })
         }
         RuntimeLaunchConfig::Singbox(config) => {
-            let process = singbox_runtime::spawn_detached(
+            let process = singbox_runtime::spawn_detached_with_ports(
                 &launch.binary_path,
                 runtime_dir,
                 session_id,
@@ -38,6 +40,7 @@ pub(super) async fn spawn_runtime(
                 &launch.ready_host,
                 launch.ready_port,
                 Duration::from_millis(defaults::DEFAULT_XRAY_STARTUP_TIMEOUT_MS),
+                ports,
             )
             .await?;
             Ok(SpawnedRuntime {
@@ -48,12 +51,28 @@ pub(super) async fn spawn_runtime(
     }
 }
 
+#[cfg(test)]
 pub(super) fn preflight_runtime(
     launch: &ResolvedLaunch,
     runtime_dir: &std::path::Path,
 ) -> crate::app::Result<()> {
+    preflight_runtime_with_spawner(
+        launch,
+        runtime_dir,
+        std::sync::Arc::new(xrat_support::process::SystemProcessSpawner),
+    )
+}
+
+pub(super) fn preflight_runtime_with_spawner(
+    launch: &ResolvedLaunch,
+    runtime_dir: &std::path::Path,
+    spawner: std::sync::Arc<dyn xrat_support::process::ProcessSpawner>,
+) -> crate::app::Result<()> {
     if matches!(launch.validator, RuntimeValidator::Singbox) {
-        xrat_engines::singbox::ensure_supported_binary(&launch.binary_path)?;
+        xrat_engines::singbox::ensure_supported_binary_with_spawner(
+            &launch.binary_path,
+            spawner.clone(),
+        )?;
     }
     std::fs::create_dir_all(runtime_dir)?;
     let mut temporary = tempfile::Builder::new()
@@ -70,7 +89,7 @@ pub(super) fn preflight_runtime(
     }
     temporary.as_file_mut().flush()?;
     let path = temporary.path();
-    let mut command = Command::new(&launch.binary_path);
+    let mut command = Command::with_spawner(&launch.binary_path, spawner.clone());
     if let Some(directory) = xrat_support::platform::managed_core_asset_dir(&launch.binary_path) {
         let variable = match launch.validator {
             RuntimeValidator::V2ray => "V2RAY_LOCATION_ASSET",

@@ -6,27 +6,38 @@ pub struct ProcessRuntimeEngineProbe;
 #[async_trait::async_trait]
 impl RuntimeEngineProbe for ProcessRuntimeEngineProbe {
     async fn probe(&self, name: &'static str, path: &Path) -> crate::app::Result<EngineInfo> {
-        let command = tokio::process::Command::new(path)
-            .arg("version")
-            .kill_on_drop(true)
-            .output();
-        let output = tokio::time::timeout(std::time::Duration::from_secs(2), command)
-            .await
-            .map_err(|_| {
-                crate::app::AppError::InvalidArgument(format!("{name} version probe timed out"))
-            })??;
-        if !output.status.success() {
-            return Err(crate::app::AppError::InvalidArgument(format!(
-                "{name} version probe failed: {}",
-                output.status
-            )));
-        }
-        Ok(EngineInfo {
+        probe_with_spawner(
             name,
-            available: true,
-            version: parse_engine_version(&String::from_utf8_lossy(&output.stdout)),
-        })
+            path,
+            std::sync::Arc::new(xrat_support::process::SystemProcessSpawner),
+        )
+        .await
     }
+}
+
+pub async fn probe_with_spawner(
+    name: &'static str,
+    path: &Path,
+    spawner: std::sync::Arc<dyn xrat_support::process::ProcessSpawner>,
+) -> crate::app::Result<EngineInfo> {
+    let mut command = xrat_support::process::Command::with_spawner(path, spawner);
+    command.arg("version").kill_on_drop(true);
+    let output = tokio::time::timeout(std::time::Duration::from_secs(2), command.output_async())
+        .await
+        .map_err(|_| {
+            crate::app::AppError::InvalidArgument(format!("{name} version probe timed out"))
+        })??;
+    if !output.status.success() {
+        return Err(crate::app::AppError::InvalidArgument(format!(
+            "{name} version probe failed: {}",
+            output.status
+        )));
+    }
+    Ok(EngineInfo {
+        name,
+        available: true,
+        version: parse_engine_version(&String::from_utf8_lossy(&output.stdout)),
+    })
 }
 
 fn parse_engine_version(text: &str) -> Option<String> {

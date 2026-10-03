@@ -36,10 +36,22 @@ pub(crate) fn detect_xray_compatibility(
     policy: XrayCompatibilityPolicy,
     binary_path: &Path,
 ) -> XrayCompatibilityTarget {
+    detect_xray_compatibility_with_spawner(
+        policy,
+        binary_path,
+        std::sync::Arc::new(xrat_support::process::SystemProcessSpawner),
+    )
+}
+
+pub(crate) fn detect_xray_compatibility_with_spawner(
+    policy: XrayCompatibilityPolicy,
+    binary_path: &Path,
+    spawner: std::sync::Arc<dyn xrat_support::process::ProcessSpawner>,
+) -> XrayCompatibilityTarget {
     match policy {
         XrayCompatibilityPolicy::Stable => XrayCompatibilityTarget::StableV26_3_27,
         XrayCompatibilityPolicy::Prerelease => XrayCompatibilityTarget::PrereleaseV26_7_28,
-        XrayCompatibilityPolicy::Auto => Command::new(binary_path)
+        XrayCompatibilityPolicy::Auto => Command::with_spawner(binary_path, spawner.clone())
             .arg("version")
             .output()
             .ok()

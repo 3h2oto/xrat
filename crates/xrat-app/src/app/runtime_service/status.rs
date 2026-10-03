@@ -9,9 +9,14 @@ impl<'a> RuntimeService<'a> {
             None => None,
         };
         let active_config = self.context.db.get_active_config().await?;
-        let pid_running = latest.as_ref().is_some_and(runtime_session_is_alive);
+        let pid_running = latest.as_ref().is_some_and(|session| {
+            runtime_session_is_alive(session, self.process_ports.signals.as_ref())
+        });
         let inbound_health = match &latest {
-            Some(session) => check_runtime_inbounds(session, pid_running).await,
+            Some(session) => {
+                check_runtime_inbounds(session, pid_running, self.process_ports.connector.as_ref())
+                    .await
+            }
             None => RuntimeInboundHealth::default(),
         };
         let status = runtime_status_label(&latest, &active_state, pid_running, &inbound_health);
@@ -28,6 +33,6 @@ impl<'a> RuntimeService<'a> {
     }
 
     pub async fn active_session_state(&self) -> crate::app::Result<ActiveSessionState> {
-        active_session_state(self.context).await
+        active_session_state(self.context, self.process_ports.signals.as_ref()).await
     }
 }
