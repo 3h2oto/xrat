@@ -4,11 +4,13 @@ title: Define the managed SSH tunnel contract and security model
 status: To Do
 assignee: []
 created_date: '2026-09-02 11:02'
+updated_date: '2026-10-03 09:37'
 labels:
   - ssh
   - security
   - protocols
   - architecture
+milestone: m-8
 dependencies:
   - TASK-107
 references:
@@ -55,6 +57,14 @@ The initial capability should target SSH dynamic forwarding as a general SOCKS u
 - [ ] #6 Platform support and behavior when OpenSSH or required agent/key material is unavailable are documented
 - [ ] #7 Review-sized implementation follow-ups and migration implications are confirmed before this task is finalized
 <!-- AC:END -->
+
+## Implementation Notes
+
+<!-- SECTION:NOTES:BEGIN -->
+### Cross-engine JSON comparison (research only, 2026-10-03)
+For Xray/V2Ray the planned SSH implementation is a supervised external dynamic-forward process plus a generated SOCKS outbound: protocol="socks", settings.servers=[{"address":"127.0.0.1","port":OWNED_PORT}]. SSH identity/host-key policy is helper/client state, not a native Xray SSH JSON object.
+sing-box comparison: type="ssh", server/server_port/user/private_key or private_key_path and host_key; this native backend is not implicitly added to the current helper task. Native SSH is TCP-only; dynamic forwarding also does not provide ordinary UDP tunneling. Require explicit capability errors and host verification. [sing-box SSH](https://sing-box.sagernet.org/configuration/outbound/ssh/); see doc-1.
+<!-- SECTION:NOTES:END -->
 
 ## Definition of Done
 <!-- DOD:BEGIN -->

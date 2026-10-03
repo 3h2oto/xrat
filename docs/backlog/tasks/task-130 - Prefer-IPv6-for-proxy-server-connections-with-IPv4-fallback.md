@@ -4,10 +4,12 @@ title: Prefer IPv6 for proxy-server connections with IPv4 fallback
 status: To Do
 assignee: []
 created_date: '2026-10-02 19:17'
+updated_date: '2026-10-03 09:37'
 labels:
   - feature
   - network
   - runtime
+milestone: m-8
 dependencies: []
 references:
   - 'https://xtls.github.io/en/config/transports/sockopt.html'
@@ -34,6 +36,23 @@ Add an opt-in connection address-family preference for proxy server hostnames: t
 - [ ] #5 Regression tests cover generated engine configuration and real local dialing/fallback behavior; just fmt ci passes.
 - [ ] #6 Configuration reference and editor help explain IPv6 preference, IPv4 fallback, defaults, DNS interactions, and engine compatibility.
 <!-- AC:END -->
+
+## Implementation Notes
+
+<!-- SECTION:NOTES:BEGIN -->
+### Runtime parity research (2026-10-03; no implementation)
+V2rayNG exposes Prefer IPv6 separately from VPN IPv6 capture; v2rayN now exposes Happy Eyeballs controls. This task remains High priority.
+
+| Engine | Candidate JSON / required proof |
+|---|---|
+| Xray | Proxy egress streamSettings.sockopt: {"domainStrategy":"UseIP","happyEyeballs":{"prioritizeIPv6":true,"tryDelayMs":250,"interleave":1,"maxConcurrentTry":4}}. Native validation against supported binaries is required. |
+| V2Ray | The consulted current socketcfg schema has no Xray happyEyeballs/domainStrategy fields. Do not copy them. Establish a compatible native dial policy or a supervised/address-selection mechanism preserving original SNI/Host; unsupported builds must fail clearly. |
+| sing-box | For the supported 1.13 family, candidate proxy outbound.domain_resolver={"server":"bootstrap","strategy":"prefer_ipv6"}; resolver contains both families. Pin actual dialing behavior with dual-stack integration tests. Legacy domain_strategy is deprecated since 1.12 and removed in 1.14. |
+
+Xray UseIPv6v4 falls back after DNS failure/empty answers, not after an IPv6 connection fails. Its Happy Eyeballs is TCP-only and cannot take effect on an outbound with dialerProxy; apply policy at the real egress and test existing fragment helpers/chains. UDP/QUIC failure fallback requires a distinct supported mechanism or explicit limitation. sing-box fallback_delay/network_strategy documentation restricts these controls to integrated graphical clients on Android/Apple; do not assume they are usable in XRAT desktop. DNS restriction UseIPv6 is still not this feature.
+
+Sources: [v2rayNG settings](https://raw.githubusercontent.com/2dust/v2rayNG/master/V2rayNG/app/src/main/res/values/strings.xml), [v2rayN model](https://raw.githubusercontent.com/2dust/v2rayN/master/v2rayN/ServiceLib/Models/Configs/ConfigItems.cs), [Xray socket options](https://xtls.github.io/en/config/transports/sockopt.html), [V2Ray socket schema](https://raw.githubusercontent.com/v2fly/v2ray-core/master/infra/conf/cfgcommon/socketcfg/socket.go), [sing-box dial](https://sing-box.sagernet.org/configuration/shared/dial/). Related: TASK-135, TASK-139, doc-1.
+<!-- SECTION:NOTES:END -->
 
 ## Definition of Done
 <!-- DOD:BEGIN -->

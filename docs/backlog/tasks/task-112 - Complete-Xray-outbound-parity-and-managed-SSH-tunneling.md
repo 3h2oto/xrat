@@ -4,13 +4,14 @@ title: Complete Xray outbound parity and managed SSH tunneling
 status: To Do
 assignee: []
 created_date: '2026-09-02 10:59'
-updated_date: '2026-09-02 11:00'
+updated_date: '2026-10-03 09:37'
 labels:
   - protocols
   - xray
   - ssh
   - runtime
   - initiative
+milestone: m-8
 dependencies: []
 references:
   - 'https://xtls.github.io/en/config/outbounds/'
@@ -49,6 +50,22 @@ Scope rule: schema deserialization alone does not count as support. A protocol i
 - [ ] #3 Unsupported or lossy inputs fail before process launch with actionable errors
 - [ ] #4 Protocol work updates user documentation and passes focused tests plus just fmt ci
 <!-- AC:END -->
+
+## Implementation Notes
+
+<!-- SECTION:NOTES:BEGIN -->
+### Runtime parity research (2026-10-03; no implementation)
+This initiative contributes existing protocol gaps to m-8. Native Xray Hysteria2 generation already exists (archived TASK-112.2 is Done); do not reopen or duplicate it. Preserve existing children's Xray/managed-SSH scope. Cross-engine mappings below are comparison documentation, not automatic expansion to unsupported engines.
+
+| Capability | Xray | V2Ray | sing-box |
+|---|---|---|---|
+| WireGuard/WARP recipe | protocol=wireguard, settings.secretKey/address/peers | No native equivalent established in the consulted outbound catalog; explicit helper/backend decision needed | Modern endpoints[].type=wireguard, address/private_key/peers (1.11+); legacy outbound removed in modern versions |
+| Managed SSH | Supervised SSH -D helper plus protocol=socks settings.servers targeting owned localhost listener | Same helper/SOCKS design for supported core | Native type=ssh with server/server_port/user/private_key/host_key, or explicit helper; host verification and TCP-only limitations must be documented |
+| DNS outbound | protocol=dns with settings and routing to its tag | Native protocol=dns also documented | Modern route.rules action=hijack-dns plus typed DNS servers, not removed DNS outbound |
+| Loopback | protocol=loopback, settings.inboundTag for bounded routing re-entry | Native loopback similarly documented, validate version | No proven equivalent outbound; cannot substitute detour, which chains rather than re-enters routing |
+
+WARP is configured WireGuard plus optional chaining, not automatic Cloudflare account provisioning. TASK-107 retains TUIC/ShadowTLS/AnyTLS scope decisions in m-7. [Xray outbounds](https://xtls.github.io/en/config/outbounds/), [sing-box WireGuard](https://sing-box.sagernet.org/configuration/endpoint/wireguard/), [sing-box SSH](https://sing-box.sagernet.org/configuration/outbound/ssh/), [V2Fly catalog](https://www.v2fly.org/en_US/config/outbounds.html); see doc-1.
+<!-- SECTION:NOTES:END -->
 
 ## Definition of Done
 <!-- DOD:BEGIN -->
