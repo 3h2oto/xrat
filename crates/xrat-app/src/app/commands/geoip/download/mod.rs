@@ -13,17 +13,5 @@ use crate::cli::GeoIpDownloadArgs;
 use executor::execute_downloads;
 use request::DownloadRequest;
 
-pub(crate) async fn run(context: &AppContext, args: &GeoIpDownloadArgs) -> crate::app::Result<()> {
-    let request = DownloadRequest::from_cli(context, args)?;
-    let summary = execute_downloads(&request).await;
-    summary.print();
-
-    if !summary.failed.is_empty() {
-        return Err(AppError::InvalidArgument(format!(
-            "one or more MMDB downloads failed: {}",
-            summary.format_failure_details()
-        )));
-    }
-
-    Ok(())
-}
+mod transfer;
+pub(crate) use transfer::run;

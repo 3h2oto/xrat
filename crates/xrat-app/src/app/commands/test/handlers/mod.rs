@@ -6,27 +6,8 @@ mod summary;
 
 pub use run::run;
 
-pub(super) async fn run_ping_loop(
-    args: &TestArgs,
-    context: &AppContext,
-    settings: ResolvedTestSettings,
-    config_id: ConfigId,
-) -> crate::app::Result<()> {
-    ping::run_ping_loop(args, context, settings, config_id).await
-}
-
-pub(super) async fn print_latest_run_summary(
-    db: &Database,
-    args: &TestArgs,
-) -> crate::app::Result<()> {
-    summary::print_latest_run_summary(db, args).await
-}
-
+mod dispatch;
 #[cfg(test)]
-pub(crate) fn filter_latest_run_rows(
-    rows: Vec<xrat_db::ConnectionTestRecord>,
-    country: Option<&str>,
-    asn: Option<&str>,
-) -> Vec<xrat_db::ConnectionTestRecord> {
-    summary::filter_latest_run_rows(rows, country, asn)
-}
+pub(crate) use dispatch::filter_latest_run_rows;
+pub(super) use dispatch::print_latest_run_summary;
+pub(super) use dispatch::run_ping_loop;

@@ -1,0 +1,36 @@
+use super::*;
+
+#[derive(Clone, Debug, Default, Deserialize, PartialEq, Eq)]
+#[serde(default)]
+pub struct AppConfig {
+    pub paths: PathSettings,
+    pub database: DatabaseSettings,
+    pub runtime: RuntimeSettings,
+    pub subscriptions: SubscriptionSettings,
+    pub routing: RoutingSettings,
+    pub geo: GeoSettings,
+    pub mmdb: MmdbSettings,
+    pub dns: DnsSettings,
+    pub parser: ParserSettings,
+    pub testing: TestingSettings,
+    pub server: ServerSettings,
+}
+
+pub fn load(config_path: &Path) -> crate::app::Result<AppConfig> {
+    let contents = std::fs::read_to_string(config_path)?;
+    let config = toml::from_str(&contents)?;
+
+    Ok(config)
+}
+
+pub fn resolve_config_path(base_path: &Path, configured_path: &Path) -> PathBuf {
+    if configured_path.is_absolute() {
+        return configured_path.to_path_buf();
+    }
+
+    base_path
+        .parent()
+        .filter(|parent| !parent.as_os_str().is_empty())
+        .unwrap_or_else(|| Path::new("."))
+        .join(configured_path)
+}

@@ -15,22 +15,5 @@ pub use runtime::{
     runtime_status_error_response, runtime_status_response,
 };
 
-fn ok_response<T>(message: &str, payload: T) -> DaemonResponse<T> {
-    DaemonResponse {
-        protocol_version: PROTOCOL_VERSION,
-        ok: true,
-        code: DaemonResponseCode::Ok,
-        message: message.to_string(),
-        payload: Some(payload),
-    }
-}
-
-fn error_response<T>(code: DaemonResponseCode, message: String) -> DaemonResponse<T> {
-    DaemonResponse {
-        protocol_version: PROTOCOL_VERSION,
-        ok: false,
-        code,
-        message,
-        payload: None,
-    }
-}
+mod builders;
+use builders::*;
