@@ -105,6 +105,10 @@ responsible for.
 Use Rust’s built-in test framework with `#[test]` and `#[tokio::test]`.
 
 - Keep tests close to the code they validate.
+- Keep `mod.rs` files declarative: module declarations, imports, and re-exports
+  belong there; put implementation in named sibling files.
+- Move large inline test modules into a nearby `tests.rs` (typically around
+  80 lines or more). Small inline tests may stay with the implementation.
 - Prefer focused unit tests for parser/config normalization, CLI parsing, DB
   repositories, and runtime lifecycle transitions.
 - Add regression tests when fixing parsing, dedup, scanner, or runtime-session
