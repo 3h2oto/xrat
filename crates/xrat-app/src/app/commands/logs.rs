@@ -163,10 +163,12 @@ async fn follow_with_signal(
         limit: 0,
         ..filter.clone()
     };
+    let shutdown = signal.wait();
+    tokio::pin!(shutdown);
 
     loop {
         tokio::select! {
-            _ = signal.wait() => {
+            _ = &mut shutdown => {
                 return Ok(());
             }
             _ = ticker.tick() => {
@@ -582,4 +584,53 @@ async fn read_from(path: &Path, offset: u64) -> crate::app::Result<(Vec<String>,
         .map(|line| line.to_string())
         .collect::<Vec<_>>();
     Ok((lines, len))
+}
+
+#[cfg(test)]
+mod shutdown_tests {
+    use super::*;
+    use crate::app::tests::{TestAppBuilder, signals::FixtureShutdown};
+    use std::sync::atomic::Ordering;
+
+    #[tokio::test]
+    async fn injected_shutdown_and_registration_failure_end_log_follow() {
+        for fail in [false, true] {
+            let (context, _root) = TestAppBuilder::new("logs-shutdown").build_with_root().await;
+            let args = LogsArgs {
+                command: None,
+                follow: true,
+                lines: 10,
+                source: LogSource::App,
+                level: None,
+                format: ListFormat::Table,
+            };
+            let feeds = Feeds {
+                events: true,
+                files: Vec::new(),
+            };
+            let filter = EventFilter::default();
+            let signal = FixtureShutdown {
+                fail,
+                ..Default::default()
+            };
+            let follow = follow_with_signal(&context, &args, &feeds, &filter, &signal);
+            tokio::pin!(follow);
+            tokio::select! {
+                _ = signal.registered.notified() => {},
+                result = &mut follow => panic!("follow stopped before signal: {result:?}"),
+                _ = tokio::time::sleep(Duration::from_secs(2)) => panic!("shutdown was not registered"),
+            }
+            // Keep the consumer alive across a poll to check registration is not recreated.
+            tokio::select! {
+                _ = tokio::time::sleep(Duration::from_millis(550)) => {},
+                result = &mut follow => panic!("follow stopped before signal: {result:?}"),
+            }
+            signal.shutdown.notify_one();
+            tokio::time::timeout(Duration::from_secs(2), follow)
+                .await
+                .unwrap()
+                .unwrap();
+            assert_eq!(signal.calls.load(Ordering::SeqCst), 1);
+        }
+    }
 }

@@ -5,6 +5,7 @@
 //! temp root, SQLite config, and `RuntimePaths` in each module.
 
 pub mod fixtures;
+pub(crate) mod signals;
 
 use std::sync::atomic::{AtomicU16, Ordering};
 

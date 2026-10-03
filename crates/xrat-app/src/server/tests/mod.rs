@@ -8,6 +8,7 @@ pub(super) mod routes_configs;
 pub(super) mod routes_health;
 pub(super) mod routes_json;
 pub(super) mod routes_pac;
+mod shutdown;
 
 pub(super) async fn multi_config_state(api_key: Option<&str>, count: usize) -> ServerState {
     let db = Database::connect(&DatabaseConnectionConfig::Sqlite {
