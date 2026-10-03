@@ -1,11 +1,11 @@
 ---
 id: TASK-35
 title: Add Process Spawner Port
-status: In Progress
+status: Done
 assignee:
   - codex
 created_date: '2026-07-05 14:43'
-updated_date: '2026-10-03 08:04'
+updated_date: '2026-10-03 08:42'
 labels:
   - legacy-import
   - improvement
@@ -81,10 +81,10 @@ three into a single `RuntimeProcessManager` port.
 
 ## Acceptance Criteria
 <!-- AC:BEGIN -->
-- [ ] #1 All external command execution is confined to shared process adapters
-- [ ] #2 Engine and host process use cases accept injected command execution and child handles
-- [ ] #3 Stdio, arguments, environment, ownership and bounded probe behavior remain compatible
-- [ ] #4 Fake lifecycle and real local-child tests plus workspace gates pass
+- [x] #1 All external command execution is confined to shared process adapters
+- [x] #2 Engine and host process use cases accept injected command execution and child handles
+- [x] #3 Stdio, arguments, environment, ownership and bounded probe behavior remain compatible
+- [x] #4 Fake lifecycle and real local-child tests plus workspace gates pass
 <!-- AC:END -->
 
 ## Implementation Plan
@@ -97,4 +97,12 @@ Add typed CommandSpec, ProcessSpawner and child handle in xrat-support with sync
 
 <!-- SECTION:NOTES:BEGIN -->
 Implementation committed in 3eba21f; DNS/ICMP consumers follow in the next source commit. Shared typed commands, fake child handles, sync/async adapters and runtime startup/status/stop injection are present. CARGO_INCREMENTAL=0 just fmt ci passed: strict workspace Clippy, formatting, 916 Rust tests and 3 Python tests. Remains In Progress pending nested consumer dependency review, full fake RuntimeService lifecycle coverage and cancellation regression coverage.
+
+Completed consumer dependency audit and regressions in ccdd6c4. Daemon install/uninstall, source-upgrade migrations and linger probes retain injected spawners; managed startup owns children until readiness succeeds. Reproduced a zombie after async cancellation and fixed explicit background reaping while preserving kill-on-drop=false. Tests cover both engine families, full fake RuntimeService preflight/start/status/stop and failed-session cleanup, startup cancellation, missing binaries, early exit, captured output and real local-child kill/reap behavior. CARGO_INCREMENTAL=0 just fmt ci passed: strict workspace Clippy, formatting, 939 Rust tests and 3 Python tests. cargo package --list passed for support, engines, prober and app; this checks package contents, not published-crate builds. Native Linux verified; non-Linux branches retain cfg gates and received source review, not native execution.
 <!-- SECTION:NOTES:END -->
+
+## Final Summary
+
+<!-- SECTION:FINAL_SUMMARY:BEGIN -->
+External commands use shared typed process adapters. Injected dependencies survive runtime and host command orchestration; cancellation kills/reaps owned children and preserves successful managed detachment. Completed in ccdd6c4 with full workspace gates passing.
+<!-- SECTION:FINAL_SUMMARY:END -->
