@@ -6,6 +6,8 @@ use super::FailureKind;
 
 mod parsing;
 
+#[cfg(all(test, unix))]
+mod port_tests;
 #[cfg(test)]
 mod tests;
 

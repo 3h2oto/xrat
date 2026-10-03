@@ -26,6 +26,28 @@ mod tests {
         }
     }
     struct FakeConnector(Mutex<Vec<String>>);
+    struct FailedDns(ErrorKind);
+    #[async_trait]
+    impl DnsResolver for FailedDns {
+        async fn resolve(&self, _host: &str, _port: u16) -> std::io::Result<Vec<SocketAddr>> {
+            Err(Error::new(
+                self.0,
+                if self.0 == ErrorKind::TimedOut {
+                    "DNS lookup timed out"
+                } else {
+                    "fixture DNS failure"
+                },
+            ))
+        }
+    }
+    struct StalledConnector(Mutex<Vec<String>>);
+    #[async_trait]
+    impl TcpConnector for StalledConnector {
+        async fn connect(&self, endpoint: &NetworkEndpoint) -> std::io::Result<()> {
+            self.0.lock().unwrap().push(endpoint.host.clone());
+            std::future::pending().await
+        }
+    }
     #[async_trait]
     impl TcpConnector for FakeConnector {
         async fn connect(&self, endpoint: &NetworkEndpoint) -> std::io::Result<()> {
@@ -71,6 +93,45 @@ mod tests {
         .await;
         assert_eq!(result.failure_kind, Some(FailureKind::Dns));
         assert!(connector.0.lock().unwrap().is_empty());
+    }
+
+    #[tokio::test]
+    async fn injected_dns_errors_preserve_classification_without_connecting() {
+        for (error, expected) in [
+            (ErrorKind::NotFound, FailureKind::Dns),
+            (ErrorKind::TimedOut, FailureKind::Timeout),
+        ] {
+            let connector = FakeConnector(Mutex::new(Vec::new()));
+            let result = tcp_check_with_ports(
+                "fixture.invalid",
+                443,
+                Duration::from_secs(1),
+                &FailedDns(error),
+                &connector,
+            )
+            .await;
+            assert_eq!(result.failure_kind, Some(expected));
+            assert!(connector.0.lock().unwrap().is_empty());
+        }
+    }
+
+    #[tokio::test]
+    async fn stalled_injected_connection_times_out_without_attempting_next_address() {
+        let dns = FakeDns(vec![
+            "[::1]:443".parse().unwrap(),
+            "127.0.0.1:443".parse().unwrap(),
+        ]);
+        let connector = StalledConnector(Mutex::new(Vec::new()));
+        let result = tcp_check_with_ports(
+            "fixture.invalid",
+            443,
+            Duration::from_millis(1),
+            &dns,
+            &connector,
+        )
+        .await;
+        assert_eq!(result.failure_kind, Some(FailureKind::Timeout));
+        assert_eq!(*connector.0.lock().unwrap(), vec!["::1"]);
     }
 
     #[test]
