@@ -41,9 +41,18 @@ const API_SERVICE_TEMPLATE: &str =
 
 #[cfg(target_os = "linux")]
 fn systemd_user_dir() -> crate::app::Result<PathBuf> {
-    let base = std::env::var_os("XDG_CONFIG_HOME")
+    systemd_user_dir_with_env(&xrat_support::env::SystemEnvVars)
+}
+
+#[cfg(target_os = "linux")]
+fn systemd_user_dir_with_env(env: &dyn xrat_support::env::EnvVars) -> crate::app::Result<PathBuf> {
+    let base = env
+        .get_os(("XDG_CONFIG_HOME").as_ref())
         .map(PathBuf::from)
-        .or_else(|| std::env::var_os("HOME").map(|h| PathBuf::from(h).join(".config")))
+        .or_else(|| {
+            env.get_os(("HOME").as_ref())
+                .map(|h| PathBuf::from(h).join(".config"))
+        })
         .ok_or(AppError::MissingHomeDirectory)?;
     Ok(base.join("systemd").join("user"))
 }
@@ -250,7 +259,16 @@ const API_PLIST_TEMPLATE: &str = include_str!("../../../templates/launchd/xrat-a
 
 #[cfg(target_os = "macos")]
 fn launchd_agents_dir() -> crate::app::Result<PathBuf> {
-    let home = std::env::var_os("HOME").ok_or(AppError::MissingHomeDirectory)?;
+    launchd_agents_dir_with_env(&xrat_support::env::SystemEnvVars)
+}
+
+#[cfg(target_os = "macos")]
+fn launchd_agents_dir_with_env(
+    env: &dyn xrat_support::env::EnvVars,
+) -> crate::app::Result<PathBuf> {
+    let home = env
+        .get_os(("HOME").as_ref())
+        .ok_or(AppError::MissingHomeDirectory)?;
     Ok(PathBuf::from(home).join("Library").join("LaunchAgents"))
 }
 

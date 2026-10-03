@@ -5068,6 +5068,7 @@ dependencies = [
  "tokio",
  "xrat-engines",
  "xrat-model",
+ "xrat-support",
 ]
 
 [[package]]

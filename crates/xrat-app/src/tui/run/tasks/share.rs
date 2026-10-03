@@ -1,10 +1,7 @@
 use crate::app::context::AppContext;
+use crate::app::ports::{Clipboard, ClipboardError};
+use crate::app::services::clipboard::ArboardClipboard;
 use crate::tui::app::{QrKind, QrModalState, TuiApp};
-use std::cell::RefCell;
-
-thread_local! {
-    static CLIPBOARD: RefCell<Option<arboard::Clipboard>> = const { RefCell::new(None) };
-}
 
 pub async fn open_qr_for_config(
     context: &AppContext,
@@ -85,26 +82,25 @@ pub fn copy_api_url(app: &mut TuiApp) {
 }
 
 fn set_clipboard(app: &mut TuiApp, text: String, success_message: String) {
-    CLIPBOARD.with(|clipboard| {
-        let mut clipboard = clipboard.borrow_mut();
-        if clipboard.is_none() {
-            match arboard::Clipboard::new() {
-                Ok(cb) => *clipboard = Some(cb),
-                Err(err) => {
-                    let error = format!("clipboard unavailable: {err}");
-                    app.push_log(format!("ERR {error}"));
-                    app.set_chrome_message(error, true);
-                    return;
-                }
-            }
-        }
+    set_clipboard_with(app, text, success_message, &ArboardClipboard);
+}
 
-        let Some(cb) = clipboard.as_mut() else {
-            return;
-        };
-        let result = cb.set_text(&text).map_err(|error| error.to_string());
-        handle_clipboard_write_result(app, text, success_message, result);
-    });
+fn set_clipboard_with(
+    app: &mut TuiApp,
+    text: String,
+    success_message: String,
+    clipboard: &dyn Clipboard,
+) {
+    match clipboard.copy_text(&text) {
+        Ok(()) => handle_clipboard_write_result(app, text, success_message, Ok(())),
+        Err(ClipboardError::Write(error)) => {
+            handle_clipboard_write_result(app, text, success_message, Err(error))
+        }
+        Err(error) => {
+            app.push_log(format!("ERR {error}"));
+            app.set_chrome_message(error.to_string(), true);
+        }
+    }
 }
 
 fn handle_clipboard_write_result(
@@ -115,8 +111,8 @@ fn handle_clipboard_write_result(
 ) {
     match result {
         Ok(()) => {
-            let preview = if text.len() > 40 {
-                format!("{}…", &text[..40])
+            let preview = if text.chars().count() > 40 {
+                format!("{}…", text.chars().take(40).collect::<String>())
             } else {
                 text
             };
@@ -183,6 +179,54 @@ mod tests {
         assert_eq!(
             app.chrome_message.as_ref().map(|message| message.is_error),
             Some(true)
+        );
+    }
+}
+
+#[cfg(test)]
+mod clipboard_port_tests {
+    use super::*;
+    use std::cell::RefCell;
+    struct FakeClipboard {
+        text: RefCell<String>,
+        unavailable: bool,
+    }
+    impl Clipboard for FakeClipboard {
+        fn copy_text(&self, text: &str) -> Result<(), ClipboardError> {
+            if self.unavailable {
+                return Err(ClipboardError::Unavailable("headless".into()));
+            }
+            *self.text.borrow_mut() = text.into();
+            Ok(())
+        }
+    }
+    #[test]
+    fn copies_unicode_with_fake_backend_and_safe_preview() {
+        let clipboard = FakeClipboard {
+            text: RefCell::new(String::new()),
+            unavailable: false,
+        };
+        let text = "节点".repeat(30);
+        let mut app = TuiApp::default();
+        set_clipboard_with(&mut app, text.clone(), "copied".into(), &clipboard);
+        assert_eq!(*clipboard.text.borrow(), text);
+        assert_eq!(
+            app.event_log.last().unwrap(),
+            &format!("OK  copied: {}…", "节点".repeat(20))
+        );
+    }
+    #[test]
+    fn unavailable_backend_preserves_error_feedback_without_copying() {
+        let clipboard = FakeClipboard {
+            text: RefCell::new(String::new()),
+            unavailable: true,
+        };
+        let mut app = TuiApp::default();
+        set_clipboard_with(&mut app, "secret".into(), "copied".into(), &clipboard);
+        assert!(clipboard.text.borrow().is_empty());
+        assert_eq!(
+            app.event_log.last().unwrap(),
+            "ERR clipboard unavailable: headless"
         );
     }
 }

@@ -350,29 +350,44 @@ fn status_text_for(active: &ActiveEndpoints, current: Option<String>) -> String 
 }
 
 fn current_proxy_value() -> Option<String> {
+    current_proxy_value_with_env(&xrat_support::env::SystemEnvVars)
+}
+
+fn current_proxy_value_with_env(env: &dyn xrat_support::env::EnvVars) -> Option<String> {
     ["http_proxy", "HTTP_PROXY", "all_proxy", "ALL_PROXY"]
         .into_iter()
-        .find_map(|name| std::env::var(name).ok())
+        .find_map(|name| env.get((name).as_ref()).ok())
 }
 
 fn restored_proxy_value() -> Option<String> {
+    restored_proxy_value_with_env(&xrat_support::env::SystemEnvVars)
+}
+
+fn restored_proxy_value_with_env(env: &dyn xrat_support::env::EnvVars) -> Option<String> {
     ["http_proxy", "HTTP_PROXY", "all_proxy", "ALL_PROXY"]
         .into_iter()
         .find_map(|name| {
-            (std::env::var(had_var_name(name)).ok().as_deref() == Some("1"))
-                .then(|| std::env::var(old_var_name(name)).ok())
+            (env.get((had_var_name(name)).as_ref()).ok().as_deref() == Some("1"))
+                .then(|| env.get((old_var_name(name)).as_ref()).ok())
                 .flatten()
         })
 }
 
 fn shell_points_at_active(active: &ActiveEndpoints) -> bool {
+    shell_points_at_active_with_env(active, &xrat_support::env::SystemEnvVars)
+}
+
+fn shell_points_at_active_with_env(
+    active: &ActiveEndpoints,
+    env: &dyn xrat_support::env::EnvVars,
+) -> bool {
     let active_hosts = active_hostports(active);
     if active_hosts.is_empty() {
         return false;
     }
 
     ALL_VARS.iter().any(|name| {
-        std::env::var(name)
+        env.get((name).as_ref())
             .map(|value| points_at_active(&value, &active_hosts))
             .unwrap_or(false)
     })

@@ -265,12 +265,20 @@ fn run_gsettings_get(args: &[&str]) -> crate::app::Result<String> {
 fn resolve_desktop(
     override_kind: Option<ProxyDesktopKind>,
 ) -> crate::app::Result<ProxyDesktopKind> {
+    resolve_desktop_with_env(override_kind, &xrat_support::env::SystemEnvVars)
+}
+
+fn resolve_desktop_with_env(
+    override_kind: Option<ProxyDesktopKind>,
+    env: &dyn xrat_support::env::EnvVars,
+) -> crate::app::Result<ProxyDesktopKind> {
     if let Some(kind) = override_kind {
         return Ok(kind);
     }
 
-    let hint = std::env::var("XDG_CURRENT_DESKTOP")
-        .or_else(|_| std::env::var("DESKTOP_SESSION"))
+    let hint = env
+        .get(("XDG_CURRENT_DESKTOP").as_ref())
+        .or_else(|_| env.get(("DESKTOP_SESSION").as_ref()))
         .unwrap_or_default()
         .to_lowercase();
 
@@ -614,5 +622,28 @@ mod tests {
         assert_eq!(desktop_from_hint("kde"), Some(ProxyDesktopKind::Kde));
         assert_eq!(desktop_from_hint("xfce"), Some(ProxyDesktopKind::Xfce));
         assert_eq!(desktop_from_hint("sway"), None);
+    }
+}
+
+#[cfg(test)]
+mod env_port_tests {
+    use super::*;
+    use std::collections::HashMap;
+    use xrat_support::env::MapEnvVars;
+    #[test]
+    fn desktop_override_and_session_precedence_use_supplied_environment() {
+        let env = MapEnvVars(HashMap::from([
+            ("XDG_CURRENT_DESKTOP".into(), "GNOME".into()),
+            ("DESKTOP_SESSION".into(), "plasma".into()),
+        ]));
+        assert!(matches!(
+            resolve_desktop_with_env(None, &env).unwrap(),
+            ProxyDesktopKind::Gnome
+        ));
+        assert!(matches!(
+            resolve_desktop_with_env(Some(ProxyDesktopKind::Kde), &env).unwrap(),
+            ProxyDesktopKind::Kde
+        ));
+        assert!(resolve_desktop_with_env(None, &MapEnvVars::default()).is_err());
     }
 }

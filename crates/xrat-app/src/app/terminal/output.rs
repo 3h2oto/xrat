@@ -46,7 +46,11 @@ impl Cell {
 }
 
 pub(crate) fn color_enabled() -> bool {
-    std::io::stdout().is_terminal() && std::env::var_os("NO_COLOR").is_none()
+    color_enabled_with_env(&xrat_support::env::SystemEnvVars)
+}
+
+pub(crate) fn color_enabled_with_env(env: &dyn xrat_support::env::EnvVars) -> bool {
+    std::io::stdout().is_terminal() && env.get_os(("NO_COLOR").as_ref()).is_none()
 }
 
 pub(crate) fn format_table(columns: &[Column], rows: &[Vec<Cell>], color: bool) -> String {

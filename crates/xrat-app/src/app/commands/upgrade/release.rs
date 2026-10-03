@@ -100,7 +100,14 @@ pub(crate) async fn upgrade(
 }
 
 fn detect_arch() -> crate::app::Result<&'static str> {
-    match (std::env::consts::OS, std::env::consts::ARCH) {
+    detect_arch_with_platform(&xrat_support::platform::HostPlatformDetector)
+}
+
+fn detect_arch_with_platform(
+    detector: &dyn xrat_support::platform::PlatformDetector,
+) -> crate::app::Result<&'static str> {
+    let platform = detector.detect();
+    match (platform.os.as_str(), platform.arch.as_str()) {
         ("linux", "x86_64") => Ok("x86_64-unknown-linux-musl"),
         ("linux", "aarch64") => Ok("aarch64-unknown-linux-musl"),
         ("macos", "x86_64") => Ok("x86_64-apple-darwin"),
@@ -207,4 +214,47 @@ fn run_in(dir: &Path, program: &str, args: &[&str], context: &str) -> crate::app
         return Err(AppError::InvalidArgument(format!("{context} ({status})")));
     }
     Ok(())
+}
+
+#[cfg(test)]
+mod platform_tests {
+    use super::*;
+    use xrat_support::platform::{Architecture, OperatingSystem, Platform};
+    #[test]
+    fn release_targets_use_injected_platform_and_reject_unsupported_pairs() {
+        for (os, arch, target) in [
+            (
+                OperatingSystem::Linux,
+                Architecture::X86_64,
+                "x86_64-unknown-linux-musl",
+            ),
+            (
+                OperatingSystem::Linux,
+                Architecture::Aarch64,
+                "aarch64-unknown-linux-musl",
+            ),
+            (
+                OperatingSystem::Macos,
+                Architecture::X86_64,
+                "x86_64-apple-darwin",
+            ),
+            (
+                OperatingSystem::Macos,
+                Architecture::Aarch64,
+                "aarch64-apple-darwin",
+            ),
+        ] {
+            assert_eq!(
+                detect_arch_with_platform(&Platform { os, arch }).unwrap(),
+                target
+            );
+        }
+        assert!(
+            detect_arch_with_platform(&Platform {
+                os: OperatingSystem::Windows,
+                arch: Architecture::X86_64
+            })
+            .is_err()
+        );
+    }
 }

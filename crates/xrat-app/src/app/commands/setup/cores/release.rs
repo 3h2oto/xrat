@@ -125,7 +125,16 @@ pub(crate) fn release_from_payload(
 }
 
 pub(crate) fn asset_name(kind: CoreKind, version: &Version) -> Result<String, String> {
-    asset_name_for(kind, version, platform::os(), platform::arch())
+    asset_name_with_platform(kind, version, &platform::HostPlatformDetector)
+}
+
+fn asset_name_with_platform(
+    kind: CoreKind,
+    version: &Version,
+    detector: &dyn platform::PlatformDetector,
+) -> Result<String, String> {
+    let host = detector.detect();
+    asset_name_for(kind, version, host.os.as_str(), host.arch.as_str())
 }
 
 pub(crate) fn asset_name_for(

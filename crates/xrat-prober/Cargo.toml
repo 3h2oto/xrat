@@ -14,6 +14,7 @@ reqwest = { version = "0.13.4", default-features = false, features = [
 tokio = { version = "1.52.3", features = ["full"] }
 xrat-engines.workspace = true
 xrat-model.workspace = true
+xrat-support.workspace = true
 
 [dev-dependencies]
 axum = "0.8.9"

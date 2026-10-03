@@ -9,10 +9,22 @@ pub fn connect_host_for_bind_host(host: &str) -> String {
 /// Best-effort primary LAN IP of this host. Opens a UDP socket toward a public
 /// address (no packets are sent) so the OS picks the outbound interface, then
 /// reads back its local address. Returns `None` when no route can be resolved.
+pub trait LocalIpResolver: Send + Sync {
+    fn primary_ip(&self) -> Option<std::net::IpAddr>;
+}
+
+#[derive(Debug, Clone, Copy, Default)]
+pub struct SystemLocalIpResolver;
+impl LocalIpResolver for SystemLocalIpResolver {
+    fn primary_ip(&self) -> Option<std::net::IpAddr> {
+        let socket = std::net::UdpSocket::bind("0.0.0.0:0").ok()?;
+        socket.connect("8.8.8.8:80").ok()?;
+        socket.local_addr().ok().map(|addr| addr.ip())
+    }
+}
+
 pub fn primary_local_ip() -> Option<String> {
-    let socket = std::net::UdpSocket::bind("0.0.0.0:0").ok()?;
-    socket.connect("8.8.8.8:80").ok()?;
-    socket.local_addr().ok().map(|addr| addr.ip().to_string())
+    SystemLocalIpResolver.primary_ip().map(|ip| ip.to_string())
 }
 
 /// Resolve a network interface name to a bindable address, preferring IPv4.

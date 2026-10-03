@@ -26,9 +26,13 @@ impl AppPaths {
 }
 
 pub fn resolve() -> crate::app::Result<AppPaths> {
+    resolve_with_env(&xrat_support::env::SystemEnvVars)
+}
+
+pub fn resolve_with_env(env: &dyn xrat_support::env::EnvVars) -> crate::app::Result<AppPaths> {
     let root_dir = resolve_root_dir_from(
-        std::env::var_os(XRAT_PATH_ENV).map(PathBuf::from),
-        std::env::var_os("HOME").map(PathBuf::from),
+        env.get_os((XRAT_PATH_ENV).as_ref()).map(PathBuf::from),
+        env.get_os(("HOME").as_ref()).map(PathBuf::from),
     )?;
 
     Ok(AppPaths::new(root_dir))

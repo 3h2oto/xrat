@@ -114,7 +114,14 @@ pub fn apply_daemon(context: &AppContext) -> StepOutcome {
 
 #[cfg(target_os = "linux")]
 fn current_user() -> Option<String> {
-    std::env::var("USER").ok().filter(|name| !name.is_empty())
+    current_user_with_env(&xrat_support::env::SystemEnvVars)
+}
+
+#[cfg(target_os = "linux")]
+fn current_user_with_env(env: &dyn xrat_support::env::EnvVars) -> Option<String> {
+    env.get(("USER").as_ref())
+        .ok()
+        .filter(|name| !name.is_empty())
 }
 
 #[cfg(target_os = "linux")]

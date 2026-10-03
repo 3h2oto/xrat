@@ -187,8 +187,13 @@ fn set_executable(path: &std::path::Path) -> Option<()> {
 
 #[cfg(target_os = "linux")]
 fn select_terminal() -> Option<&'static str> {
+    select_terminal_with_env(&xrat_support::env::SystemEnvVars)
+}
+
+fn select_terminal_with_env(env: &dyn xrat_support::env::EnvVars) -> Option<&'static str> {
     use xrat_support::platform;
-    let wayland = std::env::var("XDG_SESSION_TYPE")
+    let wayland = env
+        .get(("XDG_SESSION_TYPE").as_ref())
         .map(|value| value.eq_ignore_ascii_case("wayland"))
         .unwrap_or(false);
     let candidates: &[&str] = if wayland {

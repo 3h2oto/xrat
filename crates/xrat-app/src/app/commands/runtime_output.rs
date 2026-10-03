@@ -1,7 +1,8 @@
-use std::net::{IpAddr, UdpSocket};
+use std::net::IpAddr;
+use xrat_support::net::{LocalIpResolver, SystemLocalIpResolver};
 
 pub fn format_inbound_endpoint(host: &str, port: u16) -> String {
-    format_inbound_endpoint_with_ip(host, port, local_machine_ip)
+    format_inbound_endpoint_with_resolver(host, port, &SystemLocalIpResolver)
 }
 
 fn format_inbound_endpoint_with_ip<F>(host: &str, port: u16, ip_lookup: F) -> String
@@ -19,10 +20,12 @@ where
         .unwrap_or_else(|| format!("{host}:{port}"))
 }
 
-fn local_machine_ip() -> Option<IpAddr> {
-    let socket = UdpSocket::bind("0.0.0.0:0").ok()?;
-    socket.connect("8.8.8.8:80").ok()?;
-    Some(socket.local_addr().ok()?.ip())
+pub fn format_inbound_endpoint_with_resolver(
+    host: &str,
+    port: u16,
+    resolver: &dyn LocalIpResolver,
+) -> String {
+    format_inbound_endpoint_with_ip(host, port, || resolver.primary_ip())
 }
 
 #[cfg(test)]

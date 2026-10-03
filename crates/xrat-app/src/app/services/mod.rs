@@ -1,3 +1,4 @@
+pub mod clipboard;
 mod configs;
 pub mod dashboard;
 pub mod engine_probe;

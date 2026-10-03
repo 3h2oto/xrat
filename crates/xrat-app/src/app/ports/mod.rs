@@ -11,3 +11,6 @@ pub use runtime_engine_probe::{EngineInfo, RuntimeEngineProbe};
 
 mod release_provider;
 pub use release_provider::ReleaseProvider;
+
+mod clipboard;
+pub use clipboard::{Clipboard, ClipboardError};

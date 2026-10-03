@@ -44,6 +44,7 @@ pub struct DashboardSnapshot {
 pub struct DashboardService<'a> {
     context: &'a AppContext,
     clock: Arc<dyn Clock>,
+    local_ip: Arc<dyn xrat_support::net::LocalIpResolver>,
 }
 
 impl<'a> DashboardService<'a> {
@@ -52,7 +53,23 @@ impl<'a> DashboardService<'a> {
     }
 
     pub fn with_clock(context: &'a AppContext, clock: Arc<dyn Clock>) -> Self {
-        Self { context, clock }
+        Self::with_dependencies(
+            context,
+            clock,
+            Arc::new(xrat_support::net::SystemLocalIpResolver),
+        )
+    }
+
+    pub fn with_dependencies(
+        context: &'a AppContext,
+        clock: Arc<dyn Clock>,
+        local_ip: Arc<dyn xrat_support::net::LocalIpResolver>,
+    ) -> Self {
+        Self {
+            context,
+            clock,
+            local_ip,
+        }
     }
 
     pub async fn clear_events(&self) -> crate::app::Result<u64> {
@@ -88,7 +105,7 @@ impl<'a> DashboardService<'a> {
             .flatten()
             .any(|health| matches!(health.endpoint.host.as_str(), "0.0.0.0" | "::"));
         let local_address = needs_local_address
-            .then(xrat_support::net::primary_local_ip)
+            .then(|| self.local_ip.primary_ip().map(|ip| ip.to_string()))
             .flatten();
         let latest_run = context.db.get_latest_connection_test_run().await?;
         let test_results = match &latest_run {

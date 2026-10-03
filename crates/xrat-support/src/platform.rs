@@ -39,7 +39,12 @@ pub fn shell_from_name(name: &str) -> Option<Shell> {
 /// Detect the active shell: `$SHELL` first, then the parent process name,
 /// defaulting to bash.
 pub fn detect_shell() -> Shell {
-    if let Some(kind) = std::env::var("SHELL")
+    detect_shell_with_env(&crate::env::SystemEnvVars)
+}
+
+pub fn detect_shell_with_env(env: &dyn crate::env::EnvVars) -> Shell {
+    if let Some(kind) = env
+        .get(("SHELL").as_ref())
         .ok()
         .as_deref()
         .and_then(shell_from_name)
@@ -73,7 +78,11 @@ fn parent_process_id() -> u32 {
 
 /// Resolve a binary name against `$PATH`, returning the first existing match.
 pub fn binary_on_path(name: &str) -> Option<PathBuf> {
-    binary_in(std::env::var_os("PATH")?.as_os_str(), name)
+    binary_on_path_with_env(name, &crate::env::SystemEnvVars)
+}
+
+pub fn binary_on_path_with_env(name: &str, env: &dyn crate::env::EnvVars) -> Option<PathBuf> {
+    binary_in(env.get_os(("PATH").as_ref())?.as_os_str(), name)
 }
 
 fn binary_in(path: &std::ffi::OsStr, name: &str) -> Option<PathBuf> {
@@ -84,7 +93,11 @@ fn binary_in(path: &std::ffi::OsStr, name: &str) -> Option<PathBuf> {
 
 /// Whether `dir` is one of the entries in `$PATH`.
 pub fn dir_in_path(dir: &Path) -> bool {
-    let Some(path) = std::env::var_os("PATH") else {
+    dir_in_path_with_env(dir, &crate::env::SystemEnvVars)
+}
+
+pub fn dir_in_path_with_env(dir: &Path, env: &dyn crate::env::EnvVars) -> bool {
+    let Some(path) = env.get_os(("PATH").as_ref()) else {
         return false;
     };
     dir_in(path.as_os_str(), dir)
@@ -94,9 +107,86 @@ fn dir_in(path: &std::ffi::OsStr, dir: &Path) -> bool {
     std::env::split_paths(path).any(|entry| entry == dir)
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum OperatingSystem {
+    Linux,
+    Macos,
+    Windows,
+    Freebsd,
+    Openbsd,
+    Other(&'static str),
+}
+impl OperatingSystem {
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::Linux => "linux",
+            Self::Macos => "macos",
+            Self::Windows => "windows",
+            Self::Freebsd => "freebsd",
+            Self::Openbsd => "openbsd",
+            Self::Other(value) => value,
+        }
+    }
+    pub fn from_name(value: &'static str) -> Self {
+        match value {
+            "linux" => Self::Linux,
+            "macos" => Self::Macos,
+            "windows" => Self::Windows,
+            "freebsd" => Self::Freebsd,
+            "openbsd" => Self::Openbsd,
+            value => Self::Other(value),
+        }
+    }
+}
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Architecture {
+    X86_64,
+    Aarch64,
+    Other(&'static str),
+}
+impl Architecture {
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::X86_64 => "x86_64",
+            Self::Aarch64 => "aarch64",
+            Self::Other(value) => value,
+        }
+    }
+    pub fn from_name(value: &'static str) -> Self {
+        match value {
+            "x86_64" => Self::X86_64,
+            "aarch64" => Self::Aarch64,
+            value => Self::Other(value),
+        }
+    }
+}
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct Platform {
+    pub os: OperatingSystem,
+    pub arch: Architecture,
+}
+pub trait PlatformDetector: Send + Sync {
+    fn detect(&self) -> Platform;
+}
+#[derive(Debug, Clone, Copy, Default)]
+pub struct HostPlatformDetector;
+impl PlatformDetector for HostPlatformDetector {
+    fn detect(&self) -> Platform {
+        Platform {
+            os: OperatingSystem::from_name(std::env::consts::OS),
+            arch: Architecture::from_name(std::env::consts::ARCH),
+        }
+    }
+}
+impl PlatformDetector for Platform {
+    fn detect(&self) -> Platform {
+        *self
+    }
+}
+
 /// Current OS name (`std::env::consts::OS`).
 pub fn os() -> &'static str {
-    std::env::consts::OS
+    HostPlatformDetector.detect().os.as_str()
 }
 
 /// Human-friendly OS name. On Linux this is the `PRETTY_NAME` from
@@ -128,28 +218,40 @@ fn parse_os_release_pretty(content: &str) -> Option<String> {
 
 /// Current CPU architecture (`std::env::consts::ARCH`).
 pub fn arch() -> &'static str {
-    std::env::consts::ARCH
+    HostPlatformDetector.detect().arch.as_str()
 }
 
 /// `$HOME` as a path.
 pub fn home_dir() -> Option<PathBuf> {
-    std::env::var_os("HOME").map(PathBuf::from)
+    home_dir_with_env(&crate::env::SystemEnvVars)
+}
+
+pub fn home_dir_with_env(env: &dyn crate::env::EnvVars) -> Option<PathBuf> {
+    env.get_os(("HOME").as_ref()).map(PathBuf::from)
 }
 
 /// `$XDG_DATA_HOME`, falling back to `$HOME/.local/share`.
 pub fn xdg_data_home() -> Option<PathBuf> {
-    std::env::var_os("XDG_DATA_HOME")
+    xdg_data_home_with_env(&crate::env::SystemEnvVars)
+}
+
+pub fn xdg_data_home_with_env(env: &dyn crate::env::EnvVars) -> Option<PathBuf> {
+    env.get_os(("XDG_DATA_HOME").as_ref())
         .map(PathBuf::from)
         .filter(|path| path.is_absolute())
-        .or_else(|| home_dir().map(|home| home.join(".local").join("share")))
+        .or_else(|| home_dir_with_env(env).map(|home| home.join(".local").join("share")))
 }
 
 /// `$XDG_CONFIG_HOME`, falling back to `$HOME/.config`.
 pub fn xdg_config_home() -> Option<PathBuf> {
-    std::env::var_os("XDG_CONFIG_HOME")
+    xdg_config_home_with_env(&crate::env::SystemEnvVars)
+}
+
+pub fn xdg_config_home_with_env(env: &dyn crate::env::EnvVars) -> Option<PathBuf> {
+    env.get_os(("XDG_CONFIG_HOME").as_ref())
         .map(PathBuf::from)
         .filter(|path| path.is_absolute())
-        .or_else(|| home_dir().map(|home| home.join(".config")))
+        .or_else(|| home_dir_with_env(env).map(|home| home.join(".config")))
 }
 
 /// Return the isolated asset directory for a core installed by `xrat setup`.
@@ -218,5 +320,34 @@ mod tests {
             Some(Path::new("/home/user/.local/share/xrat/cores/xray"))
         );
         assert_eq!(managed_core_asset_dir(Path::new("/usr/bin/xray")), None);
+    }
+}
+
+#[cfg(test)]
+mod env_tests {
+    use super::*;
+    use crate::env::MapEnvVars;
+    use std::collections::HashMap;
+    #[test]
+    fn xdg_paths_keep_absolute_precedence_and_home_fallback() {
+        let env = MapEnvVars(HashMap::from([
+            ("HOME".into(), "/home/example".into()),
+            ("XDG_DATA_HOME".into(), "relative".into()),
+            ("XDG_CONFIG_HOME".into(), "/custom".into()),
+        ]));
+        assert_eq!(
+            xdg_data_home_with_env(&env),
+            Some(PathBuf::from("/home/example/.local/share"))
+        );
+        assert_eq!(
+            xdg_config_home_with_env(&env),
+            Some(PathBuf::from("/custom"))
+        );
+        assert_eq!(home_dir_with_env(&MapEnvVars::default()), None);
+    }
+    #[test]
+    fn supplied_shell_is_used_without_process_detection() {
+        let env = MapEnvVars(HashMap::from([("SHELL".into(), "/bin/fish".into())]));
+        assert_eq!(detect_shell_with_env(&env), Shell::Fish);
     }
 }

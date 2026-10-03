@@ -102,15 +102,17 @@ async fn ping_with_system_command(ip: &str, timeout: Duration) -> IcmpResult {
 }
 
 fn ping_flags() -> (&'static str, &'static str) {
-    if cfg!(any(target_os = "macos", target_os = "freebsd")) {
-        ("-c", "-t")
-    } else if cfg!(target_os = "linux") {
-        ("-c", "-W")
-    } else if cfg!(target_os = "openbsd") {
-        ("-c", "-w")
-    } else if cfg!(target_os = "windows") {
-        ("-n", "-w")
-    } else {
-        ("-c", "-W")
+    ping_flags_with_platform(&xrat_support::platform::HostPlatformDetector)
+}
+
+fn ping_flags_with_platform(
+    detector: &dyn xrat_support::platform::PlatformDetector,
+) -> (&'static str, &'static str) {
+    use xrat_support::platform::OperatingSystem;
+    match detector.detect().os {
+        OperatingSystem::Macos | OperatingSystem::Freebsd => ("-c", "-t"),
+        OperatingSystem::Openbsd => ("-c", "-w"),
+        OperatingSystem::Windows => ("-n", "-w"),
+        _ => ("-c", "-W"),
     }
 }
