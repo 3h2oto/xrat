@@ -1,8 +1,7 @@
 pub use xrat_app::{app, cli, server, tui};
-pub mod config;
-pub mod db;
-pub mod model;
-pub mod prober;
-pub mod singbox;
-pub mod support;
-pub mod xray;
+pub use xrat_config as config;
+pub use xrat_db as db;
+pub use xrat_engines::{singbox, xray};
+pub use xrat_model as model;
+pub use xrat_prober as prober;
+pub use xrat_support as support;
