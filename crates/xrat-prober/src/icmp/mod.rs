@@ -1,6 +1,6 @@
 use std::net::IpAddr;
 use std::time::{Duration, Instant};
-use tokio::process::Command;
+use xrat_support::process::Command;
 
 use super::FailureKind;
 
@@ -20,7 +20,24 @@ pub struct IcmpResult {
 }
 
 pub async fn icmp_ping(address: &str, timeout: Duration) -> IcmpResult {
-    let ip = match resolve_address(address).await {
+    icmp_ping_with_ports(
+        address,
+        timeout,
+        &xrat_support::dns::TokioDnsResolver,
+        std::sync::Arc::new(xrat_support::process::SystemProcessSpawner),
+        &xrat_support::platform::HostPlatformDetector,
+    )
+    .await
+}
+
+pub async fn icmp_ping_with_ports(
+    address: &str,
+    timeout: Duration,
+    resolver: &dyn xrat_support::dns::DnsResolver,
+    spawner: std::sync::Arc<dyn xrat_support::process::ProcessSpawner>,
+    platform: &dyn xrat_support::platform::PlatformDetector,
+) -> IcmpResult {
+    let ip = match resolve_address_with_resolver(address, resolver).await {
         Ok(ip) => ip,
         Err(error) => {
             return IcmpResult {
@@ -32,34 +49,44 @@ pub async fn icmp_ping(address: &str, timeout: Duration) -> IcmpResult {
         }
     };
 
-    ping_with_system_command(&ip.to_string(), timeout).await
+    ping_with_ports(&ip.to_string(), timeout, spawner, platform).await
 }
 
-async fn resolve_address(address: &str) -> Result<IpAddr, String> {
+async fn resolve_address_with_resolver(
+    address: &str,
+    resolver: &dyn xrat_support::dns::DnsResolver,
+) -> Result<IpAddr, String> {
     if let Ok(ip) = address.parse::<IpAddr>() {
         return Ok(ip);
     }
 
-    tokio::net::lookup_host(format!("{address}:0"))
+    resolver
+        .resolve(address, 0)
         .await
         .map_err(|error| format!("DNS resolution failed: {error}"))?
+        .into_iter()
         .next()
         .map(|addr| addr.ip())
         .ok_or_else(|| "No IP address found".to_string())
 }
 
-async fn ping_with_system_command(ip: &str, timeout: Duration) -> IcmpResult {
+async fn ping_with_ports(
+    ip: &str,
+    timeout: Duration,
+    spawner: std::sync::Arc<dyn xrat_support::process::ProcessSpawner>,
+    platform: &dyn xrat_support::platform::PlatformDetector,
+) -> IcmpResult {
     let timeout_secs = timeout.as_secs().max(1).to_string();
-    let (count_flag, timeout_flag) = ping_flags();
+    let (count_flag, timeout_flag) = ping_flags_with_platform(platform);
 
     let start = Instant::now();
-    let output = Command::new("ping")
+    let output = Command::with_spawner("ping", spawner)
         .arg(count_flag)
         .arg("1")
         .arg(timeout_flag)
         .arg(&timeout_secs)
         .arg(ip)
-        .output()
+        .output_async()
         .await;
 
     let elapsed = start.elapsed();
@@ -99,10 +126,6 @@ async fn ping_with_system_command(ip: &str, timeout: Duration) -> IcmpResult {
             }
         }
     }
-}
-
-fn ping_flags() -> (&'static str, &'static str) {
-    ping_flags_with_platform(&xrat_support::platform::HostPlatformDetector)
 }
 
 fn ping_flags_with_platform(

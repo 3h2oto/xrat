@@ -43,7 +43,15 @@ impl EndpointGeoMeta {
 }
 
 pub async fn enrich_address(address: &str, geoip_lookup: &dyn GeoIpLookup) -> EndpointGeoMeta {
-    let Some((ip, source)) = resolve_address_ip_with_source(address).await else {
+    enrich_address_with_resolver(address, geoip_lookup, &crate::dns::TokioDnsResolver).await
+}
+
+pub async fn enrich_address_with_resolver(
+    address: &str,
+    geoip_lookup: &dyn GeoIpLookup,
+    resolver: &dyn crate::dns::DnsResolver,
+) -> EndpointGeoMeta {
+    let Some((ip, source)) = resolve_address_ip_with_source(address, resolver).await else {
         return EndpointGeoMeta::default();
     };
 
@@ -72,20 +80,25 @@ pub async fn enrich_address(address: &str, geoip_lookup: &dyn GeoIpLookup) -> En
 }
 
 pub async fn resolve_address_ip(address: &str) -> Option<IpAddr> {
-    resolve_address_ip_with_source(address)
+    resolve_address_ip_with_source(address, &crate::dns::TokioDnsResolver)
         .await
         .map(|(ip, _)| ip)
 }
 
-async fn resolve_address_ip_with_source(address: &str) -> Option<(IpAddr, GeoIpSource)> {
+async fn resolve_address_ip_with_source(
+    address: &str,
+    resolver: &dyn crate::dns::DnsResolver,
+) -> Option<(IpAddr, GeoIpSource)> {
     let host = address_host(address)?;
     if let Ok(ip) = host.parse::<IpAddr>() {
         return Some((ip, GeoIpSource::LiteralIp));
     }
 
-    let ip = tokio::net::lookup_host((host.as_str(), 0))
+    let ip = resolver
+        .resolve(host.as_str(), 0)
         .await
         .ok()?
+        .into_iter()
         .map(|socket_addr| socket_addr.ip())
         .next()?;
     Some((ip, GeoIpSource::DialDns))

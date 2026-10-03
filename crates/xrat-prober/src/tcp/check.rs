@@ -1,5 +1,4 @@
 use std::time::{Duration, Instant};
-use tokio::net::TcpStream;
 use tokio::time::timeout;
 
 use super::FailureKind;
@@ -7,9 +6,25 @@ use super::classify::{classify_dns_error, classify_tcp_error};
 use super::model::TcpResult;
 
 pub async fn tcp_check(address: &str, port: u16, timeout_duration: Duration) -> TcpResult {
-    let target = format!("{address}:{port}");
-    let addresses = match tokio::net::lookup_host(&target).await {
-        Ok(resolved) => resolved.collect::<Vec<_>>(),
+    tcp_check_with_ports(
+        address,
+        port,
+        timeout_duration,
+        &xrat_support::dns::TokioDnsResolver,
+        &xrat_support::readiness::TokioTcpConnector,
+    )
+    .await
+}
+
+pub async fn tcp_check_with_ports(
+    address: &str,
+    port: u16,
+    timeout_duration: Duration,
+    resolver: &dyn xrat_support::dns::DnsResolver,
+    connector: &dyn xrat_support::readiness::TcpConnector,
+) -> TcpResult {
+    let addresses = match resolver.resolve(address, port).await {
+        Ok(resolved) => resolved,
         Err(error) => {
             let (kind, reason) = classify_dns_error(&error);
             return TcpResult {
@@ -34,7 +49,15 @@ pub async fn tcp_check(address: &str, port: u16, timeout_duration: Duration) -> 
     let mut last_error = None;
 
     for target_addr in addresses {
-        match timeout(timeout_duration, TcpStream::connect(target_addr)).await {
+        match timeout(
+            timeout_duration,
+            connector.connect(&xrat_support::readiness::NetworkEndpoint {
+                host: target_addr.ip().to_string(),
+                port: target_addr.port(),
+            }),
+        )
+        .await
+        {
             Ok(Ok(_stream)) => {
                 let elapsed = start.elapsed();
                 return TcpResult {

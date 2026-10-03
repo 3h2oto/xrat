@@ -12,4 +12,5 @@ xrat-model.workspace = true
 xrat-support.workspace = true
 
 [dev-dependencies]
+async-trait = "0.1.89"
 axum = "0.8.9"

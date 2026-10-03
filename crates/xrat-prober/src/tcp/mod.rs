@@ -3,14 +3,75 @@ mod classify;
 mod model;
 
 use super::FailureKind;
-pub use check::tcp_check;
+pub use check::{tcp_check, tcp_check_with_ports};
 pub use model::TcpResult;
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use async_trait::async_trait;
     use std::io::{Error, ErrorKind};
+    use std::net::SocketAddr;
+    use std::sync::Mutex;
     use std::time::Duration;
+    use xrat_support::dns::DnsResolver;
+    use xrat_support::readiness::{NetworkEndpoint, TcpConnector};
+
+    struct FakeDns(Vec<SocketAddr>);
+    #[async_trait]
+    impl DnsResolver for FakeDns {
+        async fn resolve(&self, host: &str, port: u16) -> std::io::Result<Vec<SocketAddr>> {
+            assert_eq!((host, port), ("fixture.invalid", 443));
+            Ok(self.0.clone())
+        }
+    }
+    struct FakeConnector(Mutex<Vec<String>>);
+    #[async_trait]
+    impl TcpConnector for FakeConnector {
+        async fn connect(&self, endpoint: &NetworkEndpoint) -> std::io::Result<()> {
+            self.0.lock().unwrap().push(endpoint.host.clone());
+            assert_eq!(endpoint.port, 443);
+            if endpoint.host == "::1" {
+                Err(Error::new(ErrorKind::ConnectionRefused, "refused"))
+            } else {
+                Ok(())
+            }
+        }
+    }
+
+    #[tokio::test]
+    async fn injected_dns_preserves_address_order_and_connection_fallback() {
+        let dns = FakeDns(vec![
+            "[::1]:443".parse().unwrap(),
+            "127.0.0.1:443".parse().unwrap(),
+        ]);
+        let connector = FakeConnector(Mutex::new(Vec::new()));
+        let result = tcp_check_with_ports(
+            "fixture.invalid",
+            443,
+            Duration::from_secs(1),
+            &dns,
+            &connector,
+        )
+        .await;
+        assert!(result.success);
+        assert_eq!(*connector.0.lock().unwrap(), vec!["::1", "127.0.0.1"]);
+    }
+
+    #[tokio::test]
+    async fn empty_injected_dns_result_does_not_attempt_a_connection() {
+        let connector = FakeConnector(Mutex::new(Vec::new()));
+        let result = tcp_check_with_ports(
+            "fixture.invalid",
+            443,
+            Duration::from_secs(1),
+            &FakeDns(Vec::new()),
+            &connector,
+        )
+        .await;
+        assert_eq!(result.failure_kind, Some(FailureKind::Dns));
+        assert!(connector.0.lock().unwrap().is_empty());
+    }
 
     #[test]
     fn classifies_connection_refused_errors() {
