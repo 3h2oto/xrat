@@ -17,25 +17,26 @@ crates/
   xrat-prober/          # TCP/ICMP/download/upload/real-delay probing
   xrat-app/             # application services, CLI, TUI, HTTP server
   xrat-sdk/             # curated public facade for embedding
-src/                    # thin binary + re-export shims for the root package
+src/                    # thin main.rs + lib.rs compatibility re-exports
 ```
 
 The workspace uses `resolver = "3"`. The root package re-exports the extracted
-crates (`src/model.rs`, `src/support.rs`, and so on) so existing
-`crate::<module>::...` paths continue to resolve, and it re-exports the
-frontends from `xrat-app` (`pub use xrat_app::{app, cli, server, tui};`).
+crates directly from `src/lib.rs` so existing `crate::<module>::...` paths
+continue to resolve, and it re-exports the frontends from `xrat-app`
+(`pub use xrat_app::{app, cli, server, tui};`).
 
 ## Dependency direction
 
 ```text
-xrat-sdk      -> xrat-app, xrat-config, xrat-model, xrat-prober
+xrat-sdk      -> xrat-config + xrat-engines + xrat-model + xrat-prober
+                 + optional xrat-app (services feature)
 xrat-app      -> xrat-config + xrat-db + xrat-engines + xrat-model
                  + xrat-prober + xrat-support
 xrat-db       -> xrat-config + xrat-model + xrat-support
-xrat-config   -> xrat-engines + xrat-model + xrat-support
-xrat-prober   -> xrat-engines + xrat-model
-xrat-engines  -> xrat-model + xrat-support
-xrat-support  -> xrat-model
+xrat-config   -> xrat-model + xrat-support
+xrat-prober   -> xrat-engines + xrat-model + xrat-support
+xrat-engines  -> xrat-config + xrat-model + xrat-support
+xrat-support  -> (external dependencies only)
 xrat-model    -> (leaf)
 ```
 
@@ -80,13 +81,15 @@ The service templates embedded by `xrat daemon install` live in
 
 ## Residual work
 
-- Split `xrat-app` into interface-neutral `xrat-engine` plus thin
-  `xrat-cli` / `xrat-tui` / `xrat-http` adapters. Blocker: `AppContext::build`
-  depends on `cli::Cli`, and frontends re-enter app handlers.
+- Split `xrat-app` into interface-neutral `xrat-engine` plus thin `xrat-cli` /
+  `xrat-tui` / `xrat-http` adapters. Blocker: `AppContext::build` depends on
+  `cli::Cli`, and frontends re-enter app handlers.
 - Trim now-unused dependencies from the root `xrat` package (the app, TUI, HTTP,
   and database stacks moved into `xrat-app`).
-- Broaden the `xrat-sdk` facade and add a non-CLI `AppContext` constructor so
-  the SDK does not require CLI arguments to build.
+- Complete SDK-owned stateful initialization, saved-config services, and managed
+  runtime APIs. The default stateless SDK already exposes parsing, Xray/sing-box
+  generation and probing without application initialization; existing service
+  exports are experimental and require the `services` feature.
 
 ## Release versions and embedded assets
 
