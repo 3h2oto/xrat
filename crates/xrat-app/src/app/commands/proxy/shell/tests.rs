@@ -200,6 +200,7 @@ fn status_text_reports_post_enable_state() {
     let status = status_text_for(
         &endpoints(true, true),
         Some("socks5://127.0.0.1:18200".to_string()),
+        false,
     );
     assert!(status.contains("Proxy shell"));
     assert!(status.contains("shell points at active xrat endpoints"));
@@ -208,7 +209,7 @@ fn status_text_reports_post_enable_state() {
 
 #[test]
 fn status_text_reports_post_disable_state() {
-    let status = status_text_for(&endpoints(true, true), None);
+    let status = status_text_for(&endpoints(true, true), None, false);
     assert!(status.contains("shell has no proxy environment set"));
     assert!(status.contains("http_proxy  -"));
 }
