@@ -13,6 +13,14 @@ import time
 ROOT = Path(__file__).resolve().parents[1]
 
 
+def check_registry_dependencies(packages: list[dict], workspace_members: list[str]) -> None:
+    members = set(workspace_members)
+    for package in packages:
+        if package["name"].startswith("xrat-") and package["id"] not in members:
+            source = package["source"]
+            assert source and source.startswith("registry+"), f"Non-registry XRAT dependency: {package['name']}"
+
+
 def run(args: list[str], *, cwd: Path = ROOT, env: dict[str, str] | None = None) -> None:
     subprocess.run(args, cwd=cwd, env=env, check=True)
 
@@ -56,8 +64,7 @@ def consumer(registry_version: str | None) -> None:
         if registry_version:
             assert sdk["version"] == registry_version, sdk
             assert sdk["source"] and sdk["source"].startswith("registry+"), sdk
-            assert all(package["source"] for package in metadata["packages"]
-                       if package["name"].startswith("xrat-")), "internal path dependency in registry consumer"
+            check_registry_dependencies(metadata["packages"], metadata["workspace_members"])
         print(f"Standalone consumer verified: xrat-sdk {sdk['version']}", flush=True)
 
 
