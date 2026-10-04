@@ -311,6 +311,80 @@ async fn configured_singbox_supports_vless_runtime_generation() {
     assert_eq!(config.outbounds[0]["type"], "vless");
 }
 
+#[tokio::test]
+async fn managed_singbox_launch_adds_tun_inbound_and_route() {
+    let mut context = test_context().await;
+    context.app_config.runtime.engine = "sing-box".to_string();
+    context.app_config.runtime.tun.enabled = true;
+    context.app_config.runtime.tun.strict_route = true;
+    let config = imported_config(&context, test_node()).await;
+    let service = RuntimeService::new(&context);
+
+    let launch = service
+        .resolve_launch(&config)
+        .expect("TUN launch should resolve");
+    let RuntimeLaunchConfig::Singbox(config) = launch.config else {
+        panic!("expected sing-box config");
+    };
+    let value = serde_json::to_value(config).expect("config should serialize");
+
+    let tun = value["inbounds"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|inbound| inbound["type"] == "tun")
+        .expect("tun inbound should be present");
+    assert_eq!(tun["interface_name"], "xrat0");
+    assert_eq!(tun["strict_route"], true);
+    assert_eq!(value["route"]["auto_detect_interface"], true);
+    assert_eq!(value["route"]["final"], "proxy");
+}
+
+#[tokio::test]
+async fn managed_xray_launch_adds_tun_inbound() {
+    let mut context = test_context().await;
+    context.app_config.runtime.engine = "xray".to_string();
+    context.app_config.runtime.tun.enabled = true;
+    let config = imported_config(&context, test_node()).await;
+    let service = RuntimeService::new(&context);
+
+    let launch = service
+        .resolve_launch(&config)
+        .expect("xray TUN launch should resolve");
+    let RuntimeLaunchConfig::Xray(config) = launch.config else {
+        panic!("expected an xray runtime config");
+    };
+    let value = serde_json::to_value(config).expect("config should serialize");
+
+    let tun = value["inbounds"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|inbound| inbound["protocol"] == "tun")
+        .expect("tun inbound should be present");
+    assert_eq!(tun["settings"]["name"], "xrat0");
+    assert_eq!(
+        tun["settings"]["autoSystemRoutingTable"],
+        serde_json::json!(["0.0.0.0/0"])
+    );
+    assert!(tun.get("port").is_none());
+    assert!(tun.get("listen").is_none());
+}
+
+#[tokio::test]
+async fn tun_rejects_v2ray_engine() {
+    let mut context = test_context().await;
+    context.app_config.runtime.engine = "v2ray".to_string();
+    context.app_config.runtime.tun.enabled = true;
+    let config = imported_config(&context, test_node()).await;
+
+    let error = match RuntimeService::new(&context).resolve_launch(&config) {
+        Ok(_) => panic!("TUN with the v2ray engine must fail"),
+        Err(error) => error,
+    };
+    assert!(error.to_string().contains("V2Ray"));
+}
+
 fn runtime_session_with_status(status: RuntimeSessionStatus) -> RuntimeSessionRecord {
     RuntimeSessionRecord {
         id: 1,
@@ -337,6 +411,62 @@ fn runtime_session_with_status(status: RuntimeSessionStatus) -> RuntimeSessionRe
         created_at: "1".to_string(),
         updated_at: "1".to_string(),
     }
+}
+
+#[tokio::test]
+async fn xray_tun_rejects_old_core_without_working_tun() {
+    let mut context = test_context().await;
+    context.app_config.runtime.tun.enabled = true;
+    context.runtime_paths.xray_path =
+        write_fake_xray_version(&context, "Xray 26.3.27 (Xray, Penetrates Everything.)");
+    let config = imported_config(&context, test_node()).await;
+
+    let error = match RuntimeService::new(&context).resolve_launch(&config) {
+        Ok(_) => panic!("Xray 26.3.27 must be rejected for TUN"),
+        Err(error) => error,
+    };
+    assert!(error.to_string().contains("26.7.28"));
+}
+
+#[tokio::test]
+async fn xray_tun_accepts_core_with_working_tun() {
+    let mut context = test_context().await;
+    context.app_config.runtime.tun.enabled = true;
+    context.runtime_paths.xray_path =
+        write_fake_xray_version(&context, "Xray 26.7.28 (Xray, Penetrates Everything.)");
+    let config = imported_config(&context, test_node()).await;
+
+    let launch = RuntimeService::new(&context)
+        .resolve_launch(&config)
+        .expect("Xray 26.7.28 should allow TUN");
+    assert!(matches!(launch.config, RuntimeLaunchConfig::Xray(_)));
+}
+
+#[tokio::test]
+async fn xray_tun_rejects_route_exclusions() {
+    let mut context = test_context().await;
+    context.app_config.runtime.tun.enabled = true;
+    context.app_config.runtime.tun.route_exclude_address = vec!["192.168.0.0/16".to_string()];
+    context.runtime_paths.xray_path =
+        write_fake_xray_version(&context, "Xray 26.7.28 (Xray, Penetrates Everything.)");
+    let config = imported_config(&context, test_node()).await;
+
+    let error = match RuntimeService::new(&context).resolve_launch(&config) {
+        Ok(_) => panic!("xray must reject TUN route exclusions"),
+        Err(error) => error,
+    };
+    assert!(error.to_string().contains("route_exclude_address"));
+}
+
+fn write_fake_xray_version(context: &AppContext, banner: &str) -> std::path::PathBuf {
+    let path = context.runtime_paths.root_dir.join("fake-xray-version.sh");
+    fs::write(&path, format!("#!/bin/sh\necho \"{banner}\"\n")).expect("script should write");
+    let mut permissions = fs::metadata(&path)
+        .expect("script metadata should load")
+        .permissions();
+    permissions.set_mode(0o755);
+    fs::set_permissions(&path, permissions).expect("script should be executable");
+    path
 }
 
 async fn imported_config(context: &AppContext, node: xrat_model::Node) -> ConfigRecord {

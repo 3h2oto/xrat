@@ -8,14 +8,15 @@ pub(super) use crate::app::config::defaults;
 pub(super) use crate::app::context::AppContext;
 pub(super) use crate::app::services::runtime_tuning::{
     apply_xray_dns_options, apply_xray_routing_options, build_singbox_dns_options,
-    build_singbox_routing_options, build_xray_gen_options, resolve_listen_interface_addr,
+    build_singbox_routing_options, build_xray_gen_options, ensure_xray_tun_supported_with_spawner,
+    resolve_listen_interface_addr,
 };
 pub(super) use xrat_db::{
     ConfigListFilter, ConfigRecord, RuntimeSessionInsert, RuntimeSessionRecord,
     RuntimeSessionStatus,
 };
 pub(super) use xrat_engines::singbox::{
-    SingboxClashApi, SingboxConfig, SingboxInbound, SingboxInboundUser,
+    SingboxClashApi, SingboxConfig, SingboxInbound, SingboxInboundUser, SingboxTunOptions,
     generate_singbox_runtime_config_with_dns, process_mgmt as singbox_runtime,
 };
 pub(super) use xrat_engines::xray::config::{Inbound, enable_stats_api};

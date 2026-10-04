@@ -45,3 +45,31 @@ pub fn interface_address(name: &str) -> Option<String> {
     }
     ipv6
 }
+
+/// Whether a network interface with `name` currently exists. Checks the Linux
+/// sysfs view first so interfaces without an assigned address are still
+/// detected, then falls back to the cross-platform address list.
+pub fn interface_exists(name: &str) -> bool {
+    let name = name.trim();
+    if name.is_empty() {
+        return false;
+    }
+    if std::path::Path::new("/sys/class/net").join(name).exists() {
+        return true;
+    }
+    if_addrs::get_if_addrs()
+        .map(|addrs| addrs.iter().any(|iface| iface.name == name))
+        .unwrap_or(false)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::interface_exists;
+
+    #[test]
+    fn detects_loopback_and_missing_interfaces() {
+        assert!(interface_exists("lo"));
+        assert!(!interface_exists("xrat-missing-interface"));
+        assert!(!interface_exists("  "));
+    }
+}

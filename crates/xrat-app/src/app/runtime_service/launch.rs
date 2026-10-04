@@ -41,11 +41,23 @@ impl<'a> RuntimeService<'a> {
         };
 
         if socks.is_none() && http.is_none() && shadowsocks.is_none() {
+            if runtime.tun.enabled {
+                return Err(AppError::InvalidArgument(
+                    "[runtime.tun].enabled needs at least one enabled local inbound (for example [runtime.socks]) for readiness and non-TUN fallback"
+                        .to_string(),
+                ));
+            }
             return Err(AppError::NoRuntimeInboundEnabled);
         }
 
         let node = node_from_record(config)?;
         let engine = resolve_runtime_engine(runtime.engine.as_str(), &node)?;
+        if runtime.tun.enabled && runtime.engine == "v2ray" {
+            return Err(AppError::InvalidArgument(
+                "[runtime.tun].enabled is not supported by the V2Ray engine; use xray or sing-box"
+                    .to_string(),
+            ));
+        }
         if engine == RuntimeEngine::Singbox {
             return self.resolve_singbox_launch(&node, socks, http, shadowsocks);
         }
@@ -55,6 +67,18 @@ impl<'a> RuntimeService<'a> {
             "v2ray" => self.context.runtime_paths.v2ray_path.clone(),
             other => PathBuf::from(other),
         };
+        if runtime.tun.enabled {
+            ensure_xray_tun_supported_with_spawner(
+                &binary_path,
+                self.process_ports.spawner.clone(),
+            )?;
+            if !runtime.tun.route_exclude_address.is_empty() {
+                return Err(AppError::InvalidArgument(
+                    "[runtime.tun].route_exclude_address is not supported by the Xray engine; only sing-box can exclude destinations from TUN capture"
+                        .to_string(),
+                ));
+            }
+        }
         let mut gen_options = build_xray_gen_options(runtime);
         gen_options.compatibility =
             crate::app::services::runtime_tuning::detect_xray_compatibility_with_spawner(
@@ -75,13 +99,29 @@ impl<'a> RuntimeService<'a> {
         if let Some((host, port, method, password, network)) = &shadowsocks {
             xray_config.inbounds.push(Inbound {
                 tag: "shadowsocks-in".to_string(),
-                port: *port,
-                listen: (*host).to_string(),
+                port: Some(*port),
+                listen: Some((*host).to_string()),
                 protocol: "shadowsocks".to_string(),
                 settings: Some(serde_json::json!({
                     "method": method,
                     "password": password,
                     "network": network
+                })),
+            });
+        }
+
+        if runtime.tun.enabled {
+            xray_config.inbounds.push(Inbound {
+                tag: "tun-in".to_string(),
+                port: None,
+                listen: None,
+                protocol: "tun".to_string(),
+                settings: Some(serde_json::json!({
+                    "name": runtime.tun.interface_name,
+                    "mtu": runtime.tun.mtu,
+                    "gateway": runtime.tun.address,
+                    "autoSystemRoutingTable": ["0.0.0.0/0"],
+                    "autoOutboundsInterface": "auto",
                 })),
             });
         }
@@ -165,6 +205,23 @@ impl<'a> RuntimeService<'a> {
             );
         }
 
+        let tun = &self.context.app_config.runtime.tun;
+        if tun.enabled {
+            inbounds.push(
+                SingboxInbound::tun(SingboxTunOptions {
+                    tag: "tun-in".to_string(),
+                    interface_name: tun.interface_name.clone(),
+                    address: tun.address.clone(),
+                    mtu: tun.mtu,
+                    stack: tun.stack.clone(),
+                    auto_route: tun.auto_route,
+                    strict_route: tun.strict_route,
+                    route_exclude_address: tun.route_exclude_address.clone(),
+                })
+                .map_err(AppError::InvalidArgument)?,
+            );
+        }
+
         let stats = &self.context.app_config.runtime.stats;
         let clash_api = if stats.enabled {
             if !is_loopback_listener(&stats.host) {
@@ -212,6 +269,9 @@ impl<'a> RuntimeService<'a> {
                 .runtime_dir
                 .join("singbox-cache.db");
             config.enable_cache_file(cache_path.display().to_string());
+        }
+        if tun.enabled {
+            config.enable_tun_route();
         }
         let (ready_host, ready_port) = if let Some((host, port, _)) = socks {
             (connect_host_for_bind_host(host), port)
