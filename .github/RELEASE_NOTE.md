@@ -1,34 +1,49 @@
-## xrat v0.20.0
+## xrat v0.21.0
 
-This release expands sing-box from Hysteria2-only managed sessions to every
-protocol xrat imports, and adds native Xray Hysteria2 output.
+This release introduces the published stateless `xrat-sdk` package and completes
+the Cargo workspace refactor while preserving XRAT's CLI, TUI and managed
+runtime workflows.
 
 ### Features
 
-- **Managed sing-box for imported protocols.** VLESS, VMess, Trojan,
-  Shadowsocks, HTTP/HTTPS, SOCKS5, and Hysteria2 can generate sing-box runtime
-  configs and run through `xrat connect` when `[runtime].engine = "sing-box"`.
-  TLS, transports, inbounds, DNS, routing, and Clash API settings use sing-box
-  1.13 shapes; unsupported settings return errors instead of being dropped.
-- **Engine-aware testing.** `xrat test` uses sing-box probes when the runtime
-  engine is sing-box. `xrat parse --engine sing-box` previews the
-  generated JSON. Auto preview continues to select sing-box for Hysteria2 and
-  Xray for other protocols.
-- **Xray Hysteria2.** Xray can generate and run Hysteria2 outbounds when the
-  imported URI fields can be represented by Xray.
-- **Pinned managed installation.** `xrat setup` installs sing-box v1.13.21.
-  User-supplied sing-box binaries must be at least v1.13.0; managed sessions
-  check the generated config with the selected binary before launch.
+- **Embed XRAT from crates.io.** Use `cargo add xrat-sdk` for link/subscription
+  parsing, normalized nodes, typed Xray/sing-box runtime and probe JSON
+  generation, and TCP, ICMP, real-delay, download and upload probes. Developers
+  do not need Git, internal crate dependencies, CLI arguments or a database for
+  these stateless APIs.
+- **Standalone examples and native checks.** Runnable examples cover parsing,
+  normalized JSON, both engine formats, TCP and real-delay probing. CI verifies
+  independent consumers and representative output against Xray 26.3.27 and
+  sing-box 1.13.21, including local probe success/failure and process cleanup.
+- **Reusable workspace crates.** Domain, parsing, engine, persistence, probing,
+  application and SDK responsibilities now live in separate published crates,
+  with shared versions and dependency-ordered releases.
+
+### Fixes and refactoring
+
+- Generated Xray Shadowsocks and SOCKS outbounds now use the native protocol
+  names `shadowsocks` and `socks`, fixing configs previously rejected by Xray.
+- PostgreSQL imports use integer soft-delete values compatible with the schema.
+- Config lookup and lifecycle behavior is shared between CLI, HTTP and TUI
+  adapters; TUI runtime operations use the daemon when available.
+- Shared services handle exports, PAC rendering, dashboard loading, testing and
+  daemon transitions. Process, network, HTTP and host dependencies use explicit
+  ports, with shutdown registration retained across polling.
+- Rust 1.99 strict lint checks pass without weakening the workspace lint gate.
 
 ### Upgrade notes
 
-- No database migration or manual configuration change is required.
-- sing-box GeoIP and geosite routing downloads remote SagerNet rule sets on
-  first use; it needs network access and cannot reuse Xray `.dat` assets.
-- Representative generated configs have passed native sing-box checks. The
-  complete fixture matrix and pinned validator CI gate are still pending, so
-  this release does not claim exhaustive conformance for sing-box 1.13 or 1.14.
-  Newer sing-box versions are accepted but may reject deprecated generated
-  fields during managed-session preflight.
+- No new database migration is introduced by this release.
+- Existing SDK stateful service imports now require the `services` feature:
+  `xrat-sdk = { version = "0.21", features = ["services"] }`. They remain
+  experimental and include application/database/UI dependencies.
+- Default SDK APIs are stateless. SDK-only database initialization, saved-config
+  management, managed connect/status/disconnect and a separate V2Ray target are
+  deferred; the CLI's existing V2Ray runtime behavior is unchanged.
+- Probing requires a Tokio runtime and, for proxy probes, caller-supplied engine
+  binaries, URLs and timeouts. The SDK does not install engines or persist
+  results.
+- Representative native checks do not claim exhaustive conformance for every
+  protocol/transport combination or newer engine versions.
 
-**Full Changelog**: https://github.com/mhyrzt/xrat/compare/v0.19.1...v0.20.0
+**Full Changelog**: https://github.com/mhyrzt/xrat/compare/v0.20.0...v0.21.0

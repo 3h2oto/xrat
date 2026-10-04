@@ -4,9 +4,24 @@ version.workspace = true
 edition.workspace = true
 license.workspace = true
 description = "Stable public facade for embedding xrat proxy-management logic"
+repository = "https://github.com/mhyrzt/xrat"
+documentation = "https://docs.rs/xrat-sdk"
+readme = "README.md"
+keywords = ["xray", "sing-box", "proxy", "sdk"]
+categories = ["network-programming", "parsing"]
+
+[features]
+default = []
+services = ["dep:xrat-app"]
 
 [dependencies]
-xrat-app.workspace = true
+xrat-app = { workspace = true, optional = true }
 xrat-config.workspace = true
+xrat-engines.workspace = true
 xrat-model.workspace = true
 xrat-prober.workspace = true
+
+[dev-dependencies]
+serde_json = "1.0.150"
+tempfile = "3.27.0"
+tokio = { version = "1.52.3", features = ["macros", "rt-multi-thread", "net", "io-util", "time"] }

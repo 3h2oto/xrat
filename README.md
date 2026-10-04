@@ -386,6 +386,15 @@ see the [CLI reference](docs/src/02-cli/README.md).
   inbounds, SQLite by default, and optional PostgreSQL. See
   [configuration](docs/src/05-reference/config-file.md).
 
+## Rust SDK
+
+Embed parsing, normalized nodes, Xray/sing-box JSON generation and probing in
+your Rust project with `cargo add xrat-sdk`. The default SDK does not require
+CLI arguments, a database, or application initialization. See the
+[SDK guide](docs/src/06-architecture/sdk.md) and
+[API documentation](https://docs.rs/xrat-sdk). Stateful services are
+experimental and require the optional `services` feature.
+
 ## Acknowledgments
 
 Some functionalities in XRAT have been inspired by

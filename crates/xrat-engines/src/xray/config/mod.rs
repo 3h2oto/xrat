@@ -13,8 +13,9 @@ pub use tuning::{
     FragmentOptions, MuxOptions, XrayCompatibilityPolicy, XrayCompatibilityTarget, XrayGenOptions,
 };
 pub use types::{
-    GrpcSettings, Inbound, LogConfig, Outbound, RawSettings, RoutingConfig, RoutingRule,
-    StreamSettings, TlsSettings, WsSettings, XrayConfig, XrayDnsConfig, XrayDnsHostValue,
+    GrpcSettings, HttpUpgradeSettings, Inbound, KcpSettings, LogConfig, Mux, Outbound, RawSettings,
+    RealitySettings, RoutingConfig, RoutingRule, Sockopt, StreamSettings, TlsSettings, WsSettings,
+    XhttpSettings, XrayConfig, XrayDnsConfig, XrayDnsHostValue,
 };
 
 mod parse;

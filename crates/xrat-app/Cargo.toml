@@ -8,7 +8,7 @@ description = "Application, CLI, TUI, and HTTP layers for xrat"
 [dependencies]
 xrat-config.workspace = true
 xrat-db.workspace = true
-xrat-engines.workspace = true
+xrat-engines = { workspace = true, features = ["stats"] }
 xrat-model.workspace = true
 xrat-prober.workspace = true
 xrat-support.workspace = true
