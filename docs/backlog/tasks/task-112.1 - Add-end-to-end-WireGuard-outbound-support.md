@@ -4,7 +4,7 @@ title: Add end-to-end WireGuard outbound support
 status: To Do
 assignee: []
 created_date: '2026-09-02 11:02'
-updated_date: '2026-10-03 09:37'
+updated_date: '2026-10-04 17:35'
 labels:
   - protocols
   - xray
@@ -27,7 +27,7 @@ documentation:
   - docs/src/03-features/runtime-management.md
 parent_task_id: TASK-112
 priority: high
-ordinal: 87000
+ordinal: 45500
 ---
 
 ## Description

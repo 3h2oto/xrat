@@ -4,7 +4,7 @@ title: Support sing-box GeoIP and Geosite routing through rule sets
 status: To Do
 assignee: []
 created_date: '2026-08-15 11:20'
-updated_date: '2026-10-03 09:37'
+updated_date: '2026-10-04 17:35'
 labels: []
 milestone: m-8
 dependencies: []
@@ -12,7 +12,7 @@ references:
   - 'https://sing-box.sagernet.org/configuration/rule-set/'
   - 'https://sing-box.sagernet.org/migration/#migrate-geoip-to-rule-sets'
 priority: medium
-ordinal: 23000
+ordinal: 123000
 ---
 
 ## Description

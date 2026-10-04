@@ -4,9 +4,10 @@ title: Standardize CLI confirmations and --yes support
 status: To Do
 assignee: []
 created_date: '2026-08-26 11:17'
+updated_date: '2026-10-04 17:34'
 labels: []
 dependencies: []
-ordinal: 59000
+ordinal: 100000
 ---
 
 ## Description

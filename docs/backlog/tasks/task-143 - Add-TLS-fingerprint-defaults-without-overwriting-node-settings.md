@@ -4,6 +4,7 @@ title: Add TLS fingerprint defaults without overwriting node settings
 status: To Do
 assignee: []
 created_date: '2026-10-03 09:34'
+updated_date: '2026-10-04 17:35'
 labels:
   - feature
   - runtime
@@ -23,7 +24,7 @@ documentation:
     docs/backlog/docs/doc-1 -
     Runtime-client-parity-research-and-engine-JSON-matrix.md
 priority: medium
-ordinal: 125000
+ordinal: 132000
 ---
 
 ## Description

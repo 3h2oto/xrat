@@ -4,12 +4,12 @@ title: TUI modal for editing config and subscription overrides
 status: To Do
 assignee: []
 created_date: '2026-08-22 13:31'
-updated_date: '2026-10-03 09:37'
+updated_date: '2026-10-04 17:35'
 labels: []
 milestone: m-8
 dependencies: []
 parent_task_id: TASK-71
-ordinal: 32000
+ordinal: 138000
 ---
 
 ## Description

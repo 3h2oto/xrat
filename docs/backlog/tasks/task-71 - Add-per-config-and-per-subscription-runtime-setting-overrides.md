@@ -4,7 +4,7 @@ title: Add per-config and per-subscription runtime setting overrides
 status: To Do
 assignee: []
 created_date: '2026-08-22 13:31'
-updated_date: '2026-10-03 09:37'
+updated_date: '2026-10-04 17:35'
 labels: []
 milestone: m-8
 dependencies: []
@@ -12,7 +12,7 @@ references:
   - >-
     docs/backlog/drafts/draft-2 -
     Hard-P3-Per-config-Mux-Fragment-tuning-optimizer.md
-ordinal: 31000
+ordinal: 137000
 ---
 
 ## Description

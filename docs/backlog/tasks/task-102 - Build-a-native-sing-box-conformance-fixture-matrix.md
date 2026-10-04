@@ -5,7 +5,7 @@ status: To Do
 assignee:
   - '@mhyrzt'
 created_date: '2026-08-30 15:36'
-updated_date: '2026-09-19 23:21'
+updated_date: '2026-10-04 17:36'
 labels:
   - sing-box
   - testing
@@ -25,7 +25,7 @@ references:
   - 'https://github.com/SagerNet/sing-box'
   - 'https://github.com/yarikov/kvn-tui'
 priority: high
-ordinal: 64000
+ordinal: 41500
 ---
 
 ## Description

@@ -4,13 +4,13 @@ title: 'Hard, P1: Proper authentication for a management HTTP API'
 status: To Do
 assignee: []
 created_date: '2026-07-05 14:43'
-updated_date: '2026-08-14 19:38'
+updated_date: '2026-10-04 17:36'
 labels:
   - legacy-import
   - feature
 dependencies: []
 priority: high
-ordinal: 2000
+ordinal: 49000
 ---
 
 ## Description

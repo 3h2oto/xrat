@@ -4,7 +4,7 @@ title: Add configurable Xray DNS outbound support
 status: To Do
 assignee: []
 created_date: '2026-09-02 11:02'
-updated_date: '2026-10-03 09:37'
+updated_date: '2026-10-04 17:35'
 labels:
   - xray
   - dns
@@ -24,7 +24,7 @@ documentation:
   - docs/src/03-features/runtime-management.md
 parent_task_id: TASK-112
 priority: medium
-ordinal: 89000
+ordinal: 125000
 ---
 
 ## Description

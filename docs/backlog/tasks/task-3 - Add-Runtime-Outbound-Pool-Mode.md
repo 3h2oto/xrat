@@ -4,14 +4,14 @@ title: Add Runtime Outbound Pool Mode
 status: To Do
 assignee: []
 created_date: '2026-07-05 14:43'
-updated_date: '2026-10-03 09:37'
+updated_date: '2026-10-04 17:35'
 labels:
   - legacy-import
   - feature
 milestone: m-8
 dependencies: []
 priority: medium
-ordinal: 3000
+ordinal: 122000
 ---
 
 ## Description

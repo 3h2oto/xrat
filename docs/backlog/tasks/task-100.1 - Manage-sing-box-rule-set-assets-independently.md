@@ -5,7 +5,7 @@ status: To Do
 assignee:
   - '@mhyrzt'
 created_date: '2026-08-30 17:51'
-updated_date: '2026-09-19 22:23'
+updated_date: '2026-10-04 17:36'
 labels:
   - sing-box
   - rule-set
@@ -18,7 +18,7 @@ references:
   - 'https://github.com/yarikov/kvn-tui'
 parent_task_id: TASK-100
 priority: medium
-ordinal: 78000
+ordinal: 84000
 ---
 
 ## Description

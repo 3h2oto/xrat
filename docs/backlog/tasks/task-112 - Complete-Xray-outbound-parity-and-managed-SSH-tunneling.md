@@ -4,7 +4,7 @@ title: Complete Xray outbound parity and managed SSH tunneling
 status: To Do
 assignee: []
 created_date: '2026-09-02 10:59'
-updated_date: '2026-10-03 09:37'
+updated_date: '2026-10-04 17:35'
 labels:
   - protocols
   - xray
@@ -24,7 +24,7 @@ documentation:
   - docs/src/06-architecture/runtime-lifecycle.md
   - docs/src/05-reference/protocols.md
 priority: medium
-ordinal: 86000
+ordinal: 124000
 ---
 
 ## Description

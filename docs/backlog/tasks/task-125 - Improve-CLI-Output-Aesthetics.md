@@ -1,15 +1,15 @@
 ---
 id: TASK-125
 title: Improve CLI Output Aesthetics
-status: In Progress
+status: To Do
 assignee: []
 created_date: '2026-09-24 23:34'
-updated_date: '2026-10-02 18:46'
+updated_date: '2026-10-04 17:36'
 labels:
   - improvement
   - cli
 dependencies: []
-ordinal: 107000
+ordinal: 101000
 ---
 
 ## Description

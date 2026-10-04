@@ -4,6 +4,7 @@ title: Add sing-box ECH parity and explicit capability validation
 status: To Do
 assignee: []
 created_date: '2026-10-03 09:34'
+updated_date: '2026-10-04 17:35'
 labels:
   - feature
   - runtime
@@ -21,7 +22,7 @@ documentation:
     docs/backlog/docs/doc-1 -
     Runtime-client-parity-research-and-engine-JSON-matrix.md
 priority: medium
-ordinal: 128000
+ordinal: 135000
 ---
 
 ## Description

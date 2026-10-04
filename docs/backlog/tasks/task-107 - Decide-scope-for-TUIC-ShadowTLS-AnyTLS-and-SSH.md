@@ -5,6 +5,7 @@ status: To Do
 assignee:
   - '@mhyrzt'
 created_date: '2026-08-30 17:52'
+updated_date: '2026-10-04 17:36'
 labels:
   - sing-box
   - protocols
@@ -16,7 +17,7 @@ references:
   - 'https://github.com/yarikov/kvn-tui'
   - 'https://sing-box.sagernet.org/configuration/outbound/'
 priority: low
-ordinal: 81000
+ordinal: 85000
 ---
 
 ## Description

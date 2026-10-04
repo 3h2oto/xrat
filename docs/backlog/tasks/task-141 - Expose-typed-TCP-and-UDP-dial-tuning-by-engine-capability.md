@@ -4,7 +4,7 @@ title: Expose typed TCP and UDP dial tuning by engine capability
 status: To Do
 assignee: []
 created_date: '2026-10-03 09:34'
-updated_date: '2026-10-03 09:39'
+updated_date: '2026-10-04 17:35'
 labels:
   - feature
   - runtime
@@ -24,7 +24,7 @@ documentation:
     docs/backlog/docs/doc-1 -
     Runtime-client-parity-research-and-engine-JSON-matrix.md
 priority: medium
-ordinal: 123000
+ordinal: 130000
 ---
 
 ## Description

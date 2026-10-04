@@ -4,6 +4,7 @@ title: Add platform-gated process and application split routing
 status: To Do
 assignee: []
 created_date: '2026-10-03 09:33'
+updated_date: '2026-10-04 17:35'
 labels:
   - feature
   - runtime
@@ -22,7 +23,7 @@ documentation:
     docs/backlog/docs/doc-1 -
     Runtime-client-parity-research-and-engine-JSON-matrix.md
 priority: medium
-ordinal: 120000
+ordinal: 128000
 ---
 
 ## Description
