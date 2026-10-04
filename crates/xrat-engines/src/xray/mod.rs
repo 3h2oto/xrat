@@ -1,6 +1,7 @@
 pub mod config;
 pub mod probe_process;
 pub mod runtime_process;
+#[cfg(feature = "stats")]
 pub mod stats;
 
 pub use config::{

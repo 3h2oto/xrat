@@ -17,6 +17,15 @@ def run(args: list[str], *, cwd: Path = ROOT, env: dict[str, str] | None = None)
     subprocess.run(args, cwd=cwd, env=env, check=True)
 
 
+def check_dependencies(cwd: Path) -> None:
+    tree = subprocess.check_output(
+        ["cargo", "tree", "--locked", "-p", "xrat-sdk", "--edges", "normal", "--prefix", "none", "--format", "{p}"],
+        cwd=cwd, text=True)
+    names = {line.split()[0] for line in tree.splitlines()}
+    forbidden = {"xrat-app", "xrat-db", "clap", "ratatui", "crossterm", "sqlx", "arboard", "axum", "tonic", "prost"}
+    assert not names & forbidden, f"Default SDK includes application dependencies: {names & forbidden}"
+
+
 def consumer(registry_version: str | None) -> None:
     with tempfile.TemporaryDirectory(prefix="xrat-sdk-consumer-") as temporary:
         destination = Path(temporary)
@@ -40,6 +49,7 @@ def consumer(registry_version: str | None) -> None:
         environment = os.environ.copy()
         environment["CARGO_TARGET_DIR"] = str(ROOT / "target")
         run(["cargo", "run", "--manifest-path", str(manifest)], cwd=destination, env=environment)
+        check_dependencies(destination)
         metadata = json.loads(subprocess.check_output(
             ["cargo", "metadata", "--format-version", "1"], cwd=destination, text=True))
         sdk = next(package for package in metadata["packages"] if package["name"] == "xrat-sdk")
@@ -58,12 +68,7 @@ def main() -> None:
     if args.registry:
         consumer(args.registry)
         return
-    tree = subprocess.check_output(
-        ["cargo", "tree", "--locked", "-p", "xrat-sdk", "--edges", "normal", "--prefix", "none", "--format", "{p}"],
-        cwd=ROOT, text=True)
-    names = {line.split()[0] for line in tree.splitlines()}
-    forbidden = {"xrat-app", "xrat-db", "clap", "ratatui", "crossterm", "sqlx", "arboard"}
-    assert not names & forbidden, f"Default SDK includes application dependencies: {names & forbidden}"
+    check_dependencies(ROOT)
     run(["cargo", "test", "--locked", "-p", "xrat-sdk"])
     run(["cargo", "test", "--locked", "-p", "xrat-sdk", "--all-targets", "--features", "services"])
     run(["cargo", "clippy", "--locked", "-p", "xrat-sdk", "--all-targets", "--all-features", "--", "-D", "warnings"])

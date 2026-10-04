@@ -114,8 +114,10 @@ xrat-sdk = { version = "0.21", features = ["services"] }
 
 This feature preserves the previous `xrat_sdk::services` imports and pulls in
 `xrat-app` with its database/UI dependencies. The default SDK does not include
-those application layers. These services still need internal initialization and
-are experimental; they are not a complete SDK-only stateful contract.
+those application layers or the engine traffic-stats RPC dependencies.
+Application builds explicitly retain stats support. These services still need
+internal initialization and are experimental; they are not a complete SDK-only
+stateful contract.
 
 Milestone **SDK: Public embedding and crates.io delivery** tracks deferred
 stateful initialization (TASK-153), saved-config/subscription services

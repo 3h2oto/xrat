@@ -31,6 +31,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
   and Clash API options.
 - `prober`: TCP, ICMP, real delay, download, and upload checks and result types.
 
+Default SDK builds also exclude the engine traffic-stats RPC stack; application
+builds retain their existing stats support.
+
 JSON generation has no database, process, or configuration-file side effects.
 Unsupported settings return the existing generator errors. Xray and sing-box
 have different schemas and capabilities; these modules do not promise arbitrary

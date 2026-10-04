@@ -5,7 +5,7 @@ status: Done
 assignee:
   - '@codex'
 created_date: '2026-10-04 06:55'
-updated_date: '2026-10-04 07:22'
+updated_date: '2026-10-04 07:37'
 labels: []
 milestone: m-9
 dependencies: []
@@ -29,7 +29,7 @@ Deliver parsing, normalized models, typed Xray/sing-box generators and executabl
 ## Implementation Plan
 
 <!-- SECTION:PLAN:BEGIN -->
-Add curated engines modules and prober exports; make xrat-app optional; verify defaults and services builds plus parser-to-generator regression tests.
+Expose curated stateless generators/probes and optional services. Gate xrat-engines traffic stats behind a default-on stats feature for direct engine consumers; disable engine defaults in workspace dependencies and explicitly enable stats in root/application packages. Verify default SDK excludes tonic/Axum as well as app/database/UI dependencies, with full application behavior unchanged.
 <!-- SECTION:PLAN:END -->
 
 ## Implementation Notes
@@ -38,12 +38,16 @@ Add curated engines modules and prober exports; make xrat-app optional; verify d
 Implemented SDK engine modules and supporting config/option exports, five executable probe exports and optional experimental services feature. Default and services SDK tests and examples pass; native validators accept all seven supported protocol fixtures after TASK-157 mapping fix.
 
 Final local gates passed: just fmt ci, just sdk-check and just sdk-native /usr/local/bin/xray /tmp/sing-box-1.13.21-linux-amd64/sing-box.
+
+Final dependency audit found tonic and Axum still pulled through the engine TUI stats module. Reopened the dependency-boundary criterion to gate those unused stats dependencies before release; this completes the originally planned server-dependency exclusion.
+
+Final boundary audit completed: engine stats is default-on for direct engine users, disabled for workspace stateless consumers, and explicitly enabled by xrat/root and xrat-app. Strengthened checks exclude Axum/Tonic/Prost in both workspace and standalone consumer. just fmt ci, just sdk-check and pinned native tests pass after this change.
 <!-- SECTION:NOTES:END -->
 
 ## Final Summary
 
 <!-- SECTION:FINAL_SUMMARY:BEGIN -->
-Published API implementation exposes parsers, normalized models, typed Xray/sing-box config generation and executable probes. Experimental service imports require services; default dependency tree excludes application/database/UI layers. Verified default/services builds, strict lint, doctest and standalone consumer.
+Implemented stateless parsing/model/generator/probe exports and optional experimental services. Default SDK excludes application/database/UI and unused stats RPC/server dependencies. Existing application stats remains enabled. Verified workspace, feature matrix, rustdoc, independent consumer and pinned native lifecycle/config checks.
 <!-- SECTION:FINAL_SUMMARY:END -->
 
 ## Definition of Done
