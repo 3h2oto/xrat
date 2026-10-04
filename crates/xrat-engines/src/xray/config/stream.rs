@@ -80,6 +80,7 @@ pub(super) fn build_stream_settings(
     };
 
     let reality_settings = if node.tls.as_deref() == Some("reality") {
+        extensions.alias_bool("allowInsecure", &["insecure"])?;
         let public_key = extensions
             .alias_string("password", &["pbk"])?
             .filter(|value| !value.is_empty())
@@ -101,6 +102,13 @@ pub(super) fn build_stream_settings(
     };
 
     let ws_settings = if network == "websocket" {
+        if let Some(header_type) = extensions.string("headerType")?
+            && !matches!(header_type.as_str(), "" | "none")
+        {
+            return Err(format!(
+                "unsupported WebSocket link parameter \"headerType\" value {header_type:?}"
+            ));
+        }
         let mut headers = HashMap::new();
         if let Some(host) = &node.host {
             headers.insert("Host".to_string(), host.clone());

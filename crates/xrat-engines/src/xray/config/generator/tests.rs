@@ -1148,3 +1148,74 @@ fn rejects_removed_transports_and_unknown_wire_parameters() {
             .contains("futureWireOption")
     );
 }
+
+#[test]
+fn websocket_accepts_neutral_legacy_header_type() {
+    let link =
+        "vless://test-uuid@example.com:443?type=ws&security=tls&host=edge.example.com&path=%2Fws";
+    let baseline = parse_link(link).unwrap().unwrap();
+    let baseline = serde_json::to_value(generate_probe_config(&baseline, 10808).unwrap()).unwrap();
+    for header in ["", "none"] {
+        let node = parse_link(&format!("{link}&headerType={header}"))
+            .unwrap()
+            .unwrap();
+        let probe = serde_json::to_value(generate_probe_config(&node, 10808).unwrap()).unwrap();
+        assert_eq!(probe, baseline);
+        generate_runtime_config(&node, 10809, None).unwrap();
+    }
+    let node = parse_link(&format!("{link}&headerType=http"))
+        .unwrap()
+        .unwrap();
+    assert!(
+        generate_probe_config(&node, 10808)
+            .unwrap_err()
+            .contains("headerType")
+    );
+}
+
+#[test]
+fn reality_validates_but_does_not_emit_legacy_insecure_flags() {
+    let link = "vless://test-uuid@example.com:443?type=tcp&security=reality&pbk=test-key&sid=abcd&headerType=none";
+    let baseline = parse_link(link).unwrap().unwrap();
+    for options in [
+        XrayGenOptions::default(),
+        XrayGenOptions {
+            compatibility: XrayCompatibilityTarget::PrereleaseV26_7_28,
+            ..Default::default()
+        },
+    ] {
+        let expected = serde_json::to_value(
+            generate_probe_config_with_options(&baseline, 10808, &options).unwrap(),
+        )
+        .unwrap();
+        for query in [
+            "allowInsecure=1",
+            "allowInsecure=0",
+            "insecure=true",
+            "insecure=false",
+            "allowInsecure=1&insecure=true",
+        ] {
+            let node = parse_link(&format!("{link}&{query}")).unwrap().unwrap();
+            let actual = serde_json::to_value(
+                generate_probe_config_with_options(&node, 10808, &options).unwrap(),
+            )
+            .unwrap();
+            assert_eq!(actual, expected);
+            generate_runtime_config(&node, 10809, None).unwrap();
+        }
+    }
+    for (query, message) in [
+        ("allowInsecure=maybe", "must be true"),
+        (
+            "allowInsecure=1&insecure=false",
+            "conflicting link parameters",
+        ),
+    ] {
+        let node = parse_link(&format!("{link}&{query}")).unwrap().unwrap();
+        assert!(
+            generate_probe_config(&node, 10808)
+                .unwrap_err()
+                .contains(message)
+        );
+    }
+}
