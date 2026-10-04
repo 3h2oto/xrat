@@ -71,8 +71,10 @@ pub struct LogConfig {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Inbound {
     pub tag: String,
-    pub port: u16,
-    pub listen: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub port: Option<u16>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub listen: Option<String>,
     pub protocol: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub settings: Option<serde_json::Value>,

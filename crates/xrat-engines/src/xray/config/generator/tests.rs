@@ -706,7 +706,7 @@ fn test_generate_vless_probe_config() {
 
     let config = generate_probe_config(&node, 10808).unwrap();
     assert_eq!(config.inbounds.len(), 1);
-    assert_eq!(config.inbounds[0].port, 10808);
+    assert_eq!(config.inbounds[0].port, Some(10808));
     assert_eq!(config.outbounds.len(), 1);
     assert_eq!(config.outbounds[0].protocol, "vless");
 }
@@ -739,7 +739,7 @@ fn enable_stats_api_adds_api_inbound_and_objects() {
 
     let api = config.inbounds.iter().find(|inbound| inbound.tag == "api");
     assert!(api.is_some(), "api dokodemo inbound should be present");
-    assert_eq!(api.unwrap().port, 10085);
+    assert_eq!(api.unwrap().port, Some(10085));
     assert_eq!(api.unwrap().protocol, "dokodemo-door");
     assert!(config.api.is_some());
     assert!(config.stats.is_some());
@@ -1055,7 +1055,7 @@ fn generates_http_only_runtime_config() {
 
     assert_eq!(config.inbounds.len(), 1);
     assert_eq!(config.inbounds[0].protocol, "http");
-    assert_eq!(config.inbounds[0].port, 18080);
+    assert_eq!(config.inbounds[0].port, Some(18080));
 }
 
 #[test]
