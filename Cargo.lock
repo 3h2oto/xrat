@@ -5072,8 +5072,12 @@ dependencies = [
 name = "xrat-sdk"
 version = "0.20.0"
 dependencies = [
+ "serde_json",
+ "tempfile",
+ "tokio",
  "xrat-app",
  "xrat-config",
+ "xrat-engines",
  "xrat-model",
  "xrat-prober",
 ]
