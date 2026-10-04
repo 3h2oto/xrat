@@ -35,8 +35,18 @@ The TUI keeps configs, test progress, runtime status, and logs on one dashboard.
 Search and filter nodes, connect with `Enter`, share a config as a QR code with
 `y`, or edit settings with `,`. Run `xrat tui` (or `xratui` after setup).
 
-[Quickstart](#quickstart) · [CLI workflows](#cli-workflows) ·
-[Documentation](https://mhyrzt.github.io/xrat)
+For detailed setup, command references, and SDK documentation, visit
+[mhyrzt.github.io/xrat](https://mhyrzt.github.io/xrat).
+
+## Table of contents
+
+- [Installation](#installation)
+- [Quickstart](#quickstart)
+- [CLI workflows](#cli-workflows)
+- [A few more useful commands](#-a-few-more-useful-commands)
+- [More to explore](#more-to-explore)
+- [Rust SDK](#rust-sdk)
+- [Acknowledgments](#acknowledgments)
 
 ## Installation
 
@@ -394,6 +404,32 @@ CLI arguments, a database, or application initialization. See the
 [SDK guide](docs/src/06-architecture/sdk.md) and
 [API documentation](https://docs.rs/xrat-sdk). Stateful services are
 experimental and require the optional `services` feature.
+
+For example, parse a VLESS link and generate an Xray config as JSON:
+
+```bash
+cargo add xrat-sdk serde_json
+```
+
+```rust
+use xrat_sdk::{config::parse_link, engines::xray::generate_runtime_config};
+
+fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let node = parse_link(
+        "vless://11111111-1111-1111-1111-111111111111@example.com:443?security=tls#edge",
+    )?
+    .ok_or("link contains no node")?;
+
+    // Local SOCKS on port 1080 and HTTP on port 8080.
+    let config = generate_runtime_config(&node, 1080, Some(8080))?;
+    println!("{}", serde_json::to_string_pretty(&config)?);
+    Ok(())
+}
+```
+
+Replace the sample link with your own. This generates the configuration; running
+it requires an Xray binary. To serialize the normalized node instead, use
+`serde_json::to_string_pretty(&node)`.
 
 ## Acknowledgments
 
