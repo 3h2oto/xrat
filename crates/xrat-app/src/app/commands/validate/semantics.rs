@@ -178,6 +178,7 @@ pub(crate) fn validate_runtime(config: &AppConfig, errors: &mut Vec<Diagnostic>)
     validate_mux(&runtime.mux, errors);
     validate_fragment(&runtime.fragment, errors);
     validate_network(&runtime.network, errors);
+    validate_tun(&runtime.tun, &runtime.engine, errors);
 }
 
 pub(crate) fn validate_mux(mux: &crate::app::config::MuxSettings, errors: &mut Vec<Diagnostic>) {
@@ -282,6 +283,98 @@ pub(crate) fn validate_network(
             "use 0 to disable, or a positive fwmark value.",
         ));
     }
+}
+
+pub(crate) fn validate_tun(
+    tun: &crate::app::config::TunSettings,
+    engine: &str,
+    errors: &mut Vec<Diagnostic>,
+) {
+    if !tun.enabled {
+        return;
+    }
+    if !matches!(engine, "xray" | "sing-box") {
+        errors.push(Diagnostic::new(
+            "[runtime.tun].enabled",
+            format!("TUN capture is not supported by the {engine} engine"),
+            "only the xray and sing-box engines emit a tun inbound.",
+            "use [runtime].engine = \"xray\" or \"sing-box\", or disable [runtime.tun].",
+        ));
+    }
+    if tun.interface_name.trim().is_empty() {
+        errors.push(Diagnostic::new(
+            "[runtime.tun].interface_name",
+            "interface_name is empty",
+            "the TUN interface needs a name to create and clean up.",
+            "set a name such as xrat0.",
+        ));
+    }
+    if !(1280..=65535).contains(&tun.mtu) {
+        errors.push(Diagnostic::new(
+            "[runtime.tun].mtu",
+            format!("value is {}", tun.mtu),
+            "the TUN MTU must be a whole number in 1280..=65535.",
+            "use 1500 for typical Ethernet links.",
+        ));
+    }
+    if !matches!(tun.stack.as_str(), "system" | "gvisor" | "mixed") {
+        errors.push(Diagnostic::new(
+            "[runtime.tun].stack",
+            format!("unsupported stack: {}", tun.stack),
+            "the sing-box TUN stack selects how captured packets are processed.",
+            "use one of: system, gvisor, mixed.",
+        ));
+    }
+    if tun.address.is_empty() {
+        errors.push(Diagnostic::new(
+            "[runtime.tun].address",
+            "no address configured",
+            "the TUN interface needs at least one address CIDR.",
+            "set an address such as 172.19.0.1/30.",
+        ));
+    }
+    for address in &tun.address {
+        if !is_valid_cidr(address) {
+            errors.push(Diagnostic::new(
+                "[runtime.tun].address",
+                format!("invalid CIDR: {address}"),
+                "TUN addresses must be IPv4/IPv6 CIDR prefixes.",
+                "use a value like 172.19.0.1/30.",
+            ));
+        }
+    }
+    for address in &tun.route_exclude_address {
+        if !is_valid_cidr(address) {
+            errors.push(Diagnostic::new(
+                "[runtime.tun].route_exclude_address",
+                format!("invalid CIDR: {address}"),
+                "route exclusions must be IPv4/IPv6 CIDR prefixes.",
+                "use a value like 192.168.0.0/16.",
+            ));
+        }
+    }
+    if engine != "sing-box" && !tun.route_exclude_address.is_empty() {
+        errors.push(Diagnostic::new(
+            "[runtime.tun].route_exclude_address",
+            "not supported by the xray engine",
+            "the Xray TUN inbound has no route-exclusion option; only sing-box can exclude destinations from capture.",
+            "remove the exclusions, or switch [runtime].engine to \"sing-box\".",
+        ));
+    }
+}
+
+fn is_valid_cidr(value: &str) -> bool {
+    let Some((address, prefix)) = value.trim().split_once('/') else {
+        return false;
+    };
+    let Ok(address) = address.parse::<std::net::IpAddr>() else {
+        return false;
+    };
+    let Ok(prefix) = prefix.parse::<u8>() else {
+        return false;
+    };
+    let max = if address.is_ipv4() { 32 } else { 128 };
+    prefix <= max
 }
 
 pub(crate) fn validate_database(config: &AppConfig, errors: &mut Vec<Diagnostic>) {

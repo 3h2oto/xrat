@@ -52,6 +52,14 @@ pub const DEFAULT_NETWORK_BIND_ADDRESS: &str = "";
 pub const DEFAULT_NETWORK_MARK: i64 = 0;
 pub const DEFAULT_NETWORK_LISTEN_INTERFACE: &str = "";
 
+pub const DEFAULT_TUN_ENABLED: bool = false;
+pub const DEFAULT_TUN_INTERFACE_NAME: &str = "xrat0";
+pub const DEFAULT_TUN_MTU: u32 = 1500;
+pub const DEFAULT_TUN_STACK: &str = "system";
+pub const DEFAULT_TUN_ADDRESS: &[&str] = &["172.19.0.1/30"];
+pub const DEFAULT_TUN_AUTO_ROUTE: bool = true;
+pub const DEFAULT_TUN_STRICT_ROUTE: bool = false;
+
 pub const DEFAULT_SNIFFING_ENABLED: bool = true;
 pub const DEFAULT_SNIFFING_DEST_OVERRIDE: &[&str] = &["http", "tls", "quic"];
 pub const DEFAULT_SNIFFING_ROUTE_ONLY: bool = true;

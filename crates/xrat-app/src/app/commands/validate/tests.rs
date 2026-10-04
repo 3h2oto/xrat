@@ -60,6 +60,66 @@ fn rejects_invalid_runtime_engine() {
 }
 
 #[test]
+fn rejects_tun_with_v2ray_engine() {
+    let mut config = AppConfig::default();
+    config.runtime.engine = "v2ray".to_string();
+    config.runtime.tun.enabled = true;
+
+    let errors = errors_for(&config);
+    let diagnostic = find(&errors, "[runtime.tun].enabled");
+
+    assert!(diagnostic.problem.contains("v2ray"));
+}
+
+#[test]
+fn rejects_xray_tun_route_exclusions() {
+    let mut config = AppConfig::default();
+    config.runtime.tun.enabled = true;
+    config.runtime.tun.route_exclude_address = vec!["192.168.0.0/16".to_string()];
+
+    let errors = errors_for(&config);
+    let diagnostic = find(&errors, "[runtime.tun].route_exclude_address");
+
+    assert!(diagnostic.problem.contains("xray"));
+}
+
+#[test]
+fn rejects_invalid_tun_settings() {
+    let mut config = AppConfig::default();
+    config.runtime.engine = "sing-box".to_string();
+    config.runtime.tun.enabled = true;
+    config.runtime.tun.interface_name = String::new();
+    config.runtime.tun.mtu = 100;
+    config.runtime.tun.stack = "wireguard".to_string();
+    config.runtime.tun.address = vec!["not-a-cidr".to_string()];
+    config.runtime.tun.route_exclude_address = vec!["10.0.0.0/33".to_string()];
+
+    let errors = errors_for(&config);
+
+    assert!(
+        find(&errors, "[runtime.tun].interface_name")
+            .problem
+            .contains("empty")
+    );
+    assert!(find(&errors, "[runtime.tun].mtu").problem.contains("100"));
+    assert!(
+        find(&errors, "[runtime.tun].stack")
+            .problem
+            .contains("wireguard")
+    );
+    assert!(
+        find(&errors, "[runtime.tun].address")
+            .problem
+            .contains("not-a-cidr")
+    );
+    assert!(
+        find(&errors, "[runtime.tun].route_exclude_address")
+            .problem
+            .contains("10.0.0.0/33")
+    );
+}
+
+#[test]
 fn rejects_invalid_routing_domain_strategy() {
     let mut config = AppConfig::default();
     config.routing.domain_strategy = "AlwaysIP".to_string();

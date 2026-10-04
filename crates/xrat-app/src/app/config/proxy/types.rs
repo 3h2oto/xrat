@@ -21,6 +21,20 @@ pub struct RuntimeSettings {
     pub mux: MuxSettings,
     pub fragment: FragmentSettings,
     pub network: NetworkSettings,
+    pub tun: TunSettings,
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq)]
+#[serde(default)]
+pub struct TunSettings {
+    pub enabled: bool,
+    pub interface_name: String,
+    pub mtu: u32,
+    pub stack: String,
+    pub address: Vec<String>,
+    pub auto_route: bool,
+    pub strict_route: bool,
+    pub route_exclude_address: Vec<String>,
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq)]

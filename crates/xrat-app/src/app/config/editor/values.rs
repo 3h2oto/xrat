@@ -217,6 +217,7 @@ pub(crate) fn enum_options(path: &str) -> Option<&'static [&'static str]> {
         ]),
         "runtime.shadowsocks.network" => Some(&["tcp", "udp", "tcp,udp"]),
         "runtime.mux.xudp_proxy_udp443" => Some(&["reject", "allow", "skip"]),
+        "runtime.tun.stack" => Some(&["system", "gvisor", "mixed"]),
         "runtime.fragment.packets_mode" => Some(&["tlshello", "range"]),
         "routing.domain_strategy" => Some(&["AsIs", "IPIfNonMatch", "IPOnDemand"]),
         "dns.query_strategy" => Some(&["UseIP", "UseIPv4", "UseIPv6", "UseSystem"]),
