@@ -126,18 +126,21 @@ fn setup_command(context: &AppContext, args: &TunSetupArgs) -> crate::app::Resul
         .filter(|file| file.path.is_file())
         .collect();
 
-    let paths: Vec<String> = files
+    let commands: Vec<String> = files
         .iter()
-        .map(|file| file.path.display().to_string())
+        .map(|file| {
+            format!(
+                "sudo setcap {} {}",
+                tun_privileges::TUN_CAPABILITIES,
+                file.path.display()
+            )
+        })
         .collect();
-    let printable = format!(
-        "sudo setcap {} {}",
-        tun_privileges::TUN_CAPABILITIES,
-        paths.join(" ")
-    );
 
     if args.dry_run {
-        println!("{printable}");
+        for command in &commands {
+            println!("{command}");
+        }
         return Ok(());
     }
 
@@ -145,20 +148,24 @@ fn setup_command(context: &AppContext, args: &TunSetupArgs) -> crate::app::Resul
         "{}",
         output::notice("granting TUN capabilities with `sudo setcap`", color)
     );
-    let mut command = xrat_support::process::Command::new("sudo");
-    command.arg("setcap").arg(tun_privileges::TUN_CAPABILITIES);
-    for file in &files {
-        command.arg(&file.path);
-    }
-    command
-        .stdin(Stdio::inherit())
-        .stdout(Stdio::inherit())
-        .stderr(Stdio::inherit());
-    let status = command.status()?;
-    if !status.success() {
-        return Err(AppError::InvalidArgument(format!(
-            "`{printable}` failed ({status}); run it manually and check your privileges"
-        )));
+    // `setcap` accepts a single file per capability specification, so each file
+    // gets its own invocation (sudo caches the credential across them).
+    for (file, printable) in files.iter().zip(&commands) {
+        let mut command = xrat_support::process::Command::new("sudo");
+        command
+            .arg("setcap")
+            .arg(tun_privileges::TUN_CAPABILITIES)
+            .arg(&file.path);
+        command
+            .stdin(Stdio::inherit())
+            .stdout(Stdio::inherit())
+            .stderr(Stdio::inherit());
+        let status = command.status()?;
+        if !status.success() {
+            return Err(AppError::InvalidArgument(format!(
+                "`{printable}` failed ({status}); run it manually and check your privileges"
+            )));
+        }
     }
 
     println!("{}", output::success("Granted TUN capabilities.", color));

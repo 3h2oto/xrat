@@ -38,9 +38,9 @@ Grant `CAP_NET_ADMIN` and `CAP_NET_RAW` to the files TUN needs:
 xrat tun setup
 ```
 
-This runs `sudo setcap cap_net_admin,cap_net_raw+ep <files>` for the selected
+This runs `sudo setcap cap_net_admin,cap_net_raw+ep <file>` for the selected
 engine binary and for the xrat binary, which removes a leftover interface before
-launch. Use `--dry-run` to print the command without running it.
+launch. Use `--dry-run` to print the commands without running them.
 
 Restart the daemon afterwards (`xrat daemon restart`) so it picks up capabilities
 on the xrat binary. File capabilities are lost whenever the managed engine binary

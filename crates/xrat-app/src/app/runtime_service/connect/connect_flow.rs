@@ -129,7 +129,7 @@ impl<'a> RuntimeService<'a> {
                         Some(&error.to_string()),
                     )
                     .await?;
-                return Err(error);
+                return Err(tun_startup_error(error, tun_enabled));
             }
         };
 
@@ -195,4 +195,19 @@ impl<'a> RuntimeService<'a> {
             String::from_utf8_lossy(&output.stderr).trim(),
         )))
     }
+}
+
+/// Append TUN capability guidance to a startup failure when TUN capture is
+/// enabled. An engine can pass native validation but still fail to start when it
+/// cannot create the interface or system routes.
+fn tun_startup_error(error: AppError, tun_enabled: bool) -> AppError {
+    let message = error.to_string();
+    let looks_like_startup =
+        message.contains("exited during startup") || message.contains("startup timeout");
+    if tun_enabled && looks_like_startup {
+        return AppError::InvalidArgument(format!(
+            "{message}; if this is a TUN capture failure, ensure capabilities with `xrat tun setup`"
+        ));
+    }
+    error
 }
