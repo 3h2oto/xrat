@@ -306,16 +306,17 @@ fn print_status(active: &ActiveEndpoints) {
 /// value is supplied because this process cannot observe changes made by the
 /// emitted script in the caller's shell.
 fn print_status_stderr(active: &ActiveEndpoints, expected_proxy: Option<String>) {
-    eprintln!("{}", status_text_for(active, expected_proxy));
+    eprintln!(
+        "{}",
+        status_text_for(active, expected_proxy, output::color_enabled())
+    );
 }
 
 fn status_text(active: &ActiveEndpoints) -> String {
-    status_text_for(active, current_proxy_value())
+    status_text_for(active, current_proxy_value(), output::color_enabled())
 }
 
-fn status_text_for(active: &ActiveEndpoints, current: Option<String>) -> String {
-    let color = output::color_enabled();
-
+fn status_text_for(active: &ActiveEndpoints, current: Option<String>, color: bool) -> String {
     let active_hosts = active_hostports(active);
     let pointing = current
         .as_deref()
