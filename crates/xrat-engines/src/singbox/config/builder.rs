@@ -63,6 +63,29 @@ pub enum SingboxInbound {
         method: String,
         password: String,
     },
+    Tun {
+        tag: String,
+        interface_name: String,
+        address: Vec<String>,
+        mtu: u32,
+        stack: String,
+        auto_route: bool,
+        strict_route: bool,
+        #[serde(skip_serializing_if = "Vec::is_empty")]
+        route_exclude_address: Vec<String>,
+    },
+}
+
+#[derive(Debug, Clone)]
+pub struct SingboxTunOptions {
+    pub tag: String,
+    pub interface_name: String,
+    pub address: Vec<String>,
+    pub mtu: u32,
+    pub stack: String,
+    pub auto_route: bool,
+    pub strict_route: bool,
+    pub route_exclude_address: Vec<String>,
 }
 
 impl SingboxInbound {
@@ -121,6 +144,60 @@ impl SingboxInbound {
             password,
         })
     }
+
+    pub fn tun(options: SingboxTunOptions) -> Result<Self, String> {
+        let interface_name = options.interface_name.trim().to_string();
+        if interface_name.is_empty() {
+            return Err("sing-box TUN inbound requires a non-empty interface_name".to_string());
+        }
+        if !matches!(options.stack.as_str(), "system" | "gvisor" | "mixed") {
+            return Err(format!(
+                "sing-box TUN stack must be system, gvisor, or mixed; got {:?}",
+                options.stack
+            ));
+        }
+        if !(1280..=65535).contains(&options.mtu) {
+            return Err(format!(
+                "sing-box TUN mtu must be in 1280..=65535; got {}",
+                options.mtu
+            ));
+        }
+        if options.address.is_empty() {
+            return Err("sing-box TUN inbound requires at least one address CIDR".to_string());
+        }
+        for address in &options.address {
+            if parse_cidr(address).is_none() {
+                return Err(format!(
+                    "sing-box TUN address {address:?} is not a valid CIDR"
+                ));
+            }
+        }
+        for address in &options.route_exclude_address {
+            if parse_cidr(address).is_none() {
+                return Err(format!(
+                    "sing-box TUN route_exclude_address {address:?} is not a valid CIDR"
+                ));
+            }
+        }
+        Ok(Self::Tun {
+            tag: options.tag,
+            interface_name,
+            address: options.address,
+            mtu: options.mtu,
+            stack: options.stack,
+            auto_route: options.auto_route,
+            strict_route: options.strict_route,
+            route_exclude_address: options.route_exclude_address,
+        })
+    }
+}
+
+fn parse_cidr(value: &str) -> Option<(std::net::IpAddr, u8)> {
+    let (address, prefix) = value.trim().split_once('/')?;
+    let address = address.parse::<std::net::IpAddr>().ok()?;
+    let prefix = prefix.parse::<u8>().ok()?;
+    let max = if address.is_ipv4() { 32 } else { 128 };
+    (prefix <= max).then_some((address, prefix))
 }
 
 pub(super) const SHADOWSOCKS_METHODS: &[&str] = &[
@@ -256,6 +333,7 @@ pub fn generate_singbox_runtime_config_with_dns(
             rule_set: Vec::new(),
             final_outbound: "proxy".to_string(),
             default_domain_resolver: None,
+            auto_detect_interface: None,
         });
         route.default_domain_resolver = resolver;
     }
@@ -296,6 +374,32 @@ impl SingboxConfig {
             path,
         });
     }
+
+    /// Shape the generated route for a TUN inbound: bind outbound dials to the
+    /// detected physical interface to avoid routing loops, and send private/LAN
+    /// destinations direct so local networks stay reachable.
+    pub fn enable_tun_route(&mut self) {
+        let route = self.route.get_or_insert_with(|| SingboxRoute {
+            rules: Vec::new(),
+            rule_set: Vec::new(),
+            final_outbound: "proxy".to_string(),
+            default_domain_resolver: None,
+            auto_detect_interface: None,
+        });
+        route.auto_detect_interface = Some(true);
+        if !route.rules.iter().any(|rule| rule["action"] == "sniff") {
+            route
+                .rules
+                .insert(0, serde_json::json!({"action": "sniff"}));
+        }
+        if !route.rules.iter().any(|rule| rule["ip_is_private"] == true) {
+            route.rules.push(serde_json::json!({
+                "ip_is_private": true,
+                "action": "route",
+                "outbound": "direct",
+            }));
+        }
+    }
 }
 
 pub(super) fn build_route(
@@ -333,6 +437,7 @@ pub(super) fn build_route(
         rule_set: rule_sets,
         final_outbound: "proxy".to_string(),
         default_domain_resolver: None,
+        auto_detect_interface: None,
     }))
 }
 
