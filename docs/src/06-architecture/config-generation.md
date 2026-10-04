@@ -335,10 +335,17 @@ fn build_stream_settings(node: &Node) -> Result<Option<StreamSettings>, String> 
 }
 ```
 
+WebSocket links accept legacy `headerType=none` (or an empty value) as a no-op;
+other header types remain unsupported.
+
 #### REALITY Settings
 
 Built when `security=reality`, using preserved extensions (`pbk`/`password`,
 `sid`, `spx`, `fp`) and `sni`:
+
+Legacy `allowInsecure`/`insecure` flags on REALITY links are validated as
+booleans and ignored. They do not disable REALITY authentication or generate TLS
+settings. Conflicting aliases and malformed values are rejected.
 
 ```json
 {
