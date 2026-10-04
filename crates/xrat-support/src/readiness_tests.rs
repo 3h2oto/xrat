@@ -36,12 +36,18 @@ impl TcpConnector for FakeConnector {
         if self.hang {
             std::future::pending::<()>().await;
         }
-        let remaining = self
-            .failures
-            .fetch_update(Ordering::SeqCst, Ordering::SeqCst, |count| {
-                Some(count.saturating_sub(1))
-            })
-            .unwrap();
+        let mut remaining = self.failures.load(Ordering::SeqCst);
+        loop {
+            match self.failures.compare_exchange(
+                remaining,
+                remaining.saturating_sub(1),
+                Ordering::SeqCst,
+                Ordering::SeqCst,
+            ) {
+                Ok(_) => break,
+                Err(actual) => remaining = actual,
+            }
+        }
         if remaining > 0 || endpoint.port == 2 {
             Err(io::Error::new(
                 io::ErrorKind::ConnectionRefused,

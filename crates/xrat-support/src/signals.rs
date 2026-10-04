@@ -2,6 +2,10 @@ use crate::process::{Command, ProcessSpawner, Stdio, SystemProcessSpawner};
 use async_trait::async_trait;
 use std::sync::Arc;
 
+#[allow(
+    clippy::double_must_use,
+    reason = "async_trait adds must_use to methods returning already must-use boxed futures"
+)]
 #[async_trait]
 pub trait ShutdownSignal: Send + Sync {
     async fn wait(&self) -> std::io::Result<()>;

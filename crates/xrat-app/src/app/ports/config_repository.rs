@@ -5,6 +5,10 @@ use xrat_model::{ConfigId, SubscriptionId};
 /// Persistence operations required by config read and lifecycle services.
 ///
 /// It is implemented by the database layer and replaced by fakes in tests.
+#[allow(
+    clippy::double_must_use,
+    reason = "async_trait adds must_use to methods returning already must-use boxed futures"
+)]
 #[async_trait::async_trait]
 pub trait ConfigRepository: Send + Sync {
     async fn list_configs_with_latest_tests(

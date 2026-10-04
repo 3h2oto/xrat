@@ -8,6 +8,10 @@ pub struct NetworkEndpoint {
     pub host: String,
     pub port: u16,
 }
+#[allow(
+    clippy::double_must_use,
+    reason = "async_trait adds must_use to methods returning already must-use boxed futures"
+)]
 #[async_trait]
 pub trait TcpConnector: Send + Sync {
     async fn connect(&self, endpoint: &NetworkEndpoint) -> std::io::Result<()>;
@@ -54,6 +58,10 @@ pub enum ReadinessError {
     #[error("port {port} was not ready before startup timeout")]
     Timeout { port: u16 },
 }
+#[allow(
+    clippy::double_must_use,
+    reason = "async_trait adds must_use to methods returning already must-use boxed futures"
+)]
 #[async_trait]
 pub trait PortWaiter: Send + Sync {
     async fn wait(

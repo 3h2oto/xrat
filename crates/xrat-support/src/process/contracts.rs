@@ -104,6 +104,10 @@ impl Drop for StartupChild {
     }
 }
 
+#[allow(
+    clippy::double_must_use,
+    reason = "async_trait adds must_use to methods returning already must-use boxed futures"
+)]
 #[async_trait]
 pub trait ProcessSpawner: Send + Sync {
     fn spawn(&self, spec: &CommandSpec) -> io::Result<Child>;

@@ -11,6 +11,10 @@ pub struct StatsSample {
 #[error("stats sampling failed: {0}")]
 pub struct StatsError(pub String);
 
+#[allow(
+    clippy::double_must_use,
+    reason = "async_trait adds must_use to methods returning already must-use boxed futures"
+)]
 #[async_trait::async_trait]
 pub trait StatsSource: Send + Sync {
     async fn sample(&self) -> Result<StatsSample, StatsError>;

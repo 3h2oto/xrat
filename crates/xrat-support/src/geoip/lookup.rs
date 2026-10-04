@@ -20,6 +20,10 @@ pub enum GeoIpError {
     InvalidSettings(String),
 }
 
+#[allow(
+    clippy::double_must_use,
+    reason = "async_trait adds must_use to methods returning already must-use boxed futures"
+)]
 #[async_trait::async_trait]
 pub trait GeoIpLookup: Send + Sync + Debug {
     async fn country(&self, ip: IpAddr) -> Result<Option<String>, GeoIpError>;

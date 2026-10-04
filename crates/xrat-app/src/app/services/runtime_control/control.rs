@@ -27,6 +27,10 @@ pub struct RuntimeReplaceOutcome {
 /// drives a running daemon over IPC, while `LocalRuntimeControl` starts and
 /// stops processes in the current process. Callers that need consistent
 /// semantics depend on this trait instead of choosing a path themselves.
+#[allow(
+    clippy::double_must_use,
+    reason = "async_trait adds must_use to methods returning already must-use boxed futures"
+)]
 #[async_trait::async_trait]
 pub trait RuntimeControl: Send + Sync {
     /// Connect a runtime session for the given config.

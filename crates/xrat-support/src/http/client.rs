@@ -66,6 +66,10 @@ pub struct HttpRequest {
     pub options: HttpOptions,
 }
 
+#[allow(
+    clippy::double_must_use,
+    reason = "async_trait adds must_use to methods returning already must-use boxed futures"
+)]
 #[async_trait]
 pub trait ResponseBody: Send {
     async fn next_chunk(&mut self) -> Result<Option<Vec<u8>>, HttpError>;
@@ -138,6 +142,10 @@ impl HttpResponse {
     }
 }
 
+#[allow(
+    clippy::double_must_use,
+    reason = "async_trait adds must_use to methods returning already must-use boxed futures"
+)]
 #[async_trait]
 pub trait HttpClient: Send + Sync {
     async fn execute(&self, request: HttpRequest) -> Result<HttpResponse, HttpError>;
