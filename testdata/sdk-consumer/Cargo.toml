@@ -1,0 +1,12 @@
+[package]
+name = "xrat-sdk-consumer"
+version = "0.0.0"
+edition = "2024"
+publish = false
+
+[workspace]
+
+[dependencies]
+xrat-sdk = { path = "../../crates/xrat-sdk" }
+serde_json = "1.0.150"
+tokio = { version = "1.52.3", features = ["macros", "rt-multi-thread", "net"] }

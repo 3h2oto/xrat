@@ -48,6 +48,18 @@ install *installer_args:
 test:
     cargo test -q --locked --workspace
 
+# Verify public SDK features, docs, dependency boundaries and standalone usage
+sdk-check:
+    python3 scripts/check-sdk.py
+
+# Run representative pinned engine validation and local probe lifecycle tests
+sdk-native xray_binary singbox_binary:
+    XRAT_SDK_XRAY_BINARY={{quote(xray_binary)}} XRAT_SDK_SINGBOX_BINARY={{quote(singbox_binary)}} cargo test --locked -p xrat-sdk --test native -- --ignored
+
+# Verify normal crates.io installation after publication
+sdk-registry version:
+    python3 scripts/check-sdk.py --registry {{quote(version)}}
+
 # Generate a terminal coverage summary
 coverage:
     cargo llvm-cov --locked
