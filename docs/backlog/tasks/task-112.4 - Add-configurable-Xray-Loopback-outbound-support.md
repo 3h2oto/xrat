@@ -4,11 +4,13 @@ title: Add configurable Xray Loopback outbound support
 status: To Do
 assignee: []
 created_date: '2026-09-02 11:02'
+updated_date: '2026-10-03 09:37'
 labels:
   - xray
   - loopback
   - routing
   - config-generation
+milestone: m-8
 dependencies: []
 references:
   - 'https://xtls.github.io/en/config/outbounds/loopback.html'
@@ -52,6 +54,13 @@ The implementation must guard against obvious self-referential and deterministic
 - [ ] #6 Limitations of static cycle detection and safe example configurations are documented
 - [ ] #7 Focused config, generation, reference-validation, and routing tests pass together with just fmt ci
 <!-- AC:END -->
+
+## Implementation Notes
+
+<!-- SECTION:NOTES:BEGIN -->
+### Cross-engine JSON comparison (research only, 2026-10-03)
+Xray uses {"protocol":"loopback","tag":"reentry","settings":{"inboundTag":"reentered"}} then routing.rules matching that inboundTag. V2Ray also documents Loopback, with exact support requiring a version fixture. Modern sing-box has no established equivalent loopback outbound; detour is an upstream dial chain and does not mean routing re-entry. Preserve current Xray scope, reject recursive graphs and unsupported engine requests. [V2Fly Loopback](https://www.v2fly.org/en_US/config/protocols/loopback.html); see doc-1.
+<!-- SECTION:NOTES:END -->
 
 ## Definition of Done
 <!-- DOD:BEGIN -->

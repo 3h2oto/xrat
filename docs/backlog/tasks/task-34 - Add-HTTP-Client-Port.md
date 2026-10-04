@@ -1,9 +1,11 @@
 ---
 id: TASK-34
 title: Add HTTP Client Port
-status: To Do
-assignee: []
+status: Done
+assignee:
+  - codex
 created_date: '2026-07-05 14:43'
+updated_date: '2026-10-03 06:43'
 labels:
   - legacy-import
   - improvement
@@ -67,3 +69,29 @@ check, subscription import) and migrate probers and upgrade last. Keep the
 existing `GeoIpLookup` remote lookups as-is since they are already abstracted
 behind that trait.
 <!-- SECTION:DESCRIPTION:END -->
+
+## Acceptance Criteria
+<!-- AC:BEGIN -->
+- [x] #1 All production HTTP calls use shared transport adapters or existing lookup providers backed by them
+- [x] #2 Imports, releases, downloads, setup, statistics and probers accept injected HTTP dependencies
+- [x] #3 Streaming, proxy and redirect policy plus failure classification and timing remain compatible
+- [x] #4 Fake transport and loopback regressions plus workspace gates pass
+<!-- AC:END -->
+
+## Implementation Plan
+
+<!-- SECTION:PLAN:BEGIN -->
+Add cross-crate typed HTTP requests/options, streaming responses and async/blocking transport ports in xrat-support; retain production wrapper APIs and inject transports into consumers including setup/install and statistics; preserve timeouts/proxy/redirect/status/measurement rules; cover fake failures and real loopback adapters.
+<!-- SECTION:PLAN:END -->
+
+## Implementation Notes
+
+<!-- SECTION:NOTES:BEGIN -->
+Implemented in 17bbcdd. Cross-crate async and blocking HTTP transport contracts, typed options/errors and chunked bodies replace direct reqwest consumers. Only xrat-support depends on reqwest. Existing public default flows are retained; injectable input/release/lookup/stats/probe helpers support fakes. CARGO_INCREMENTAL=0 just ci passed: 906 Rust tests, three Python tests, strict Clippy and formatting; includes original real loopback redirect/proxy fixtures plus fake request, body interruption, import status and release payload tests. Log: /tmp/xrat-ports-http-ci.log.
+<!-- SECTION:NOTES:END -->
+
+## Final Summary
+
+<!-- SECTION:FINAL_SUMMARY:BEGIN -->
+Centralized HTTP transport behind injected async/blocking ports while preserving consumer policies and streaming behavior; workspace gates passed.
+<!-- SECTION:FINAL_SUMMARY:END -->

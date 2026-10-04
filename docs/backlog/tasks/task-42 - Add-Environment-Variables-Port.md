@@ -1,9 +1,11 @@
 ---
 id: TASK-42
 title: Add Environment Variables Port
-status: To Do
-assignee: []
+status: Done
+assignee:
+  - codex
 created_date: '2026-07-05 14:43'
+updated_date: '2026-10-03 06:42'
 labels:
   - legacy-import
   - improvement
@@ -61,3 +63,28 @@ install services.
 understood. Prefer the simple closure approach unless the trait provides clear
 value for polymorphism.
 <!-- SECTION:DESCRIPTION:END -->
+
+## Acceptance Criteria
+<!-- AC:BEGIN -->
+- [x] #1 All production environment reads use the shared adapter or existing injectable secret resolver
+- [x] #2 Environment-dependent policy accepts fake values without modifying the process environment
+- [x] #3 Existing defaults and precedence remain compatible; focused tests and workspace gates pass
+<!-- AC:END -->
+
+## Implementation Plan
+
+<!-- SECTION:PLAN:BEGIN -->
+Add OsString-preserving EnvVars port and system/map adapters in xrat-support; migrate all environment policy consumers through injectable variants while preserving default wrappers and secret API; verify precedence and missing/empty/non-Unicode cases.
+<!-- SECTION:PLAN:END -->
+
+## Implementation Notes
+
+<!-- SECTION:NOTES:BEGIN -->
+Implemented in 6941831. Existing entry points use production adapters; injected policy variants and test fakes preserve prior behavior. CARGO_INCREMENTAL=0 just fmt ci passed: 901 Rust tests, three Python version tests, formatting and strict Clippy. Log: /tmp/xrat-ports-small-ci.log. Native non-Linux execution was not verified.
+<!-- SECTION:NOTES:END -->
+
+## Final Summary
+
+<!-- SECTION:FINAL_SUMMARY:BEGIN -->
+Extracted the host boundary with production defaults and injectable policy tests; workspace gates passed.
+<!-- SECTION:FINAL_SUMMARY:END -->

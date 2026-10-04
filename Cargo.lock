@@ -4932,6 +4932,24 @@ dependencies = [
 name = "xrat"
 version = "0.20.0"
 dependencies = [
+ "clap",
+ "serde_json",
+ "tempfile",
+ "tokio",
+ "tracing-subscriber",
+ "xrat-app",
+ "xrat-config",
+ "xrat-db",
+ "xrat-engines",
+ "xrat-model",
+ "xrat-prober",
+ "xrat-support",
+]
+
+[[package]]
+name = "xrat-app"
+version = "0.20.0"
+dependencies = [
  "arboard",
  "async-trait",
  "axum 0.8.9",
@@ -4948,7 +4966,6 @@ dependencies = [
  "prost",
  "qrcode",
  "ratatui",
- "reqwest",
  "semver",
  "serde",
  "serde_json",
@@ -4968,7 +4985,117 @@ dependencies = [
  "unicode-width",
  "url",
  "uuid",
+ "xrat-config",
+ "xrat-db",
+ "xrat-engines",
+ "xrat-model",
+ "xrat-prober",
+ "xrat-support",
  "zip",
+]
+
+[[package]]
+name = "xrat-config"
+version = "0.20.0"
+dependencies = [
+ "base64",
+ "percent-encoding",
+ "serde",
+ "serde_json",
+ "thiserror 2.0.18",
+ "tracing",
+ "url",
+ "uuid",
+ "xrat-model",
+ "xrat-support",
+]
+
+[[package]]
+name = "xrat-db"
+version = "0.20.0"
+dependencies = [
+ "serde_json",
+ "sqlx",
+ "thiserror 2.0.18",
+ "tokio",
+ "tracing",
+ "uuid",
+ "xrat-config",
+ "xrat-model",
+ "xrat-support",
+]
+
+[[package]]
+name = "xrat-engines"
+version = "0.20.0"
+dependencies = [
+ "async-trait",
+ "base64",
+ "prost",
+ "semver",
+ "serde",
+ "serde_json",
+ "tempfile",
+ "thiserror 2.0.18",
+ "tokio",
+ "tonic",
+ "tracing",
+ "url",
+ "uuid",
+ "xrat-config",
+ "xrat-model",
+ "xrat-support",
+]
+
+[[package]]
+name = "xrat-model"
+version = "0.20.0"
+dependencies = [
+ "serde",
+ "serde_json",
+ "sqlx",
+]
+
+[[package]]
+name = "xrat-prober"
+version = "0.20.0"
+dependencies = [
+ "async-trait",
+ "axum 0.8.9",
+ "tokio",
+ "xrat-engines",
+ "xrat-model",
+ "xrat-support",
+]
+
+[[package]]
+name = "xrat-sdk"
+version = "0.20.0"
+dependencies = [
+ "xrat-app",
+ "xrat-config",
+ "xrat-model",
+ "xrat-prober",
+]
+
+[[package]]
+name = "xrat-support"
+version = "0.20.0"
+dependencies = [
+ "async-trait",
+ "axum 0.8.9",
+ "base64",
+ "if-addrs",
+ "maxminddb",
+ "reqwest",
+ "serde",
+ "serde_json",
+ "sysinfo",
+ "tempfile",
+ "thiserror 2.0.18",
+ "tokio",
+ "url",
+ "uuid",
 ]
 
 [[package]]

@@ -387,3 +387,11 @@ The daemon will reconcile stale sessions on startup.
 - [`daemon` CLI](../02-cli/daemon.md) — command reference
 - [Auto-Rotation](auto-rotation.md) — rotation scheduling
 - [Runtime Management](runtime-management.md) — session lifecycle
+
+## Runtime ownership
+
+CLI connect, disconnect, and rotation operations require the daemon. The TUI
+checks the daemon before each runtime operation and uses the same IPC control
+when it is reachable. Without a daemon, the TUI operates standalone. A timeout
+or invalid daemon response is reported as an error rather than starting a
+second runtime owner. Daemon internals always use local runtime control.

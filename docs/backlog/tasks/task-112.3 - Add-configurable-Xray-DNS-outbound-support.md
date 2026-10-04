@@ -4,11 +4,13 @@ title: Add configurable Xray DNS outbound support
 status: To Do
 assignee: []
 created_date: '2026-09-02 11:02'
+updated_date: '2026-10-03 09:37'
 labels:
   - xray
   - dns
   - routing
   - config-generation
+milestone: m-8
 dependencies: []
 references:
   - 'https://xtls.github.io/en/config/outbounds/dns.html'
@@ -52,6 +54,13 @@ Keep the top-level Xray DNS resolver configuration conceptually separate from th
 - [ ] #6 Config reference, routing/runtime documentation, examples, and support matrix explain the DNS outbound's role and limitations
 - [ ] #7 Focused configuration, generation, routing, serialization, and validation tests pass together with just fmt ci
 <!-- AC:END -->
+
+## Implementation Notes
+
+<!-- SECTION:NOTES:BEGIN -->
+### Cross-engine JSON comparison (research only, 2026-10-03)
+Xray and supported V2Ray use outbounds[].protocol="dns" with DNS settings and routing.rules targeting its generated outboundTag. Modern sing-box routes captured DNS with {"protocol":"dns","action":"hijack-dns"} into dns.servers/rules; do not emit its removed DNS outbound. TASK-135 supplies split/bootstrap policy and TASK-136 supplies listeners/interception/FakeIP; those require this task's Xray DNS outbound slice. Existing task scope remains Xray. [sing-box actions](https://sing-box.sagernet.org/configuration/route/rule_action/); see doc-1.
+<!-- SECTION:NOTES:END -->
 
 ## Definition of Done
 <!-- DOD:BEGIN -->

@@ -1,9 +1,11 @@
 ---
 id: TASK-31
 title: Keep Daemon Supervisor Handlers Thin
-status: To Do
-assignee: []
+status: Done
+assignee:
+  - codex
 created_date: '2026-07-05 14:43'
+updated_date: '2026-10-02 20:19'
 labels:
   - legacy-import
   - improvement
@@ -63,3 +65,32 @@ is best-effort inside the use-case layer with structured results.
 regression tests around manual replace, timer replace, health cooldown, and
 metadata updates before moving logic.
 <!-- SECTION:DESCRIPTION:END -->
+
+## Acceptance Criteria
+<!-- AC:BEGIN -->
+- [x] #1 Runtime connect, disconnect and replacement orchestration lives in application services with typed outcomes and no supervisor or IPC response dependencies
+- [x] #2 Supervisor retains scheduling, state updates and IPC mapping; manual, timer and health cooldown behavior remains unchanged
+- [x] #3 Transition metadata and operational events remain best effort and lifecycle regressions plus just fmt ci pass
+<!-- AC:END -->
+
+## Implementation Plan
+
+<!-- SECTION:PLAN:BEGIN -->
+1. Preserve existing lifecycle and cooldown regression coverage.
+2. Extract runtime transitions and rotation orchestration into application services.
+3. Run focused lifecycle tests and just fmt ci; update handoff and close task.
+<!-- SECTION:PLAN:END -->
+
+## Implementation Notes
+
+<!-- SECTION:NOTES:BEGIN -->
+Deferred in this refactor run. Rotation/transition orchestration extraction from daemon supervisor handlers is the highest-risk item (rotation state is subtle). Needs its own focused pass with regression tests for manual replace, timer, health cooldown, and metadata updates. Not attempted in P4 to keep behavior-preserving guarantees.
+
+Completed in 917b022. RuntimeTransitionService owns connect/disconnect metadata, runtime events, shutdown and health-failure persistence. RotationService owns replacement metadata/events and typed failure classification. RotationTrigger moved to application services with IPC re-export preserving wire format. Supervisor retains daemon state, scheduling, thresholds/probes and response mapping. Existing 13 supervisor regressions passed before and after extraction; three direct service tests cover owner/failure metadata and events, typed no-candidate outcomes and failed event persistence. CARGO_INCREMENTAL=0 just fmt ci passed: 893 Rust tests, three Python version tests, strict workspace Clippy and formatting. Log: /tmp/xrat-task31-ci.log. Local verification only; hosted CI and deployed engines were not verified.
+<!-- SECTION:NOTES:END -->
+
+## Final Summary
+
+<!-- SECTION:FINAL_SUMMARY:BEGIN -->
+Extracted runtime transition and rotation use cases from daemon handlers with typed outcomes and best-effort persistence. Preserved scheduling, cooldown and IPC behavior; all workspace gates passed.
+<!-- SECTION:FINAL_SUMMARY:END -->

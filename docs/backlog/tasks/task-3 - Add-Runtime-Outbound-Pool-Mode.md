@@ -4,10 +4,11 @@ title: Add Runtime Outbound Pool Mode
 status: To Do
 assignee: []
 created_date: '2026-07-05 14:43'
-updated_date: '2026-08-14 19:38'
+updated_date: '2026-10-03 09:37'
 labels:
   - legacy-import
   - feature
+milestone: m-8
 dependencies: []
 priority: medium
 ordinal: 3000
@@ -360,3 +361,16 @@ naturally as a runtime-supervisor feature. ([GitHub][1])
   https://sing-box.sagernet.org/configuration/outbound/urltest/?utm_source=chatgpt.com
   "URLTest - sing-box"
 <!-- SECTION:DESCRIPTION:END -->
+
+## Implementation Notes
+
+<!-- SECTION:NOTES:BEGIN -->
+### Runtime parity research (2026-10-03; no implementation)
+Reuse this existing pool task for client Auto Selector/URLTest behavior; no duplicate pool task is needed.
+
+Xray generated graph: tagged proxy outbounds, routing.balancers [{"tag":"pool","selector":["proxy-"],"strategy":{"type":"leastPing"}}], appropriate observatory and a routing rule with balancerTag="pool". Version-gate each strategy.
+V2Ray graph: routing.balancers selector/strategy and observatory; consulted upstream documents random and leastPing (4.38+). Do not promise round-robin if the chosen core has no native strategy.
+sing-box graph: outbounds [{"type":"urltest","tag":"pool","outbounds":["proxy-a","proxy-b"],"url":"https://example.org/health","interval":"3m","tolerance":50}], route.final="pool"; manual selection instead uses type="selector" and an explicitly controlled API. URLTest picks a candidate, not exact retry of the same request through every proxy.
+
+XRAT already rotates sessions and runs probes. Those are distinct from an engine-native pool containing several outbounds. TASK-137 depends on a proven multi-outbound slice when routing to saved nodes/pools. [V2Ray routing](https://www.v2fly.org/en_US/config/routing.html), [Xray routing](https://xtls.github.io/en/config/routing.html), [sing-box URLTest](https://sing-box.sagernet.org/configuration/outbound/urltest/), [Throne selection](https://throneproj.github.io/get_started/configuration/); see doc-1.
+<!-- SECTION:NOTES:END -->

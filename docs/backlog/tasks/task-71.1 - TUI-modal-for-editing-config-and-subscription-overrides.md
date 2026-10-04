@@ -4,7 +4,9 @@ title: TUI modal for editing config and subscription overrides
 status: To Do
 assignee: []
 created_date: '2026-08-22 13:31'
+updated_date: '2026-10-03 09:37'
 labels: []
+milestone: m-8
 dependencies: []
 parent_task_id: TASK-71
 ordinal: 32000
@@ -25,6 +27,13 @@ Reuse the existing settings modal machinery (SettingsModalState/SettingsSession,
 - [ ] #5 Invalid input is rejected inline like the global settings modal
 - [ ] #6 Changes take effect on next connect/test without requiring daemon restart
 <!-- AC:END -->
+
+## Implementation Notes
+
+<!-- SECTION:NOTES:BEGIN -->
+### Runtime parity research (2026-10-03; no implementation)
+The editor must display inherited versus explicitly enabled/disabled values and the effective engine capability. It edits TASK-71's typed override records, not engine root JSON. Xray output affects mux/sockopt/fragment helper, V2Ray only its supported corresponding fields, and sing-box its multiplex/TLS/dial settings. Show unsupported choices as actionable limitations rather than pretending all engines share one schema. [Client preset model](https://throneproj.github.io/advanced/presets/); see doc-1.
+<!-- SECTION:NOTES:END -->
 
 ## Definition of Done
 <!-- DOD:BEGIN -->

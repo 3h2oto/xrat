@@ -1,5 +1,6 @@
 debug
 target
+__pycache__/
 image-bin/
 
 **/*.rs.bk

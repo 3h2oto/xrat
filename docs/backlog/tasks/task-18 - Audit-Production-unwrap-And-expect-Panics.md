@@ -1,9 +1,11 @@
 ---
 id: TASK-18
 title: Audit Production unwrap() And expect() Panics
-status: To Do
-assignee: []
+status: Done
+assignee:
+  - '@codex'
 created_date: '2026-07-05 14:43'
+updated_date: '2026-10-02 18:58'
 labels:
   - legacy-import
   - improvement
@@ -17,61 +19,36 @@ ordinal: 24
 ## Description
 
 <!-- SECTION:DESCRIPTION:BEGIN -->
-Legacy path: `docs/backlog/improvement/refactor/1-foundation/24-audit-production-panics.md`
+Audit current production unwrap()/expect() sites under crates/ using compiler diagnostics, excluding cfg(test) modules and test support. The historical estimate of 123 sites under src/ is obsolete after the workspace refactor.
 
-# Audit Production unwrap() And expect() Panics
+Baseline compiler audit: cargo clippy --locked --workspace --lib --message-format=json -- -W clippy::unwrap_used -W clippy::expect_used reports four sites:
+- xrat-support/src/engine_log.rs: date.take().unwrap() after setting Some; eliminate the optional-state round trip.
+- xrat-app/src/app/services/runtime_tuning/singbox.rs: expect after unconditional insertion of a local fallback whenever no final server was selected; provable invariant.
+- xrat-app/src/app/config/editor/values.rs: expect after replacing any non-table parent with a Table; provable invariant.
+- xrat-app/src/app/commands/setup/cores/release.rs: parse of the compile-time pinned version; provable invariant covered by setup tests.
 
-## Finding
-
-### [Priority: Medium] Audit and reduce production unwrap()/expect() panics
-
-**Files involved:**
-
-- `src/app/` (78 occurrences)
-- `src/db/` (18 occurrences)
-- `src/config/` (17 occurrences)
-- `src/server/` (6 occurrences)
-- `src/support/` (4 occurrences)
-
-**Problem:** There are ~123 `unwrap()`/`expect()` calls in non-test production
-code. Each is a panic path that no test exercises and that aborts the process (or
-a daemon/TUI/server task) at runtime when the assumed invariant does not hold.
-The heaviest concentration is in `src/app/` (78), which spans command handlers,
-runtime services, and daemon supervision — exactly the long-running paths where a
-panic is most disruptive (daemon abort, TUI freeze, dropped IPC connection).
-
-**Why this change is needed:** Panics in adapter and use-case code turn
-recoverable conditions (missing field, parse failure, lock poisoning, absent
-optional value) into crashes instead of surfaced `AppError`s. They also hide
-error-handling behavior from tests: a `Result` path can be asserted, an `unwrap`
-cannot. Reducing them improves crash safety and makes failure handling testable —
-which directly supports the port and use-case work that wants to assert failure
-scenarios.
-
-**How to implement it:** Triage every occurrence into one of three buckets:
-
-- **Recoverable** — convert to `?` with an appropriate layered error variant
-  (pairs with `23-split-apperror-by-layer`). Most `app/` and `config/` cases.
-- **Provable invariant** — keep, but use `expect("why this cannot fail")` with a
-  message documenting the invariant (e.g. a regex compiled from a literal, a map
-  key just inserted).
-- **Test-only assumption leaking into production** — restructure so the invariant
-  is encoded in the type (ties into `25-newtype-ids` for ID parsing).
-
-Add a clippy gate incrementally (`-W clippy::unwrap_used` /
-`clippy::expect_used`) scoped to already-cleaned modules so new panics do not
-regress. Do not flip the gate repo-wide until the audit is done.
-
-**Positive effect on the codebase:** Fewer crash paths in the daemon, server, and
-TUI. Error handling becomes explicit and testable. The remaining `expect`s carry
-documented invariants instead of silent assumptions.
-
-**Suggested target architecture:** Adapters and use-cases return layered errors;
-panics remain only for genuinely unreachable invariants and are documented with
-an `expect` message; a scoped clippy lint prevents regressions.
-
-**Risk / migration notes:** Low risk per change but high volume. Do it
-module-by-module, not in one sweep, and pair the `app/` cleanup with the relevant
-use-case extraction (`01`–`05`) so converted errors flow into the right layered
-type. Add or extend tests for each newly-introduced error path.
+Retain documented invariant expects, remove unnecessary unwraps, and guard already-clean daemon/runtime/log-parser modules against new unwrap/expect sites. Do not add repository-wide panic lint policy or alter recoverable error semantics.
 <!-- SECTION:DESCRIPTION:END -->
+
+## Acceptance Criteria
+<!-- AC:BEGIN -->
+- [x] #1 Current production compiler audit is recorded and every unwrap/expect site is triaged
+- [x] #2 Unnecessary log-parser unwrap is removed; retained expects document provable invariants
+- [x] #3 Scoped production Clippy guards prevent new unwrap/expect in audited daemon, runtime and log parsing modules
+- [x] #4 Focused log parsing regressions and just fmt ci pass
+<!-- AC:END -->
+
+## Implementation Plan
+
+<!-- SECTION:PLAN:BEGIN -->
+1. Refresh production Clippy audit across workspace libraries and binaries; classify sites.
+2. Remove redundant optional-date unwrap and verify dated, date-only, and undated log parsing.
+3. Add non-test unwrap/expect deny attributes only to audited clean modules.
+4. Run focused regressions, repeat audit, and just fmt ci; record remaining invariant sites and close.
+<!-- SECTION:PLAN:END -->
+
+## Final Summary
+
+<!-- SECTION:FINAL_SUMMARY:BEGIN -->
+Compiler audit across production workspace libraries and binaries found four sites. Removed redundant log-parser unwrap; three documented invariant expects remain (fallback DNS server, ensured TOML table, pinned version). Added production-only Clippy deny guards to daemon, runtime service and engine log parsing. Two parser regressions pass; final audit has zero unwrap diagnostics and three invariant expect diagnostics. CARGO_INCREMENTAL=0 just fmt ci passed (876 Rust tests and 3 version tests).
+<!-- SECTION:FINAL_SUMMARY:END -->

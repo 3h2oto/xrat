@@ -1,9 +1,11 @@
 ---
 id: TASK-37
 title: Add DNS Resolver Port
-status: To Do
-assignee: []
+status: Done
+assignee:
+  - codex
 created_date: '2026-07-05 14:43'
+updated_date: '2026-10-03 08:43'
 labels:
   - legacy-import
   - improvement
@@ -51,3 +53,30 @@ simulate `NXDOMAIN` errors. The change is small and contained.
 
 **Risk / migration notes:** Low risk. Two call sites, simple replacement.
 <!-- SECTION:DESCRIPTION:END -->
+
+## Acceptance Criteria
+<!-- AC:BEGIN -->
+- [x] #1 Direct DNS lookup is confined to its shared production adapter
+- [x] #2 TCP, ICMP and hostname enrichment accept injected resolution; TCP attempts are also fakeable
+- [x] #3 Empty/error results, literal addresses and address-order/timeout behavior have regression coverage
+<!-- AC:END -->
+
+## Implementation Plan
+
+<!-- SECTION:PLAN:BEGIN -->
+Introduce ordered DnsResolver and production Tokio adapter in xrat-support; inject DNS and TCP connection attempts into TCP probes, DNS/process/platform into ICMP, and DNS into hostname enrichment; preserve address order and current failure/timeout semantics; test failures and literals without network.
+<!-- SECTION:PLAN:END -->
+
+## Implementation Notes
+
+<!-- SECTION:NOTES:BEGIN -->
+Shared DNS adapter committed in 3eba21f; TCP/ICMP and GeoIP consumer injection committed in 75e920e. Fake TCP tests verify ordered IPv6/IPv4 fallback and empty answers without real DNS or sockets. CARGO_INCREMENTAL=0 just fmt ci passed with 916 Rust tests and 3 Python tests. Remains In Progress pending injected DNS error/timeout, ICMP literal bypass and GeoIP provenance regressions plus final acceptance audit.
+
+Completed DNS acceptance coverage in bcb6ebf. Fake TCP tests cover empty results, lookup failure classification, ordered IPv6/IPv4 attempts and the existing first-attempt timeout behavior. Fake ICMP tests prove IPv4/IPv6 literal bypass, ordered hostname resolution, no process invocation on DNS failure and platform-specific ping arguments. GeoIP tests verify literal and dial-DNS provenance, first-answer selection and absence of fabricated metadata after empty/error answers. Source audit confines direct lookup_host to the shared adapter. CARGO_INCREMENTAL=0 just fmt ci passed: formatting, strict workspace Clippy, 939 Rust tests and 3 Python tests.
+<!-- SECTION:NOTES:END -->
+
+## Final Summary
+
+<!-- SECTION:FINAL_SUMMARY:BEGIN -->
+TCP, ICMP and GeoIP hostname enrichment use injectable ordered DNS resolution; TCP attempts are fakeable. Network-free regressions verify failures, literal bypass, ordering, timeouts and provenance. Full workspace gates pass.
+<!-- SECTION:FINAL_SUMMARY:END -->

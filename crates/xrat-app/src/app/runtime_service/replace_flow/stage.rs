@@ -1,0 +1,108 @@
+use super::*;
+
+impl<'a> RuntimeService<'a> {
+    pub(super) async fn stage_replacement_runtime(
+        &self,
+        next_config: ConfigRecord,
+        launch: ResolvedLaunch,
+    ) -> crate::app::Result<(ConfigId, i64, u32)> {
+        if !next_config.is_enabled {
+            return Err(AppError::InvalidArgument(format!(
+                "config {} is disabled",
+                next_config.id
+            )));
+        }
+
+        crate::app::runtime_service::log_retention::cleanup(self.context).await;
+        let session_id = self
+            .context
+            .db
+            .insert_runtime_session(&RuntimeSessionInsert {
+                config_id: Some(next_config.id),
+                status: RuntimeSessionStatus::Starting,
+                socks_host: launch
+                    .endpoints
+                    .socks
+                    .as_ref()
+                    .map(|inbound| inbound.host.clone()),
+                socks_port: launch
+                    .endpoints
+                    .socks
+                    .as_ref()
+                    .map(|inbound| i64::from(inbound.port)),
+                http_host: launch
+                    .endpoints
+                    .http
+                    .as_ref()
+                    .map(|inbound| inbound.host.clone()),
+                http_port: launch
+                    .endpoints
+                    .http
+                    .as_ref()
+                    .map(|inbound| i64::from(inbound.port)),
+                shadowsocks_host: launch
+                    .endpoints
+                    .shadowsocks
+                    .as_ref()
+                    .map(|inbound| inbound.host.clone()),
+                shadowsocks_port: launch
+                    .endpoints
+                    .shadowsocks
+                    .as_ref()
+                    .map(|inbound| i64::from(inbound.port)),
+                process_id: None,
+                failure_reason: None,
+                started_at: None,
+                stopped_at: None,
+            })
+            .await?;
+
+        let spawned = spawn_runtime_with_ports(
+            &launch,
+            &self.context.runtime_paths.runtime_dir,
+            session_id,
+            self.process_ports.clone(),
+        )
+        .await;
+        let spawned = match spawned {
+            Ok(process) => process,
+            Err(err) => {
+                let failed_at = now_string();
+                self.context
+                    .db
+                    .update_runtime_session_state(
+                        session_id,
+                        RuntimeSessionStatus::Failed,
+                        None,
+                        None,
+                        Some(&now_string()),
+                        Some(&err.to_string()),
+                    )
+                    .await?;
+                self.context
+                    .db
+                    .update_runtime_session_failure_tracking(
+                        session_id,
+                        None,
+                        Some(&failed_at),
+                        Some("replace_validation_failed"),
+                    )
+                    .await?;
+                return Err(err);
+            }
+        };
+
+        self.context
+            .db
+            .update_runtime_session_state(
+                session_id,
+                RuntimeSessionStatus::Running,
+                Some(i64::from(spawned.pid)),
+                Some(&now_string()),
+                None,
+                None,
+            )
+            .await?;
+        Ok((next_config.id, session_id, spawned.pid))
+    }
+}

@@ -4,9 +4,9 @@
 !Cargo.lock
 !src/
 !src/**
-!migrations/
-!migrations/**
 !packaging/
 !packaging/**
 !image-bin/
 !image-bin/**
+!crates/
+!crates/**

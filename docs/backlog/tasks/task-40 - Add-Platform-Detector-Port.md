@@ -1,9 +1,11 @@
 ---
 id: TASK-40
 title: Add Platform Detector Port
-status: To Do
-assignee: []
+status: Done
+assignee:
+  - codex
 created_date: '2026-07-05 14:43'
+updated_date: '2026-10-03 06:42'
 labels:
   - legacy-import
   - improvement
@@ -55,3 +57,28 @@ Injected into upgrade, desktop proxy, and ICMP services.
 changes in a test session. Consider deferring until there is an explicit need to
 test cross-platform behavior on a single host.
 <!-- SECTION:DESCRIPTION:END -->
+
+## Acceptance Criteria
+<!-- AC:BEGIN -->
+- [x] #1 OS and architecture policy uses typed injected facts with production defaults
+- [x] #2 Release/core target selection and ping flags are testable across platforms without recompilation
+- [x] #3 Native compile-time gates and unsupported-platform behavior remain compatible
+<!-- AC:END -->
+
+## Implementation Plan
+
+<!-- SECTION:PLAN:BEGIN -->
+Add typed PlatformDetector in xrat-support with host and fixed adapters; inject into release/core asset selection and ICMP arguments; retain compile-time gates for native OS APIs and test platform policy on one host.
+<!-- SECTION:PLAN:END -->
+
+## Implementation Notes
+
+<!-- SECTION:NOTES:BEGIN -->
+Implemented in 6941831. Existing entry points use production adapters; injected policy variants and test fakes preserve prior behavior. CARGO_INCREMENTAL=0 just fmt ci passed: 901 Rust tests, three Python version tests, formatting and strict Clippy. Log: /tmp/xrat-ports-small-ci.log. Native non-Linux execution was not verified.
+<!-- SECTION:NOTES:END -->
+
+## Final Summary
+
+<!-- SECTION:FINAL_SUMMARY:BEGIN -->
+Extracted the host boundary with production defaults and injectable policy tests; workspace gates passed.
+<!-- SECTION:FINAL_SUMMARY:END -->

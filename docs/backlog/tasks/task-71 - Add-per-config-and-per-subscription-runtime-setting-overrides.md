@@ -4,8 +4,9 @@ title: Add per-config and per-subscription runtime setting overrides
 status: To Do
 assignee: []
 created_date: '2026-08-22 13:31'
-updated_date: '2026-08-22 13:32'
+updated_date: '2026-10-03 09:37'
 labels: []
+milestone: m-8
 dependencies: []
 references:
   - >-
@@ -29,6 +30,17 @@ Introduce a three-layer settings resolution chain: global config.toml [runtime] 
 - [ ] #5 DB round-trip tests cover SQLite and Postgres for both subscription and config overrides
 - [ ] #6 Resolution tests prove precedence: config override beats subscription override beats global default, and unset falls back correctly
 <!-- AC:END -->
+
+## Implementation Notes
+
+<!-- SECTION:NOTES:BEGIN -->
+### Runtime parity research (2026-10-03; no implementation)
+Throne has inherited presets with explicit profile On/Off/Keep Default; existing XRAT runtime settings are global. Reuse this task and TASK-71.1 rather than introduce another overrides implementation.
+
+Engine effects: Xray effective settings become outbounds[].mux, streamSettings.sockopt and the freedom fragment helper; V2Ray maps only supported mux/socket/DNS fields, rejecting Xray-only knobs; sing-box maps effective typed settings to outbound multiplex/TLS/dial fields and generated dns/route nodes. Example precedence: an explicit per-config mux=false must override a subscription mux=true, rather than being treated as an absent value. A per-profile override is XRAT state, not a root engine JSON field.
+
+Preserve imported protocol identity and extensions_json; new preferences must remain typed dedicated override columns. TASK-143/144/145 add missing engine-specific settings but must share this merge contract. [Preset evidence](https://throneproj.github.io/advanced/presets/); see doc-1.
+<!-- SECTION:NOTES:END -->
 
 ## Definition of Done
 <!-- DOD:BEGIN -->

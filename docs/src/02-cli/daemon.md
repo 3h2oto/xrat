@@ -161,7 +161,7 @@ xrat daemon install [--start] [--with-api] [--dry-run]
 ### Behavior (Linux/systemd)
 
 1. Resolves the current binary path via `std::env::current_exe()`
-2. Generates `xrat-daemon.service` from the template in `packaging/systemd/`
+2. Generates `xrat-daemon.service` from the template in `crates/xrat-app/templates/systemd/`
    with the resolved binary path and configured XRAT root
 3. Writes the service file to `~/.config/systemd/user/` (respects
    `$XDG_CONFIG_HOME`)
@@ -171,7 +171,7 @@ xrat daemon install [--start] [--with-api] [--dry-run]
 7. If `--with-api`: generates and installs `xrat-api.service` as well
 
 macOS and BSD follow the same shape with their templates
-(`packaging/launchd/`, `packaging/rc.d/`): generate the unit, write it to the
+(`crates/xrat-app/templates/launchd/`, `crates/xrat-app/templates/rc.d/`): generate the unit, write it to the
 service location, register it (`launchctl bootstrap` / `sysrc`+`service` /
 `rcctl enable`), and start it when `--start` is passed.
 

@@ -1,0 +1,38 @@
+mod add;
+mod completions;
+mod connect;
+mod daemon;
+mod daemon_install;
+mod db;
+mod disconnect;
+mod geoip;
+mod import;
+mod init;
+mod lifecycle;
+mod list;
+mod logs;
+mod manpage;
+pub(crate) use crate::app::terminal::output;
+mod parse;
+pub(crate) use crate::app::terminal::progress;
+mod proxy;
+mod purge;
+mod resolve;
+mod rotate;
+mod runtime_output;
+mod scan;
+mod serve;
+mod setup;
+mod status;
+pub(crate) mod test;
+mod tui;
+pub(crate) mod update;
+pub mod upgrade;
+pub mod validate;
+mod version;
+
+use crate::app::context::AppContext;
+use crate::cli::Command;
+
+mod dispatch;
+pub use dispatch::run;

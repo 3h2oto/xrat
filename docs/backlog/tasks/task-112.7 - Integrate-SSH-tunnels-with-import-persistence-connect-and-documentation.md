@@ -4,6 +4,7 @@ title: Integrate SSH tunnels with import persistence connect and documentation
 status: To Do
 assignee: []
 created_date: '2026-09-02 11:03'
+updated_date: '2026-10-03 09:37'
 labels:
   - ssh
   - import
@@ -11,6 +12,7 @@ labels:
   - cli
   - tui
   - docs
+milestone: m-8
 dependencies:
   - TASK-112.6
 references:
@@ -68,6 +70,13 @@ Do not advertise an ssh URI unless TASK-112.5 defines a safe, documented Xrat-sp
 - [ ] #7 Import, runtime, proxy, configuration, protocol-matrix, and security documentation include setup, host-key enrollment, agent/key examples, failure recovery, and limitations
 - [ ] #8 End-to-end regression tests and just fmt ci pass
 <!-- AC:END -->
+
+## Implementation Notes
+
+<!-- SECTION:NOTES:BEGIN -->
+### Cross-engine JSON comparison (research only, 2026-10-03)
+Persist normalized SSH profile/secret references and helper preferences; generate Xray/V2Ray protocol=socks settings.servers localhost bridge at connection time. sing-box native type=ssh requires its own field mapping and capability contract, while helper use maps to type=socks; do not advertise native SSH parity from a helper-only implementation. Docs/status must state TCP-only behavior, host-key policy and engine selection. Use TASK-139 for subsequent multi-hop composition rather than duplicating chains here. [sing-box SSH](https://sing-box.sagernet.org/configuration/outbound/ssh/); see doc-1.
+<!-- SECTION:NOTES:END -->
 
 ## Definition of Done
 <!-- DOD:BEGIN -->

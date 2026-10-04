@@ -4,11 +4,13 @@ title: Implement the managed SSH dynamic-forward runtime backend
 status: To Do
 assignee: []
 created_date: '2026-09-02 11:03'
+updated_date: '2026-10-03 09:37'
 labels:
   - ssh
   - runtime
   - process-management
   - security
+milestone: m-8
 dependencies:
   - TASK-112.5
 references:
@@ -51,6 +53,13 @@ Required reading before implementation:
 - [ ] #6 Unit tests cover command argument construction and redaction; integration tests use an isolated SSH fixture or explicitly documented test harness
 - [ ] #7 Supported platforms pass focused lifecycle tests together with just fmt ci
 <!-- AC:END -->
+
+## Implementation Notes
+
+<!-- SECTION:NOTES:BEGIN -->
+### Cross-engine JSON comparison (research only, 2026-10-03)
+Xray/V2Ray engine configs point a generated protocol=socks outbound at XRAT-owned localhost SSH -D port; supervision, readiness and teardown are outside core JSON. sing-box can point type=socks/server/server_port at the same helper if chosen, but its native type=ssh backend is a different implementation. Preserve this task's managed dynamic-forward scope and TCP limitations. No root JSON or private key material should be persisted or logged as preferences. [sing-box SSH](https://sing-box.sagernet.org/configuration/outbound/ssh/); see doc-1.
+<!-- SECTION:NOTES:END -->
 
 ## Definition of Done
 <!-- DOD:BEGIN -->

@@ -28,11 +28,12 @@
 - `src/tui/` contains terminal UI state, views, keymaps, and data adapters.
 - `src/support/` contains small shared helpers for decode, GeoIP, cancellation,
   network, time, and URL handling.
-- `migrations/sqlite/` and `migrations/postgres/` hold ordered SQL migrations.
+- `crates/xrat-db/migrations/` holds ordered SQL migrations. The root
+  `migrations` symlink supports repository commands and documentation.
 - `docs/src/` holds user-facing documentation.
-- `packaging/systemd/` holds user-service templates used by
-  `xrat daemon install`; `packaging/desktop/` holds desktop entry and icon
-  packaging assets.
+- `crates/xrat-app/templates/` holds the systemd, launchd, and rc.d service
+  templates embedded by `xrat daemon install`; `packaging/desktop/` holds
+  desktop entry and icon packaging assets.
 - `install.sh` installs release archives from GitHub and runs optional first-run
   setup.
 - `.github/workflows/` contains CI and release automation, including musl
@@ -104,6 +105,10 @@ responsible for.
 Use Rust’s built-in test framework with `#[test]` and `#[tokio::test]`.
 
 - Keep tests close to the code they validate.
+- Keep `mod.rs` files declarative: module declarations, imports, and re-exports
+  belong there; put implementation in named sibling files.
+- Move large inline test modules into a nearby `tests.rs` (typically around
+  80 lines or more). Small inline tests may stay with the implementation.
 - Prefer focused unit tests for parser/config normalization, CLI parsing, DB
   repositories, and runtime lifecycle transitions.
 - Add regression tests when fixing parsing, dedup, scanner, or runtime-session
@@ -133,10 +138,12 @@ Releases are driven by `.github/workflows/release.yml` and run on pushed tags
 matching `v*`.
 
 - Before preparing a release commit, run `just fmt ci`.
-- Update the package version in `Cargo.toml`; the release workflow rejects tags
+- Run `just set-version <version>` to update `[workspace.package]`, internal
+  dependency requirements, and `Cargo.lock` together; every crate inherits the
+  workspace version and the release workflow rejects inconsistent versions or tags
   whose version does not match the tag without the leading `v`.
-- Use an annotated or signed version tag such as `v0.3.0`, matching `Cargo.toml`
-  version `0.3.0`.
+- Use an annotated or signed version tag such as `v0.3.0`, matching the
+  workspace version `0.3.0`.
 - Do not edit released migrations. Add a new ordered migration for database
   changes that ship after a release.
 - Confirm release-facing assets still work when touched: `install.sh`,
@@ -144,8 +151,10 @@ matching `v*`.
   pages, completions, and user docs.
 - The release workflow builds Linux musl archives, bundles man pages,
   completions, and desktop assets, creates `SHASUMS256.txt`, publishes the
-  GitHub release, publishes Docker images to GHCR, and publishes the crate to
-  crates.io.
+  GitHub release, publishes Docker images to GHCR, and publishes the workspace
+  crates to crates.io in dependency order (`xrat-model`, `xrat-support`,
+  `xrat-config`, `xrat-engines`, `xrat-db`, `xrat-prober`, `xrat-app`,
+  `xrat-sdk`, then `xrat`), skipping versions that already exist.
 - Prepare or inspect release notes with `gh` when publishing or validating a
   release, keeping notes focused on user-visible changes, fixes, packaging
   changes, and upgrade notes.

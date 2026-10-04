@@ -4,12 +4,14 @@ title: Add end-to-end WireGuard outbound support
 status: To Do
 assignee: []
 created_date: '2026-09-02 11:02'
+updated_date: '2026-10-03 09:37'
 labels:
   - protocols
   - xray
   - wireguard
   - import
   - config-generation
+milestone: m-8
 dependencies: []
 references:
   - 'https://xtls.github.io/en/config/outbounds/wireguard.html'
@@ -56,6 +58,13 @@ Do not invent a wireguard URL format. First document which standard or upstream-
 - [ ] #6 CLI, TUI, API, protocol matrix, import docs, and runtime docs report WireGuard support accurately
 - [ ] #7 Focused parser, persistence, generation, validation, and lifecycle tests pass together with just fmt ci
 <!-- AC:END -->
+
+## Implementation Notes
+
+<!-- SECTION:NOTES:BEGIN -->
+### Cross-engine JSON comparison (research only, 2026-10-03)
+Xray implementation scope remains unchanged: outbounds[].protocol="wireguard", settings.secretKey/address/peers[].endpoint/publicKey/allowedIPs plus supported existing fields. Modern sing-box comparison: endpoints[].type="wireguard", address/private_key/peers[].address/port/public_key/allowed_ips; the legacy wireguard outbound is not the modern target. V2Ray's consulted catalog does not establish a native equivalent; do not emit Xray fields into V2Ray. WARP can reuse a provisioned WireGuard config and TASK-139 chaining; account creation is out of scope. [sing-box endpoint](https://sing-box.sagernet.org/configuration/endpoint/wireguard/); see doc-1 and TASK-112 research matrix.
+<!-- SECTION:NOTES:END -->
 
 ## Definition of Done
 <!-- DOD:BEGIN -->

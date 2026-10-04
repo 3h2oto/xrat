@@ -1,0 +1,12 @@
+[package]
+name = "xrat-sdk"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "Stable public facade for embedding xrat proxy-management logic"
+
+[dependencies]
+xrat-app.workspace = true
+xrat-config.workspace = true
+xrat-model.workspace = true
+xrat-prober.workspace = true

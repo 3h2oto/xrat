@@ -1,0 +1,59 @@
+use super::*;
+
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct NodeDedupKey {
+    pub protocol: Protocol,
+    pub address: String,
+    pub port: u16,
+    pub username: Option<String>,
+    pub uuid: Option<String>,
+    pub password: Option<String>,
+    pub method: Option<String>,
+    pub network: String,
+    pub tls: Option<String>,
+    pub sni: Option<String>,
+    pub host: Option<String>,
+    pub path: Option<String>,
+    pub extensions: Option<BTreeMap<String, serde_json::Value>>,
+}
+
+impl fmt::Display for NodeDedupKey {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str("v2")?;
+        write_required(f, "protocol", self.protocol.as_str())?;
+        write_required(f, "address", &self.address)?;
+        write_required(f, "port", &self.port.to_string())?;
+        write_optional(f, "username", self.username.as_deref())?;
+        write_optional(f, "uuid", self.uuid.as_deref())?;
+        write_optional(f, "password", self.password.as_deref())?;
+        write_optional(f, "method", self.method.as_deref())?;
+        write_required(f, "network", &self.network)?;
+        write_optional(f, "tls", self.tls.as_deref())?;
+        write_optional(f, "sni", self.sni.as_deref())?;
+        write_optional(f, "host", self.host.as_deref())?;
+        write_optional(f, "path", self.path.as_deref())?;
+        let extensions = self
+            .extensions
+            .as_ref()
+            .map(serde_json::to_string)
+            .transpose()
+            .map_err(|_| fmt::Error)?;
+        write_optional(f, "extensions", extensions.as_deref())?;
+        Ok(())
+    }
+}
+
+pub(super) fn write_required(f: &mut fmt::Formatter<'_>, name: &str, value: &str) -> fmt::Result {
+    write!(f, "|{}={}:{}", name, value.chars().count(), value)
+}
+
+pub(super) fn write_optional(
+    f: &mut fmt::Formatter<'_>,
+    name: &str,
+    value: Option<&str>,
+) -> fmt::Result {
+    match value {
+        Some(value) => write_required(f, name, value),
+        None => write!(f, "|{}=-", name),
+    }
+}

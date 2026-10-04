@@ -1,0 +1,29 @@
+[package]
+name = "xrat-support"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "Shared support helpers for xrat (decode, GeoIP, network, platform)"
+
+[dependencies]
+async-trait = "0.1.89"
+base64 = "0.22.1"
+if-addrs = "0.15.0"
+maxminddb = "0.28.1"
+reqwest = { version = "0.13.4", default-features = false, features = [
+    "blocking",
+    "rustls",
+    "socks",
+] }
+serde = { version = "1.0.228", features = ["derive"] }
+serde_json = "1.0.150"
+thiserror = "2.0.18"
+sysinfo = "0.37.2"
+tokio = { version = "1.52.3", features = ["full"] }
+url = "2.5.8"
+uuid = { version = "1.23.2", features = ["v4"] }
+
+[dev-dependencies]
+tempfile = "3.27.0"
+tokio = { version = "1.52.3", features = ["test-util"] }
+axum = "0.8.9"
