@@ -26,6 +26,7 @@ mod setup;
 mod status;
 pub(crate) mod test;
 mod tui;
+mod tun;
 pub(crate) mod update;
 pub mod upgrade;
 pub mod validate;

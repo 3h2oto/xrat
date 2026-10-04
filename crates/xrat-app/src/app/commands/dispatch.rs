@@ -26,6 +26,7 @@ pub async fn run(context: &AppContext, command: &Command) -> crate::app::Result<
         Command::Proxy(args) => proxy::run(context, args).await,
         Command::Serve(args) => serve::run(context, args).await,
         Command::Tui(args) => tui::run(context, args).await,
+        Command::Tun(args) => tun::run(context, args).await,
         Command::Update(args) => update::run(context, args).await,
         Command::Parse(args) => parse::run(args).await,
         Command::Validate(args) => validate::run(args),

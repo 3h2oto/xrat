@@ -4,8 +4,8 @@ use crate::cli::{
     AddArgs, CompletionsArgs, ConnectArgs, DaemonArgs, DbArgs, DeleteArgs, DisableArgs,
     DisconnectArgs, EnableArgs, GeoIpArgs, ImportArgs, InitArgs, InstallArgs, ListArgs, LogsArgs,
     ManpageArgs, ParseArgs, ProxyArgs, PurgeArgs, RestoreArgs, RotateArgs, ScanArgs, ServeArgs,
-    SetupArgs, ShowArgs, StatusArgs, TestArgs, TuiArgs, UpdateArgs, UpgradeArgs, ValidateArgs,
-    VersionArgs,
+    SetupArgs, ShowArgs, StatusArgs, TestArgs, TuiArgs, TunArgs, UpdateArgs, UpgradeArgs,
+    ValidateArgs, VersionArgs,
 };
 
 #[derive(Debug, Subcommand)]
@@ -60,6 +60,8 @@ pub enum Command {
     Serve(ServeArgs),
     #[command(about = "Start the interactive terminal UI.")]
     Tui(TuiArgs),
+    #[command(about = "Prepare and inspect system privileges for managed TUN capture.")]
+    Tun(TunArgs),
     #[command(about = "Refresh stored subscriptions.")]
     Update(UpdateArgs),
     #[command(about = "Parse and validate config links without persisting.")]
