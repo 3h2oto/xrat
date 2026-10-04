@@ -42,6 +42,7 @@ These flags apply to every command:
 | [`mmdb`](mmdb.md)                       | Manage GeoLite2 MMDB assets and inspect GeoIP backend config    |
 | [`serve`](serve.md)                       | Start the local HTTP API server                                 |
 | [`tui`](tui.md)                           | Start the interactive terminal UI                               |
+| [`tun`](tun.md)                           | Prepare and inspect privileges for managed TUN capture          |
 | [`upgrade`](upgrade.md)                   | Self-upgrade from the latest release or by building from source |
 | `version`                                 | Print the xrat version                                          |
 

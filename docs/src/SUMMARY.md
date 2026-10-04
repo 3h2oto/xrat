@@ -31,6 +31,7 @@
   - [mmdb](02-cli/mmdb.md)
   - [serve](02-cli/serve.md)
   - [tui](02-cli/tui.md)
+  - [tun](02-cli/tun.md)
   - [completions](02-cli/completions.md)
   - [manpage](02-cli/manpage.md)
   - [upgrade](02-cli/upgrade.md)

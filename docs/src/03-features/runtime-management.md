@@ -348,6 +348,56 @@ parameters that cannot be represented exactly, unsupported ciphers/transports,
 and a non-loopback stats controller are rejected before launch. Xray generation
 still rejects unsupported Hy2 URI options, and V2Ray rejects Hysteria2.
 
+## TUN Capture
+
+Xray and sing-box can capture system-wide traffic through a TUN interface so
+applications that ignore proxy settings still egress through the active config:
+
+```toml
+[runtime]
+engine = "xray"  # "xray" | "sing-box"; V2Ray rejects TUN
+
+[runtime.tun]
+enabled = true
+interface_name = "xrat0"
+auto_route = true
+```
+
+TUN capture needs elevated network privileges. Prefer granting `CAP_NET_ADMIN`
+(and `CAP_NET_RAW`) to the managed binary of the selected engine over running the
+whole daemon as root:
+
+```sh
+sudo setcap cap_net_admin,cap_net_raw+ep "$(readlink -f "$(command -v xray)")"
+sudo setcap cap_net_admin,cap_net_raw+ep "$(readlink -f "$(command -v sing-box)")"
+```
+
+The systemd user unit installed by `xrat daemon install` sets
+`NoNewPrivileges=true`, which blocks file capabilities in child processes. Remove
+that line (or run the engine as root) for TUN to work, then reload the service
+with `systemctl --user daemon-reload`. File capabilities are lost whenever the
+managed core is reinstalled or upgraded.
+
+At least one local inbound (SOCKS by default) must stay enabled. Xray emits a
+native `protocol: "tun"` inbound and manages routes with
+`autoSystemRoutingTable`; this needs a core with working Linux TUN support
+(Xray >= 26.7.28 / prerelease), and older cores are rejected before launch.
+sing-box emits `type: "tun"` with `route.auto_detect_interface` and routes
+private/LAN destinations direct. V2Ray reports an unsupported error.
+
+Before launching, xrat disconnects any running session and removes a leftover
+interface with the configured name, because both engines create the device by
+name and fail when it is already taken. Removing an interface needs
+`CAP_NET_ADMIN`; when the daemon cannot do it, the launch fails with the exact
+`ip link del` command to run.
+
+### DNS
+
+TUN capture does not intercept name resolution: applications query the system
+resolver, which can bypass the tunnel. Split/redirected DNS and FakeIP are not
+provided yet; a bounded DNS-interception backend is tracked separately. Traffic
+that the proxy dials by name is still resolved by the proxy side.
+
 ## Related
 
 - [`connect` CLI](../02-cli/runtime.md#connect) — command reference
