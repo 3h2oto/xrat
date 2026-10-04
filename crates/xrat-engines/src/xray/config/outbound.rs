@@ -11,11 +11,13 @@ pub(super) fn node_to_outbound(
     tag: &str,
     compatibility: XrayCompatibilityTarget,
 ) -> Result<Outbound, String> {
-    let protocol = if node.protocol == Protocol::Hy2 {
-        "hysteria".to_string()
-    } else {
-        node.protocol.as_str().to_string()
-    };
+    let protocol = match node.protocol {
+        Protocol::Ss => "shadowsocks",
+        Protocol::Socks5 => "socks",
+        Protocol::Hy2 => "hysteria",
+        _ => node.protocol.as_str(),
+    }
+    .to_string();
     let mut extensions = ExtensionResolver::new(node);
     let settings = build_outbound_settings(node, &mut extensions)?;
     let stream_settings = build_stream_settings(node, &mut extensions, compatibility)?;
@@ -135,5 +137,29 @@ fn build_outbound_settings(
             "address": node.address,
             "port": node.port
         })),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn maps_normalized_protocol_names_to_native_xray_names() {
+        for (link, normalized, native) in [
+            (
+                "ss://YWVzLTEyOC1nY206cGFzc3dvcmQ=@127.0.0.1:443",
+                Protocol::Ss,
+                "shadowsocks",
+            ),
+            ("socks5://127.0.0.1:443", Protocol::Socks5, "socks"),
+        ] {
+            let node = xrat_config::parse_link(link).unwrap().unwrap();
+            assert_eq!(node.protocol, normalized);
+            let outbound =
+                node_to_outbound(&node, "proxy", XrayCompatibilityTarget::default()).unwrap();
+            assert_eq!(outbound.protocol, native);
+            assert_eq!(node.protocol, normalized);
+        }
     }
 }
