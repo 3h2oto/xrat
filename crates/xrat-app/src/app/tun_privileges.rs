@@ -95,6 +95,79 @@ pub fn ensure_engine_capability(binary_path: &Path) -> crate::app::Result<()> {
     Ok(())
 }
 
+/// Inspect whether systemd user service blocks TUN capabilities via NoNewPrivileges=true.
+pub fn systemd_service_status() -> Option<(&'static str, bool)> {
+    if !capabilities_supported() {
+        return None;
+    }
+    let home = std::env::var_os("HOME")?;
+    let user_dir = std::path::PathBuf::from(home)
+        .join(".config")
+        .join("systemd")
+        .join("user");
+    let service_file = user_dir.join("xrat-daemon.service");
+    if !service_file.is_file() {
+        return Some(("not installed", true));
+    }
+    let content = std::fs::read_to_string(&service_file).ok()?;
+    if !content.contains("NoNewPrivileges=true") {
+        return Some(("ready (NoNewPrivileges disabled in service)", true));
+    }
+    let override_file = user_dir.join("xrat-daemon.service.d").join("10-tun.conf");
+    if override_file.is_file() {
+        let override_content = std::fs::read_to_string(&override_file).unwrap_or_default();
+        if override_content.contains("NoNewPrivileges=false") {
+            return Some(("ready (NoNewPrivileges=false override present)", true));
+        }
+    }
+    Some((
+        "blocked by NoNewPrivileges=true (run `xrat tun setup` to install override)",
+        false,
+    ))
+}
+
+/// Inspect the effective capabilities and NoNewPrivs of a process by PID.
+pub fn inspect_process_privileges(pid: u32) -> Option<(&'static str, bool)> {
+    #[cfg(target_os = "linux")]
+    {
+        let status_path = format!("/proc/{pid}/status");
+        let content = std::fs::read_to_string(status_path).ok()?;
+        let mut no_new_privs = false;
+        let mut cap_eff_has_net_admin = false;
+        for line in content.lines() {
+            if let Some(val) = line.strip_prefix("NoNewPrivs:") {
+                no_new_privs = val.trim() == "1";
+            } else if let Some(val) = line.strip_prefix("CapEff:") {
+                if let Ok(mask) = u64::from_str_radix(val.trim(), 16) {
+                    cap_eff_has_net_admin = (mask & (1 << 12)) != 0;
+                }
+            } else if let Some(val) = line.strip_prefix("Uid:")
+                && val.split_whitespace().next() == Some("0")
+            {
+                cap_eff_has_net_admin = true;
+            }
+        }
+        if no_new_privs {
+            return Some((
+                "blocked (NoNewPrivs=1 in daemon process; restart daemon via systemd)",
+                false,
+            ));
+        }
+        if !cap_eff_has_net_admin {
+            return Some(("missing CAP_NET_ADMIN in running process", false));
+        }
+        Some((
+            "ready (effective CAP_NET_ADMIN present, NoNewPrivs=0)",
+            true,
+        ))
+    }
+    #[cfg(not(target_os = "linux"))]
+    {
+        let _ = pid;
+        None
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use std::path::Path;
@@ -117,5 +190,14 @@ mod tests {
             resolve_executable(Path::new("xrat-definitely-missing-binary")),
             None
         );
+    }
+
+    #[test]
+    fn inspect_process_privileges_reports_status() {
+        #[cfg(target_os = "linux")]
+        {
+            let res = super::inspect_process_privileges(std::process::id());
+            assert!(res.is_some());
+        }
     }
 }

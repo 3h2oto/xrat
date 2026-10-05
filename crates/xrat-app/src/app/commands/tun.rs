@@ -18,6 +18,9 @@ fn status_command(context: &AppContext, args: &TunStatusArgs) -> crate::app::Res
     let color = output::color_enabled();
     let supported = tun_privileges::capabilities_supported();
 
+    let service_state = tun_privileges::systemd_service_status();
+    let service_ready = service_state.as_ref().map(|(_, r)| *r).unwrap_or(true);
+
     if args.json {
         let entries: Vec<serde_json::Value> = files
             .iter()
@@ -34,11 +37,16 @@ fn status_command(context: &AppContext, args: &TunStatusArgs) -> crate::app::Res
                 })
             })
             .collect();
+        let all_files_ready = entries
+            .iter()
+            .all(|e| e["ready"].as_bool().unwrap_or(false));
         let value = serde_json::json!({
             "engine": runtime.engine.clone(),
             "tun_enabled": runtime.tun.enabled,
             "interface": runtime.tun.interface_name.clone(),
             "capabilities_supported": supported,
+            "service_ready": service_ready,
+            "ready": all_files_ready && service_ready,
             "files": entries,
         });
         println!("{}", serde_json::to_string_pretty(&value)?);
@@ -53,7 +61,10 @@ fn status_command(context: &AppContext, args: &TunStatusArgs) -> crate::app::Res
         ),
         ("interface", runtime.tun.interface_name.clone()),
     ];
-    let mut missing = false;
+    if let Some((desc, _ready)) = &service_state {
+        rows.push(("systemd service", desc.to_string()));
+    }
+    let mut missing = !service_ready;
     for file in &files {
         let (state, ready) = capability_state(file);
         missing |= !ready;
@@ -169,18 +180,54 @@ fn setup_command(context: &AppContext, args: &TunSetupArgs) -> crate::app::Resul
     }
 
     println!("{}", output::success("Granted TUN capabilities.", color));
-    let mut rows: Vec<(&str, String)> = Vec::new();
-    for file in &files {
-        let (state, _) = capability_state(file);
-        rows.push((file.label, format!("{}  {state}", file.path.display())));
+
+    #[cfg(target_os = "linux")]
+    {
+        if let Ok(user_dir) = crate::app::commands::daemon_install::systemd_user_dir_with_env(
+            &xrat_support::env::SystemEnvVars,
+        ) {
+            let service_file =
+                user_dir.join(crate::app::commands::daemon_install::DAEMON_SERVICE_NAME);
+            let override_dir =
+                user_dir.join(crate::app::commands::daemon_install::DAEMON_OVERRIDE_DIR_NAME);
+            let override_file = override_dir
+                .join(crate::app::commands::daemon_install::DAEMON_TUN_OVERRIDE_FILE_NAME);
+
+            if args.dry_run {
+                if service_file.is_file() || user_dir.is_dir() {
+                    println!("write {} (NoNewPrivileges=false)", override_file.display());
+                    println!("systemctl --user daemon-reload");
+                }
+            } else if service_file.is_file() || user_dir.is_dir() {
+                let _ = std::fs::create_dir_all(&override_dir);
+                let _ = std::fs::write(
+                    &override_file,
+                    crate::app::commands::daemon_install::DAEMON_TUN_OVERRIDE_TEMPLATE,
+                );
+                let _ = xrat_support::process::Command::new("systemctl")
+                    .args(["--user", "daemon-reload"])
+                    .status();
+            }
+        }
     }
-    println!("{}", output::format_kv(None, &rows, color));
-    println!(
-        "{}",
-        output::notice(
-            "restart the daemon (`xrat daemon restart`) so it picks up capabilities on the xrat binary",
-            color,
-        )
-    );
+
+    if !args.dry_run {
+        let mut rows: Vec<(&str, String)> = Vec::new();
+        for file in &files {
+            let (state, _) = capability_state(file);
+            rows.push((file.label, format!("{}  {state}", file.path.display())));
+        }
+        if let Some((desc, _)) = tun_privileges::systemd_service_status() {
+            rows.push(("systemd service", desc.to_string()));
+        }
+        println!("{}", output::format_kv(None, &rows, color));
+        println!(
+            "{}",
+            output::notice(
+                "restart the daemon (`xrat daemon restart`) so it picks up capabilities on the xrat binary",
+                color,
+            )
+        );
+    }
     Ok(())
 }

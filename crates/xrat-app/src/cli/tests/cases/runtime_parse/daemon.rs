@@ -57,19 +57,28 @@ fn parses_daemon_install_flags() {
                 assert!(!install_args.start);
                 assert!(!install_args.dry_run);
                 assert!(!install_args.with_api);
+                assert!(!install_args.tun);
             }
             _ => panic!("expected install action"),
         },
         _ => panic!("expected daemon command"),
     }
 
-    let cli = Cli::parse_from(["xrat", "daemon", "install", "--start", "--with-api"]);
+    let cli = Cli::parse_from([
+        "xrat",
+        "daemon",
+        "install",
+        "--start",
+        "--with-api",
+        "--tun",
+    ]);
     match cli.command {
         Command::Daemon(args) => match args.action {
             DaemonAction::Install(install_args) => {
                 assert!(install_args.start);
                 assert!(install_args.with_api);
                 assert!(!install_args.dry_run);
+                assert!(install_args.tun);
             }
             _ => panic!("expected install action"),
         },

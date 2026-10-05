@@ -53,6 +53,10 @@ pub struct DaemonInstallArgs {
     /// Install the API server service alongside the daemon.
     #[arg(long)]
     pub with_api: bool,
+
+    /// Configure the systemd service override for TUN capture (disables NoNewPrivileges).
+    #[arg(long)]
+    pub tun: bool,
 }
 
 #[derive(Debug, Args)]

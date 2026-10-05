@@ -91,6 +91,7 @@ pub fn apply_daemon(context: &AppContext) -> StepOutcome {
         start: true,
         dry_run: false,
         with_api: false,
+        tun: false,
     };
     match daemon_install::install(context, &args, true) {
         Ok(()) => {
