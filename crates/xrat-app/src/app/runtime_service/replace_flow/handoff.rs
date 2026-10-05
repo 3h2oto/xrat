@@ -86,6 +86,9 @@ impl<'a> RuntimeService<'a> {
                 AppError::InvalidArgument(format!("config {next_config_id} was not found"))
             })?;
         let launch = self.resolve_launch(&next_config)?;
+        if self.context.app_config.runtime.tun.enabled {
+            crate::app::tun_privileges::ensure_engine_capability(&launch.binary_path)?;
+        }
         preflight_runtime_with_spawner(
             &launch,
             &self.context.runtime_paths.runtime_dir,
@@ -94,6 +97,10 @@ impl<'a> RuntimeService<'a> {
 
         stop_session(self.context, &active, self.process_ports.signals.as_ref()).await?;
         self.context.db.clear_active_config().await?;
+
+        if self.context.app_config.runtime.tun.enabled {
+            self.cleanup_stale_tun_interface()?;
+        }
 
         let staged = self.stage_replacement_runtime(next_config, launch).await;
         let (next_config_id, session_id, new_pid) = match staged {

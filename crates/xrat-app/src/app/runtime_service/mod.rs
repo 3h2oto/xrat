@@ -9,6 +9,7 @@ mod replace_flow;
 mod session_state;
 mod spawn;
 mod status;
+pub(crate) mod tun_ownership;
 mod types;
 
 use helpers::*;

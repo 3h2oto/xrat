@@ -138,10 +138,11 @@ pub(super) fn preflight_runtime_with_spawner(
     )))
 }
 
-/// Recognize native-validation output that points at missing TUN privileges and
-/// return an actionable hint. The engine creates the TUN device during
-/// validation, so `operation not permitted` here usually means a missing
-/// `CAP_NET_ADMIN`.
+/// Recognize native-validation output that points at missing configuration or
+/// permission problems and return an actionable hint. Preflight checks
+/// (`xray run -test` and `sing-box check`) validate configuration without
+/// creating the TUN interface, but permission errors can still occur when
+/// probing environment or core assets.
 fn tun_capability_hint(detail: &str) -> Option<&'static str> {
     let detail = detail.to_ascii_lowercase();
     let permission_denied = detail.contains("operation not permitted")

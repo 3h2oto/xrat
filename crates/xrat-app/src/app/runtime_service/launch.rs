@@ -111,18 +111,22 @@ impl<'a> RuntimeService<'a> {
         }
 
         if runtime.tun.enabled {
+            let mut tun_settings = serde_json::json!({
+                "name": runtime.tun.interface_name,
+                "mtu": runtime.tun.mtu,
+                "gateway": runtime.tun.address,
+            });
+            if runtime.tun.auto_route {
+                let routes = xray_tun_routes(&runtime.tun.address);
+                tun_settings["autoSystemRoutingTable"] = serde_json::json!(routes);
+                tun_settings["autoOutboundsInterface"] = serde_json::json!("auto");
+            }
             xray_config.inbounds.push(Inbound {
                 tag: "tun-in".to_string(),
                 port: None,
                 listen: None,
                 protocol: "tun".to_string(),
-                settings: Some(serde_json::json!({
-                    "name": runtime.tun.interface_name,
-                    "mtu": runtime.tun.mtu,
-                    "gateway": runtime.tun.address,
-                    "autoSystemRoutingTable": ["0.0.0.0/0"],
-                    "autoOutboundsInterface": "auto",
-                })),
+                settings: Some(tun_settings),
             });
         }
 
@@ -354,4 +358,31 @@ fn resolve_runtime_engine(
             "unsupported runtime engine \"{other}\""
         ))),
     }
+}
+
+fn xray_tun_routes(address: &[String]) -> Vec<&'static str> {
+    let mut routes = Vec::new();
+    let mut has_ipv4 = false;
+    let mut has_ipv6 = false;
+
+    for addr in address {
+        let ip_part = addr.split('/').next().unwrap_or(addr).trim();
+        if let Ok(ip) = ip_part.parse::<std::net::IpAddr>() {
+            match ip {
+                std::net::IpAddr::V4(_) => has_ipv4 = true,
+                std::net::IpAddr::V6(_) => has_ipv6 = true,
+            }
+        }
+    }
+
+    if has_ipv4 {
+        routes.push("0.0.0.0/0");
+    }
+    if has_ipv6 {
+        routes.push("::/0");
+    }
+    if routes.is_empty() {
+        routes.push("0.0.0.0/0");
+    }
+    routes
 }

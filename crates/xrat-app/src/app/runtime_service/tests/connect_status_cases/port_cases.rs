@@ -150,6 +150,7 @@ fn ports(fail_readiness: bool, fail_validation: bool) -> (RuntimeProcessPorts, A
             waiter: fake.clone(),
             signals: fake.clone(),
             connector: fake,
+            tun: Arc::new(xrat_support::net::SystemTunInterfaceOps),
         },
         state,
     )
