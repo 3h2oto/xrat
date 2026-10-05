@@ -408,18 +408,18 @@ route_exclude_address = []
 | Field                   | Type     | Default             | Description                                                                |
 | ----------------------- | -------- | ------------------- | -------------------------------------------------------------------------- |
 | `enabled`               | boolean  | `false`             | Capture system traffic through a TUN interface instead of per-app settings |
-| `interface_name`        | string   | `xrat0`             | TUN interface name created by sing-box                                     |
+| `interface_name`        | string   | `xrat0`             | TUN interface name created by the engine                                   |
 | `mtu`                   | integer  | `1500`              | TUN MTU, `1280..=65535`                                                    |
 | `stack`                 | enum     | `system`            | sing-box network stack: `system`, `gvisor`, or `mixed`                     |
 | `address`               | string[] | `["172.19.0.1/30"]` | TUN interface addresses (CIDR)                                             |
-| `auto_route`            | boolean  | `true`              | Let sing-box install and remove routes that redirect traffic into the TUN  |
+| `auto_route`            | boolean  | `true`              | Let engine install capture routes (`0.0.0.0/0` and/or `::/0` matching configured CIDRs) |
 | `strict_route`          | boolean  | `false`             | Stricter sing-box routing/firewall handling; not a persistent kill switch  |
 | `route_exclude_address` | string[] | `[]`                | Destinations excluded from capture (CIDR); sing-box only, Xray rejects      |
 
 > Xray emits a native `protocol: "tun"` inbound and manages system routes through
-> `autoSystemRoutingTable`; sing-box emits `type: "tun"` with
-> `route.auto_detect_interface` and routes private/LAN destinations direct. Xray
-> TUN needs a core whose Linux TUN configures the interface and routes
+> `autoSystemRoutingTable` (generating default routes matching configured IPv4/IPv6 address families);
+> sing-box emits `type: "tun"` with `route.auto_detect_interface` and routes private/LAN
+> destinations direct. Xray TUN needs a core whose Linux TUN configures the interface and routes
 > (Xray >= 26.7.28 / prerelease); older cores are rejected before launch. V2Ray TUN
 > is not implemented. TUN does not intercept DNS: name lookups use the system
 > resolver and can bypass the tunnel; a bounded DNS-interception backend is

@@ -363,33 +363,41 @@ interface_name = "xrat0"
 auto_route = true
 ```
 
-TUN capture needs elevated network privileges. Prefer granting `CAP_NET_ADMIN`
-(and `CAP_NET_RAW`) to the managed binary of the selected engine over running the
-whole daemon as root:
+TUN capture needs elevated network privileges. Grant `CAP_NET_ADMIN`
+(and `CAP_NET_RAW`) to the managed binary of the selected engine:
 
 ```sh
-sudo setcap cap_net_admin,cap_net_raw+ep "$(readlink -f "$(command -v xray)")"
-sudo setcap cap_net_admin,cap_net_raw+ep "$(readlink -f "$(command -v sing-box)")"
+xrat tun setup
 ```
 
-The systemd user unit installed by `xrat daemon install` sets
-`NoNewPrivileges=true`, which blocks file capabilities in child processes. Remove
-that line (or run the engine as root) for TUN to work, then reload the service
-with `systemctl --user daemon-reload`. File capabilities are lost whenever the
-managed core is reinstalled or upgraded.
+The systemd user unit installed by `xrat daemon install` keeps `NoNewPrivileges=true`
+by default to maintain standard proxy process hardening. When TUN is enabled,
+running `xrat tun setup` or `xrat daemon install --tun` installs a supported drop-in
+override `~/.config/systemd/user/xrat-daemon.service.d/10-tun.conf` with
+`NoNewPrivileges=false` and reloads `systemctl --user daemon-reload`. Effective
+daemon and service readiness can be verified with `xrat tun status`. File capabilities
+are lost whenever the managed core is reinstalled or upgraded.
 
 At least one local inbound (SOCKS by default) must stay enabled. Xray emits a
-native `protocol: "tun"` inbound and manages routes with
-`autoSystemRoutingTable`; this needs a core with working Linux TUN support
-(Xray >= 26.7.28 / prerelease), and older cores are rejected before launch.
+native `protocol: "tun"` inbound and manages routes with `autoSystemRoutingTable`;
+this needs a core with working Linux TUN support (Xray >= 26.7.28 / prerelease),
+and older cores are rejected before launch. Generated Xray routes match the address
+families specified in `[runtime.tun].address` (`0.0.0.0/0` for IPv4, `::/0` for IPv6,
+or dual-stack), and routes are omitted entirely if `auto_route = false`.
 sing-box emits `type: "tun"` with `route.auto_detect_interface` and routes
 private/LAN destinations direct. V2Ray reports an unsupported error.
 
-Before launching, xrat disconnects any running session and removes a leftover
-interface with the configured name, because both engines create the device by
-name and fail when it is already taken. Removing an interface needs
-`CAP_NET_ADMIN`; when the daemon cannot do it, the launch fails with the exact
-`ip link del` command to run.
+### Lifecycle and Interface Safety
+
+Engine capabilities and native preflight syntax validation (`xray run -test` / `sing-box check`)
+are verified before disconnecting or stopping any active session. If preflight or capability
+checks fail, the current healthy session continues running. Preflight runs before the server's
+runtime start and does not create the TUN interface.
+
+Leftover TUN interfaces are cleaned up safely prior to starting the engine. xrat tracks
+interface ownership in `tun-ownership.json` and verifies kernel sysfs device metadata
+(`IFF_TUN`) before deleting any interface via in-process Linux netlink (`RTM_DELLINK`). Foreign
+interfaces, non-TUN devices, or interface index mismatches are strictly rejected.
 
 ### DNS
 
