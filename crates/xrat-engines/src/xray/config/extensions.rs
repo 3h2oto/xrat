@@ -12,7 +12,17 @@ pub(super) struct ExtensionResolver {
 impl ExtensionResolver {
     pub(super) fn new(node: &Node) -> Self {
         let mut values = node.extensions.clone().unwrap_or_default();
-        for key in ["email", "group", "name", "remark", "remarks"] {
+        for key in [
+            "email",
+            "group",
+            "name",
+            "remark",
+            "remarks",
+            "support-x25519mlkem768",
+            "support_x25519mlkem768",
+            "supportX25519Mlkem768",
+            "supportX25519mlkem768",
+        ] {
             values.remove(key);
         }
         if node.protocol == Protocol::Vmess {

@@ -21,4 +21,18 @@ pub fn normalize(node: &mut Node) {
     if matches!(node.tls.as_deref(), Some("")) {
         node.tls = None;
     }
+
+    if let Some(extensions) = &mut node.extensions {
+        for key in [
+            "support-x25519mlkem768",
+            "support_x25519mlkem768",
+            "supportX25519Mlkem768",
+            "supportX25519mlkem768",
+        ] {
+            extensions.remove(key);
+        }
+        if extensions.is_empty() {
+            node.extensions = None;
+        }
+    }
 }
