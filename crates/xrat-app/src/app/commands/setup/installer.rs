@@ -14,7 +14,7 @@ pub async fn install(context: &AppContext, args: &InstallArgs) -> crate::app::Re
         InstallCore::SingBox => cores::CoreKind::SingBox,
     };
     let client = xrat_support::http::Client::builder()
-        .timeout(std::time::Duration::from_secs(10))
+        .timeout(std::time::Duration::from_secs(30))
         .user_agent(concat!("xrat/", env!("CARGO_PKG_VERSION")))
         .build()?;
     let release = cores::fetch_release(&client, kind, args.version.as_ref(), args.prerelease)

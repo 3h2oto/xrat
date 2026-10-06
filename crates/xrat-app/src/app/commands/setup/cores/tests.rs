@@ -104,7 +104,7 @@ fn builds_latest_and_pinned_release_api_urls() {
     );
     assert_eq!(
         release_api_url(CoreKind::Xray, None, true),
-        "https://api.github.com/repos/XTLS/Xray-core/releases?per_page=100"
+        "https://api.github.com/repos/XTLS/Xray-core/releases?per_page=10"
     );
 }
 
@@ -362,3 +362,6 @@ fn extracts_nested_sing_box_binary() {
 
     assert_eq!(fs::read(root.path().join("sing-box")).unwrap(), contents);
 }
+
+#[path = "release_tests.rs"]
+mod release_tests;
