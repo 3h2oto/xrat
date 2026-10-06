@@ -27,22 +27,38 @@ pub(crate) async fn fetch_release(
         "latest stable".to_string()
     };
     tracing::info!(core = kind.name(), %selector, "resolving proxy core release");
-    let response = client
-        .get(release_api_url(kind, version, prerelease))
-        .send()
-        .await
-        .map_err(|error| error.to_string())?;
-    if !response.status().is_success() {
-        return Err(format!("GitHub returned HTTP {}", response.status()));
-    }
-    let body = response.text().await.map_err(|error| error.to_string())?;
-    let payload = if prerelease {
-        let releases: Vec<GithubRelease> =
-            serde_json::from_str(&body).map_err(|error| error.to_string())?;
-        newest_prerelease(releases)
-            .ok_or_else(|| format!("{} has no published prerelease", kind.repository()))?
-    } else {
-        serde_json::from_str(&body).map_err(|error| error.to_string())?
+    let mut url = release_api_url(kind, version, prerelease);
+    let payload = loop {
+        let response = client
+            .get(&url)
+            .send()
+            .await
+            .map_err(|error| metadata_error(kind, &url, error))?;
+        if !response.status().is_success() {
+            return Err(format!(
+                "GitHub release lookup returned HTTP {} for {url}",
+                response.status()
+            ));
+        }
+        let next = response
+            .headers()
+            .get("link")
+            .and_then(|value| value.to_str().ok())
+            .and_then(next_page);
+        let body = response
+            .text()
+            .await
+            .map_err(|error| metadata_error(kind, &url, error))?;
+        if !prerelease {
+            break serde_json::from_str(&body)
+                .map_err(|error| format!("Invalid GitHub release metadata from {url}: {error}"))?;
+        }
+        let releases: Vec<GithubRelease> = serde_json::from_str(&body)
+            .map_err(|error| format!("Invalid GitHub release metadata from {url}: {error}"))?;
+        if let Some(release) = newest_prerelease(releases) {
+            break release;
+        }
+        url = next.ok_or_else(|| format!("{} has no published prerelease", kind.repository()))?;
     };
     let release = release_from_payload(kind, payload)?;
     if let Some(version) = version
@@ -80,7 +96,7 @@ pub(crate) fn release_api_url(
 ) -> String {
     if prerelease {
         return format!(
-            "https://api.github.com/repos/{}/releases?per_page=100",
+            "https://api.github.com/repos/{}/releases?per_page=10",
             kind.repository()
         );
     }
@@ -203,4 +219,23 @@ pub(crate) fn parse_sha256(digest: Option<&str>) -> Result<String, String> {
         return Err("release asset has an invalid SHA-256 digest".to_string());
     }
     Ok(value.to_ascii_lowercase())
+}
+
+fn next_page(link: &str) -> Option<String> {
+    link.split(',')
+        .find(|part| part.contains("rel=\"next\""))
+        .and_then(|part| part.trim().strip_prefix('<'))
+        .and_then(|part| part.split_once('>'))
+        .map(|(url, _)| url.to_string())
+}
+
+fn metadata_error(kind: CoreKind, url: &str, error: xrat_support::http::HttpError) -> String {
+    if error.is_timeout() {
+        format!(
+            "GitHub release metadata download timed out ({url}). Check your connection or retry with an explicit version: `xrat install {} --version <version>`.",
+            kind.name()
+        )
+    } else {
+        format!("Could not download GitHub release metadata from {url}: {error}")
+    }
 }

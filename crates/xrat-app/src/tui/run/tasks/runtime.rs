@@ -253,3 +253,38 @@ pub fn spawn_runtime_restart(
         )),
     );
 }
+
+pub fn spawn_runtime_tun(
+    mut context: AppContext,
+    app: &mut TuiApp,
+    task_tx: &mpsc::UnboundedSender<TuiTaskEvent>,
+    enabled: Option<bool>,
+) {
+    let Some((kind, include_deleted, task_tx)) = begin_runtime_op(app, task_tx) else {
+        return;
+    };
+    tokio::spawn(async move {
+        let event =
+            match crate::app::services::tun_control::apply(&mut context, enabled, true).await {
+                Ok(state) => {
+                    complete_after_reload(
+                        context,
+                        include_deleted,
+                        kind,
+                        crate::app::services::tun_control::message(&state),
+                    )
+                    .await
+                }
+                Err(error) => {
+                    fail_after_reload(
+                        context,
+                        include_deleted,
+                        kind,
+                        format!("TUN change failed: {error}"),
+                    )
+                    .await
+                }
+            };
+        let _ = task_tx.send(event);
+    });
+}

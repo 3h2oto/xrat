@@ -8,9 +8,9 @@ fn parses_tun_subcommands() {
         let cli = Cli::parse_from(["xrat", "tun", subcommand]);
         match cli.command {
             Command::Tun(args) => assert!(if enabled {
-                matches!(args.action, TunAction::Enable)
+                matches!(args.action, TunAction::Enable(_))
             } else {
-                matches!(args.action, TunAction::Disable)
+                matches!(args.action, TunAction::Disable(_))
             }),
             _ => panic!("expected tun command"),
         }
@@ -37,5 +37,19 @@ fn parses_tun_subcommands() {
             _ => panic!("expected tun setup action"),
         },
         _ => panic!("expected tun command"),
+    }
+}
+
+#[test]
+fn parses_tun_mode_json() {
+    for command in ["enable", "disable"] {
+        let cli = Cli::try_parse_from(["xrat", "tun", command, "--json"]).unwrap();
+        let Command::Tun(args) = cli.command else {
+            panic!("expected tun");
+        };
+        match args.action {
+            TunAction::Enable(mode) | TunAction::Disable(mode) => assert!(mode.json),
+            _ => panic!("expected a mode command"),
+        }
     }
 }

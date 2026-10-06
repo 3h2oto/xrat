@@ -46,6 +46,17 @@ impl<'a> RuntimeService<'a> {
         };
         let previous_active_config_id = active_session.as_ref().and_then(|s| s.config_id);
 
+        let retiring_tun = active_session.as_ref().and_then(|session| {
+            tun_ownership::load_ownership(&self.context.runtime_paths.runtime_dir)
+                .filter(|record| record.session_id == session.id)
+        });
+        let mut retiring_context = self.context.clone();
+        if let Some(record) = &retiring_tun {
+            retiring_context.app_config.runtime.tun.interface_name = record.interface_name.clone();
+            RuntimeService::with_process_ports(&retiring_context, self.process_ports.clone())
+                .verify_tun_interface()?;
+        }
+
         if tun_enabled {
             crate::app::tun_privileges::ensure_engine_capability_with_spawner(
                 &launch.binary_path,
@@ -65,6 +76,16 @@ impl<'a> RuntimeService<'a> {
         if let Some(active) = &active_session {
             stop_session(self.context, active, self.process_ports.signals.as_ref()).await?;
             self.context.db.clear_active_config().await?;
+        }
+
+        if retiring_tun.is_some()
+            && let Err(error) =
+                RuntimeService::with_process_ports(&retiring_context, self.process_ports.clone())
+                    .cleanup_stale_tun_interface()
+        {
+            return Err(self
+                .rollback_runtime_error(previous_active_config_id, error)
+                .await);
         }
 
         if tun_enabled && let Err(error) = self.cleanup_stale_tun_interface() {

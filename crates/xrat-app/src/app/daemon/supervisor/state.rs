@@ -7,7 +7,7 @@ pub(super) const HEALTH_TICK_SECONDS: u64 = 15;
 /// `[subscriptions].refresh_interval_hours`; this only bounds detection lag.
 pub(super) const SUBSCRIPTION_REFRESH_TICK_SECONDS: u64 = 300;
 
-pub async fn run(mut rx: mpsc::Receiver<SupervisorEvent>, context: AppContext) {
+pub async fn run(mut rx: mpsc::Receiver<SupervisorEvent>, mut context: AppContext) {
     let daemon_instance_id = uuid::Uuid::new_v4().to_string();
     match RuntimeService::new(&context)
         .reconcile_reattach_on_daemon_start(&daemon_instance_id)
@@ -46,7 +46,7 @@ pub async fn run(mut rx: mpsc::Receiver<SupervisorEvent>, context: AppContext) {
                 handlers::handle_event_with_sender(
                     &mut state,
                     SupervisorEvent::HealthTick,
-                    &context,
+                    &mut context,
                     &health_result_tx,
                 ).await;
             }
@@ -57,13 +57,13 @@ pub async fn run(mut rx: mpsc::Receiver<SupervisorEvent>, context: AppContext) {
                 let Some(event) = event else {
                     break;
                 };
-                handlers::handle_event_with_sender(&mut state, event, &context, &health_result_tx).await;
+                handlers::handle_event_with_sender(&mut state, event, &mut context, &health_result_tx).await;
             }
             event = health_result_rx.recv() => {
                 let Some(event) = event else {
                     continue;
                 };
-                handlers::handle_event_with_sender(&mut state, event, &context, &health_result_tx).await;
+                handlers::handle_event_with_sender(&mut state, event, &mut context, &health_result_tx).await;
             }
         }
     }

@@ -36,7 +36,10 @@ pub(super) fn spawn_test_supervisor(
         while let Some(event) = rx.recv().await {
             match event {
                 SupervisorEvent::DaemonPing { respond_to } => {
-                    let _ = respond_to.send(PingPayload { daemon_ready: true });
+                    let _ = respond_to.send(PingPayload {
+                        daemon_ready: true,
+                        live_tun: true,
+                    });
                 }
                 SupervisorEvent::DaemonShutdown { respond_to } => {
                     let _ = respond_to.send(DaemonShutdownResult::Ok(DaemonShutdownPayload {
@@ -72,7 +75,10 @@ pub(super) fn spawn_test_supervisor_replace_error(
         while let Some(event) = rx.recv().await {
             match event {
                 SupervisorEvent::DaemonPing { respond_to } => {
-                    let _ = respond_to.send(PingPayload { daemon_ready: true });
+                    let _ = respond_to.send(PingPayload {
+                        daemon_ready: true,
+                        live_tun: true,
+                    });
                 }
                 SupervisorEvent::RuntimeReplace { respond_to, .. } => {
                     let _ = respond_to.send(RuntimeReplaceResult::Err {

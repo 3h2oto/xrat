@@ -75,3 +75,31 @@ pub async fn runtime_status_response_via_supervisor(
         RuntimeStatusResult::Err { message } => runtime_status_error_response(message),
     })
 }
+
+pub async fn runtime_tun_response_via_supervisor(
+    supervisor_tx: mpsc::Sender<SupervisorEvent>,
+    enabled: Option<bool>,
+    config_path: std::path::PathBuf,
+) -> crate::app::Result<DaemonResponse<crate::app::daemon::ipc::TunStatePayload>> {
+    let result = roundtrip(supervisor_tx, |respond_to| SupervisorEvent::RuntimeTun {
+        enabled,
+        config_path,
+        respond_to,
+    })
+    .await?;
+    let (ok, message, payload) = match result {
+        Ok(payload) => (true, "TUN mode updated".to_string(), Some(payload)),
+        Err(error) => (false, error, None),
+    };
+    Ok(DaemonResponse {
+        protocol_version: crate::app::daemon::ipc::PROTOCOL_VERSION,
+        ok,
+        code: if ok {
+            crate::app::daemon::ipc::DaemonResponseCode::Ok
+        } else {
+            crate::app::daemon::ipc::DaemonResponseCode::InvalidState
+        },
+        message,
+        payload,
+    })
+}

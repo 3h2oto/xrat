@@ -23,6 +23,11 @@ pub(super) async fn handle_runtime_status(
         Ok(snapshot) => {
             if respond_to
                 .send(RuntimeStatusResult::Ok(RuntimeStatusPayload {
+                    tun: Some(crate::app::services::tun::capture_state(
+                        context,
+                        &snapshot,
+                        &xrat_support::readiness::RuntimeProcessPorts::default(),
+                    )),
                     daemon_ready: state.ready,
                     runtime_owned: snapshot.session.is_some() && snapshot.pid_running,
                     runtime_status: snapshot.status.as_str().to_string(),

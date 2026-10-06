@@ -123,6 +123,7 @@ pub async fn run(context: &AppContext, args: &DaemonArgs) -> crate::app::Result<
                     return Err(crate::app::AppError::InvalidArgument(response.message));
                 }
                 let payload = response.payload.unwrap_or(ipc::RuntimeStatusPayload {
+                    tun: None,
                     daemon_ready: false,
                     runtime_owned: false,
                     runtime_status: "unknown".to_string(),

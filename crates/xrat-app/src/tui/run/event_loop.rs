@@ -32,6 +32,9 @@ pub async fn run(context: &AppContext) -> crate::app::Result<()> {
         let drain = drain_task_events(&mut app, &mut task_rx);
         needs_redraw |= drain.any;
         if drain.reloaded {
+            if let Err(error) = crate::app::services::tun_control::reload(&mut context) {
+                app.push_log(format!("ERR reload runtime settings: {error}"));
+            }
             tasks::spawn_enrich_locations(
                 context.db.clone(),
                 geo_lookup.clone(),
@@ -253,30 +256,7 @@ pub async fn run(context: &AppContext) -> crate::app::Result<()> {
                         app.needs_full_clear = true;
                     }
                     if matches!(action, crate::tui::app::TuiAction::ToggleTun) {
-                        match crate::app::commands::tun::save_tun_enabled(
-                            &context.runtime_paths.config_path,
-                            None,
-                        ) {
-                            Ok(outcome) => {
-                                let enabled = outcome.config.runtime.tun.enabled;
-                                context.app_config = outcome.config;
-                                let message = crate::app::commands::tun::enabled_message(enabled);
-                                app.set_chrome_message(message.clone(), false);
-                                app.push_log(message.clone());
-                                crate::app::events::record(
-                                    &context.db,
-                                    crate::app::events::LEVEL_INFO,
-                                    crate::app::events::SOURCE_SETTINGS,
-                                    "config_saved",
-                                    message,
-                                    None,
-                                    app.data.runtime.session_id,
-                                    Some(format!("runtime.tun.enabled={enabled}")),
-                                )
-                                .await;
-                            }
-                            Err(error) => app.set_chrome_message(error, true),
-                        }
+                        tasks::spawn_runtime_tun(context.clone(), &mut app, &task_tx, None);
                     }
                     if open_settings {
                         match ConfigEditSession::open(&context.runtime_paths.config_path) {
@@ -296,6 +276,64 @@ pub async fn run(context: &AppContext) -> crate::app::Result<()> {
                             if let Some(modal) = &mut app.settings_modal {
                                 modal.notice = Some("No changes to save.".to_string());
                                 modal.error = None;
+                            }
+                            continue;
+                        }
+                        let tun_change = app.settings_modal.as_ref().and_then(|modal| {
+                            modal
+                                .session
+                                .settings
+                                .iter()
+                                .find(|setting| {
+                                    setting.path == "runtime.tun.enabled" && setting.is_dirty()
+                                })
+                                .and_then(|setting| match setting.value {
+                                    crate::app::config::SettingValue::Bool(enabled) => {
+                                        Some(enabled)
+                                    }
+                                    _ => None,
+                                })
+                        });
+                        if let Some(enabled) = tun_change {
+                            let changed_count = app
+                                .settings_modal
+                                .as_ref()
+                                .map(|modal| {
+                                    modal
+                                        .session
+                                        .settings
+                                        .iter()
+                                        .filter(|setting| setting.is_dirty())
+                                        .count()
+                                })
+                                .unwrap_or_default();
+                            let current_contents =
+                                std::fs::read_to_string(&context.runtime_paths.config_path).ok();
+                            let config_unchanged =
+                                app.settings_modal.as_ref().is_some_and(|modal| {
+                                    current_contents.as_deref()
+                                        == Some(modal.session.original_contents.as_str())
+                                });
+                            if app.task_state.running.is_some() {
+                                if let Some(modal) = &mut app.settings_modal {
+                                    modal.error = Some("Wait for the current operation to finish before applying TUN.".into());
+                                }
+                            } else if !config_unchanged {
+                                if let Some(modal) = &mut app.settings_modal {
+                                    modal.error = Some("Config changed on disk; close and reopen settings before saving.".into());
+                                }
+                            } else if changed_count > 1 {
+                                if let Some(modal) = &mut app.settings_modal {
+                                    modal.error = Some("Save other settings separately; use U or save only runtime.tun.enabled to apply TUN immediately with rollback.".into());
+                                }
+                            } else {
+                                app.settings_modal = None;
+                                tasks::spawn_runtime_tun(
+                                    context.clone(),
+                                    &mut app,
+                                    &task_tx,
+                                    Some(enabled),
+                                );
                             }
                             continue;
                         }

@@ -10,6 +10,8 @@ pub mod runtime_control;
 pub mod runtime_transitions;
 pub mod runtime_tuning;
 pub mod testing;
+pub(crate) mod tun;
+pub(crate) mod tun_control;
 
 pub use configs::{
     ConfigExportRequest, ConfigListRequest, ConfigListResult, ConfigService,

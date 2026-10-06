@@ -388,10 +388,12 @@ see the [CLI reference](docs/src/02-cli/README.md).
 
 ## System traffic with TUN
 
-Use `xrat tun enable` / `xrat tun disable` to save the capture setting. In the
-TUI, `U` toggles and saves it; `,` opens settings with all `runtime.tun`
-options. Restart a running daemon and reconnect to apply the change. These
-controls do not grant privileges or immediately change an active connection.
+`xrat tun enable` applies TUN to the current connected config.
+`xrat tun disable` keeps that config connected in local proxy mode. In the TUI,
+`U` does the same live toggle; `,` opens the TUN settings. Both paths check the
+engine and privileges before replacing the session and restore the previous mode
+if startup fails. When disconnected, the choice is saved for the next
+connection.
 
 TUN is opt-in: it captures system traffic for applications that do not use a
 local SOCKS or HTTP proxy. The following Linux workflow uses sing-box; keep the
@@ -411,7 +413,7 @@ configuration file):
 engine = "sing-box"
 
 [runtime.tun]
-enabled = true
+enabled = false
 interface_name = "xrat0"
 address = ["172.19.0.1/30"]
 auto_route = true
@@ -430,7 +432,8 @@ xrat tun setup
 systemctl --user restart xrat-daemon.service
 xrat tun status
 xrat connect a1b2
-xrat status
+xrat tun enable
+xrat tun status
 ```
 
 Replace `a1b2` with a saved config ref. For a standalone daemon, use
@@ -440,11 +443,12 @@ systemd user service for TUN. Re-run it after reinstalling or upgrading either
 binary, then restart the daemon. With a custom config, pass `--config <path>` to
 the xrat commands above.
 
-To return to per-app proxying, run `xrat disconnect`, set
-`[runtime.tun].enabled = false`, restart the daemon, and reconnect your config.
-TUN supports sing-box and Xray; Xray requires Linux TUN support in version
-`26.7.28` or newer (install a suitable prerelease with
-`xrat install xray --prerelease` when needed). V2Ray TUN is unsupported.
+To return to per-app proxying, run `xrat tun disable`. Routine enable/disable
+toggles do not need setup or a daemon restart. A running daemon needs one
+restart after an XRAT upgrade to load the live toggle support. TUN supports
+sing-box and Xray; Xray requires Linux TUN support in version `26.7.11` or newer
+(install a suitable prerelease with `xrat install xray --prerelease` when
+needed). V2Ray TUN is unsupported.
 
 See [TUN commands](docs/src/02-cli/tun.md) and
 [TUN capture](docs/src/03-features/runtime-management.md#tun-capture) for

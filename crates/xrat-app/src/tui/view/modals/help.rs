@@ -62,7 +62,7 @@ pub fn render_help(frame: &mut Frame<'_>, area: Rect) {
                 vec![
                     help_line("K", "Kill"),
                     help_line("R", "Restart"),
-                    help_line("U", "Toggle TUN setting"),
+                    help_line("U", "Toggle TUN capture"),
                 ],
             ),
             section(

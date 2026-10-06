@@ -156,5 +156,6 @@ pub enum ActiveSessionState {
 
 pub struct RuntimeService<'a> {
     pub(super) context: &'a AppContext,
+    pub(super) rollback_context: Option<&'a AppContext>,
     pub(super) process_ports: xrat_support::readiness::RuntimeProcessPorts,
 }

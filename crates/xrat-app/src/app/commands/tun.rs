@@ -2,72 +2,56 @@ use crate::app::AppError;
 use crate::app::commands::output;
 use crate::app::context::AppContext;
 use crate::app::tun_privileges::{self, TunPrivilegeFile};
-use crate::cli::{TunAction, TunArgs, TunSetupArgs, TunStatusArgs};
+use crate::cli::{TunAction, TunArgs, TunModeArgs, TunSetupArgs, TunStatusArgs};
 use xrat_support::process::Stdio;
 
 pub async fn run(context: &AppContext, args: &TunArgs) -> crate::app::Result<()> {
     match &args.action {
         TunAction::Status(status) => status_command(context, status).await,
-        TunAction::Setup(setup) => setup_command(context, setup),
-        TunAction::Enable => enabled_command(context, true).await,
-        TunAction::Disable => enabled_command(context, false).await,
+        TunAction::Setup(setup) => setup_command(context, setup).await,
+        TunAction::Enable(mode) => enabled_command(context, true, mode).await,
+        TunAction::Disable(mode) => enabled_command(context, false, mode).await,
     }
 }
 
-pub(crate) fn save_tun_enabled(
-    path: &std::path::Path,
-    enabled: Option<bool>,
-) -> Result<crate::app::config::ConfigSaveOutcome, String> {
-    use crate::app::config::{ConfigEditSession, SettingValue};
-    let mut session = ConfigEditSession::open(path)?;
-    let setting = session
-        .settings
-        .iter_mut()
-        .find(|setting| setting.path == "runtime.tun.enabled")
-        .ok_or_else(|| "TUN setting was not found".to_string())?;
-    if let Some(enabled) = enabled {
-        setting.value = SettingValue::Bool(enabled);
+async fn enabled_command(
+    context: &AppContext,
+    enabled: bool,
+    args: &TunModeArgs,
+) -> crate::app::Result<()> {
+    let mut context = context.clone();
+    let outcome =
+        crate::app::services::tun_control::apply(&mut context, Some(enabled), false).await?;
+    if args.json {
+        println!("{}", serde_json::to_string_pretty(&outcome)?);
     } else {
-        setting.toggle();
-    }
-    session.save()
-}
-
-pub(crate) fn enabled_message(enabled: bool) -> String {
-    format!(
-        "TUN {} in config; restart the daemon if running, then reconnect to apply.{}",
-        if enabled { "enabled" } else { "disabled" },
-        if enabled {
-            " Run `xrat tun setup` first if privileges are not ready."
-        } else {
-            ""
-        },
-    )
-}
-
-async fn enabled_command(context: &AppContext, enabled: bool) -> crate::app::Result<()> {
-    let outcome = save_tun_enabled(&context.runtime_paths.config_path, Some(enabled))
-        .map_err(AppError::InvalidArgument)?;
-    let message = enabled_message(outcome.config.runtime.tun.enabled);
-    println!("{}", output::success(&message, output::color_enabled()));
-    if !outcome.changed_paths.is_empty() {
-        crate::app::events::record(
-            &context.db,
-            crate::app::events::LEVEL_INFO,
-            crate::app::events::SOURCE_SETTINGS,
-            "config_saved",
-            message,
-            None,
-            None,
-            Some(format!("runtime.tun.enabled={enabled}")),
-        )
-        .await;
+        println!(
+            "{}",
+            output::success(
+                crate::app::services::tun_control::message(&outcome),
+                output::color_enabled()
+            )
+        );
     }
     Ok(())
 }
 
 async fn status_command(context: &AppContext, args: &TunStatusArgs) -> crate::app::Result<()> {
     let runtime = &context.app_config.runtime;
+    let ports = xrat_support::readiness::RuntimeProcessPorts::default();
+    let engine_error = crate::app::services::tun::check_engine(context, &ports)
+        .err()
+        .map(|error| error.to_string());
+    let engine_version = if runtime.engine == "xray" {
+        crate::app::services::runtime_tuning::xray_binary_version_with_spawner(
+            &context.runtime_paths.xray_path,
+            ports.spawner.clone(),
+        )
+        .map(|(major, minor, patch)| format!("{major}.{minor}.{patch}"))
+    } else {
+        None
+    };
+    let state = current_state(context).await?;
     let files = tun_privileges::required_files(context);
     let color = output::color_enabled();
     let supported = tun_privileges::capabilities_supported();
@@ -99,6 +83,11 @@ async fn status_command(context: &AppContext, args: &TunStatusArgs) -> crate::ap
         let value = serde_json::json!({
             "engine": runtime.engine.clone(),
             "tun_enabled": runtime.tun.enabled,
+            "tun_active": state.active,
+            "active_interface": state.interface,
+            "active_config_ref": state.active_config_ref,
+            "engine_version": engine_version,
+            "engine_error": engine_error,
             "interface": runtime.tun.interface_name.clone(),
             "capabilities_supported": supported,
             "service_ready": service_ready,
@@ -107,7 +96,7 @@ async fn status_command(context: &AppContext, args: &TunStatusArgs) -> crate::ap
                 "status": status,
                 "ready": ready,
             })),
-            "ready": all_files_ready && service_ready && daemon_ready,
+            "ready": supported && engine_error.is_none() && all_files_ready && service_ready && daemon_ready,
             "files": entries,
         });
         println!("{}", serde_json::to_string_pretty(&value)?);
@@ -115,12 +104,46 @@ async fn status_command(context: &AppContext, args: &TunStatusArgs) -> crate::ap
     }
 
     let mut rows: Vec<(&str, String)> = vec![
-        ("engine", runtime.engine.clone()),
         (
-            "tun enabled",
+            "engine",
+            format!(
+                "{}{}",
+                runtime.engine,
+                engine_version
+                    .as_ref()
+                    .map(|version| format!(" {version}"))
+                    .unwrap_or_default()
+            ),
+        ),
+        (
+            "active capture",
+            if state.active { "yes" } else { "no" }.into(),
+        ),
+        (
+            "active config",
+            state
+                .active_config_ref
+                .clone()
+                .unwrap_or_else(|| "disconnected".into()),
+        ),
+        (
+            "active interface",
+            state.interface.clone().unwrap_or_else(|| "none".into()),
+        ),
+        (
+            "engine check",
+            if engine_error.is_some() {
+                "blocked"
+            } else {
+                "ready"
+            }
+            .into(),
+        ),
+        (
+            "configured TUN",
             if runtime.tun.enabled { "yes" } else { "no" }.to_string(),
         ),
-        ("interface", runtime.tun.interface_name.clone()),
+        ("configured interface", runtime.tun.interface_name.clone()),
     ];
     if let Some((desc, _ready)) = &service_state {
         rows.push(("systemd service", desc.to_string()));
@@ -134,11 +157,24 @@ async fn status_command(context: &AppContext, args: &TunStatusArgs) -> crate::ap
         missing |= !ready;
         rows.push((file.label, format!("{}  {state}", file.path.display())));
     }
-    println!(
-        "{}",
-        output::format_kv(Some("TUN privileges"), &rows, color)
-    );
+    println!("{}", output::format_kv(Some("TUN status"), &rows, color));
 
+    if let Some(error) = engine_error {
+        println!("{}", output::notice(&error, color));
+    }
+    if runtime.tun.enabled && !state.active {
+        println!(
+            "{}",
+            output::notice(
+                if state.active_config_ref.is_some() {
+                    "TUN is configured but inactive. Run `xrat tun enable` to apply it to the current connection."
+                } else {
+                    "Disconnected: TUN will apply on the next connect."
+                },
+                color
+            )
+        );
+    }
     if !supported {
         println!(
             "{}",
@@ -154,6 +190,33 @@ async fn status_command(context: &AppContext, args: &TunStatusArgs) -> crate::ap
         );
     }
     Ok(())
+}
+
+async fn current_state(
+    context: &AppContext,
+) -> crate::app::Result<crate::app::daemon::ipc::TunStatePayload> {
+    #[cfg(unix)]
+    {
+        let socket =
+            crate::app::daemon::ipc::default_socket_path(&context.runtime_paths.runtime_dir);
+        if crate::app::services::runtime_control::tui_uses_daemon(&socket).await? {
+            let response = crate::app::daemon::ipc::runtime_status_daemon(&socket).await?;
+            if !response.ok {
+                return Err(AppError::InvalidArgument(response.message));
+            }
+            return response.payload.and_then(|payload| payload.tun).ok_or_else(|| AppError::InvalidArgument(
+                "The running daemon cannot report active TUN state. Restart it once after upgrading, then retry.".into(),
+            ));
+        }
+    }
+    let snapshot = crate::app::runtime_service::RuntimeService::new(context)
+        .status()
+        .await?;
+    Ok(crate::app::services::tun::capture_state(
+        context,
+        &snapshot,
+        &xrat_support::readiness::RuntimeProcessPorts::default(),
+    ))
 }
 
 async fn daemon_process_status(runtime_dir: &std::path::Path) -> Option<(u32, &'static str, bool)> {
@@ -212,7 +275,10 @@ fn capability_state(file: &TunPrivilegeFile) -> (String, bool) {
         );
     }
     match tun_privileges::file_capabilities(&file.path) {
-        None => ("unknown (getcap unavailable)".to_string(), true),
+        None => (
+            "unknown (install libcap tools to inspect)".to_string(),
+            false,
+        ),
         Some(capabilities) if tun_privileges::has_net_admin(&capabilities) => {
             (format!("ready ({capabilities})"), true)
         }
@@ -223,11 +289,21 @@ fn capability_state(file: &TunPrivilegeFile) -> (String, bool) {
     }
 }
 
-fn setup_command(context: &AppContext, args: &TunSetupArgs) -> crate::app::Result<()> {
+async fn setup_command(context: &AppContext, args: &TunSetupArgs) -> crate::app::Result<()> {
     if !tun_privileges::capabilities_supported() {
         return Err(AppError::InvalidArgument(
             "file capabilities are Linux-only; configure TUN privileges manually on this platform"
                 .to_string(),
+        ));
+    }
+    if context.app_config.runtime.engine == "xray" {
+        crate::app::services::runtime_tuning::ensure_xray_tun_supported_with_spawner(
+            &context.runtime_paths.xray_path,
+            std::sync::Arc::new(xrat_support::process::SystemProcessSpawner),
+        )?;
+    } else if context.app_config.runtime.engine != "sing-box" {
+        return Err(AppError::InvalidArgument(
+            "Managed TUN requires Xray or sing-box. Select a supported engine in settings.".into(),
         ));
     }
     let files = tun_privileges::required_files(context);
@@ -344,13 +420,15 @@ fn setup_command(context: &AppContext, args: &TunSetupArgs) -> crate::app::Resul
             rows.push(("systemd service", desc.to_string()));
         }
         println!("{}", output::format_kv(None, &rows, color));
-        println!(
-            "{}",
-            output::notice(
-                "restart the systemd daemon (`systemctl --user restart xrat-daemon.service`) to apply the override and capabilities; for a standalone daemon use `xrat daemon restart`",
-                color,
-            )
-        );
+        let daemon_needs_restart = daemon_process_status(&context.runtime_paths.runtime_dir)
+            .await
+            .is_some_and(|(_, _, ready)| !ready);
+        let message = if daemon_needs_restart {
+            "Privileges prepared. Restart the running daemon once: `systemctl --user restart xrat-daemon.service` (standalone daemon: `xrat daemon restart`). Then run `xrat tun enable`."
+        } else {
+            "Privileges prepared. Run `xrat tun enable`. Repeat setup only after replacing the engine or xrat binary."
+        };
+        println!("{}", output::notice(message, color));
     }
     Ok(())
 }
