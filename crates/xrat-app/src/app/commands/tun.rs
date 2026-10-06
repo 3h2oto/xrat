@@ -7,12 +7,12 @@ use xrat_support::process::Stdio;
 
 pub async fn run(context: &AppContext, args: &TunArgs) -> crate::app::Result<()> {
     match &args.action {
-        TunAction::Status(status) => status_command(context, status),
+        TunAction::Status(status) => status_command(context, status).await,
         TunAction::Setup(setup) => setup_command(context, setup),
     }
 }
 
-fn status_command(context: &AppContext, args: &TunStatusArgs) -> crate::app::Result<()> {
+async fn status_command(context: &AppContext, args: &TunStatusArgs) -> crate::app::Result<()> {
     let runtime = &context.app_config.runtime;
     let files = tun_privileges::required_files(context);
     let color = output::color_enabled();
@@ -20,6 +20,8 @@ fn status_command(context: &AppContext, args: &TunStatusArgs) -> crate::app::Res
 
     let service_state = tun_privileges::systemd_service_status();
     let service_ready = service_state.as_ref().map(|(_, r)| *r).unwrap_or(true);
+    let daemon_state = daemon_process_status(&context.runtime_paths.runtime_dir).await;
+    let daemon_ready = daemon_state.as_ref().is_none_or(|(_, _, ready)| *ready);
 
     if args.json {
         let entries: Vec<serde_json::Value> = files
@@ -46,7 +48,12 @@ fn status_command(context: &AppContext, args: &TunStatusArgs) -> crate::app::Res
             "interface": runtime.tun.interface_name.clone(),
             "capabilities_supported": supported,
             "service_ready": service_ready,
-            "ready": all_files_ready && service_ready,
+            "daemon": daemon_state.map(|(pid, status, ready)| serde_json::json!({
+                "pid": pid,
+                "status": status,
+                "ready": ready,
+            })),
+            "ready": all_files_ready && service_ready && daemon_ready,
             "files": entries,
         });
         println!("{}", serde_json::to_string_pretty(&value)?);
@@ -64,7 +71,10 @@ fn status_command(context: &AppContext, args: &TunStatusArgs) -> crate::app::Res
     if let Some((desc, _ready)) = &service_state {
         rows.push(("systemd service", desc.to_string()));
     }
-    let mut missing = !service_ready;
+    if let Some((pid, status, _)) = &daemon_state {
+        rows.push(("daemon process", format!("{pid}: {status}")));
+    }
+    let mut missing = !service_ready || !daemon_ready;
     for file in &files {
         let (state, ready) = capability_state(file);
         missing |= !ready;
@@ -90,6 +100,54 @@ fn status_command(context: &AppContext, args: &TunStatusArgs) -> crate::app::Res
         );
     }
     Ok(())
+}
+
+async fn daemon_process_status(runtime_dir: &std::path::Path) -> Option<(u32, &'static str, bool)> {
+    #[cfg(target_os = "linux")]
+    {
+        let socket_path = crate::app::daemon::ipc::default_socket_path(runtime_dir);
+        let stream = tokio::time::timeout(
+            std::time::Duration::from_secs(1),
+            tokio::net::UnixStream::connect(socket_path),
+        )
+        .await
+        .ok()?
+        .ok()?;
+        let pid = u32::try_from(stream.peer_cred().ok()?.pid()?).ok()?;
+        let (status, ready) = tun_privileges::inspect_process_privileges(pid).unwrap_or((
+            "unknown (could not inspect running daemon privileges)",
+            false,
+        ));
+        Some((pid, status, ready))
+    }
+    #[cfg(not(target_os = "linux"))]
+    {
+        let _ = runtime_dir;
+        None
+    }
+}
+
+#[cfg(all(test, target_os = "linux"))]
+mod tests {
+    #[tokio::test]
+    async fn tun_status_inspects_daemon_peer_privileges() {
+        let runtime_dir = tempfile::tempdir().unwrap();
+        assert!(
+            super::daemon_process_status(runtime_dir.path())
+                .await
+                .is_none()
+        );
+        let socket_path = crate::app::daemon::ipc::default_socket_path(runtime_dir.path());
+        let _listener = tokio::net::UnixListener::bind(socket_path).unwrap();
+        let (pid, status, ready) = super::daemon_process_status(runtime_dir.path())
+            .await
+            .unwrap();
+        assert_eq!(pid, std::process::id());
+        assert_eq!(
+            Some((status, ready)),
+            crate::app::tun_privileges::inspect_process_privileges(pid)
+        );
+    }
 }
 
 fn capability_state(file: &TunPrivilegeFile) -> (String, bool) {
@@ -152,6 +210,19 @@ fn setup_command(context: &AppContext, args: &TunSetupArgs) -> crate::app::Resul
         for command in &commands {
             println!("{command}");
         }
+        #[cfg(target_os = "linux")]
+        {
+            let user_dir = crate::app::commands::daemon_install::systemd_user_dir_with_env(
+                &xrat_support::env::SystemEnvVars,
+            )?;
+            if user_dir.is_dir() {
+                let override_path = user_dir
+                    .join(crate::app::commands::daemon_install::DAEMON_OVERRIDE_DIR_NAME)
+                    .join(crate::app::commands::daemon_install::DAEMON_TUN_OVERRIDE_FILE_NAME);
+                println!("write {} (NoNewPrivileges=false)", override_path.display());
+                println!("systemctl --user daemon-reload");
+            }
+        }
         return Ok(());
     }
 
@@ -183,30 +254,28 @@ fn setup_command(context: &AppContext, args: &TunSetupArgs) -> crate::app::Resul
 
     #[cfg(target_os = "linux")]
     {
-        if let Ok(user_dir) = crate::app::commands::daemon_install::systemd_user_dir_with_env(
+        let user_dir = crate::app::commands::daemon_install::systemd_user_dir_with_env(
             &xrat_support::env::SystemEnvVars,
-        ) {
-            let service_file =
-                user_dir.join(crate::app::commands::daemon_install::DAEMON_SERVICE_NAME);
-            let override_dir =
-                user_dir.join(crate::app::commands::daemon_install::DAEMON_OVERRIDE_DIR_NAME);
-            let override_file = override_dir
-                .join(crate::app::commands::daemon_install::DAEMON_TUN_OVERRIDE_FILE_NAME);
+        )?;
+        let service_file = user_dir.join(crate::app::commands::daemon_install::DAEMON_SERVICE_NAME);
+        let override_dir =
+            user_dir.join(crate::app::commands::daemon_install::DAEMON_OVERRIDE_DIR_NAME);
+        let override_file =
+            override_dir.join(crate::app::commands::daemon_install::DAEMON_TUN_OVERRIDE_FILE_NAME);
 
-            if args.dry_run {
-                if service_file.is_file() || user_dir.is_dir() {
-                    println!("write {} (NoNewPrivileges=false)", override_file.display());
-                    println!("systemctl --user daemon-reload");
-                }
-            } else if service_file.is_file() || user_dir.is_dir() {
-                let _ = std::fs::create_dir_all(&override_dir);
-                let _ = std::fs::write(
-                    &override_file,
-                    crate::app::commands::daemon_install::DAEMON_TUN_OVERRIDE_TEMPLATE,
-                );
-                let _ = xrat_support::process::Command::new("systemctl")
-                    .args(["--user", "daemon-reload"])
-                    .status();
+        if service_file.is_file() || user_dir.is_dir() {
+            std::fs::create_dir_all(&override_dir)?;
+            std::fs::write(
+                &override_file,
+                crate::app::commands::daemon_install::DAEMON_TUN_OVERRIDE_TEMPLATE,
+            )?;
+            let status = xrat_support::process::Command::new("systemctl")
+                .args(["--user", "daemon-reload"])
+                .status()?;
+            if !status.success() {
+                return Err(AppError::InvalidArgument(format!(
+                    "systemctl --user daemon-reload failed ({status}); run it before restarting the daemon"
+                )));
             }
         }
     }
@@ -224,7 +293,7 @@ fn setup_command(context: &AppContext, args: &TunSetupArgs) -> crate::app::Resul
         println!(
             "{}",
             output::notice(
-                "restart the daemon (`xrat daemon restart`) so it picks up capabilities on the xrat binary",
+                "restart the systemd daemon (`systemctl --user restart xrat-daemon.service`) to apply the override and capabilities; for a standalone daemon use `xrat daemon restart`",
                 color,
             )
         );

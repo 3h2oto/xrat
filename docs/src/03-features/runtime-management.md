@@ -397,7 +397,14 @@ runtime start and does not create the TUN interface.
 Leftover TUN interfaces are cleaned up safely prior to starting the engine. xrat tracks
 interface ownership in `tun-ownership.json` and verifies kernel sysfs device metadata
 (`IFF_TUN`) before deleting any interface via in-process Linux netlink (`RTM_DELLINK`). Foreign
-interfaces, non-TUN devices, or interface index mismatches are strictly rejected.
+interfaces, non-TUN devices, missing verified interface indices, or interface index
+mismatches are strictly rejected. A pending startup record without an index does
+not authorize cleanup. Ownership records remain available through process teardown
+and are cleared once the interface is gone or verified cleanup succeeds.
+Ownership checks and native validation run before replacing an active runtime;
+cleanup and startup failures during handoff attempt to restore its previous config.
+If safe cleanup or restoration is impossible, the command reports the rollback
+failure and preserves unverified interfaces for manual inspection.
 
 ### DNS
 

@@ -64,6 +64,5 @@ pub(crate) async fn stop_session(
         .db
         .mark_runtime_session_stopped(session.id, Some(&now_string()))
         .await?;
-    crate::app::runtime_service::tun_ownership::clear_ownership(&context.runtime_paths.runtime_dir);
     Ok(())
 }

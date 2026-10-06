@@ -87,7 +87,11 @@ impl<'a> RuntimeService<'a> {
             })?;
         let launch = self.resolve_launch(&next_config)?;
         if self.context.app_config.runtime.tun.enabled {
-            crate::app::tun_privileges::ensure_engine_capability(&launch.binary_path)?;
+            crate::app::tun_privileges::ensure_engine_capability_with_spawner(
+                &launch.binary_path,
+                self.process_ports.spawner.clone(),
+            )?;
+            self.verify_tun_interface()?;
         }
         preflight_runtime_with_spawner(
             &launch,
@@ -98,8 +102,10 @@ impl<'a> RuntimeService<'a> {
         stop_session(self.context, &active, self.process_ports.signals.as_ref()).await?;
         self.context.db.clear_active_config().await?;
 
-        if self.context.app_config.runtime.tun.enabled {
-            self.cleanup_stale_tun_interface()?;
+        if self.context.app_config.runtime.tun.enabled
+            && let Err(error) = self.cleanup_stale_tun_interface()
+        {
+            return Err(self.rollback_runtime_error(active.config_id, error).await);
         }
 
         let staged = self.stage_replacement_runtime(next_config, launch).await;
@@ -107,22 +113,7 @@ impl<'a> RuntimeService<'a> {
             Ok(value) => value,
             Err(err) => {
                 self.context.db.clear_active_config().await?;
-                let rollback = match active.config_id {
-                    Some(config_id) => self.connect(ConnectRequest { config_id }).await,
-                    None => {
-                        return Err(AppError::InvalidArgument(format!(
-                            "replacement failed and previous session had no config to restore: {err}"
-                        )));
-                    }
-                };
-                return match rollback {
-                    Ok(_) => Err(AppError::InvalidArgument(format!(
-                        "replacement failed; previous runtime was restored: {err}"
-                    ))),
-                    Err(rollback_err) => Err(AppError::InvalidArgument(format!(
-                        "replacement failed: {err}; rollback also failed: {rollback_err}"
-                    ))),
-                };
+                return Err(self.rollback_runtime_error(active.config_id, err).await);
             }
         };
 

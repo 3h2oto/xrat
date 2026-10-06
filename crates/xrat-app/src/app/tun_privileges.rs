@@ -59,10 +59,20 @@ pub fn resolve_executable(path: &Path) -> Option<PathBuf> {
 /// platform has no file capabilities, `getcap` is unavailable, or reading failed,
 /// so callers can treat an unknown result as non-blocking.
 pub fn file_capabilities(path: &Path) -> Option<String> {
+    file_capabilities_with_spawner(
+        path,
+        std::sync::Arc::new(xrat_support::process::SystemProcessSpawner),
+    )
+}
+
+fn file_capabilities_with_spawner(
+    path: &Path,
+    spawner: std::sync::Arc<dyn xrat_support::process::ProcessSpawner>,
+) -> Option<String> {
     if !capabilities_supported() {
         return None;
     }
-    let output = xrat_support::process::Command::new("getcap")
+    let output = xrat_support::process::Command::with_spawner("getcap", spawner)
         .arg(path)
         .output()
         .ok()?;
@@ -79,11 +89,14 @@ pub fn has_net_admin(capabilities: &str) -> bool {
 /// Fail before launch when the engine binary is known to lack `CAP_NET_ADMIN`.
 /// An unknown result is allowed; the native validation or spawn reports the real
 /// failure in that case.
-pub fn ensure_engine_capability(binary_path: &Path) -> crate::app::Result<()> {
+pub fn ensure_engine_capability_with_spawner(
+    binary_path: &Path,
+    spawner: std::sync::Arc<dyn xrat_support::process::ProcessSpawner>,
+) -> crate::app::Result<()> {
     if !capabilities_supported() {
         return Ok(());
     }
-    let Some(capabilities) = file_capabilities(binary_path) else {
+    let Some(capabilities) = file_capabilities_with_spawner(binary_path, spawner) else {
         return Ok(());
     };
     if !has_net_admin(&capabilities) {
@@ -100,11 +113,8 @@ pub fn systemd_service_status() -> Option<(&'static str, bool)> {
     if !capabilities_supported() {
         return None;
     }
-    let home = std::env::var_os("HOME")?;
-    let user_dir = std::path::PathBuf::from(home)
-        .join(".config")
-        .join("systemd")
-        .join("user");
+    let user_dir =
+        crate::app::commands::systemd_user_dir_with_env(&xrat_support::env::SystemEnvVars).ok()?;
     let service_file = user_dir.join("xrat-daemon.service");
     if !service_file.is_file() {
         return Some(("not installed", true));
@@ -137,14 +147,10 @@ pub fn inspect_process_privileges(pid: u32) -> Option<(&'static str, bool)> {
         for line in content.lines() {
             if let Some(val) = line.strip_prefix("NoNewPrivs:") {
                 no_new_privs = val.trim() == "1";
-            } else if let Some(val) = line.strip_prefix("CapEff:") {
-                if let Ok(mask) = u64::from_str_radix(val.trim(), 16) {
-                    cap_eff_has_net_admin = (mask & (1 << 12)) != 0;
-                }
-            } else if let Some(val) = line.strip_prefix("Uid:")
-                && val.split_whitespace().next() == Some("0")
+            } else if let Some(val) = line.strip_prefix("CapEff:")
+                && let Ok(mask) = u64::from_str_radix(val.trim(), 16)
             {
-                cap_eff_has_net_admin = true;
+                cap_eff_has_net_admin = (mask & (1 << 12)) != 0;
             }
         }
         if no_new_privs {

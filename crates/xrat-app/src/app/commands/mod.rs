@@ -3,6 +3,8 @@ mod completions;
 mod connect;
 mod daemon;
 mod daemon_install;
+#[cfg(target_os = "linux")]
+pub(crate) use daemon_install::systemd_user_dir_with_env;
 mod db;
 mod disconnect;
 mod geoip;

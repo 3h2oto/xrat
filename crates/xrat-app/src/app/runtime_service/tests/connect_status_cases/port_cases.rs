@@ -23,6 +23,11 @@ struct State {
     signals: Vec<ProcessSignal>,
     connected: Vec<NetworkEndpoint>,
     readiness: usize,
+    track_tun: bool,
+    tun_interface: Option<xrat_support::net::KernelInterfaceInfo>,
+    delete_failures: usize,
+    startup_failures: usize,
+    deleted_interfaces: usize,
 }
 struct FakePorts {
     state: Arc<Mutex<State>>,
@@ -59,8 +64,19 @@ impl ProcessSpawner for FakePorts {
         assert_eq!(spec.args[1], "-c");
         assert!(std::path::Path::new(&spec.args[2]).exists());
         let mut state = self.state.lock().unwrap();
+        if state.startup_failures > 0 {
+            state.startup_failures -= 1;
+            return Err(io::Error::other("injected startup failure"));
+        }
         state.spawned += 1;
         state.running = true;
+        if state.track_tun {
+            state.tun_interface = Some(xrat_support::net::KernelInterfaceInfo {
+                name: "xrat0".into(),
+                ifindex: 42,
+                is_tun: true,
+            });
+        }
         state.commands.push(spec.args.clone());
         Ok(Child::from_handle(
             Box::new(FakeChild(self.state.clone())),
@@ -70,6 +86,13 @@ impl ProcessSpawner for FakePorts {
     }
     fn run(&self, spec: &CommandSpec, capture: bool) -> io::Result<Output> {
         assert!(capture);
+        if spec.program == "getcap" {
+            return Ok(Output {
+                status: ExitStatus::from_raw(0),
+                stdout: b"fake-xray cap_net_admin,cap_net_raw=ep\n".to_vec(),
+                stderr: Vec::new(),
+            });
+        }
         self.state.lock().unwrap().commands.push(spec.args.clone());
         let version = spec.args.first().is_some_and(|arg| arg == "version");
         if !version {
@@ -96,6 +119,35 @@ impl ProcessSpawner for FakePorts {
     }
     async fn output_async(&self, spec: &CommandSpec) -> io::Result<Output> {
         self.run(spec, true)
+    }
+}
+impl xrat_support::net::TunInterfaceOps for FakePorts {
+    fn inspect_interface(
+        &self,
+        name: &str,
+    ) -> io::Result<Option<xrat_support::net::KernelInterfaceInfo>> {
+        Ok(self
+            .state
+            .lock()
+            .unwrap()
+            .tun_interface
+            .clone()
+            .filter(|info| info.name == name))
+    }
+
+    fn delete_interface(&self, _name: &str, expected_ifindex: u32) -> io::Result<()> {
+        let mut state = self.state.lock().unwrap();
+        if state.delete_failures > 0 {
+            state.delete_failures -= 1;
+            return Err(io::Error::other("injected cleanup failure"));
+        }
+        assert_eq!(
+            state.tun_interface.as_ref().unwrap().ifindex,
+            expected_ifindex
+        );
+        state.tun_interface = None;
+        state.deleted_interfaces += 1;
+        Ok(())
     }
 }
 #[async_trait]
@@ -149,8 +201,8 @@ fn ports(fail_readiness: bool, fail_validation: bool) -> (RuntimeProcessPorts, A
             spawner: fake.clone(),
             waiter: fake.clone(),
             signals: fake.clone(),
-            connector: fake,
-            tun: Arc::new(xrat_support::net::SystemTunInterfaceOps),
+            connector: fake.clone(),
+            tun: fake,
         },
         state,
     )
@@ -254,4 +306,145 @@ async fn injected_preflight_failure_does_not_spawn_or_create_session() {
             .unwrap()
             .is_none()
     );
+}
+
+#[tokio::test]
+async fn tun_handoffs_preserve_ownership_and_restore_after_cleanup_or_startup_failure() {
+    for rotation in [false, true] {
+        for failure in [None, Some("cleanup"), Some("startup")] {
+            let mut context = test_context().await;
+            context.app_config.runtime.tun.enabled = true;
+            context.app_config.runtime.replace_active_session = true;
+            let original = import_single_config(&context).await;
+            import_hy2_config(&context).await;
+            let next = context
+                .db
+                .list_configs(&Default::default())
+                .await
+                .unwrap()
+                .into_iter()
+                .find(|config| config.id != original.id)
+                .unwrap();
+            let (ports, state) = ports(false, false);
+            state.lock().unwrap().track_tun = true;
+            let service = RuntimeService::with_process_ports(&context, ports);
+            service
+                .connect(ConnectRequest {
+                    config_id: original.id,
+                })
+                .await
+                .unwrap();
+            {
+                let mut state = state.lock().unwrap();
+                state.delete_failures = usize::from(failure == Some("cleanup"));
+                state.startup_failures = usize::from(failure == Some("startup"));
+            }
+            let result = if rotation {
+                service
+                    .replace(ReplaceRequest {
+                        trigger: crate::app::services::rotation::RotationTrigger::Manual,
+                        candidate_id: Some(next.id),
+                    })
+                    .await
+                    .map(|result| result.new_session_id)
+            } else {
+                service
+                    .connect(ConnectRequest { config_id: next.id })
+                    .await
+                    .map(|result| result.session_id)
+            };
+            if failure.is_some() {
+                let error = result.unwrap_err().to_string();
+                assert!(error.contains("previous runtime was restored"), "{error}");
+            } else {
+                result.unwrap();
+            }
+            let active = context.db.get_active_config().await.unwrap().unwrap();
+            assert_eq!(
+                active.id,
+                if failure.is_some() {
+                    original.id
+                } else {
+                    next.id
+                }
+            );
+            assert!(state.lock().unwrap().running);
+            assert!(state.lock().unwrap().deleted_interfaces > 0);
+            let record = crate::app::runtime_service::tun_ownership::load_ownership(
+                &context.runtime_paths.runtime_dir,
+            )
+            .unwrap();
+            assert_eq!(record.ifindex, Some(42));
+            service.disconnect().await.unwrap();
+        }
+    }
+}
+
+#[tokio::test]
+async fn tun_handoffs_refuse_changed_interface_identity_before_stopping_runtime() {
+    for rotation in [false, true] {
+        let mut context = test_context().await;
+        context.app_config.runtime.tun.enabled = true;
+        context.app_config.runtime.replace_active_session = true;
+        let original = import_single_config(&context).await;
+        import_hy2_config(&context).await;
+        let next = context
+            .db
+            .list_configs(&Default::default())
+            .await
+            .unwrap()
+            .into_iter()
+            .find(|config| config.id != original.id)
+            .unwrap();
+        let (ports, state) = ports(false, false);
+        state.lock().unwrap().track_tun = true;
+        let service = RuntimeService::with_process_ports(&context, ports);
+        service
+            .connect(ConnectRequest {
+                config_id: original.id,
+            })
+            .await
+            .unwrap();
+        state
+            .lock()
+            .unwrap()
+            .tun_interface
+            .as_mut()
+            .unwrap()
+            .ifindex = 99;
+        let result = if rotation {
+            service
+                .replace(ReplaceRequest {
+                    trigger: crate::app::services::rotation::RotationTrigger::Manual,
+                    candidate_id: Some(next.id),
+                })
+                .await
+                .map(|result| result.new_session_id)
+        } else {
+            service
+                .connect(ConnectRequest { config_id: next.id })
+                .await
+                .map(|result| result.session_id)
+        };
+        assert!(
+            result
+                .unwrap_err()
+                .to_string()
+                .contains("does not match previously recorded interface index")
+        );
+        assert!(state.lock().unwrap().running);
+        assert!(
+            !state
+                .lock()
+                .unwrap()
+                .signals
+                .iter()
+                .any(|signal| matches!(signal, ProcessSignal::Term | ProcessSignal::Kill))
+        );
+        assert_eq!(
+            context.db.get_active_config().await.unwrap().unwrap().id,
+            original.id
+        );
+        service.disconnect().await.unwrap();
+    }
 }

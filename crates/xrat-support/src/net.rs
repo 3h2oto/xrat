@@ -92,19 +92,18 @@ impl TunInterfaceOps for SystemTunInterfaceOps {
             if !sysfs_net.exists() {
                 return Ok(None);
             }
-            let ifindex = std::fs::read_to_string(sysfs_net.join("ifindex"))
-                .ok()
-                .and_then(|s| s.trim().parse::<u32>().ok())
-                .unwrap_or(0);
+            let ifindex = std::fs::read_to_string(sysfs_net.join("ifindex")).and_then(|value| {
+                value
+                    .trim()
+                    .parse::<u32>()
+                    .map_err(|error| std::io::Error::new(std::io::ErrorKind::InvalidData, error))
+            })?;
 
             let tun_flags_path = sysfs_net.join("tun_flags");
-            let type_path = sysfs_net.join("type");
             let is_tun = if let Ok(content) = std::fs::read_to_string(&tun_flags_path) {
                 let flags =
                     u32::from_str_radix(content.trim().trim_start_matches("0x"), 16).unwrap_or(0);
                 (flags & 0x0003) == 0x0001
-            } else if let Ok(content) = std::fs::read_to_string(&type_path) {
-                content.trim() == "65534"
             } else {
                 false
             };

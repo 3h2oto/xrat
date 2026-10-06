@@ -46,8 +46,9 @@ user service, it also automatically installs a drop-in override
 and reloads the user daemon (`systemctl --user daemon-reload`). Use `--dry-run` to print
 the commands and planned file changes without running them.
 
-Restart the daemon afterwards (`xrat daemon restart`) so it picks up the override
-and capabilities. File capabilities are lost whenever the managed engine binary
+Restart an installed systemd daemon with
+`systemctl --user restart xrat-daemon.service` so it picks up the override and
+capabilities. For a standalone daemon, use `xrat daemon restart`. File capabilities are lost whenever the managed engine binary
 is reinstalled or upgraded, so re-run `xrat tun setup` after `xrat install` or
 `xrat upgrade`.
 
@@ -56,3 +57,8 @@ is reinstalled or upgraded, so re-run `xrat tun setup` after `xrat install` or
 - Linux. Other platforms do not use file capabilities; set up TUN privileges with
   the OS-specific mechanism.
 - `libcap` tools (`setcap`/`getcap`) available on `PATH`.
+
+When a daemon is running, `tun status` also inspects its effective `CAP_NET_ADMIN`
+and `NoNewPrivs` through the daemon socket peer PID. The JSON `daemon` object
+contains its PID, readiness and status; it is `null` when no daemon is reachable.
+A drop-in on disk alone does not make an already-running daemon ready.

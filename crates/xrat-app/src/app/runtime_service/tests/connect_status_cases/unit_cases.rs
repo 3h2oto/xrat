@@ -638,8 +638,10 @@ async fn tun_cleanup_refuses_foreign_non_tun_interface() {
         },
     );
 
-    let mut ports = xrat_support::readiness::RuntimeProcessPorts::default();
-    ports.tun = mock_tun.clone();
+    let ports = xrat_support::readiness::RuntimeProcessPorts {
+        tun: mock_tun.clone(),
+        ..Default::default()
+    };
     let service = RuntimeService::with_process_ports(&context, ports);
 
     let error = service.cleanup_stale_tun_interface().unwrap_err();
@@ -664,8 +666,10 @@ async fn tun_cleanup_refuses_unowned_tun_interface() {
         },
     );
 
-    let mut ports = xrat_support::readiness::RuntimeProcessPorts::default();
-    ports.tun = mock_tun.clone();
+    let ports = xrat_support::readiness::RuntimeProcessPorts {
+        tun: mock_tun.clone(),
+        ..Default::default()
+    };
     let service = RuntimeService::with_process_ports(&context, ports);
 
     let error = service.cleanup_stale_tun_interface().unwrap_err();
@@ -705,8 +709,10 @@ async fn tun_cleanup_refuses_ifindex_mismatch() {
         },
     );
 
-    let mut ports = xrat_support::readiness::RuntimeProcessPorts::default();
-    ports.tun = mock_tun.clone();
+    let ports = xrat_support::readiness::RuntimeProcessPorts {
+        tun: mock_tun.clone(),
+        ..Default::default()
+    };
     let service = RuntimeService::with_process_ports(&context, ports);
 
     let error = service.cleanup_stale_tun_interface().unwrap_err();
@@ -745,8 +751,10 @@ async fn tun_cleanup_removes_verified_stale_xrat_tun_interface() {
         },
     );
 
-    let mut ports = xrat_support::readiness::RuntimeProcessPorts::default();
-    ports.tun = mock_tun.clone();
+    let ports = xrat_support::readiness::RuntimeProcessPorts {
+        tun: mock_tun.clone(),
+        ..Default::default()
+    };
     let service = RuntimeService::with_process_ports(&context, ports);
 
     service
@@ -838,8 +846,10 @@ async fn tun_replacement_preserves_running_session_when_preflight_fails() {
         }
     }
 
-    let mut ports = xrat_support::readiness::RuntimeProcessPorts::default();
-    ports.spawner = std::sync::Arc::new(FailingPreflightSpawner);
+    let ports = xrat_support::readiness::RuntimeProcessPorts {
+        spawner: std::sync::Arc::new(FailingPreflightSpawner),
+        ..Default::default()
+    };
     let service = RuntimeService::with_process_ports(&context, ports);
 
     let result = service.connect(ConnectRequest { config_id: cfg2.id }).await;
@@ -856,4 +866,42 @@ async fn tun_replacement_preserves_running_session_when_preflight_fails() {
         context.db.get_active_config().await.unwrap().map(|c| c.id),
         Some(cfg1.id)
     );
+}
+
+#[tokio::test]
+async fn tun_cleanup_refuses_unknown_ifindex() {
+    let mut context = test_context().await;
+    context.app_config.runtime.tun.enabled = true;
+    context.app_config.runtime.tun.interface_name = "xrat0".to_string();
+
+    crate::app::runtime_service::tun_ownership::save_ownership(
+        &context.runtime_paths.runtime_dir,
+        &crate::app::runtime_service::tun_ownership::TunOwnershipRecord {
+            interface_name: "xrat0".to_string(),
+            ifindex: None,
+            session_id: 1,
+            engine: "xray".to_string(),
+        },
+    )
+    .unwrap();
+
+    let mock_tun = std::sync::Arc::new(MockTunOps::default());
+    mock_tun.interfaces.lock().unwrap().insert(
+        "xrat0".to_string(),
+        xrat_support::net::KernelInterfaceInfo {
+            name: "xrat0".to_string(),
+            ifindex: 99,
+            is_tun: true,
+        },
+    );
+
+    let ports = xrat_support::readiness::RuntimeProcessPorts {
+        tun: mock_tun.clone(),
+        ..Default::default()
+    };
+    let service = RuntimeService::with_process_ports(&context, ports);
+
+    let error = service.cleanup_stale_tun_interface().unwrap_err();
+    assert!(error.to_string().contains("no verified kernel index"));
+    assert!(mock_tun.deleted.lock().unwrap().is_empty());
 }

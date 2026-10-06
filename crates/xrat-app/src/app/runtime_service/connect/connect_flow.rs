@@ -44,31 +44,14 @@ impl<'a> RuntimeService<'a> {
             }
             ActiveSessionState::None => (self.resolve_launch(&config)?, None),
         };
-        let replace_running = active_session.is_some();
         let previous_active_config_id = active_session.as_ref().and_then(|s| s.config_id);
 
         if tun_enabled {
-            crate::app::tun_privileges::ensure_engine_capability(&launch.binary_path)?;
-            if !replace_running {
-                let interface = self.context.app_config.runtime.tun.interface_name.trim();
-                if !interface.is_empty()
-                    && let Ok(Some(info)) = self.process_ports.tun.inspect_interface(interface)
-                {
-                    if !info.is_tun {
-                        return Err(AppError::InvalidArgument(format!(
-                            "network interface \"{interface}\" already exists and is not a TUN device; refusing to use existing interface"
-                        )));
-                    }
-                    let owned =
-                        tun_ownership::load_ownership(&self.context.runtime_paths.runtime_dir)
-                            .is_some_and(|r| r.interface_name == interface);
-                    if !owned {
-                        return Err(AppError::InvalidArgument(format!(
-                            "TUN interface \"{interface}\" already exists but its ownership by XRAT could not be verified; refusing to overwrite unowned interface. Remove it manually, for example with `sudo ip link del {interface}`."
-                        )));
-                    }
-                }
-            }
+            crate::app::tun_privileges::ensure_engine_capability_with_spawner(
+                &launch.binary_path,
+                self.process_ports.spawner.clone(),
+            )?;
+            self.verify_tun_interface()?;
         }
 
         // Validate the replacement before tearing down a healthy session so a
@@ -84,8 +67,10 @@ impl<'a> RuntimeService<'a> {
             self.context.db.clear_active_config().await?;
         }
 
-        if tun_enabled {
-            self.cleanup_stale_tun_interface()?;
+        if tun_enabled && let Err(error) = self.cleanup_stale_tun_interface() {
+            return Err(self
+                .rollback_runtime_error(previous_active_config_id, error)
+                .await);
         }
 
         crate::app::runtime_service::log_retention::cleanup(self.context).await;
@@ -166,24 +151,12 @@ impl<'a> RuntimeService<'a> {
                     )
                     .await?;
 
-                if let Some(prev_config_id) = previous_active_config_id {
-                    let rollback = Box::pin(self.connect(ConnectRequest {
-                        config_id: prev_config_id,
-                    }))
-                    .await;
-                    return match rollback {
-                        Ok(_) => Err(AppError::InvalidArgument(format!(
-                            "{}; previous runtime was restored",
-                            tun_startup_error(error, tun_enabled)
-                        ))),
-                        Err(rollback_err) => Err(AppError::InvalidArgument(format!(
-                            "{}; rollback also failed: {rollback_err}",
-                            tun_startup_error(error, tun_enabled)
-                        ))),
-                    };
-                }
-
-                return Err(tun_startup_error(error, tun_enabled));
+                return Err(self
+                    .rollback_runtime_error(
+                        previous_active_config_id,
+                        tun_startup_error(error, tun_enabled),
+                    )
+                    .await);
             }
         };
 
@@ -233,76 +206,6 @@ impl<'a> RuntimeService<'a> {
             runtime_config_path: process.config_path,
             endpoints: launch.endpoints,
         })
-    }
-
-    /// Remove the configured TUN interface when it exists and belongs to a
-    /// previous XRAT session. Foreign interfaces and unverified devices are
-    /// preserved with a descriptive error.
-    pub(crate) fn cleanup_stale_tun_interface(&self) -> crate::app::Result<()> {
-        let interface = self.context.app_config.runtime.tun.interface_name.trim();
-        if interface.is_empty() {
-            return Ok(());
-        }
-        let Some(info) = self
-            .process_ports
-            .tun
-            .inspect_interface(interface)
-            .map_err(|error| {
-                AppError::InvalidArgument(format!(
-                    "failed to inspect network interface \"{interface}\": {error}"
-                ))
-            })?
-        else {
-            tun_ownership::clear_ownership(&self.context.runtime_paths.runtime_dir);
-            return Ok(());
-        };
-
-        if !info.is_tun {
-            return Err(AppError::InvalidArgument(format!(
-                "network interface \"{interface}\" already exists and is not a TUN device; refusing to remove non-TUN interface"
-            )));
-        }
-
-        let Some(record) = tun_ownership::load_ownership(&self.context.runtime_paths.runtime_dir)
-        else {
-            return Err(AppError::InvalidArgument(format!(
-                "TUN interface \"{interface}\" already exists but its ownership by XRAT could not be verified; refusing to remove unowned interface. Remove it manually, for example with `sudo ip link del {interface}`."
-            )));
-        };
-
-        if record.interface_name != interface {
-            return Err(AppError::InvalidArgument(format!(
-                "TUN interface \"{interface}\" already exists but does not match owned interface \"{}\"; refusing to remove unowned interface.",
-                record.interface_name
-            )));
-        }
-
-        if let Some(expected_ifindex) = record.ifindex
-            && info.ifindex != 0
-            && info.ifindex != expected_ifindex
-        {
-            return Err(AppError::InvalidArgument(format!(
-                "TUN interface \"{interface}\" (index {}) does not match previously recorded interface index {expected_ifindex}; refusing to remove unverified interface.",
-                info.ifindex
-            )));
-        }
-
-        self.process_ports
-            .tun
-            .delete_interface(interface, info.ifindex)
-            .map_err(|error| {
-                AppError::InvalidArgument(format!(
-                    "stale TUN interface \"{interface}\" could not be removed ({error}). Ensure CAP_NET_ADMIN or remove it manually, for example with `sudo ip link del {interface}`."
-                ))
-            })?;
-
-        tracing::info!(
-            interface,
-            ifindex = info.ifindex,
-            "removed stale TUN interface before launch"
-        );
-        tun_ownership::clear_ownership(&self.context.runtime_paths.runtime_dir);
-        Ok(())
     }
 }
 
