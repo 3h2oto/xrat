@@ -952,6 +952,29 @@ fn rejects_parameters_used_by_the_wrong_transport() {
 }
 
 #[test]
+fn xhttp_accepts_support_x25519mlkem768_flag() {
+    let link =
+        "vless://test-uuid@example.com:443?type=xhttp&security=tls&support-x25519mlkem768=1#XHTTP";
+    let node = parse_link(link).unwrap().unwrap();
+    let config = generate_probe_config(&node, 10808).unwrap();
+    let json = serde_json::to_value(&config).unwrap();
+    assert_transport_selectors(&json["outbounds"][0]["streamSettings"], "xhttp");
+}
+
+#[test]
+fn generates_xhttp_when_node_extensions_contain_support_x25519mlkem768() {
+    let mut node = parse_link("vless://test-uuid@example.com:443?type=xhttp&security=tls#XHTTP")
+        .unwrap()
+        .unwrap();
+    let mut extensions = std::collections::BTreeMap::new();
+    extensions.insert("support-x25519mlkem768".to_string(), serde_json::json!("1"));
+    node.extensions = Some(extensions);
+    let config = generate_probe_config(&node, 10808).unwrap();
+    let json = serde_json::to_value(&config).unwrap();
+    assert_transport_selectors(&json["outbounds"][0]["streamSettings"], "xhttp");
+}
+
+#[test]
 fn native_xray_validator_accepts_generated_xhttp_config() {
     if Command::new("xray").arg("version").output().is_err() {
         return;

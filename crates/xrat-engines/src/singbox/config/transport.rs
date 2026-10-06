@@ -8,6 +8,19 @@ pub(super) fn build_tls_and_transport(
     node: &Node,
     extensions: &mut BTreeMap<String, Value>,
 ) -> Result<(Option<Value>, Option<Value>), String> {
+    for key in [
+        "email",
+        "group",
+        "name",
+        "remark",
+        "remarks",
+        "support-x25519mlkem768",
+        "support_x25519mlkem768",
+        "supportX25519Mlkem768",
+        "supportX25519mlkem768",
+    ] {
+        extensions.remove(key);
+    }
     let tls = match node.tls.as_deref().unwrap_or("none") {
         "" | "none" => {
             if node.sni.is_some()

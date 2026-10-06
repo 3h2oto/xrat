@@ -43,6 +43,21 @@ fn captures_vless_xhttp_extensions() {
 }
 
 #[test]
+fn strips_client_specific_support_x25519mlkem768_parameter() {
+    let input =
+        "vless://uuid-123@example.com:2087?type=xhttp&security=tls&support-x25519mlkem768=1#Node";
+    let nodes = parse_text(input);
+    assert_eq!(nodes.len(), 1);
+    let node = &nodes[0];
+    assert!(
+        node.extensions
+            .as_ref()
+            .and_then(|exts| exts.get("support-x25519mlkem768"))
+            .is_none()
+    );
+}
+
+#[test]
 fn parses_vmess_like_python_reference() {
     let input = "vmess://eyJhZGQiOiJ2bWVzcy5leGFtcGxlLmNvbSIsInBvcnQiOiI4NDQzIiwiaWQiOiJ1dWlkLTQ1NiIsIm5ldCI6IndzIiwidGxzIjoidGxzIiwic25pIjoiZWRnZS5leGFtcGxlLmNvbSIsImhvc3QiOiJob3N0LmV4YW1wbGUuY29tIiwicGF0aCI6Ii92bWVzcyIsInBzIjoiVk1lc3MgTm9kZSJ9";
     let nodes = parse_text(input);
