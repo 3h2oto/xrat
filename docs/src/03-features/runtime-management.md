@@ -348,6 +348,71 @@ parameters that cannot be represented exactly, unsupported ciphers/transports,
 and a non-loopback stats controller are rejected before launch. Xray generation
 still rejects unsupported Hy2 URI options, and V2Ray rejects Hysteria2.
 
+## TUN Capture
+
+Xray and sing-box can capture system-wide traffic through a TUN interface so
+applications that ignore proxy settings still egress through the active config:
+
+```toml
+[runtime]
+engine = "xray"  # "xray" | "sing-box"; V2Ray rejects TUN
+
+[runtime.tun]
+enabled = true
+interface_name = "xrat0"
+auto_route = true
+```
+
+TUN capture needs elevated network privileges. Grant `CAP_NET_ADMIN`
+(and `CAP_NET_RAW`) to the managed binary of the selected engine:
+
+```sh
+xrat tun setup
+```
+
+The systemd user unit installed by `xrat daemon install` keeps `NoNewPrivileges=true`
+by default to maintain standard proxy process hardening. When TUN is enabled,
+running `xrat tun setup` or `xrat daemon install --tun` installs a supported drop-in
+override `~/.config/systemd/user/xrat-daemon.service.d/10-tun.conf` with
+`NoNewPrivileges=false` and reloads `systemctl --user daemon-reload`. Effective
+daemon and service readiness can be verified with `xrat tun status`. File capabilities
+are lost whenever the managed core is reinstalled or upgraded.
+
+At least one local inbound (SOCKS by default) must stay enabled. Xray emits a
+native `protocol: "tun"` inbound and manages routes with `autoSystemRoutingTable`;
+this needs a core with working Linux TUN support (Xray >= 26.7.28 / prerelease),
+and older cores are rejected before launch. Generated Xray routes match the address
+families specified in `[runtime.tun].address` (`0.0.0.0/0` for IPv4, `::/0` for IPv6,
+or dual-stack), and routes are omitted entirely if `auto_route = false`.
+sing-box emits `type: "tun"` with `route.auto_detect_interface` and routes
+private/LAN destinations direct. V2Ray reports an unsupported error.
+
+### Lifecycle and Interface Safety
+
+Engine capabilities and native preflight syntax validation (`xray run -test` / `sing-box check`)
+are verified before disconnecting or stopping any active session. If preflight or capability
+checks fail, the current healthy session continues running. Preflight runs before the server's
+runtime start and does not create the TUN interface.
+
+Leftover TUN interfaces are cleaned up safely prior to starting the engine. xrat tracks
+interface ownership in `tun-ownership.json` and verifies kernel sysfs device metadata
+(`IFF_TUN`) before deleting any interface via in-process Linux netlink (`RTM_DELLINK`). Foreign
+interfaces, non-TUN devices, missing verified interface indices, or interface index
+mismatches are strictly rejected. A pending startup record without an index does
+not authorize cleanup. Ownership records remain available through process teardown
+and are cleared once the interface is gone or verified cleanup succeeds.
+Ownership checks and native validation run before replacing an active runtime;
+cleanup and startup failures during handoff attempt to restore its previous config.
+If safe cleanup or restoration is impossible, the command reports the rollback
+failure and preserves unverified interfaces for manual inspection.
+
+### DNS
+
+TUN capture does not intercept name resolution: applications query the system
+resolver, which can bypass the tunnel. Split/redirected DNS and FakeIP are not
+provided yet; a bounded DNS-interception backend is tracked separately. Traffic
+that the proxy dials by name is still resolved by the proxy side.
+
 ## Related
 
 - [`connect` CLI](../02-cli/runtime.md#connect) — command reference

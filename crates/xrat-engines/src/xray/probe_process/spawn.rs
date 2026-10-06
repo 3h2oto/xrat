@@ -51,7 +51,7 @@ impl XrayProcess {
         let local_port = config
             .inbounds
             .first()
-            .map(|inbound| inbound.port)
+            .and_then(|inbound| inbound.port)
             .unwrap_or(0);
 
         let mut command = Command::with_spawner(binary_path, ports.spawner.clone());

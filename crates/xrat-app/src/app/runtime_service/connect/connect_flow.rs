@@ -22,7 +22,8 @@ impl<'a> RuntimeService<'a> {
             )));
         }
 
-        let (launch, replace_running) = match self.active_session_state().await? {
+        let tun_enabled = self.context.app_config.runtime.tun.enabled;
+        let (launch, active_session) = match self.active_session_state().await? {
             ActiveSessionState::Running(session) => {
                 if !self.context.app_config.runtime.replace_active_session {
                     tracing::warn!(
@@ -32,17 +33,27 @@ impl<'a> RuntimeService<'a> {
                     return Err(AppError::RuntimeSessionAlreadyActive);
                 }
 
-                (self.resolve_launch(&config)?, true)
+                (self.resolve_launch(&config)?, Some(session))
             }
             ActiveSessionState::Stale(session) => {
                 tracing::warn!(
                     session_id = session.id,
                     "stale runtime session was reconciled before connect"
                 );
-                (self.resolve_launch(&config)?, false)
+                (self.resolve_launch(&config)?, None)
             }
-            ActiveSessionState::None => (self.resolve_launch(&config)?, false),
+            ActiveSessionState::None => (self.resolve_launch(&config)?, None),
         };
+        let previous_active_config_id = active_session.as_ref().and_then(|s| s.config_id);
+
+        if tun_enabled {
+            crate::app::tun_privileges::ensure_engine_capability_with_spawner(
+                &launch.binary_path,
+                self.process_ports.spawner.clone(),
+            )?;
+            self.verify_tun_interface()?;
+        }
+
         // Validate the replacement before tearing down a healthy session so a
         // failed preflight leaves the running runtime untouched.
         preflight_runtime_with_spawner(
@@ -50,9 +61,18 @@ impl<'a> RuntimeService<'a> {
             &self.context.runtime_paths.runtime_dir,
             self.process_ports.spawner.clone(),
         )?;
-        if replace_running {
-            self.disconnect().await?;
+
+        if let Some(active) = &active_session {
+            stop_session(self.context, active, self.process_ports.signals.as_ref()).await?;
+            self.context.db.clear_active_config().await?;
         }
+
+        if tun_enabled && let Err(error) = self.cleanup_stale_tun_interface() {
+            return Err(self
+                .rollback_runtime_error(previous_active_config_id, error)
+                .await);
+        }
+
         crate::app::runtime_service::log_retention::cleanup(self.context).await;
         let session_id = self
             .context
@@ -97,6 +117,18 @@ impl<'a> RuntimeService<'a> {
             })
             .await?;
 
+        if tun_enabled {
+            let _ = tun_ownership::save_ownership(
+                &self.context.runtime_paths.runtime_dir,
+                &tun_ownership::TunOwnershipRecord {
+                    interface_name: self.context.app_config.runtime.tun.interface_name.clone(),
+                    ifindex: None,
+                    session_id,
+                    engine: self.context.app_config.runtime.engine.clone(),
+                },
+            );
+        }
+
         let process = match spawn_runtime_with_ports(
             &launch,
             &self.context.runtime_paths.runtime_dir,
@@ -118,9 +150,30 @@ impl<'a> RuntimeService<'a> {
                         Some(&error.to_string()),
                     )
                     .await?;
-                return Err(error);
+
+                return Err(self
+                    .rollback_runtime_error(
+                        previous_active_config_id,
+                        tun_startup_error(error, tun_enabled),
+                    )
+                    .await);
             }
         };
+
+        if tun_enabled {
+            let interface = self.context.app_config.runtime.tun.interface_name.trim();
+            if let Ok(Some(info)) = self.process_ports.tun.inspect_interface(interface) {
+                let _ = tun_ownership::save_ownership(
+                    &self.context.runtime_paths.runtime_dir,
+                    &tun_ownership::TunOwnershipRecord {
+                        interface_name: interface.to_string(),
+                        ifindex: (info.ifindex > 0).then_some(info.ifindex),
+                        session_id,
+                        engine: self.context.app_config.runtime.engine.clone(),
+                    },
+                );
+            }
+        }
 
         self.context
             .db
@@ -154,4 +207,19 @@ impl<'a> RuntimeService<'a> {
             endpoints: launch.endpoints,
         })
     }
+}
+
+/// Append TUN capability guidance to a startup failure when TUN capture is
+/// enabled. An engine can pass native validation but still fail to start when it
+/// cannot create the interface or system routes.
+fn tun_startup_error(error: AppError, tun_enabled: bool) -> AppError {
+    let message = error.to_string();
+    let looks_like_startup =
+        message.contains("exited during startup") || message.contains("startup timeout");
+    if tun_enabled && looks_like_startup {
+        return AppError::InvalidArgument(format!(
+            "{message}; if this is a TUN capture failure, ensure capabilities with `xrat tun setup`"
+        ));
+    }
+    error
 }

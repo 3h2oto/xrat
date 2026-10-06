@@ -5,7 +5,7 @@ use super::super::defaults;
 use super::types::{
     AuthSettings, FragmentSettings, HttpSettings, LogSettings, MuxSettings, NetworkSettings,
     RotationSettings, RuntimeSettings, ShadowsocksSettings, SniffingSettings, SocksSettings,
-    StatsSettings,
+    StatsSettings, TunSettings,
 };
 
 impl Default for RuntimeSettings {
@@ -24,6 +24,7 @@ impl Default for RuntimeSettings {
             mux: MuxSettings::default(),
             fragment: FragmentSettings::default(),
             network: NetworkSettings::default(),
+            tun: TunSettings::default(),
         }
     }
 }
@@ -58,6 +59,24 @@ impl Default for NetworkSettings {
             bind_address: defaults::DEFAULT_NETWORK_BIND_ADDRESS.to_string(),
             mark: defaults::DEFAULT_NETWORK_MARK,
             listen_interface: defaults::DEFAULT_NETWORK_LISTEN_INTERFACE.to_string(),
+        }
+    }
+}
+
+impl Default for TunSettings {
+    fn default() -> Self {
+        Self {
+            enabled: defaults::DEFAULT_TUN_ENABLED,
+            interface_name: defaults::DEFAULT_TUN_INTERFACE_NAME.to_string(),
+            mtu: defaults::DEFAULT_TUN_MTU,
+            stack: defaults::DEFAULT_TUN_STACK.to_string(),
+            address: defaults::DEFAULT_TUN_ADDRESS
+                .iter()
+                .map(|value| value.to_string())
+                .collect(),
+            auto_route: defaults::DEFAULT_TUN_AUTO_ROUTE,
+            strict_route: defaults::DEFAULT_TUN_STRICT_ROUTE,
+            route_exclude_address: Vec::new(),
         }
     }
 }

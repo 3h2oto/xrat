@@ -64,6 +64,15 @@ pub async fn install(context: &AppContext, args: &InstallArgs) -> crate::app::Re
     if let Some(warning) = installed.cli_link_warning {
         println!("{}", output::warn(warning, color));
     }
+    if context.app_config.runtime.tun.enabled {
+        println!(
+            "{}",
+            output::notice(
+                "TUN is enabled; reinstalling the core resets file capabilities. Run `xrat tun setup`, then `xrat daemon restart`.",
+                color,
+            )
+        );
+    }
 
     events::record(
         &context.db,

@@ -311,6 +311,170 @@ async fn configured_singbox_supports_vless_runtime_generation() {
     assert_eq!(config.outbounds[0]["type"], "vless");
 }
 
+#[tokio::test]
+async fn managed_singbox_launch_adds_tun_inbound_and_route() {
+    let mut context = test_context().await;
+    context.app_config.runtime.engine = "sing-box".to_string();
+    context.app_config.runtime.tun.enabled = true;
+    context.app_config.runtime.tun.strict_route = true;
+    let config = imported_config(&context, test_node()).await;
+    let service = RuntimeService::new(&context);
+
+    let launch = service
+        .resolve_launch(&config)
+        .expect("TUN launch should resolve");
+    let RuntimeLaunchConfig::Singbox(config) = launch.config else {
+        panic!("expected sing-box config");
+    };
+    let value = serde_json::to_value(config).expect("config should serialize");
+
+    let tun = value["inbounds"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|inbound| inbound["type"] == "tun")
+        .expect("tun inbound should be present");
+    assert_eq!(tun["interface_name"], "xrat0");
+    assert_eq!(tun["strict_route"], true);
+    assert_eq!(value["route"]["auto_detect_interface"], true);
+    assert_eq!(value["route"]["final"], "proxy");
+}
+
+#[tokio::test]
+async fn managed_xray_launch_adds_tun_inbound() {
+    let mut context = test_context().await;
+    context.app_config.runtime.engine = "xray".to_string();
+    context.app_config.runtime.tun.enabled = true;
+    context.runtime_paths.xray_path =
+        write_fake_xray_version(&context, "Xray 26.7.28 (Xray, Penetrates Everything.)");
+    let config = imported_config(&context, test_node()).await;
+    let service = RuntimeService::new(&context);
+
+    let launch = service
+        .resolve_launch(&config)
+        .expect("xray TUN launch should resolve");
+    let RuntimeLaunchConfig::Xray(config) = launch.config else {
+        panic!("expected an xray runtime config");
+    };
+    let value = serde_json::to_value(config).expect("config should serialize");
+
+    let tun = value["inbounds"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|inbound| inbound["protocol"] == "tun")
+        .expect("tun inbound should be present");
+    assert_eq!(tun["settings"]["name"], "xrat0");
+    assert_eq!(
+        tun["settings"]["autoSystemRoutingTable"],
+        serde_json::json!(["0.0.0.0/0"])
+    );
+    assert!(tun.get("port").is_none());
+    assert!(tun.get("listen").is_none());
+}
+
+#[tokio::test]
+async fn managed_xray_launch_adds_tun_ipv6_routes() {
+    let mut context = test_context().await;
+    context.app_config.runtime.engine = "xray".to_string();
+    context.app_config.runtime.tun.enabled = true;
+    context.app_config.runtime.tun.address = vec!["fd00::1/126".to_string()];
+    context.runtime_paths.xray_path =
+        write_fake_xray_version(&context, "Xray 26.7.28 (Xray, Penetrates Everything.)");
+    let config = imported_config(&context, test_node()).await;
+    let service = RuntimeService::new(&context);
+
+    let launch = service
+        .resolve_launch(&config)
+        .expect("xray TUN launch should resolve");
+    let RuntimeLaunchConfig::Xray(config) = launch.config else {
+        panic!("expected an xray runtime config");
+    };
+    let value = serde_json::to_value(config).expect("config should serialize");
+    let tun = value["inbounds"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|inbound| inbound["protocol"] == "tun")
+        .expect("tun inbound should be present");
+    assert_eq!(
+        tun["settings"]["autoSystemRoutingTable"],
+        serde_json::json!(["::/0"])
+    );
+}
+
+#[tokio::test]
+async fn managed_xray_launch_adds_tun_dual_stack_routes() {
+    let mut context = test_context().await;
+    context.app_config.runtime.engine = "xray".to_string();
+    context.app_config.runtime.tun.enabled = true;
+    context.app_config.runtime.tun.address =
+        vec!["172.19.0.1/30".to_string(), "fd00::1/126".to_string()];
+    context.runtime_paths.xray_path =
+        write_fake_xray_version(&context, "Xray 26.7.28 (Xray, Penetrates Everything.)");
+    let config = imported_config(&context, test_node()).await;
+    let service = RuntimeService::new(&context);
+
+    let launch = service
+        .resolve_launch(&config)
+        .expect("xray TUN launch should resolve");
+    let RuntimeLaunchConfig::Xray(config) = launch.config else {
+        panic!("expected an xray runtime config");
+    };
+    let value = serde_json::to_value(config).expect("config should serialize");
+    let tun = value["inbounds"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|inbound| inbound["protocol"] == "tun")
+        .expect("tun inbound should be present");
+    assert_eq!(
+        tun["settings"]["autoSystemRoutingTable"],
+        serde_json::json!(["0.0.0.0/0", "::/0"])
+    );
+}
+
+#[tokio::test]
+async fn managed_xray_launch_omits_routes_when_auto_route_false() {
+    let mut context = test_context().await;
+    context.app_config.runtime.engine = "xray".to_string();
+    context.app_config.runtime.tun.enabled = true;
+    context.app_config.runtime.tun.auto_route = false;
+    context.runtime_paths.xray_path =
+        write_fake_xray_version(&context, "Xray 26.7.28 (Xray, Penetrates Everything.)");
+    let config = imported_config(&context, test_node()).await;
+    let service = RuntimeService::new(&context);
+
+    let launch = service
+        .resolve_launch(&config)
+        .expect("xray TUN launch should resolve");
+    let RuntimeLaunchConfig::Xray(config) = launch.config else {
+        panic!("expected an xray runtime config");
+    };
+    let value = serde_json::to_value(config).expect("config should serialize");
+    let tun = value["inbounds"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|inbound| inbound["protocol"] == "tun")
+        .expect("tun inbound should be present");
+    assert!(tun["settings"].get("autoSystemRoutingTable").is_none());
+}
+
+#[tokio::test]
+async fn tun_rejects_v2ray_engine() {
+    let mut context = test_context().await;
+    context.app_config.runtime.engine = "v2ray".to_string();
+    context.app_config.runtime.tun.enabled = true;
+    let config = imported_config(&context, test_node()).await;
+
+    let error = match RuntimeService::new(&context).resolve_launch(&config) {
+        Ok(_) => panic!("TUN with the v2ray engine must fail"),
+        Err(error) => error,
+    };
+    assert!(error.to_string().contains("V2Ray"));
+}
+
 fn runtime_session_with_status(status: RuntimeSessionStatus) -> RuntimeSessionRecord {
     RuntimeSessionRecord {
         id: 1,
@@ -337,6 +501,62 @@ fn runtime_session_with_status(status: RuntimeSessionStatus) -> RuntimeSessionRe
         created_at: "1".to_string(),
         updated_at: "1".to_string(),
     }
+}
+
+#[tokio::test]
+async fn xray_tun_rejects_old_core_without_working_tun() {
+    let mut context = test_context().await;
+    context.app_config.runtime.tun.enabled = true;
+    context.runtime_paths.xray_path =
+        write_fake_xray_version(&context, "Xray 26.3.27 (Xray, Penetrates Everything.)");
+    let config = imported_config(&context, test_node()).await;
+
+    let error = match RuntimeService::new(&context).resolve_launch(&config) {
+        Ok(_) => panic!("Xray 26.3.27 must be rejected for TUN"),
+        Err(error) => error,
+    };
+    assert!(error.to_string().contains("26.7.28"));
+}
+
+#[tokio::test]
+async fn xray_tun_accepts_core_with_working_tun() {
+    let mut context = test_context().await;
+    context.app_config.runtime.tun.enabled = true;
+    context.runtime_paths.xray_path =
+        write_fake_xray_version(&context, "Xray 26.7.28 (Xray, Penetrates Everything.)");
+    let config = imported_config(&context, test_node()).await;
+
+    let launch = RuntimeService::new(&context)
+        .resolve_launch(&config)
+        .expect("Xray 26.7.28 should allow TUN");
+    assert!(matches!(launch.config, RuntimeLaunchConfig::Xray(_)));
+}
+
+#[tokio::test]
+async fn xray_tun_rejects_route_exclusions() {
+    let mut context = test_context().await;
+    context.app_config.runtime.tun.enabled = true;
+    context.app_config.runtime.tun.route_exclude_address = vec!["192.168.0.0/16".to_string()];
+    context.runtime_paths.xray_path =
+        write_fake_xray_version(&context, "Xray 26.7.28 (Xray, Penetrates Everything.)");
+    let config = imported_config(&context, test_node()).await;
+
+    let error = match RuntimeService::new(&context).resolve_launch(&config) {
+        Ok(_) => panic!("xray must reject TUN route exclusions"),
+        Err(error) => error,
+    };
+    assert!(error.to_string().contains("route_exclude_address"));
+}
+
+fn write_fake_xray_version(context: &AppContext, banner: &str) -> std::path::PathBuf {
+    let path = context.runtime_paths.root_dir.join("fake-xray-version.sh");
+    fs::write(&path, format!("#!/bin/sh\necho \"{banner}\"\n")).expect("script should write");
+    let mut permissions = fs::metadata(&path)
+        .expect("script metadata should load")
+        .permissions();
+    permissions.set_mode(0o755);
+    fs::set_permissions(&path, permissions).expect("script should be executable");
+    path
 }
 
 async fn imported_config(context: &AppContext, node: xrat_model::Node) -> ConfigRecord {
@@ -373,4 +593,315 @@ fn hy2_node() -> xrat_model::Node {
         extensions: None,
         raw_config: "hy2://secret@hy2.example.com:443?sni=edge.example.com#hy2".to_string(),
     }
+}
+
+#[derive(Default)]
+struct MockTunOps {
+    interfaces:
+        std::sync::Mutex<std::collections::HashMap<String, xrat_support::net::KernelInterfaceInfo>>,
+    deleted: std::sync::Mutex<Vec<(String, u32)>>,
+}
+
+impl xrat_support::net::TunInterfaceOps for MockTunOps {
+    fn inspect_interface(
+        &self,
+        name: &str,
+    ) -> std::io::Result<Option<xrat_support::net::KernelInterfaceInfo>> {
+        let lock = self.interfaces.lock().unwrap();
+        Ok(lock.get(name).cloned())
+    }
+
+    fn delete_interface(&self, name: &str, expected_ifindex: u32) -> std::io::Result<()> {
+        let mut lock = self.interfaces.lock().unwrap();
+        lock.remove(name);
+        self.deleted
+            .lock()
+            .unwrap()
+            .push((name.to_string(), expected_ifindex));
+        Ok(())
+    }
+}
+
+#[tokio::test]
+async fn tun_cleanup_refuses_foreign_non_tun_interface() {
+    let mut context = test_context().await;
+    context.app_config.runtime.tun.enabled = true;
+    context.app_config.runtime.tun.interface_name = "lo".to_string();
+
+    let mock_tun = std::sync::Arc::new(MockTunOps::default());
+    mock_tun.interfaces.lock().unwrap().insert(
+        "lo".to_string(),
+        xrat_support::net::KernelInterfaceInfo {
+            name: "lo".to_string(),
+            ifindex: 1,
+            is_tun: false,
+        },
+    );
+
+    let ports = xrat_support::readiness::RuntimeProcessPorts {
+        tun: mock_tun.clone(),
+        ..Default::default()
+    };
+    let service = RuntimeService::with_process_ports(&context, ports);
+
+    let error = service.cleanup_stale_tun_interface().unwrap_err();
+    assert!(error.to_string().contains("not a TUN device"));
+    assert!(mock_tun.deleted.lock().unwrap().is_empty());
+    assert!(mock_tun.interfaces.lock().unwrap().contains_key("lo"));
+}
+
+#[tokio::test]
+async fn tun_cleanup_refuses_unowned_tun_interface() {
+    let mut context = test_context().await;
+    context.app_config.runtime.tun.enabled = true;
+    context.app_config.runtime.tun.interface_name = "xrat0".to_string();
+
+    let mock_tun = std::sync::Arc::new(MockTunOps::default());
+    mock_tun.interfaces.lock().unwrap().insert(
+        "xrat0".to_string(),
+        xrat_support::net::KernelInterfaceInfo {
+            name: "xrat0".to_string(),
+            ifindex: 42,
+            is_tun: true,
+        },
+    );
+
+    let ports = xrat_support::readiness::RuntimeProcessPorts {
+        tun: mock_tun.clone(),
+        ..Default::default()
+    };
+    let service = RuntimeService::with_process_ports(&context, ports);
+
+    let error = service.cleanup_stale_tun_interface().unwrap_err();
+    assert!(
+        error
+            .to_string()
+            .contains("ownership by XRAT could not be verified")
+    );
+    assert!(mock_tun.deleted.lock().unwrap().is_empty());
+    assert!(mock_tun.interfaces.lock().unwrap().contains_key("xrat0"));
+}
+
+#[tokio::test]
+async fn tun_cleanup_refuses_ifindex_mismatch() {
+    let mut context = test_context().await;
+    context.app_config.runtime.tun.enabled = true;
+    context.app_config.runtime.tun.interface_name = "xrat0".to_string();
+
+    crate::app::runtime_service::tun_ownership::save_ownership(
+        &context.runtime_paths.runtime_dir,
+        &crate::app::runtime_service::tun_ownership::TunOwnershipRecord {
+            interface_name: "xrat0".to_string(),
+            ifindex: Some(42),
+            session_id: 1,
+            engine: "xray".to_string(),
+        },
+    )
+    .unwrap();
+
+    let mock_tun = std::sync::Arc::new(MockTunOps::default());
+    mock_tun.interfaces.lock().unwrap().insert(
+        "xrat0".to_string(),
+        xrat_support::net::KernelInterfaceInfo {
+            name: "xrat0".to_string(),
+            ifindex: 99,
+            is_tun: true,
+        },
+    );
+
+    let ports = xrat_support::readiness::RuntimeProcessPorts {
+        tun: mock_tun.clone(),
+        ..Default::default()
+    };
+    let service = RuntimeService::with_process_ports(&context, ports);
+
+    let error = service.cleanup_stale_tun_interface().unwrap_err();
+    assert!(
+        error
+            .to_string()
+            .contains("does not match previously recorded interface index")
+    );
+    assert!(mock_tun.deleted.lock().unwrap().is_empty());
+}
+
+#[tokio::test]
+async fn tun_cleanup_removes_verified_stale_xrat_tun_interface() {
+    let mut context = test_context().await;
+    context.app_config.runtime.tun.enabled = true;
+    context.app_config.runtime.tun.interface_name = "xrat0".to_string();
+
+    crate::app::runtime_service::tun_ownership::save_ownership(
+        &context.runtime_paths.runtime_dir,
+        &crate::app::runtime_service::tun_ownership::TunOwnershipRecord {
+            interface_name: "xrat0".to_string(),
+            ifindex: Some(42),
+            session_id: 1,
+            engine: "xray".to_string(),
+        },
+    )
+    .unwrap();
+
+    let mock_tun = std::sync::Arc::new(MockTunOps::default());
+    mock_tun.interfaces.lock().unwrap().insert(
+        "xrat0".to_string(),
+        xrat_support::net::KernelInterfaceInfo {
+            name: "xrat0".to_string(),
+            ifindex: 42,
+            is_tun: true,
+        },
+    );
+
+    let ports = xrat_support::readiness::RuntimeProcessPorts {
+        tun: mock_tun.clone(),
+        ..Default::default()
+    };
+    let service = RuntimeService::with_process_ports(&context, ports);
+
+    service
+        .cleanup_stale_tun_interface()
+        .expect("cleanup should succeed");
+    assert_eq!(
+        mock_tun.deleted.lock().unwrap().as_slice(),
+        &[("xrat0".to_string(), 42)]
+    );
+    assert!(!mock_tun.interfaces.lock().unwrap().contains_key("xrat0"));
+    assert_eq!(
+        crate::app::runtime_service::tun_ownership::load_ownership(
+            &context.runtime_paths.runtime_dir
+        ),
+        None
+    );
+}
+
+#[tokio::test]
+async fn tun_replacement_preserves_running_session_when_preflight_fails() {
+    let mut context = test_context().await;
+    context.app_config.runtime.engine = "xray".to_string();
+    context.app_config.runtime.replace_active_session = true;
+    context.app_config.runtime.tun.enabled = true;
+    context.runtime_paths.xray_path =
+        write_fake_xray_version(&context, "Xray 26.7.28 (Xray, Penetrates Everything.)");
+
+    let cfg1 = imported_config(&context, test_node()).await;
+    let cfg2 = imported_config(&context, hy2_node()).await;
+
+    let _session_id = context
+        .db
+        .insert_runtime_session(&RuntimeSessionInsert {
+            config_id: Some(cfg1.id),
+            status: RuntimeSessionStatus::Running,
+            socks_host: Some("127.0.0.1".to_string()),
+            socks_port: Some(10808),
+            http_host: None,
+            http_port: None,
+            shadowsocks_host: None,
+            shadowsocks_port: None,
+            process_id: Some(i64::from(std::process::id())),
+            failure_reason: None,
+            started_at: Some("1".to_string()),
+            stopped_at: None,
+        })
+        .await
+        .unwrap();
+    context.db.set_active_config(cfg1.id).await.unwrap();
+
+    use std::os::unix::process::ExitStatusExt;
+    struct FailingPreflightSpawner;
+    #[async_trait::async_trait]
+    impl xrat_support::process::ProcessSpawner for FailingPreflightSpawner {
+        fn spawn(
+            &self,
+            _spec: &xrat_support::process::CommandSpec,
+        ) -> std::io::Result<xrat_support::process::Child> {
+            unimplemented!()
+        }
+        fn run(
+            &self,
+            spec: &xrat_support::process::CommandSpec,
+            _capture: bool,
+        ) -> std::io::Result<std::process::Output> {
+            let is_version = spec
+                .args
+                .iter()
+                .any(|a| a.to_string_lossy().contains("version"));
+            if is_version {
+                Ok(std::process::Output {
+                    status: std::process::ExitStatus::from_raw(0),
+                    stdout: b"Xray 26.7.28\n".to_vec(),
+                    stderr: Vec::new(),
+                })
+            } else {
+                Ok(std::process::Output {
+                    status: std::process::ExitStatus::from_raw(1 << 8),
+                    stdout: Vec::new(),
+                    stderr: b"config invalid\n".to_vec(),
+                })
+            }
+        }
+        async fn output_async(
+            &self,
+            spec: &xrat_support::process::CommandSpec,
+        ) -> std::io::Result<std::process::Output> {
+            self.run(spec, true)
+        }
+    }
+
+    let ports = xrat_support::readiness::RuntimeProcessPorts {
+        spawner: std::sync::Arc::new(FailingPreflightSpawner),
+        ..Default::default()
+    };
+    let service = RuntimeService::with_process_ports(&context, ports);
+
+    let result = service.connect(ConnectRequest { config_id: cfg2.id }).await;
+    assert!(result.is_err());
+
+    let session = context
+        .db
+        .get_running_runtime_session()
+        .await
+        .unwrap()
+        .unwrap();
+    assert_eq!(session.status, RuntimeSessionStatus::Running);
+    assert_eq!(
+        context.db.get_active_config().await.unwrap().map(|c| c.id),
+        Some(cfg1.id)
+    );
+}
+
+#[tokio::test]
+async fn tun_cleanup_refuses_unknown_ifindex() {
+    let mut context = test_context().await;
+    context.app_config.runtime.tun.enabled = true;
+    context.app_config.runtime.tun.interface_name = "xrat0".to_string();
+
+    crate::app::runtime_service::tun_ownership::save_ownership(
+        &context.runtime_paths.runtime_dir,
+        &crate::app::runtime_service::tun_ownership::TunOwnershipRecord {
+            interface_name: "xrat0".to_string(),
+            ifindex: None,
+            session_id: 1,
+            engine: "xray".to_string(),
+        },
+    )
+    .unwrap();
+
+    let mock_tun = std::sync::Arc::new(MockTunOps::default());
+    mock_tun.interfaces.lock().unwrap().insert(
+        "xrat0".to_string(),
+        xrat_support::net::KernelInterfaceInfo {
+            name: "xrat0".to_string(),
+            ifindex: 99,
+            is_tun: true,
+        },
+    );
+
+    let ports = xrat_support::readiness::RuntimeProcessPorts {
+        tun: mock_tun.clone(),
+        ..Default::default()
+    };
+    let service = RuntimeService::with_process_ports(&context, ports);
+
+    let error = service.cleanup_stale_tun_interface().unwrap_err();
+    assert!(error.to_string().contains("no verified kernel index"));
+    assert!(mock_tun.deleted.lock().unwrap().is_empty());
 }

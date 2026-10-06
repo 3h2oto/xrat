@@ -9,6 +9,8 @@ pub struct SingboxRoute {
     pub final_outbound: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub default_domain_resolver: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub auto_detect_interface: Option<bool>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

@@ -3,6 +3,8 @@ mod completions;
 mod connect;
 mod daemon;
 mod daemon_install;
+#[cfg(target_os = "linux")]
+pub(crate) use daemon_install::systemd_user_dir_with_env;
 mod db;
 mod disconnect;
 mod geoip;
@@ -26,6 +28,7 @@ mod setup;
 mod status;
 pub(crate) mod test;
 mod tui;
+mod tun;
 pub(crate) mod update;
 pub mod upgrade;
 pub mod validate;

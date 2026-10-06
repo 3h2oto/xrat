@@ -6,4 +6,5 @@ mod parse;
 mod proxy;
 mod rotate;
 mod runtime;
+mod tun;
 mod validate;

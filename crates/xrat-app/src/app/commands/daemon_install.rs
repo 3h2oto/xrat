@@ -28,7 +28,14 @@ fn say(quiet: bool, line: String) {
 // ---------------------------------------------------------------------------
 
 #[cfg(target_os = "linux")]
-const DAEMON_SERVICE_NAME: &str = "xrat-daemon.service";
+pub const DAEMON_SERVICE_NAME: &str = "xrat-daemon.service";
+#[cfg(target_os = "linux")]
+pub const DAEMON_OVERRIDE_DIR_NAME: &str = "xrat-daemon.service.d";
+#[cfg(target_os = "linux")]
+pub const DAEMON_TUN_OVERRIDE_FILE_NAME: &str = "10-tun.conf";
+#[cfg(target_os = "linux")]
+pub const DAEMON_TUN_OVERRIDE_TEMPLATE: &str =
+    include_str!("../../../templates/systemd/xrat-daemon-tun.override.template");
 #[cfg(target_os = "linux")]
 const API_SERVICE_NAME: &str = "xrat-api.service";
 
@@ -40,7 +47,9 @@ const API_SERVICE_TEMPLATE: &str =
     include_str!("../../../templates/systemd/xrat-api.service.template");
 
 #[cfg(target_os = "linux")]
-fn systemd_user_dir_with_env(env: &dyn xrat_support::env::EnvVars) -> crate::app::Result<PathBuf> {
+pub fn systemd_user_dir_with_env(
+    env: &dyn xrat_support::env::EnvVars,
+) -> crate::app::Result<PathBuf> {
     let base = env
         .get_os(("XDG_CONFIG_HOME").as_ref())
         .map(PathBuf::from)
@@ -146,12 +155,24 @@ pub fn install_with_dependencies(
     let daemon_path = service_dir.join(DAEMON_SERVICE_NAME);
     let api_path = service_dir.join(API_SERVICE_NAME);
 
+    let install_tun_override = args.tun || context.app_config.runtime.tun.enabled;
+    let override_dir = service_dir.join(DAEMON_OVERRIDE_DIR_NAME);
+    let override_path = override_dir.join(DAEMON_TUN_OVERRIDE_FILE_NAME);
+
     if args.dry_run {
         println!("--- dry run: no files written ---\n");
         println!("Service directory: {}", service_dir.display());
         println!();
         println!("--- {} ---", DAEMON_SERVICE_NAME);
         print!("{daemon_content}");
+        if install_tun_override {
+            println!();
+            println!(
+                "--- {}/{} ---",
+                DAEMON_OVERRIDE_DIR_NAME, DAEMON_TUN_OVERRIDE_FILE_NAME
+            );
+            print!("{DAEMON_TUN_OVERRIDE_TEMPLATE}");
+        }
         if args.with_api {
             println!();
             println!("--- {} ---", API_SERVICE_NAME);
@@ -174,6 +195,12 @@ pub fn install_with_dependencies(
 
     std::fs::write(&daemon_path, &daemon_content)?;
     say(quiet, format!("Written: {}", daemon_path.display()));
+
+    if install_tun_override {
+        std::fs::create_dir_all(&override_dir)?;
+        std::fs::write(&override_path, DAEMON_TUN_OVERRIDE_TEMPLATE)?;
+        say(quiet, format!("Written: {}", override_path.display()));
+    }
 
     if args.with_api {
         std::fs::write(&api_path, &api_content)?;
@@ -235,6 +262,8 @@ pub fn uninstall_with_dependencies(
     let service_dir = systemd_user_dir_with_env(env)?;
     let daemon_path = service_dir.join(DAEMON_SERVICE_NAME);
     let api_path = service_dir.join(API_SERVICE_NAME);
+    let override_dir = service_dir.join(DAEMON_OVERRIDE_DIR_NAME);
+    let override_path = override_dir.join(DAEMON_TUN_OVERRIDE_FILE_NAME);
 
     if args.dry_run {
         println!("--- dry run: no files removed ---\n");
@@ -244,6 +273,9 @@ pub fn uninstall_with_dependencies(
             println!("Would remove:  {}", daemon_path.display());
         } else {
             println!("Not present: {}", daemon_path.display());
+        }
+        if override_path.exists() {
+            println!("Would remove:  {}", override_path.display());
         }
         if api_path.exists() {
             println!("Would stop:    systemctl --user stop {API_SERVICE_NAME}");
@@ -255,6 +287,13 @@ pub fn uninstall_with_dependencies(
     }
 
     let mut removed = false;
+
+    if override_path.exists() {
+        std::fs::remove_file(&override_path)?;
+        let _ = std::fs::remove_dir(&override_dir);
+        println!("Removed: {}", override_path.display());
+        removed = true;
+    }
 
     if daemon_path.exists() {
         let _ = xrat_support::process::Command::with_spawner("systemctl", spawner.clone())
@@ -909,6 +948,7 @@ mod process_tests {
             start: true,
             with_api: true,
             dry_run: false,
+            tun: false,
         };
         install_with_dependencies(&context, &install, true, spawner.clone(), &env).unwrap();
         let service = root.path().join("systemd/user/xrat-daemon.service");
@@ -940,5 +980,34 @@ mod process_tests {
             vec!["--user", "daemon-reload"],
         ];
         assert_eq!(actual, expected);
+    }
+
+    #[tokio::test]
+    async fn tun_service_install_creates_and_removes_override() {
+        let (context, root) = crate::app::tests::TestAppBuilder::new("service-tun")
+            .build_with_root()
+            .await;
+        let env = xrat_support::env::MapEnvVars(std::collections::HashMap::from([(
+            "XDG_CONFIG_HOME".into(),
+            root.path().as_os_str().to_os_string(),
+        )]));
+        let spawner = Arc::new(ServiceSpawner(Mutex::new(Vec::new())));
+        let install = DaemonInstallArgs {
+            start: false,
+            with_api: false,
+            dry_run: false,
+            tun: true,
+        };
+        install_with_dependencies(&context, &install, false, spawner.clone(), &env).unwrap();
+        let override_file = root
+            .path()
+            .join("systemd/user/xrat-daemon.service.d/10-tun.conf");
+        assert!(override_file.exists());
+        let content = std::fs::read_to_string(&override_file).unwrap();
+        assert!(content.contains("NoNewPrivileges=false"));
+
+        let uninstall = DaemonUninstallArgs { dry_run: false };
+        uninstall_with_dependencies(&context, &uninstall, spawner.clone(), &env).unwrap();
+        assert!(!override_file.exists());
     }
 }

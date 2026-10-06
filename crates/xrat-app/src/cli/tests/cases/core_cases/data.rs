@@ -76,6 +76,7 @@ fn parses_import_subcommand_with_global_flags() {
         | Command::Setup(_)
         | Command::Install(_)
         | Command::Manpage(_)
+        | Command::Tun(_)
         | Command::Completions(_) => {
             panic!("expected import command")
         }
@@ -182,6 +183,7 @@ fn parses_add_subcommand() {
         | Command::Setup(_)
         | Command::Install(_)
         | Command::Manpage(_)
+        | Command::Tun(_)
         | Command::Completions(_) => {
             panic!("expected add command")
         }
@@ -239,6 +241,7 @@ fn parses_list_subscriptions_alias() {
         | Command::Setup(_)
         | Command::Install(_)
         | Command::Manpage(_)
+        | Command::Tun(_)
         | Command::Completions(_) => {
             panic!("expected list command")
         }
@@ -304,6 +307,7 @@ fn parses_list_config_filters() {
         | Command::Setup(_)
         | Command::Install(_)
         | Command::Manpage(_)
+        | Command::Tun(_)
         | Command::Completions(_) => {
             panic!("expected list command")
         }

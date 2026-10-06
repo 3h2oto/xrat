@@ -5,6 +5,18 @@ use super::xray::*;
 use std::collections::BTreeMap;
 
 #[test]
+fn parses_xray_version_from_banner() {
+    assert_eq!(
+        parse_xray_version(
+            "Xray 26.3.27 (Xray, Penetrates Everything.) d2758a0 (go1.26.1 linux/amd64)"
+        ),
+        Some((26, 3, 27))
+    );
+    assert_eq!(parse_xray_version("Xray 26.7.28"), Some((26, 7, 28)));
+    assert_eq!(parse_xray_version("no version here"), None);
+}
+
+#[test]
 fn default_dns_settings_are_omitted_from_generated_options() {
     let dns = DnsSettings::default();
     let mut xray = XrayGenOptions::default();

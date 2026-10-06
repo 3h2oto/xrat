@@ -124,8 +124,11 @@ pub(super) fn preflight_runtime_with_spawner(
     let stderr = String::from_utf8_lossy(&output.stderr).trim().to_string();
     let stdout = String::from_utf8_lossy(&output.stdout).trim().to_string();
     let detail = if stderr.is_empty() { stdout } else { stderr };
+    let hint = tun_capability_hint(&detail)
+        .map(|hint| format!("; {hint}"))
+        .unwrap_or_default();
     Err(AppError::InvalidArgument(format!(
-        "native runtime config validation failed ({}): {}",
+        "native runtime config validation failed ({}): {}{hint}",
         output.status,
         if detail.is_empty() {
             "no diagnostic output"
@@ -133,4 +136,31 @@ pub(super) fn preflight_runtime_with_spawner(
             &detail
         }
     )))
+}
+
+/// Recognize native-validation output that points at missing configuration or
+/// permission problems and return an actionable hint. Preflight checks
+/// (`xray run -test` and `sing-box check`) validate configuration without
+/// creating the TUN interface, but permission errors can still occur when
+/// probing environment or core assets.
+fn tun_capability_hint(detail: &str) -> Option<&'static str> {
+    let detail = detail.to_ascii_lowercase();
+    let permission_denied = detail.contains("operation not permitted")
+        || detail.contains("permission denied")
+        || detail.contains("failed to create server");
+    permission_denied.then_some(
+        "if [runtime.tun] is enabled, the engine likely lacks CAP_NET_ADMIN; run `xrat tun setup`",
+    )
+}
+
+#[cfg(test)]
+mod tests {
+    use super::tun_capability_hint;
+
+    #[test]
+    fn hint_matches_permission_failures() {
+        assert!(tun_capability_hint("failed to create server > operation not permitted").is_some());
+        assert!(tun_capability_hint("Permission denied").is_some());
+        assert!(tun_capability_hint("unknown protocol: tun").is_none());
+    }
 }

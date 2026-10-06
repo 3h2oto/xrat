@@ -381,7 +381,49 @@ listen_interface = ""
 > Interface binding (`interface`, `mark`) and `listen_interface` are
 > Linux-focused. `interface` requires a real device name; `listen_interface`
 > must resolve to a bindable address or the runtime fails to launch. System-wide
-> TUN capture is tracked separately and not provided here.
+> TUN capture is configured under [`runtime.tun`](#runtimetun) (sing-box only).
+
+---
+
+### [runtime.tun]
+
+System-wide TUN capture. Supported by `[runtime].engine = "xray"` and
+`"sing-box"`; V2Ray rejects it. Requires elevated network privileges
+(`CAP_NET_ADMIN`, or running the engine as root). At least one local inbound must
+stay enabled (SOCKS by default) for readiness and non-TUN fallback; disabling
+every listener while `enabled = true` is rejected.
+
+```toml
+[runtime.tun]
+enabled = false
+interface_name = "xrat0"
+mtu = 1500
+stack = "system"            # "system" | "gvisor" | "mixed"
+address = ["172.19.0.1/30"]
+auto_route = true
+strict_route = false
+route_exclude_address = []
+```
+
+| Field                   | Type     | Default             | Description                                                                |
+| ----------------------- | -------- | ------------------- | -------------------------------------------------------------------------- |
+| `enabled`               | boolean  | `false`             | Capture system traffic through a TUN interface instead of per-app settings |
+| `interface_name`        | string   | `xrat0`             | TUN interface name created by the engine                                   |
+| `mtu`                   | integer  | `1500`              | TUN MTU, `1280..=65535`                                                    |
+| `stack`                 | enum     | `system`            | sing-box network stack: `system`, `gvisor`, or `mixed`                     |
+| `address`               | string[] | `["172.19.0.1/30"]` | TUN interface addresses (CIDR)                                             |
+| `auto_route`            | boolean  | `true`              | Let engine install capture routes (`0.0.0.0/0` and/or `::/0` matching configured CIDRs) |
+| `strict_route`          | boolean  | `false`             | Stricter sing-box routing/firewall handling; not a persistent kill switch  |
+| `route_exclude_address` | string[] | `[]`                | Destinations excluded from capture (CIDR); sing-box only, Xray rejects      |
+
+> Xray emits a native `protocol: "tun"` inbound and manages system routes through
+> `autoSystemRoutingTable` (generating default routes matching configured IPv4/IPv6 address families);
+> sing-box emits `type: "tun"` with `route.auto_detect_interface` and routes private/LAN
+> destinations direct. Xray TUN needs a core whose Linux TUN configures the interface and routes
+> (Xray >= 26.7.28 / prerelease); older cores are rejected before launch. V2Ray TUN
+> is not implemented. TUN does not intercept DNS: name lookups use the system
+> resolver and can bypass the tunnel; a bounded DNS-interception backend is
+> tracked separately.
 
 ---
 

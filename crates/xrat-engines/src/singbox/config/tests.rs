@@ -1,5 +1,5 @@
 use super::{
-    SingboxDnsConfig, SingboxInbound, SingboxRouteList, SingboxRoutingOptions,
+    SingboxDnsConfig, SingboxInbound, SingboxRouteList, SingboxRoutingOptions, SingboxTunOptions,
     generate_singbox_probe_config, generate_singbox_runtime_config,
     generate_singbox_runtime_config_with_dns,
 };
@@ -154,6 +154,94 @@ fn rejects_invalid_managed_inbound_settings() {
         )
         .unwrap_err()
         .contains("requires a password")
+    );
+}
+
+fn tun_options() -> SingboxTunOptions {
+    SingboxTunOptions {
+        tag: "tun-in".to_string(),
+        interface_name: "xrat0".to_string(),
+        address: vec!["172.19.0.1/30".to_string()],
+        mtu: 1500,
+        stack: "system".to_string(),
+        auto_route: true,
+        strict_route: false,
+        route_exclude_address: Vec::new(),
+    }
+}
+
+#[test]
+fn generates_tun_inbound_and_route() {
+    let mut config = generate_singbox_runtime_config(
+        &hy2_node(None),
+        vec![
+            SingboxInbound::socks("socks-in", "127.0.0.1", 1080, None),
+            SingboxInbound::tun(tun_options()).expect("tun inbound should build"),
+        ],
+        None,
+        None,
+    )
+    .expect("config should generate");
+    config.enable_tun_route();
+    let value = serde_json::to_value(&config).expect("config should serialize");
+
+    let tun = &value["inbounds"][1];
+    assert_eq!(tun["type"], "tun");
+    assert_eq!(tun["interface_name"], "xrat0");
+    assert_eq!(tun["address"], serde_json::json!(["172.19.0.1/30"]));
+    assert_eq!(tun["auto_route"], true);
+    assert_eq!(tun["strict_route"], false);
+    assert_eq!(value["route"]["auto_detect_interface"], true);
+    assert_eq!(value["route"]["rules"][0]["action"], "sniff");
+    assert!(
+        value["route"]["rules"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|rule| rule["ip_is_private"] == true && rule["outbound"] == "direct")
+    );
+}
+
+#[test]
+fn serializes_tun_route_exclusions() {
+    let mut options = tun_options();
+    options.route_exclude_address = vec!["192.168.0.0/16".to_string()];
+    let inbound = SingboxInbound::tun(options).expect("tun inbound should build");
+    let value = serde_json::to_value(inbound).expect("inbound should serialize");
+    assert_eq!(
+        value["route_exclude_address"],
+        serde_json::json!(["192.168.0.0/16"])
+    );
+}
+
+#[test]
+fn rejects_invalid_tun_options() {
+    let mut options = tun_options();
+    options.interface_name = "   ".to_string();
+    assert!(
+        SingboxInbound::tun(options)
+            .unwrap_err()
+            .contains("interface_name")
+    );
+
+    let mut options = tun_options();
+    options.stack = "wireguard".to_string();
+    assert!(SingboxInbound::tun(options).unwrap_err().contains("stack"));
+
+    let mut options = tun_options();
+    options.address = vec!["not-a-cidr".to_string()];
+    assert!(SingboxInbound::tun(options).unwrap_err().contains("CIDR"));
+
+    let mut options = tun_options();
+    options.mtu = 100;
+    assert!(SingboxInbound::tun(options).unwrap_err().contains("mtu"));
+
+    let mut options = tun_options();
+    options.route_exclude_address = vec!["10.0.0.0/33".to_string()];
+    assert!(
+        SingboxInbound::tun(options)
+            .unwrap_err()
+            .contains("route_exclude_address")
     );
 }
 

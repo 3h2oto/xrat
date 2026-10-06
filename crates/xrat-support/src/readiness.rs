@@ -133,6 +133,7 @@ pub struct RuntimeProcessPorts {
     pub waiter: Arc<dyn PortWaiter>,
     pub signals: Arc<dyn crate::signals::ProcessSignals>,
     pub connector: Arc<dyn TcpConnector>,
+    pub tun: Arc<dyn crate::net::TunInterfaceOps>,
 }
 impl Default for RuntimeProcessPorts {
     fn default() -> Self {
@@ -141,6 +142,7 @@ impl Default for RuntimeProcessPorts {
             waiter: Arc::new(TcpPortWaiter::default()),
             signals: Arc::new(crate::signals::SystemProcessSignals::default()),
             connector: Arc::new(TokioTcpConnector),
+            tun: Arc::new(crate::net::SystemTunInterfaceOps),
         }
     }
 }

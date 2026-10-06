@@ -20,8 +20,8 @@ async fn test_xray_process_lifecycle() {
         },
         inbounds: vec![Inbound {
             tag: "test-in".to_string(),
-            port: 10809,
-            listen: "127.0.0.1".to_string(),
+            port: Some(10809),
+            listen: Some("127.0.0.1".to_string()),
             protocol: "socks".to_string(),
             settings: Some(serde_json::json!({"udp": false})),
         }],

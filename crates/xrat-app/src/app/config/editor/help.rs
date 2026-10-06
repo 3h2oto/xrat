@@ -300,6 +300,46 @@ pub(super) fn for_path(path: &str) -> Option<SettingHelp> {
             "Interface name, or an empty string for no interface binding.",
             "listen_interface = \"eth0\"",
         ),
+        "runtime.tun.enabled" => help(
+            "Captures system traffic through a TUN interface instead of per-app proxy settings. DNS is not intercepted; lookups use the system resolver.",
+            "Requires the xray or sing-box engine and elevated network privileges (CAP_NET_ADMIN).",
+            "enabled = true",
+        ),
+        "runtime.tun.interface_name" => help(
+            "Sets the name of the TUN interface created for capture.",
+            "Interface name such as xrat0.",
+            "interface_name = \"xrat0\"",
+        ),
+        "runtime.tun.mtu" => help(
+            "Sets the maximum transmission unit of the TUN interface.",
+            "Whole number in 1280..=65535; 1500 is the usual Ethernet value.",
+            "mtu = 1500",
+        ),
+        "runtime.tun.stack" => help(
+            "Selects the sing-box network stack used to process TUN packets.",
+            "system, gvisor, or mixed.",
+            "stack = \"system\"",
+        ),
+        "runtime.tun.address" => help(
+            "Sets the TUN interface addresses as CIDR prefixes.",
+            "One or more IPv4/IPv6 CIDRs; 172.19.0.1/30 is a private default.",
+            "address = [\"172.19.0.1/30\"]",
+        ),
+        "runtime.tun.auto_route" => help(
+            "Lets sing-box install and remove the system routes that redirect traffic into the TUN.",
+            "",
+            "auto_route = true",
+        ),
+        "runtime.tun.strict_route" => help(
+            "Enables stricter sing-box routing and firewall handling for captured traffic.",
+            "",
+            "strict_route = false",
+        ),
+        "runtime.tun.route_exclude_address" => help(
+            "Excludes destinations from TUN capture so they stay direct.",
+            "One or more IPv4/IPv6 CIDRs; empty means no exclusions.",
+            "route_exclude_address = [\"192.168.0.0/16\"]",
+        ),
         "subscriptions.auto_refresh" => help(
             "Enables periodic refresh of URL-backed subscriptions in the daemon.",
             "",

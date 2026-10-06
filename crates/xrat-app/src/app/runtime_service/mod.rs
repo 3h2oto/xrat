@@ -6,9 +6,12 @@ mod launch;
 pub(crate) mod log_retention;
 mod reattach;
 mod replace_flow;
+mod rollback;
 mod session_state;
 mod spawn;
 mod status;
+mod tun_interface;
+pub(crate) mod tun_ownership;
 mod types;
 
 use helpers::*;

@@ -57,6 +57,18 @@ impl<'a> RuntimeService<'a> {
             })
             .await?;
 
+        if self.context.app_config.runtime.tun.enabled {
+            let _ = tun_ownership::save_ownership(
+                &self.context.runtime_paths.runtime_dir,
+                &tun_ownership::TunOwnershipRecord {
+                    interface_name: self.context.app_config.runtime.tun.interface_name.clone(),
+                    ifindex: None,
+                    session_id,
+                    engine: self.context.app_config.runtime.engine.clone(),
+                },
+            );
+        }
+
         let spawned = spawn_runtime_with_ports(
             &launch,
             &self.context.runtime_paths.runtime_dir,
@@ -91,6 +103,21 @@ impl<'a> RuntimeService<'a> {
                 return Err(err);
             }
         };
+
+        if self.context.app_config.runtime.tun.enabled {
+            let interface = self.context.app_config.runtime.tun.interface_name.trim();
+            if let Ok(Some(info)) = self.process_ports.tun.inspect_interface(interface) {
+                let _ = tun_ownership::save_ownership(
+                    &self.context.runtime_paths.runtime_dir,
+                    &tun_ownership::TunOwnershipRecord {
+                        interface_name: interface.to_string(),
+                        ifindex: (info.ifindex > 0).then_some(info.ifindex),
+                        session_id,
+                        engine: self.context.app_config.runtime.engine.clone(),
+                    },
+                );
+            }
+        }
 
         self.context
             .db

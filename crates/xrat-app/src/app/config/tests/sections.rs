@@ -123,6 +123,28 @@ fn network_section_parses_overrides() {
 }
 
 #[test]
+fn tun_section_parses_overrides() {
+    let default = AppConfig::default().runtime.tun;
+    assert!(!default.enabled);
+    assert_eq!(default.interface_name, "xrat0");
+    assert_eq!(default.mtu, 1500);
+    assert_eq!(default.address, ["172.19.0.1/30"]);
+    assert!(default.auto_route);
+
+    let config: AppConfig = toml::from_str(
+        "[runtime.tun]\nenabled = true\ninterface_name = \"xrat0\"\nmtu = 1400\nstack = \"gvisor\"\naddress = [\"10.9.0.1/30\"]\nauto_route = true\nstrict_route = true\nroute_exclude_address = [\"192.168.0.0/16\"]\n",
+    )
+    .expect("parse");
+    assert!(config.runtime.tun.enabled);
+    assert_eq!(config.runtime.tun.interface_name, "xrat0");
+    assert_eq!(config.runtime.tun.mtu, 1400);
+    assert_eq!(config.runtime.tun.stack, "gvisor");
+    assert_eq!(config.runtime.tun.address, ["10.9.0.1/30"]);
+    assert!(config.runtime.tun.strict_route);
+    assert_eq!(config.runtime.tun.route_exclude_address, ["192.168.0.0/16"]);
+}
+
+#[test]
 fn subscription_settings_default_to_disabled_daily() {
     let config = AppConfig::default();
     assert!(!config.subscriptions.auto_refresh);

@@ -11,8 +11,8 @@ pub fn generate_probe_config_with_options(
 ) -> Result<XrayConfig, String> {
     let inbound = Inbound {
         tag: "probe-in".to_string(),
-        port: local_port,
-        listen: "127.0.0.1".to_string(),
+        port: Some(local_port),
+        listen: Some("127.0.0.1".to_string()),
         protocol: "socks".to_string(),
         settings: Some(json!({"udp": false})),
     };
@@ -100,8 +100,8 @@ pub fn enable_stats_api(config: &mut XrayConfig, host: &str, port: u16) {
 
     config.inbounds.push(Inbound {
         tag: "api".to_string(),
-        port,
-        listen: host.to_string(),
+        port: Some(port),
+        listen: Some(host.to_string()),
         protocol: "dokodemo-door".to_string(),
         settings: Some(json!({ "address": host })),
     });
@@ -141,8 +141,8 @@ pub(super) fn build_inbounds(
     if let Some((host, port, udp)) = socks {
         inbounds.push(Inbound {
             tag: "socks-in".to_string(),
-            port,
-            listen: host.to_string(),
+            port: Some(port),
+            listen: Some(host.to_string()),
             protocol: "socks".to_string(),
             settings: Some(json!({"udp": udp})),
         });
@@ -151,8 +151,8 @@ pub(super) fn build_inbounds(
     if let Some((host, port)) = http {
         inbounds.push(Inbound {
             tag: "http-in".to_string(),
-            port,
-            listen: host.to_string(),
+            port: Some(port),
+            listen: Some(host.to_string()),
             protocol: "http".to_string(),
             settings: None,
         });

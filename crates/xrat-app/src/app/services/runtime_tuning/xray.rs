@@ -63,6 +63,72 @@ pub(crate) fn detect_xray_compatibility_with_spawner(
     }
 }
 
+/// Minimum Xray version whose Linux TUN inbound configures the interface
+/// address and system routes. Earlier releases create the device but leave it
+/// unconfigured, so TUN capture would silently do nothing.
+pub(crate) const XRAY_TUN_MIN_VERSION: (u32, u32, u32) = (26, 7, 28);
+
+/// Reject a managed Xray binary that predates working TUN support. When the
+/// version cannot be determined the launch proceeds, because the subsequent
+/// validation or spawn reports the real failure.
+pub(crate) fn ensure_xray_tun_supported_with_spawner(
+    binary_path: &Path,
+    spawner: std::sync::Arc<dyn xrat_support::process::ProcessSpawner>,
+) -> crate::app::Result<()> {
+    let Some(version) = xray_binary_version_with_spawner(binary_path, spawner) else {
+        tracing::warn!(
+            "[runtime.tun].enabled could not determine the Xray version at {}; ensure it is Xray >= {}.{}.{} with working TUN support",
+            binary_path.display(),
+            XRAY_TUN_MIN_VERSION.0,
+            XRAY_TUN_MIN_VERSION.1,
+            XRAY_TUN_MIN_VERSION.2,
+        );
+        return Ok(());
+    };
+    if version < XRAY_TUN_MIN_VERSION {
+        return Err(AppError::InvalidArgument(format!(
+            "[runtime.tun].enabled requires Xray >= {}.{}.{}; the configured core reports {}.{}.{}. Older Xray releases create the tun interface without configuring addresses or routes, so capture would silently do nothing. Upgrade the core, for example with `xrat install xray --prerelease`.",
+            XRAY_TUN_MIN_VERSION.0,
+            XRAY_TUN_MIN_VERSION.1,
+            XRAY_TUN_MIN_VERSION.2,
+            version.0,
+            version.1,
+            version.2,
+        )));
+    }
+    Ok(())
+}
+
+fn xray_binary_version_with_spawner(
+    binary_path: &Path,
+    spawner: std::sync::Arc<dyn xrat_support::process::ProcessSpawner>,
+) -> Option<(u32, u32, u32)> {
+    let output = Command::with_spawner(binary_path, spawner)
+        .arg("version")
+        .output()
+        .ok()
+        .filter(|output| output.status.success())?;
+    parse_xray_version(&String::from_utf8_lossy(&output.stdout))
+}
+
+pub(crate) fn parse_xray_version(text: &str) -> Option<(u32, u32, u32)> {
+    for token in text.split(|character: char| !(character.is_ascii_digit() || character == '.')) {
+        let mut parts = token.split('.');
+        let (Some(major), Some(minor), Some(patch)) = (parts.next(), parts.next(), parts.next())
+        else {
+            continue;
+        };
+        if let (Ok(major), Ok(minor), Ok(patch)) = (
+            major.parse::<u32>(),
+            minor.parse::<u32>(),
+            patch.parse::<u32>(),
+        ) {
+            return Some((major, minor, patch));
+        }
+    }
+    None
+}
+
 pub(crate) fn apply_xray_dns_options(
     options: &mut XrayGenOptions,
     dns: &DnsSettings,
