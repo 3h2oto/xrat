@@ -28,6 +28,9 @@ struct State {
     delete_failures: usize,
     startup_failures: usize,
     deleted_interfaces: usize,
+    version: Option<String>,
+    missing_capabilities: bool,
+    change_config_on_spawn: Option<std::path::PathBuf>,
 }
 struct FakePorts {
     state: Arc<Mutex<State>>,
@@ -70,7 +73,18 @@ impl ProcessSpawner for FakePorts {
         }
         state.spawned += 1;
         state.running = true;
-        if state.track_tun {
+        if let Some(path) = state.change_config_on_spawn.take() {
+            let contents = std::fs::read_to_string(&path).unwrap();
+            std::fs::write(path, format!("{contents}\n# external edit\n")).unwrap();
+        }
+        let config: serde_json::Value =
+            serde_json::from_slice(&std::fs::read(&spec.args[2]).unwrap()).unwrap();
+        let has_tun = config["inbounds"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|inbound| inbound["protocol"] == "tun" || inbound["type"] == "tun");
+        if state.track_tun && has_tun {
             state.tun_interface = Some(xrat_support::net::KernelInterfaceInfo {
                 name: "xrat0".into(),
                 ifindex: 42,
@@ -89,7 +103,11 @@ impl ProcessSpawner for FakePorts {
         if spec.program == "getcap" {
             return Ok(Output {
                 status: ExitStatus::from_raw(0),
-                stdout: b"fake-xray cap_net_admin,cap_net_raw=ep\n".to_vec(),
+                stdout: if self.state.lock().unwrap().missing_capabilities {
+                    Vec::new()
+                } else {
+                    b"fake-xray cap_net_admin,cap_net_raw=ep\n".to_vec()
+                },
                 stderr: Vec::new(),
             });
         }
@@ -108,7 +126,13 @@ impl ProcessSpawner for FakePorts {
             stdout: if spec.args.iter().any(|arg| arg == "--name") {
                 b"1.13.21".to_vec()
             } else {
-                b"Xray 26.7.28".to_vec()
+                self.state
+                    .lock()
+                    .unwrap()
+                    .version
+                    .clone()
+                    .unwrap_or_else(|| "Xray 26.7.28".into())
+                    .into_bytes()
             },
             stderr: if self.fail_validation {
                 b"invalid fixture".to_vec()
@@ -448,3 +472,6 @@ async fn tun_handoffs_refuse_changed_interface_identity_before_stopping_runtime(
         service.disconnect().await.unwrap();
     }
 }
+
+#[path = "tun_mode_cases.rs"]
+mod tun_mode_cases;

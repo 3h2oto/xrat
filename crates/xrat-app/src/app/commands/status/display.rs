@@ -28,6 +28,7 @@ pub(super) async fn print_daemon_status(
                 "pid_running": payload.pid_running,
                 "http_api_enabled": payload.http_api_enabled,
                 "http_api_addr": payload.http_api_addr,
+                "tun": payload.tun,
             }))?
         );
         return Ok(());
@@ -54,6 +55,25 @@ pub(super) async fn print_daemon_status(
                 (
                     "active config",
                     active_config_ref.unwrap_or_else(|| "-".to_string()),
+                ),
+                (
+                    "TUN capture",
+                    payload
+                        .tun
+                        .as_ref()
+                        .map(|tun| {
+                            if tun.active {
+                                format!(
+                                    "active ({})",
+                                    tun.interface.as_deref().unwrap_or("unknown")
+                                )
+                            } else if tun.enabled {
+                                "enabled, inactive".into()
+                            } else {
+                                "disabled".into()
+                            }
+                        })
+                        .unwrap_or_else(|| "unknown (restart daemon after upgrade)".into()),
                 ),
                 (
                     "pid running",

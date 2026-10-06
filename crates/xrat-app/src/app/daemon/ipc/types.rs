@@ -14,6 +14,10 @@ pub enum DaemonRequestKind {
     DaemonPing,
     DaemonShutdown,
     RuntimeStatus,
+    RuntimeTun {
+        enabled: Option<bool>,
+        config_path: std::path::PathBuf,
+    },
     RuntimeConnect {
         config_id: ConfigId,
     },
@@ -50,11 +54,15 @@ pub enum DaemonResponseCode {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PingPayload {
+    #[serde(default)]
+    pub live_tun: bool,
     pub daemon_ready: bool,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct RuntimeStatusPayload {
+    #[serde(default)]
+    pub tun: Option<TunStatePayload>,
     pub daemon_ready: bool,
     pub runtime_owned: bool,
     pub runtime_status: String,
@@ -63,6 +71,16 @@ pub struct RuntimeStatusPayload {
     pub pid_running: bool,
     pub http_api_enabled: bool,
     pub http_api_addr: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct TunStatePayload {
+    pub enabled: bool,
+    pub active: bool,
+    pub engine: String,
+    pub interface: Option<String>,
+    pub active_config_ref: Option<String>,
+    pub session_id: Option<i64>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

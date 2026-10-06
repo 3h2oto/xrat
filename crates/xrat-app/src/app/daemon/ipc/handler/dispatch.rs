@@ -6,7 +6,7 @@ use crate::app::daemon::ipc::transport::{
     proxy_start_response_via_supervisor, proxy_status_response_via_supervisor,
     proxy_stop_response_via_supervisor, runtime_connect_response_via_supervisor,
     runtime_disconnect_response_via_supervisor, runtime_replace_response_via_supervisor,
-    runtime_status_response_via_supervisor,
+    runtime_status_response_via_supervisor, runtime_tun_response_via_supervisor,
 };
 use crate::app::daemon::supervisor::SupervisorEvent;
 
@@ -17,6 +17,15 @@ pub(super) async fn dispatch_request(
     let response = match request {
         DaemonRequestKind::DaemonPing => (
             serde_json::to_vec(&ping_response_via_supervisor(supervisor_tx).await?)?,
+            false,
+        ),
+        DaemonRequestKind::RuntimeTun {
+            enabled,
+            config_path,
+        } => (
+            serde_json::to_vec(
+                &runtime_tun_response_via_supervisor(supervisor_tx, enabled, config_path).await?,
+            )?,
             false,
         ),
         DaemonRequestKind::RuntimeStatus => (

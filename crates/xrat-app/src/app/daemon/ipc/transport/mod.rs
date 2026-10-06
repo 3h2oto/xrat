@@ -14,6 +14,7 @@ pub use proxy::{
 pub use runtime::{
     runtime_connect_response_via_supervisor, runtime_disconnect_response_via_supervisor,
     runtime_replace_response_via_supervisor, runtime_status_response_via_supervisor,
+    runtime_tun_response_via_supervisor,
 };
 
 mod socket;

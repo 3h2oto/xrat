@@ -34,7 +34,7 @@ pub async fn tui_control(context: &AppContext) -> crate::app::Result<Arc<dyn Run
 }
 
 #[cfg(unix)]
-async fn tui_uses_daemon(socket: &std::path::Path) -> crate::app::Result<bool> {
+pub(crate) async fn tui_uses_daemon(socket: &std::path::Path) -> crate::app::Result<bool> {
     let response =
         tokio::time::timeout(std::time::Duration::from_secs(1), ipc::ping_daemon(socket))
             .await

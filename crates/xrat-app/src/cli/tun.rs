@@ -1,7 +1,7 @@
 use clap::{Args, Subcommand};
 
 #[derive(Debug, Args)]
-#[command(about = "Prepare and inspect system privileges for managed TUN capture.")]
+#[command(about = "Enable, disable, and inspect managed TUN capture.")]
 pub struct TunArgs {
     #[command(subcommand)]
     pub action: TunAction,
@@ -10,14 +10,12 @@ pub struct TunArgs {
 #[derive(Debug, Subcommand)]
 pub enum TunAction {
     #[command(
-        about = "Enable TUN capture in the config; restart the daemon and reconnect to apply."
+        about = "Enable TUN on the current connection, or on the next connect when disconnected."
     )]
-    Enable,
-    #[command(
-        about = "Disable TUN capture in the config; restart the daemon and reconnect to apply."
-    )]
-    Disable,
-    #[command(about = "Report TUN readiness: engine, interface, and file capabilities.")]
+    Enable(TunModeArgs),
+    #[command(about = "Disable TUN and keep the current config connected in proxy mode.")]
+    Disable(TunModeArgs),
+    #[command(about = "Report configured mode, active capture, engine support, and privileges.")]
     Status(TunStatusArgs),
     #[command(about = "Grant CAP_NET_ADMIN/CAP_NET_RAW to the files TUN needs via setcap.")]
     Setup(TunSetupArgs),
@@ -33,4 +31,10 @@ pub struct TunStatusArgs {
 pub struct TunSetupArgs {
     #[arg(long, help = "Print the setcap command without running it.")]
     pub dry_run: bool,
+}
+
+#[derive(Debug, Args, Default)]
+pub struct TunModeArgs {
+    #[arg(long, help = "Print the applied TUN state as JSON.")]
+    pub json: bool,
 }

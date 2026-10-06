@@ -515,7 +515,7 @@ async fn xray_tun_rejects_old_core_without_working_tun() {
         Ok(_) => panic!("Xray 26.3.27 must be rejected for TUN"),
         Err(error) => error,
     };
-    assert!(error.to_string().contains("26.7.28"));
+    assert!(error.to_string().contains("26.7.11"));
 }
 
 #[tokio::test]
@@ -523,12 +523,12 @@ async fn xray_tun_accepts_core_with_working_tun() {
     let mut context = test_context().await;
     context.app_config.runtime.tun.enabled = true;
     context.runtime_paths.xray_path =
-        write_fake_xray_version(&context, "Xray 26.7.28 (Xray, Penetrates Everything.)");
+        write_fake_xray_version(&context, "Xray 26.7.11 (Xray, Penetrates Everything.)");
     let config = imported_config(&context, test_node()).await;
 
     let launch = RuntimeService::new(&context)
         .resolve_launch(&config)
-        .expect("Xray 26.7.28 should allow TUN");
+        .expect("Xray 26.7.11 should allow TUN");
     assert!(matches!(launch.config, RuntimeLaunchConfig::Xray(_)));
 }
 

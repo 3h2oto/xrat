@@ -10,7 +10,7 @@ mod types;
 pub use client::{
     daemon_shutdown_daemon, ping_daemon, proxy_start_daemon, proxy_status_daemon,
     proxy_stop_daemon, runtime_connect_daemon, runtime_disconnect_daemon, runtime_replace_daemon,
-    runtime_status_daemon,
+    runtime_status_daemon, runtime_tun_daemon,
 };
 pub use handler::serve_ping;
 pub use responses::{

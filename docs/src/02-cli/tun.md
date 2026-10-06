@@ -1,6 +1,6 @@
 # tun
 
-Prepare and inspect the system privileges managed TUN capture needs.
+Apply managed TUN capture to the current connection and inspect its readiness.
 
 ```bash
 xrat tun <subcommand>
@@ -13,22 +13,31 @@ for the full workflow and caveats.
 
 ## enable / disable
 
-Save the TUN capture setting without editing TOML manually:
+Enable TUN on the current connected config, or return it to local proxy mode:
 
 ```bash
 xrat tun enable
 xrat tun disable
+xrat tun enable --json
 ```
 
-These commands update only `runtime.tun.enabled` in the selected config file
-(including a global `--config` override). Repeating a command is safe. They do
-not grant privileges or change an active connection. Before enabling capture,
-run `xrat tun setup` as needed. Restart a running daemon, then reconnect to apply
-either change; disabling the setting alone does not stop an active TUN interface.
+The runtime owner checks engine support, capabilities, interface ownership, and
+native config validity before stopping the current session. It reconnects the
+same config in the requested mode and saves `runtime.tun.enabled` only after a
+successful change. Startup or save failures attempt to restore the previous mode
+and connection. Repeating a command does not restart an already matching session.
+When disconnected, the setting is saved for the next connect.
 
-In the TUI, press `U` to toggle and save the same setting. The result appears in
-the status message and log. For all TUN options, press `,`, select `runtime.tun`,
-edit fields, and save with `Ctrl+S`.
+Normal toggles do not require setup or daemon restarts. First-time privileges,
+replacement binaries, or upgrading a daemon from a version without live toggles
+may require setup and one restart; the error explains the next step. A CLI command
+never takes over a standalone TUI's running session: press `U` in that TUI instead.
+A global `--config` override must match the daemon's config file.
+
+In the TUI, press `U` for the same checked live toggle. Its result appears in the
+status message and log. You can also change only `runtime.tun.enabled` in settings
+and save with `Ctrl+S` to apply immediately. Save other settings separately when
+changing the enabled flag; their existing restart workflow still applies.
 
 ## status
 
@@ -39,16 +48,24 @@ xrat tun status
 ```
 
 ```text
-TUN privileges
-engine           xray
-tun enabled      yes
-interface        xrat0
-systemd service  ready (NoNewPrivileges=false override present)
-engine file      /home/user/.local/share/xrat/cores/xray/xray  missing (run `xrat tun setup`)
-xrat file        /usr/local/bin/xrat                            missing (run `xrat tun setup`)
+TUN status
+engine                xray 26.7.11
+active capture        yes
+active config         a1b2c3
+active interface      xrat0
+engine check          ready
+configured TUN        yes
+configured interface  xrat0
+systemd service       ready (NoNewPrivileges=false override present)
+engine file           /home/user/.local/share/xrat/cores/xray/xray  ready (cap_net_admin,cap_net_raw=ep)
+xrat file             /usr/local/bin/xrat  ready (cap_net_admin,cap_net_raw=ep)
 ```
 
-`--json` prints the same data as structured JSON.
+`--json` prints the same data as structured JSON. `tun_enabled` is the saved
+setting; `tun_active` requires a running session and an owned kernel TUN device
+with a matching interface index. It does not prove external traffic or DNS
+reachability. `ready` covers engine support and privilege checks; it is separate
+from active capture.
 
 ## setup
 
@@ -73,8 +90,7 @@ is reinstalled or upgraded, so re-run `xrat tun setup` after `xrat install` or
 
 ## Requirements
 
-- Linux. Other platforms do not use file capabilities; set up TUN privileges with
-  the OS-specific mechanism.
+- Linux and either Xray >= 26.7.11 or sing-box. V2Ray TUN is unsupported.
 - `libcap` tools (`setcap`/`getcap`) available on `PATH`.
 
 When a daemon is running, `tun status` also inspects its effective `CAP_NET_ADMIN`

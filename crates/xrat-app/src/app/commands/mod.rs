@@ -29,8 +29,6 @@ mod status;
 pub(crate) mod test;
 mod tui;
 pub(crate) mod tun;
-#[cfg(test)]
-mod tun_tests;
 pub(crate) mod update;
 pub mod upgrade;
 pub mod validate;

@@ -72,6 +72,21 @@ pub async fn proxy_stop_daemon(
     request_response(socket_path, DaemonRequestKind::ProxyStop).await
 }
 
+pub async fn runtime_tun_daemon(
+    socket_path: &Path,
+    enabled: Option<bool>,
+    config_path: std::path::PathBuf,
+) -> crate::app::Result<DaemonResponse<crate::app::daemon::ipc::TunStatePayload>> {
+    request_response(
+        socket_path,
+        DaemonRequestKind::RuntimeTun {
+            enabled,
+            config_path,
+        },
+    )
+    .await
+}
+
 async fn request_response<T: serde::de::DeserializeOwned>(
     socket_path: &Path,
     request_kind: DaemonRequestKind,

@@ -66,31 +66,30 @@ pub(crate) fn detect_xray_compatibility_with_spawner(
 /// Minimum Xray version whose Linux TUN inbound configures the interface
 /// address and system routes. Earlier releases create the device but leave it
 /// unconfigured, so TUN capture would silently do nothing.
-pub(crate) const XRAY_TUN_MIN_VERSION: (u32, u32, u32) = (26, 7, 28);
+pub(crate) const XRAY_TUN_MIN_VERSION: (u32, u32, u32) = (26, 7, 11);
 
 /// Reject a managed Xray binary that predates working TUN support. When the
-/// version cannot be determined the launch proceeds, because the subsequent
-/// validation or spawn reports the real failure.
+/// version cannot be determined, report how to repair the configured binary.
 pub(crate) fn ensure_xray_tun_supported_with_spawner(
     binary_path: &Path,
     spawner: std::sync::Arc<dyn xrat_support::process::ProcessSpawner>,
 ) -> crate::app::Result<()> {
     let Some(version) = xray_binary_version_with_spawner(binary_path, spawner) else {
-        tracing::warn!(
+        return Err(AppError::InvalidArgument(format!(
             "[runtime.tun].enabled could not determine the Xray version at {}; ensure it is Xray >= {}.{}.{} with working TUN support",
             binary_path.display(),
             XRAY_TUN_MIN_VERSION.0,
             XRAY_TUN_MIN_VERSION.1,
             XRAY_TUN_MIN_VERSION.2,
-        );
-        return Ok(());
+        )));
     };
     if version < XRAY_TUN_MIN_VERSION {
         return Err(AppError::InvalidArgument(format!(
-            "[runtime.tun].enabled requires Xray >= {}.{}.{}; the configured core reports {}.{}.{}. Older Xray releases create the tun interface without configuring addresses or routes, so capture would silently do nothing. Upgrade the core, for example with `xrat install xray --prerelease`.",
+            "Cannot enable TUN: Xray {}.{}.{} is required, but {} reports {}.{}.{}. Upgrade the configured core with `xrat install xray --prerelease`, then run `xrat tun setup`.",
             XRAY_TUN_MIN_VERSION.0,
             XRAY_TUN_MIN_VERSION.1,
             XRAY_TUN_MIN_VERSION.2,
+            binary_path.display(),
             version.0,
             version.1,
             version.2,
@@ -99,7 +98,7 @@ pub(crate) fn ensure_xray_tun_supported_with_spawner(
     Ok(())
 }
 
-fn xray_binary_version_with_spawner(
+pub(crate) fn xray_binary_version_with_spawner(
     binary_path: &Path,
     spawner: std::sync::Arc<dyn xrat_support::process::ProcessSpawner>,
 ) -> Option<(u32, u32, u32)> {

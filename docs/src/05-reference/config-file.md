@@ -420,7 +420,7 @@ route_exclude_address = []
 > `autoSystemRoutingTable` (generating default routes matching configured IPv4/IPv6 address families);
 > sing-box emits `type: "tun"` with `route.auto_detect_interface` and routes private/LAN
 > destinations direct. Xray TUN needs a core whose Linux TUN configures the interface and routes
-> (Xray >= 26.7.28 / prerelease); older cores are rejected before launch. V2Ray TUN
+> (Xray >= 26.7.11); older cores are rejected before launch. V2Ray TUN
 > is not implemented. TUN does not intercept DNS: name lookups use the system
 > resolver and can bypass the tunnel; a bounded DNS-interception backend is
 > tracked separately.

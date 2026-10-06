@@ -14,8 +14,14 @@ impl<'a> RuntimeService<'a> {
     ) -> Self {
         Self {
             context,
+            rollback_context: None,
             process_ports,
         }
+    }
+
+    pub(crate) fn with_rollback_context(mut self, context: &'a AppContext) -> Self {
+        self.rollback_context = Some(context);
+        self
     }
 
     #[tracing::instrument(skip_all)]

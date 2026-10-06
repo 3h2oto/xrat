@@ -6,13 +6,14 @@ pub async fn handle_event(
     event: SupervisorEvent,
     context: &AppContext,
 ) {
-    handle_event_inner(state, event, context, None).await;
+    let mut context = context.clone();
+    handle_event_inner(state, event, &mut context, None).await;
 }
 
 pub(in super::super) async fn handle_event_with_sender(
     state: &mut SupervisorState,
     event: SupervisorEvent,
-    context: &AppContext,
+    context: &mut AppContext,
     event_tx: &tokio::sync::mpsc::Sender<SupervisorEvent>,
 ) {
     handle_event_inner(state, event, context, Some(event_tx)).await;
@@ -21,7 +22,7 @@ pub(in super::super) async fn handle_event_with_sender(
 pub(super) async fn handle_event_inner(
     state: &mut SupervisorState,
     event: SupervisorEvent,
-    context: &AppContext,
+    context: &mut AppContext,
     event_tx: Option<&tokio::sync::mpsc::Sender<SupervisorEvent>>,
 ) {
     match event {
@@ -97,6 +98,7 @@ pub(super) async fn handle_event_inner(
             if respond_to
                 .send(PingPayload {
                     daemon_ready: state.ready,
+                    live_tun: true,
                 })
                 .is_err()
             {
@@ -106,6 +108,53 @@ pub(super) async fn handle_event_inner(
                     "supervisor response dropped"
                 );
             }
+        }
+        SupervisorEvent::RuntimeTun {
+            enabled,
+            config_path,
+            respond_to,
+        } => {
+            let same_config = std::fs::canonicalize(&config_path)
+                .ok()
+                .zip(std::fs::canonicalize(&context.runtime_paths.config_path).ok())
+                .is_some_and(|(requested, owned)| requested == owned);
+            let result = if same_config {
+                crate::app::services::tun::apply(context, enabled)
+                    .await
+                    .map_err(|error| error.to_string())
+            } else {
+                Err("The daemon uses a different config file. Use its config path with `xrat --config <path> tun ...`.".to_string())
+            };
+            if same_config
+                && let Ok(snapshot) = crate::app::runtime_service::RuntimeService::new(context)
+                    .status()
+                    .await
+                && let Some(session) = snapshot.session.filter(|session| {
+                    snapshot.pid_running && session.owner_kind.as_deref() != Some("daemon")
+                })
+                && let Err(error) = context
+                    .db
+                    .update_runtime_session_transition_metadata(
+                        session.id,
+                        Some("daemon"),
+                        Some(&state.instance_id),
+                        Some(if result.is_ok() {
+                            "tun_mode_changed"
+                        } else {
+                            "tun_mode_rollback"
+                        }),
+                        Some(if result.is_ok() {
+                            "daemon TUN mode change completed"
+                        } else {
+                            "daemon restored the runtime after a TUN failure"
+                        }),
+                        Some("daemon"),
+                    )
+                    .await
+            {
+                tracing::warn!(%error, "TUN runtime owner metadata update failed");
+            }
+            let _ = respond_to.send(result);
         }
         SupervisorEvent::RuntimeStatus { respond_to } => {
             runtime::handle_runtime_status(state, context, respond_to).await;

@@ -17,6 +17,11 @@ pub enum SupervisorEvent {
     DaemonPing {
         respond_to: oneshot::Sender<PingPayload>,
     },
+    RuntimeTun {
+        enabled: Option<bool>,
+        config_path: std::path::PathBuf,
+        respond_to: oneshot::Sender<Result<crate::app::daemon::ipc::TunStatePayload, String>>,
+    },
     RuntimeStatus {
         respond_to: oneshot::Sender<RuntimeStatusResult>,
     },

@@ -380,7 +380,7 @@ are lost whenever the managed core is reinstalled or upgraded.
 
 At least one local inbound (SOCKS by default) must stay enabled. Xray emits a
 native `protocol: "tun"` inbound and manages routes with `autoSystemRoutingTable`;
-this needs a core with working Linux TUN support (Xray >= 26.7.28 / prerelease),
+this needs a core with working Linux TUN support (Xray >= 26.7.11),
 and older cores are rejected before launch. Generated Xray routes match the address
 families specified in `[runtime.tun].address` (`0.0.0.0/0` for IPv4, `::/0` for IPv6,
 or dual-stack), and routes are omitted entirely if `auto_route = false`.

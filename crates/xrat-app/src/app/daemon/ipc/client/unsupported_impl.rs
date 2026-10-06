@@ -62,6 +62,14 @@ pub async fn proxy_stop_daemon(
     unsupported_client()
 }
 
+pub async fn runtime_tun_daemon(
+    _socket_path: &Path,
+    _enabled: Option<bool>,
+    _config_path: std::path::PathBuf,
+) -> crate::app::Result<DaemonResponse<crate::app::daemon::ipc::TunStatePayload>> {
+    unsupported_client()
+}
+
 fn unsupported_client<T>() -> crate::app::Result<T> {
     Err(crate::app::AppError::InvalidArgument(
         "daemon IPC client is not supported on this platform yet".to_string(),
