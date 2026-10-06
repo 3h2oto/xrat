@@ -3,6 +3,7 @@ name = "xrat-app"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
+homepage = "https://mhyrzt.github.io/xrat/"
 description = "Application, CLI, TUI, and HTTP layers for xrat"
 
 [dependencies]
