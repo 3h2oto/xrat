@@ -104,6 +104,7 @@ pub enum TuiAction {
     CycleFilter,
     CycleProtocolFilter,
     ToggleDeletedFilter,
+    ToggleTun,
     FocusNextPanel,
     FocusPrevPanel,
     FocusPanel(TuiPanel),

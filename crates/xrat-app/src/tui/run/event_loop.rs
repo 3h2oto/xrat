@@ -252,6 +252,32 @@ pub async fn run(context: &AppContext) -> crate::app::Result<()> {
                         app.import_modal = Some(crate::tui::app::ImportModalState::default());
                         app.needs_full_clear = true;
                     }
+                    if matches!(action, crate::tui::app::TuiAction::ToggleTun) {
+                        match crate::app::commands::tun::save_tun_enabled(
+                            &context.runtime_paths.config_path,
+                            None,
+                        ) {
+                            Ok(outcome) => {
+                                let enabled = outcome.config.runtime.tun.enabled;
+                                context.app_config = outcome.config;
+                                let message = crate::app::commands::tun::enabled_message(enabled);
+                                app.set_chrome_message(message.clone(), false);
+                                app.push_log(message.clone());
+                                crate::app::events::record(
+                                    &context.db,
+                                    crate::app::events::LEVEL_INFO,
+                                    crate::app::events::SOURCE_SETTINGS,
+                                    "config_saved",
+                                    message,
+                                    None,
+                                    app.data.runtime.session_id,
+                                    Some(format!("runtime.tun.enabled={enabled}")),
+                                )
+                                .await;
+                            }
+                            Err(error) => app.set_chrome_message(error, true),
+                        }
+                    }
                     if open_settings {
                         match ConfigEditSession::open(&context.runtime_paths.config_path) {
                             Ok(session) => {

@@ -388,6 +388,11 @@ see the [CLI reference](docs/src/02-cli/README.md).
 
 ## System traffic with TUN
 
+Use `xrat tun enable` / `xrat tun disable` to save the capture setting. In the
+TUI, `U` toggles and saves it; `,` opens settings with all `runtime.tun`
+options. Restart a running daemon and reconnect to apply the change. These
+controls do not grant privileges or immediately change an active connection.
+
 TUN is opt-in: it captures system traffic for applications that do not use a
 local SOCKS or HTTP proxy. The following Linux workflow uses sing-box; keep the
 default local SOCKS listener enabled for readiness checks.

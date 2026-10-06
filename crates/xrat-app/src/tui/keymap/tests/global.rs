@@ -831,6 +831,21 @@ fn old_api_shortcuts_do_not_trigger_api_actions() {
             false,
             false
         ),
-        TuiAction::None
+        TuiAction::ToggleTun
     );
+}
+
+#[test]
+fn uppercase_u_toggles_tun() {
+    assert!(matches!(
+        crate::tui::keymap::view::action_for_view_key(
+            crossterm::event::KeyEvent::new(
+                crossterm::event::KeyCode::Char('U'),
+                crossterm::event::KeyModifiers::SHIFT,
+            ),
+            crate::tui::app::TuiView::Configs,
+            crate::tui::app::TuiPanel::Table,
+        ),
+        crate::tui::app::TuiAction::ToggleTun
+    ));
 }

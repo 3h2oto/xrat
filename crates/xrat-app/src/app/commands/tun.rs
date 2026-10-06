@@ -9,7 +9,61 @@ pub async fn run(context: &AppContext, args: &TunArgs) -> crate::app::Result<()>
     match &args.action {
         TunAction::Status(status) => status_command(context, status).await,
         TunAction::Setup(setup) => setup_command(context, setup),
+        TunAction::Enable => enabled_command(context, true).await,
+        TunAction::Disable => enabled_command(context, false).await,
     }
+}
+
+pub(crate) fn save_tun_enabled(
+    path: &std::path::Path,
+    enabled: Option<bool>,
+) -> Result<crate::app::config::ConfigSaveOutcome, String> {
+    use crate::app::config::{ConfigEditSession, SettingValue};
+    let mut session = ConfigEditSession::open(path)?;
+    let setting = session
+        .settings
+        .iter_mut()
+        .find(|setting| setting.path == "runtime.tun.enabled")
+        .ok_or_else(|| "TUN setting was not found".to_string())?;
+    if let Some(enabled) = enabled {
+        setting.value = SettingValue::Bool(enabled);
+    } else {
+        setting.toggle();
+    }
+    session.save()
+}
+
+pub(crate) fn enabled_message(enabled: bool) -> String {
+    format!(
+        "TUN {} in config; restart the daemon if running, then reconnect to apply.{}",
+        if enabled { "enabled" } else { "disabled" },
+        if enabled {
+            " Run `xrat tun setup` first if privileges are not ready."
+        } else {
+            ""
+        },
+    )
+}
+
+async fn enabled_command(context: &AppContext, enabled: bool) -> crate::app::Result<()> {
+    let outcome = save_tun_enabled(&context.runtime_paths.config_path, Some(enabled))
+        .map_err(AppError::InvalidArgument)?;
+    let message = enabled_message(outcome.config.runtime.tun.enabled);
+    println!("{}", output::success(&message, output::color_enabled()));
+    if !outcome.changed_paths.is_empty() {
+        crate::app::events::record(
+            &context.db,
+            crate::app::events::LEVEL_INFO,
+            crate::app::events::SOURCE_SETTINGS,
+            "config_saved",
+            message,
+            None,
+            None,
+            Some(format!("runtime.tun.enabled={enabled}")),
+        )
+        .await;
+    }
+    Ok(())
 }
 
 async fn status_command(context: &AppContext, args: &TunStatusArgs) -> crate::app::Result<()> {
