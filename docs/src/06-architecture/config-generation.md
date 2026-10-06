@@ -563,8 +563,9 @@ fixture:
 | Probe process                  | `src/prober/probe.rs`, `src/singbox/probe.rs`           | `prober::probe` unit tests                                   |
 
 The [compatibility contract](singbox-compatibility.md) and the fixture matrix in
-TASK-102/TASK-109 are the authority for the supported version range and the
-pinned conformance target.
+[TASK-102](https://github.com/mhyrzt/xrat/issues/140)/[TASK-109](https://github.com/mhyrzt/xrat/issues/142)
+are the authority for the supported version range and the pinned conformance
+target.
 
 ### Probe Config
 

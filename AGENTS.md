@@ -280,25 +280,20 @@ These guidelines are working if diffs contain fewer unnecessary changes, fewer
 rewrites are needed due to overcomplication, and clarifying questions come
 before implementation rather than after mistakes.
 
-<!-- BACKLOG.MD GUIDELINES START -->
-<CRITICAL_INSTRUCTION>
+## GitHub Project Tracking
 
-## Backlog.md Workflow
+Track tasks in https://github.com/mhyrzt/xrat/issues and group related work with
+GitHub milestones. Search existing issues before creating a task; use
+`gh issue list`, `gh issue view`, and `gh issue edit` for the workflow.
 
-This project uses Backlog.md for task and project management.
+For substantial work, record scope, acceptance criteria, implementation notes,
+validation results, and a final summary in the issue. Use labels for capability
+and priority, milestones for delivery groups, and sub-issues for parent/child
+work. Link dependencies explicitly. Close completed tasks after recording
+verification; close abandoned tasks as not planned. Small questions and
+mechanical edits do not require an issue.
 
-**For every user request in this project, run `backlog instructions overview` before answering or taking action.**
-
-Use the overview to decide whether to search, read, create, or update Backlog tasks.
-
-Use the detailed guides when needed:
-- `backlog instructions task-creation` for creating or splitting tasks
-- `backlog instructions task-execution` for planning and implementation workflow
-- `backlog instructions task-finalization` for completion and handoff
-
-Use `backlog <command> --help` before running unfamiliar commands. Help shows options, fields, and examples.
-
-Do not edit Backlog task, draft, document, decision, or milestone markdown files directly. Use the `backlog` CLI so metadata, relationships, and history stay consistent.
-
-</CRITICAL_INSTRUCTION>
-<!-- BACKLOG.MD GUIDELINES END -->
+Historical `TASK-*`, `DRAFT-*`, and `doc-*` identifiers are retained in migrated
+issue titles. Original records and metadata are preserved in each issue or
+milestone description. Search by identifier when following an older reference.
+Use GitHub as the source of truth for task status and planning.

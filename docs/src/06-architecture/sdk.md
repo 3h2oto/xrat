@@ -120,10 +120,13 @@ internal initialization and are experimental; they are not a complete SDK-only
 stateful contract.
 
 Milestone **SDK: Public embedding and crates.io delivery** tracks deferred
-stateful initialization (TASK-153), saved-config/subscription services
-(TASK-154), managed runtime embedding (TASK-155), and separately validated V2Ray
-generation/probing (TASK-156). No implementation of those deferred features is
-included in the stateless release.
+stateful initialization ([TASK-153](https://github.com/mhyrzt/xrat/issues/176)),
+saved-config/subscription services
+([TASK-154](https://github.com/mhyrzt/xrat/issues/177)), managed runtime
+embedding ([TASK-155](https://github.com/mhyrzt/xrat/issues/178)), and
+separately validated V2Ray generation/probing
+([TASK-156](https://github.com/mhyrzt/xrat/issues/179)). No implementation of
+those deferred features is included in the stateless release.
 
 ## Export services
 
