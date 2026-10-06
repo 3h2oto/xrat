@@ -431,6 +431,13 @@ Replace the sample link with your own. This generates the configuration; running
 it requires an Xray binary. To serialize the normalized node instead, use
 `serde_json::to_string_pretty(&node)`.
 
+## Project planning
+
+Follow tasks in [GitHub issues](https://github.com/mhyrzt/xrat/issues) and
+delivery groups in [milestones](https://github.com/mhyrzt/xrat/milestones).
+Completed and archived work remains available in closed issues. Historical
+`TASK-*` identifiers are searchable in issue titles.
+
 ## Acknowledgments
 
 Some functionalities in XRAT have been inspired by

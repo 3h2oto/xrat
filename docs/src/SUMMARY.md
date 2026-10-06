@@ -62,4 +62,3 @@
   - [Daemon Architecture](06-architecture/daemon-architecture.md)
   - [Runtime Lifecycle](06-architecture/runtime-lifecycle.md)
   - [Test Pipeline](06-architecture/test-pipeline.md)
-  <!-- Backlog section excluded from mdBook build (personal use only) -->
