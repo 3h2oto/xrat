@@ -28,6 +28,7 @@ impl TuiApp {
             TuiAction::RequestPurgeFocused => self.request_purge_focused(),
             TuiAction::RequestDeleteSource => self.request_delete_source(),
             TuiAction::RuntimeStop
+            | TuiAction::ToggleTun
             | TuiAction::RuntimeRestart
             | TuiAction::RefreshFocusedSource
             | TuiAction::RefreshAllSources

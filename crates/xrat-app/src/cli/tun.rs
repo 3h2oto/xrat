@@ -9,6 +9,14 @@ pub struct TunArgs {
 
 #[derive(Debug, Subcommand)]
 pub enum TunAction {
+    #[command(
+        about = "Enable TUN capture in the config; restart the daemon and reconnect to apply."
+    )]
+    Enable,
+    #[command(
+        about = "Disable TUN capture in the config; restart the daemon and reconnect to apply."
+    )]
+    Disable,
     #[command(about = "Report TUN readiness: engine, interface, and file capabilities.")]
     Status(TunStatusArgs),
     #[command(about = "Grant CAP_NET_ADMIN/CAP_NET_RAW to the files TUN needs via setcap.")]

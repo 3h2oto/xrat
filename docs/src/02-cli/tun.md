@@ -11,6 +11,25 @@ needs `CAP_NET_ADMIN`. On Linux this is a file capability, granted with
 `setcap`. See [TUN Capture](../03-features/runtime-management.md#tun-capture)
 for the full workflow and caveats.
 
+## enable / disable
+
+Save the TUN capture setting without editing TOML manually:
+
+```bash
+xrat tun enable
+xrat tun disable
+```
+
+These commands update only `runtime.tun.enabled` in the selected config file
+(including a global `--config` override). Repeating a command is safe. They do
+not grant privileges or change an active connection. Before enabling capture,
+run `xrat tun setup` as needed. Restart a running daemon, then reconnect to apply
+either change; disabling the setting alone does not stop an active TUN interface.
+
+In the TUI, press `U` to toggle and save the same setting. The result appears in
+the status message and log. For all TUN options, press `,`, select `runtime.tun`,
+edit fields, and save with `Ctrl+S`.
+
 ## status
 
 Report TUN readiness for the current configuration:

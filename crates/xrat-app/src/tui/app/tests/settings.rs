@@ -3,6 +3,17 @@ use std::fs;
 use crate::app::config::ConfigEditSession;
 use crate::tui::app::{SettingsModalState, SettingsPane, TuiAction, TuiApp};
 
+#[test]
+fn tun_setting_is_editable_and_persisted_from_settings() {
+    let (_root, mut app) = app_with_settings("");
+    focus_setting(&mut app, "runtime.tun.enabled");
+    app.apply(TuiAction::SettingsSubmit);
+    assert!(app.prepare_settings_save());
+    let outcome = app.settings_modal.as_mut().unwrap().session.save().unwrap();
+    assert!(outcome.config.runtime.tun.enabled);
+    assert_eq!(outcome.changed_paths, ["runtime.tun.enabled"]);
+}
+
 fn app_with_settings(contents: &str) -> (tempfile::TempDir, TuiApp) {
     let root = tempfile::tempdir().expect("temp directory should be created");
     let path = root.path().join("config.toml");

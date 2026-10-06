@@ -4,6 +4,17 @@ use crate::cli::{Cli, Command, TunAction};
 
 #[test]
 fn parses_tun_subcommands() {
+    for (subcommand, enabled) in [("enable", true), ("disable", false)] {
+        let cli = Cli::parse_from(["xrat", "tun", subcommand]);
+        match cli.command {
+            Command::Tun(args) => assert!(if enabled {
+                matches!(args.action, TunAction::Enable)
+            } else {
+                matches!(args.action, TunAction::Disable)
+            }),
+            _ => panic!("expected tun command"),
+        }
+    }
     let status = Cli::parse_from(["xrat", "tun", "status"]);
     match status.command {
         Command::Tun(args) => assert!(matches!(args.action, TunAction::Status(_))),
