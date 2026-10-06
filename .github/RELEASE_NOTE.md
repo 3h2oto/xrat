@@ -1,37 +1,37 @@
-## xrat v0.22.0
+## xrat v0.22.1
 
-This release adds opt-in managed TUN capture for Linux with Xray and sing-box,
-with privilege diagnostics and safer runtime handoffs.
+This release makes the opt-in TUN capture introduced in v0.22.0 easier to
+configure and fixes the documentation link in TUI help.
 
-### Features
+### TUN controls
 
-- Configure system traffic capture through `[runtime.tun]`, including interface
-  addresses, routing, MTU, and engine-specific settings.
-- Use `xrat tun setup` to grant required file capabilities and configure the
-  systemd user-service override. `xrat tun status` reports engine, xrat, service,
-  and effective daemon privilege readiness.
-- Follow the new README TUN walkthrough for setup, connection, and returning to
-  per-app proxying.
+- Use `xrat tun enable` and `xrat tun disable` to save the capture setting without
+  editing TOML. Commands preserve comments and unrelated settings, validate
+  changes, and are safe to repeat.
+- Press **U** (Shift+U) in the TUI to toggle and save the same setting. Lowercase
+  `u` still refreshes subscriptions; typing in search and modals is unaffected.
+- Press **,** to open settings, select `runtime.tun`, and save with **Ctrl+S**
+  to configure all TUN options.
 
-### Fixes and maintenance
+### Fixes and documentation
 
-- Validate engine capabilities, native configuration, and interface ownership
-  before replacing a healthy runtime. Cleanup requires a verified matching
-  kernel interface index; failed handoffs attempt to restore the previous config.
-- Generate Xray capture routes for the configured IPv4/IPv6 address families.
-- Accept the client-specific `support-x25519mlkem768` share-link parameter.
-- Move project planning to GitHub issues and milestones, preserving completed
-  and archived records, original metadata, and task relationships.
+- Restore the docs URL in TUI help by setting the application crate's homepage.
+- Document CLI and TUI TUN controls and their effect on active connections.
 
 ### Upgrade notes
 
-- TUN stays disabled by default. Keep at least one local inbound enabled.
-- Linux TUN requires network privileges and `libcap` tools. Run `xrat tun setup`
-  after upgrading xrat or a managed engine, then restart the daemon.
-- Xray TUN requires version `26.7.28` or newer with working Linux TUN support;
-  older cores are rejected. V2Ray TUN is unsupported.
-- TUN does not intercept DNS. System resolver queries can bypass the tunnel;
-  capture routes follow the configured address families.
-- No database migration is required for this release.
+- These controls save configuration; they do not immediately switch an active
+  connection or grant privileges. Restart a running daemon, then reconnect to
+  apply either change. Disabling the setting alone does not stop an active TUN
+  interface.
+- File capabilities are lost when xrat or an engine is upgraded. Run
+  `xrat tun setup` as needed, then restart the daemon before using TUN.
+- TUN remains disabled by default. DNS interception and V2Ray TUN remain
+  unsupported. No database migration is required.
 
-**Full Changelog**: https://github.com/mhyrzt/xrat/compare/v0.21.2...v0.22.0
+### Contributors
+
+Thanks to [@f02xygen](https://github.com/f02xygen) for the managed TUN foundation
+in [PR #6](https://github.com/mhyrzt/xrat/pull/6), released in v0.22.0.
+
+**Full Changelog**: https://github.com/mhyrzt/xrat/compare/v0.22.0...v0.22.1
