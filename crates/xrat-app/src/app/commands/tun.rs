@@ -9,6 +9,7 @@ use crate::cli::{
     TunSplitAppsArgs, TunSplitArgs, TunSplitClearArgs, TunSplitClearTarget, TunSplitListArgs,
     TunSplitListTarget, TunSplitListViewTarget, TunSplitModifyArgs, TunStatusArgs,
 };
+#[cfg(not(target_os = "macos"))]
 use xrat_support::process::Stdio;
 
 pub async fn run(context: &AppContext, args: &TunArgs) -> crate::app::Result<()> {
@@ -457,6 +458,9 @@ async fn status_command(context: &AppContext, args: &TunStatusArgs) -> crate::ap
     let files = tun_privileges::required_files(context);
     let color = output::color_enabled();
     let supported = tun_privileges::capabilities_supported();
+    let macos_ready = cfg!(target_os = "macos")
+        && tun_privileges::inspect_process_privileges(std::process::id())
+            .is_some_and(|(_, ready)| ready);
 
     let service_state = tun_privileges::systemd_service_status();
     let service_ready = service_state.as_ref().map(|(_, r)| *r).unwrap_or(true);
@@ -472,10 +476,11 @@ async fn status_command(context: &AppContext, args: &TunStatusArgs) -> crate::ap
                     "role": file.label,
                     "path": file.path.display().to_string(),
                     "capabilities": capabilities,
+                    "required_capabilities": supported.then_some(file.capabilities),
                     "ready": capabilities
                         .as_deref()
                         .map(tun_privileges::has_net_admin)
-                        .unwrap_or(false),
+                        .unwrap_or(macos_ready),
                     "process_routing_ready": capabilities
                         .as_deref()
                         .map(tun_privileges::has_process_routing_caps)
@@ -505,7 +510,7 @@ async fn status_command(context: &AppContext, args: &TunStatusArgs) -> crate::ap
                 "status": status,
                 "ready": ready,
             })),
-            "ready": supported && engine_error.is_none() && all_files_ready && service_ready && daemon_ready,
+            "ready": (supported || macos_ready) && engine_error.is_none() && all_files_ready && service_ready && daemon_ready,
             "files": entries,
         });
         println!("{}", serde_json::to_string_pretty(&value)?);
@@ -613,7 +618,11 @@ async fn status_command(context: &AppContext, args: &TunStatusArgs) -> crate::ap
         println!(
             "{}",
             output::notice(
-                "file capabilities are Linux-only; configure TUN privileges manually on this platform",
+                if cfg!(target_os = "macos") {
+                    "macOS managed TUN requires sing-box and a root runtime owner; use explicit config and database paths with sudo"
+                } else {
+                    "managed TUN is unavailable on this platform"
+                },
                 color,
             )
         );
@@ -702,28 +711,57 @@ mod tests {
 }
 
 fn capability_state(file: &TunPrivilegeFile) -> (String, bool) {
-    if !file.path.is_file() {
+    #[cfg(target_os = "macos")]
+    {
         return (
-            "not found; install the core or set [paths] to an absolute path".to_string(),
-            false,
+            "macOS uses a root runtime owner, not file capabilities".into(),
+            file.path.is_file() && tun_privileges::macos_root(),
         );
     }
-    match tun_privileges::file_capabilities(&file.path) {
-        None => (
-            "unknown (install libcap tools to inspect)".to_string(),
-            false,
-        ),
-        Some(capabilities) if tun_privileges::has_net_admin(&capabilities) => {
-            (format!("ready ({capabilities})"), true)
+    #[cfg(not(target_os = "macos"))]
+    {
+        if !file.path.is_file() {
+            return (
+                "not found; install the core or set [paths] to an absolute path".to_string(),
+                false,
+            );
         }
-        Some(capabilities) if capabilities.is_empty() => {
-            ("missing (run `xrat tun setup`)".to_string(), false)
+        match tun_privileges::file_capabilities(&file.path) {
+            None => (
+                "unknown (install libcap tools to inspect)".to_string(),
+                false,
+            ),
+            Some(capabilities) if tun_privileges::has_net_admin(&capabilities) => {
+                (format!("ready ({capabilities})"), true)
+            }
+            Some(capabilities) if capabilities.is_empty() => {
+                ("missing (run `xrat tun setup`)".to_string(), false)
+            }
+            Some(capabilities) => (format!("missing CAP_NET_ADMIN ({capabilities})"), false),
         }
-        Some(capabilities) => (format!("missing CAP_NET_ADMIN ({capabilities})"), false),
     }
 }
 
 async fn setup_command(context: &AppContext, args: &TunSetupArgs) -> crate::app::Result<()> {
+    #[cfg(target_os = "macos")]
+    {
+        let _ = args;
+        if context.app_config.runtime.engine != "sing-box" {
+            return Err(AppError::InvalidArgument(
+                "macOS managed TUN requires sing-box".into(),
+            ));
+        }
+        println!(
+            "macOS managed TUN requires a root runtime owner. Run xrat with sudo and explicit --config and --database paths. Set [runtime].engine = \"sing-box\" and [runtime.tun].interface_name = \"utun99\". File capabilities are not used on macOS."
+        );
+        Ok(())
+    }
+    #[cfg(not(target_os = "macos"))]
+    setup_capabilities(context, args).await
+}
+
+#[cfg(not(target_os = "macos"))]
+async fn setup_capabilities(context: &AppContext, args: &TunSetupArgs) -> crate::app::Result<()> {
     if !tun_privileges::capabilities_supported() {
         return Err(AppError::InvalidArgument(
             "file capabilities are Linux-only; configure TUN privileges manually on this platform"
@@ -761,13 +799,7 @@ async fn setup_command(context: &AppContext, args: &TunSetupArgs) -> crate::app:
 
     let commands: Vec<String> = files
         .iter()
-        .map(|file| {
-            format!(
-                "sudo setcap {} {}",
-                tun_privileges::TUN_CAPABILITIES,
-                file.path.display()
-            )
-        })
+        .map(|file| format!("sudo setcap {} {}", file.capabilities, file.path.display()))
         .collect();
 
     if args.dry_run {
@@ -798,10 +830,7 @@ async fn setup_command(context: &AppContext, args: &TunSetupArgs) -> crate::app:
     // gets its own invocation (sudo caches the credential across them).
     for (file, printable) in files.iter().zip(&commands) {
         let mut command = xrat_support::process::Command::new("sudo");
-        command
-            .arg("setcap")
-            .arg(tun_privileges::TUN_CAPABILITIES)
-            .arg(&file.path);
+        command.arg("setcap").arg(file.capabilities).arg(&file.path);
         command
             .stdin(Stdio::inherit())
             .stdout(Stdio::inherit())

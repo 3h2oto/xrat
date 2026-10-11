@@ -53,7 +53,10 @@ pub const DEFAULT_NETWORK_MARK: i64 = 0;
 pub const DEFAULT_NETWORK_LISTEN_INTERFACE: &str = "";
 
 pub const DEFAULT_TUN_ENABLED: bool = false;
+#[cfg(not(target_os = "macos"))]
 pub const DEFAULT_TUN_INTERFACE_NAME: &str = "xrat0";
+#[cfg(target_os = "macos")]
+pub const DEFAULT_TUN_INTERFACE_NAME: &str = "utun99";
 pub const DEFAULT_TUN_MTU: u32 = 1500;
 pub const DEFAULT_TUN_STACK: &str = "system";
 pub const DEFAULT_TUN_ADDRESS: &[&str] = &["172.19.0.1/30"];

@@ -10,10 +10,12 @@ use crate::app::context::AppContext;
 /// Capabilities granted by `xrat tun setup`.
 pub const TUN_CAPABILITIES: &str =
     "cap_net_admin,cap_net_raw,cap_dac_read_search,cap_sys_ptrace+ep";
+pub const XRAT_TUN_CAPABILITIES: &str = "cap_net_admin,cap_net_raw+ep";
 
 pub struct TunPrivilegeFile {
     pub label: &'static str,
     pub path: PathBuf,
+    pub capabilities: &'static str,
 }
 
 /// Whether this platform uses file capabilities at all. TUN privileges are a
@@ -34,11 +36,13 @@ pub fn required_files(context: &AppContext) -> Vec<TunPrivilegeFile> {
     let mut files = vec![TunPrivilegeFile {
         label: "engine file",
         path: engine_path,
+        capabilities: TUN_CAPABILITIES,
     }];
     if let Ok(current) = std::env::current_exe() {
         files.push(TunPrivilegeFile {
             label: "xrat file",
             path: current,
+            capabilities: XRAT_TUN_CAPABILITIES,
         });
     }
     files
@@ -98,6 +102,12 @@ pub fn ensure_engine_capability_with_spawner(
     binary_path: &Path,
     spawner: std::sync::Arc<dyn xrat_support::process::ProcessSpawner>,
 ) -> crate::app::Result<()> {
+    #[cfg(target_os = "macos")]
+    if !macos_root() {
+        return Err(AppError::InvalidArgument(
+            "macOS managed TUN requires a privileged runtime owner; run xrat with sudo and explicit --config and --database paths, or use a root launchd daemon".into(),
+        ));
+    }
     if !capabilities_supported() {
         return Ok(());
     }
@@ -238,11 +248,38 @@ pub fn inspect_process_privileges(pid: u32) -> Option<(&'static str, bool)> {
             true,
         ))
     }
-    #[cfg(not(target_os = "linux"))]
+    #[cfg(target_os = "macos")]
+    {
+        let output = xrat_support::process::Command::new("/bin/ps")
+            .args(["-o", "uid=", "-p", &pid.to_string()])
+            .output()
+            .ok()?;
+        if !output.status.success() {
+            return None;
+        }
+        let root = String::from_utf8_lossy(&output.stdout).trim() == "0";
+        Some((
+            if root {
+                "ready (root runtime owner)"
+            } else {
+                "macOS TUN requires a root runtime owner"
+            },
+            root,
+        ))
+    }
+    #[cfg(not(any(target_os = "linux", target_os = "macos")))]
     {
         let _ = pid;
         None
     }
+}
+
+#[cfg(target_os = "macos")]
+pub fn macos_root() -> bool {
+    unsafe extern "C" {
+        fn geteuid() -> u32;
+    }
+    unsafe { geteuid() == 0 }
 }
 
 #[cfg(test)]
@@ -274,6 +311,10 @@ mod tests {
         assert!(!has_net_admin(""));
         assert!(!has_net_admin("cap_net_raw=ep"));
         assert!(TUN_CAPABILITIES.contains("cap_net_admin"));
+        assert!(super::has_process_routing_caps(TUN_CAPABILITIES));
+        assert!(!super::has_process_routing_caps(
+            super::XRAT_TUN_CAPABILITIES
+        ));
     }
 
     #[test]

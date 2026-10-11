@@ -68,10 +68,22 @@ impl RuntimeService<'_> {
     }
     pub(crate) fn preflight_tun_policy_rules(&self) -> crate::app::Result<()> {
         let tun = &self.context.app_config.runtime.tun;
-        if !tun.enabled || !tun.auto_route || self.context.app_config.runtime.engine != "sing-box" {
+        if !tun.enabled || self.context.app_config.runtime.engine != "sing-box" {
             return Ok(());
         }
         let owned = tun_ownership::load_ownership(&self.context.runtime_paths.runtime_dir);
+        #[cfg(target_os = "macos")]
+        xrat_support::net::preflight_macos_capture(
+            &tun.address,
+            owned.as_ref().and_then(|record| {
+                record
+                    .ifindex
+                    .map(|index| (record.interface_name.as_str(), index))
+            }),
+        )?;
+        if !tun.auto_route {
+            return Ok(());
+        }
         for rule in self
             .process_ports
             .tun
@@ -127,8 +139,24 @@ impl RuntimeService<'_> {
                         policy_rules: rules.clone(),
                     },
                 )?;
+                #[cfg(target_os = "macos")]
+                if singbox
+                    && tun.auto_route
+                    && !xrat_support::net::macos_capture_ready(&tun.address, &tun.interface_name)?
+                {
+                    tokio::time::sleep(Duration::from_millis(20)).await;
+                    if tokio::time::Instant::now() < deadline
+                        && self.process_ports.signals.is_running(i64::from(pid))
+                    {
+                        continue;
+                    }
+                    return Err(AppError::InvalidArgument(
+                        "macOS TUN startup timeout: capture routes were not ready".into(),
+                    ));
+                }
                 if !singbox
                     || !tun.auto_route
+                    || cfg!(target_os = "macos")
                     || tun.address.iter().all(|address| {
                         let family = if address.contains(':') { 10 } else { 2 };
                         rules
@@ -190,8 +218,13 @@ impl RuntimeService<'_> {
 
         let Some(record) = tun_ownership::load_ownership(&self.context.runtime_paths.runtime_dir)
         else {
+            let guidance = if cfg!(target_os = "macos") {
+                "Stop the application that owns this utun interface before retrying.".to_string()
+            } else {
+                format!("Remove it manually, for example with `sudo ip link del {interface}`.")
+            };
             return Err(AppError::InvalidArgument(format!(
-                "TUN interface \"{interface}\" already exists but its ownership by XRAT could not be verified; refusing to remove unowned interface. Remove it manually, for example with `sudo ip link del {interface}`."
+                "TUN interface \"{interface}\" already exists but its ownership by XRAT could not be verified; refusing to remove unowned interface. {guidance}"
             )));
         };
 
@@ -243,8 +276,13 @@ impl RuntimeService<'_> {
             .tun
             .delete_interface(interface, info.ifindex)
             .map_err(|error| {
+                let guidance = if cfg!(target_os = "macos") {
+                    "Ensure the engine has exited and released its utun socket.".to_string()
+                } else {
+                    format!("Ensure CAP_NET_ADMIN or remove it manually, for example with `sudo ip link del {interface}`.")
+                };
                 AppError::InvalidArgument(format!(
-                    "stale TUN interface \"{interface}\" could not be removed ({error}). Ensure CAP_NET_ADMIN or remove it manually, for example with `sudo ip link del {interface}`."
+                    "stale TUN interface \"{interface}\" could not be removed ({error}). {guidance}"
                 ))
             })?;
 
