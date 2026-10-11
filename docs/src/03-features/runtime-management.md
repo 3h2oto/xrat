@@ -394,6 +394,12 @@ and [DNS policies](dns-policies.md) for version limits and verification commands
 
 ### Lifecycle and Interface Safety
 
+macOS managed capture uses sing-box, a root runtime owner and a numbered `utun`
+interface. Xray managed TUN remains Linux-only. The kernel releases `utun` when
+the engine closes its socket; XRAT verifies release and retains ownership on
+failure. Route preflight refuses VPN default routes and capture conflicts.
+See [`tun` on macOS](../02-cli/tun.md#macos) for setup and initial limitations.
+
 Engine capabilities and native preflight syntax validation (`xray run -test` / `sing-box check`)
 are verified before disconnecting or stopping any active session. If preflight or capability
 checks fail, the current healthy session continues running. Preflight runs before the server's
