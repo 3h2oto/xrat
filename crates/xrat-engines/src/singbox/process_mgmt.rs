@@ -90,6 +90,7 @@ pub async fn spawn_detached_with_ports(
         .stdin(Stdio::null())
         .stdout(Stdio::from(stdout))
         .stderr(Stdio::from(stderr))
+        .detached(true)
         .spawn()
         .map_err(|error| SingboxRuntimeError::Spawn(error.to_string()))?;
 
