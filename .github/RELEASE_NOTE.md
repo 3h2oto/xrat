@@ -1,64 +1,55 @@
-## xrat v0.25.0
+## xrat v0.26.0
 
-This release completes managed DNS policies and strengthens TUN capture and
-cleanup for Xray and sing-box.
+This release fixes application split tunneling, hardens managed runtime changes,
+and introduces sing-box managed TUN support on macOS.
 
-### Features
+### Split tunneling fixes
 
-- Named DNS resolvers support direct, proxy and explicit bootstrap paths,
-  ordered exact/suffix domain rules, and a final resolver. Endpoint/provider
-  bootstrap runs before replacing an existing connection.
-- Optional loopback DNS listeners accept UDP and TCP. Managed TUN intercepts
-  port-53 DNS traffic through the selected engine's DNS policy.
-- Xray DNS outbound controls support forwarding, destination rewrites, dropped
-  queries and explicit response codes, with preflight validation.
-- Opt-in IPv4/IPv6 FakeIP recovers original domains for direct/proxy routing,
-  honors fixed hosts and exclusions, and supports private persistent mappings on
-  sing-box. Probe and scan flows continue to use real DNS.
-- Runtime settings, validation and documentation define supported TUN/DNS
-  combinations and reject settings the selected engine cannot represent.
+- Sing-box treats process names, executable paths and directory patterns as OR
+  alternatives. A selected application no longer needs to satisfy every matcher.
+- Wrapper resolution uses literal exec targets and never executes scripts or
+  mistakes helper commands such as pidof for the application. Variable-based
+  wrappers report a warning so users can choose a real executable or directory.
+- CLI validation and runtime compilation resolve desktop IDs consistently.
+  Symlink targets retain canonical executable paths, and TUI selections retain
+  desktop identities and application helper coverage, including running apps.
+- Regression fixtures avoid depending on locally installed browsers or PATH.
 
-### Fixes
+### Runtime hardening
 
-- Xray capture uses split default routes so a physical route's lower metric
-  cannot bypass TUN capture.
-- Linux interface identity is verified in the active network namespace. Sing-box
-  policy rules are recorded with exact selectors and removed safely after a core
-  failure, without overwriting foreign interfaces or rules.
-- Disconnect, live TUN changes, daemon shutdown, crash recovery and daemon
-  SIGINT/SIGTERM cleanup restore owned network state. Failed bootstrap,
-  unsupported Xray versions and resource collisions preserve the prior runtime.
-- Subscription HTTP errors retain useful status/failure categories while
-  removing provider URLs, credentials and response bodies from diagnostics.
+- Linux process-inspection capabilities are granted only to engine executables.
+  XRAT receives network capabilities for interface cleanup.
+- Failed live changes report configuration rollback failures. Rollback refuses
+  to overwrite newer TUN settings while preserving unrelated configuration.
+- Ownership records remain available until verified cleanup succeeds.
 
-### Development and verification
+### macOS
 
-Python helpers are replaced with ordinary Rust integration tests and Justfile
-recipes. CI uses checksum-pinned native engines and disposable Linux namespaces
-for DNS traffic and TUN lifecycle checks. Local acceptance covered 19 DNS
-scenarios and 10 TUN scenarios on Xray 26.7.11/26.9.30 and sing-box 1.13.21;
-packet evidence is Linux amd64, with other architectures requiring on-host
-verification.
+- Managed TUN supports sing-box with a root runtime owner and numbered utun
+  interface, defaulting to utun99. Xray managed TUN remains Linux-only.
+- Application discovery includes installed .app bundles and running executables;
+  bundle directory rules include nested helper processes.
+- Kernel interface indices are verified. Cleanup waits for the engine to release
+  its utun socket instead of deleting arbitrary interfaces. Route preflight
+  rejects conflicting capture routes and VPN default routes.
+- strict_route and route_exclude_address are rejected on macOS in this initial
+  implementation. Use explicit configuration and database paths with sudo;
+  tun setup prints instructions and does not install a root launchd service.
 
-### Upgrade notes
+macOS support is initial: native CI covers compilation, resolver/validation
+guards and a privileged utun lifecycle contract. Full managed application traffic
+and DNS interception acceptance on macOS remains pending; Linux traffic tests do
+not establish macOS runtime proof.
 
-No database migration. New DNS policies and FakeIP are opt-in; existing legacy
-DNS server settings remain supported. Restart the daemon after upgrading and
-reapply TUN privileges as needed. Xray managed TUN, DNS outbound controls and
-FakeIP require a known core version of at least 26.7.11. Sing-box requires at
-least 1.13.0 and validates generated configuration with the installed binary.
-System DNS settings are not changed by XRAT.
+### Validation and upgrade
 
-Rust SDK consumers constructing public structs directly must update their
-initializers for new generation/DNS fields. Xray DNS server entries now support
-structured JSON values. Prefer defaults for unused generation options; see the
-DNS policy and managed-capture documentation for supported combinations.
+Workspace formatting, clippy and tests passed locally. Checksum-pinned Xray
+26.7.11 and sing-box 1.13.21 passed five isolated Linux capture scenarios with
+40 whitelist/blacklist application routing checks, protected DNS and exact
+network baseline restoration. CI repeats platform and native acceptance checks.
 
-### Thanks
+No database migration. Restart the daemon after upgrading and rerun xrat tun
+setup on Linux to apply the updated per-file capabilities. Recheck resolved split
+rules with xrat tun split status, especially for variable-based wrapper scripts.
 
-Thank you to [@f02xygen](https://github.com/f02xygen) for the Xray TUN
-DNS/bootstrap foundation in [#202](https://github.com/mhyrzt/xrat/pull/202) and
-compatibility/diagnostic improvements in
-[#206](https://github.com/mhyrzt/xrat/pull/206), which this release builds on.
-
-**Full Changelog**: https://github.com/mhyrzt/xrat/compare/v0.24.0...v0.25.0
+**Full Changelog**: https://github.com/mhyrzt/xrat/compare/v0.25.0...v0.26.0
