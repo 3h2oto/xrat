@@ -476,13 +476,34 @@ fn build_singbox_split_rule(
     }
     let mut object = serde_json::Map::new();
     object.insert("inbound".to_string(), serde_json::json!(["tun-in"]));
-    insert_non_empty(&mut object, "process_name", split.process_name.clone());
-    insert_non_empty(&mut object, "process_path", split.process_path.clone());
-    insert_non_empty(
-        &mut object,
-        "process_path_regex",
-        split.process_path_regex.clone(),
-    );
+    let alternatives: Vec<_> = [
+        ("process_name", &split.process_name),
+        ("process_path", &split.process_path),
+        ("process_path_regex", &split.process_path_regex),
+    ]
+    .into_iter()
+    .filter(|(_, values)| !values.is_empty())
+    .map(|(field, values)| serde_json::json!({field: values}))
+    .collect();
+    if alternatives.len() == 1 {
+        object.extend(alternatives[0].as_object().unwrap().clone());
+    } else {
+        object.insert("type".to_string(), serde_json::json!("logical"));
+        object.insert("mode".to_string(), serde_json::json!("or"));
+        object.insert(
+            "rules".to_string(),
+            serde_json::json!(
+                alternatives
+                    .into_iter()
+                    .map(|mut rule| {
+                        rule["inbound"] = serde_json::json!(["tun-in"]);
+                        rule
+                    })
+                    .collect::<Vec<_>>()
+            ),
+        );
+        object.remove("inbound");
+    }
     object.insert("action".to_string(), serde_json::json!("route"));
     object.insert("outbound".to_string(), serde_json::json!(outbound));
     Some(serde_json::Value::Object(object))

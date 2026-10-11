@@ -816,10 +816,13 @@ fn tun_split_routing_blacklist_and_whitelist_emit_expected_singbox_rules() {
     assert_eq!(
         bl_rules.last().unwrap(),
         &serde_json::json!({
-            "inbound": ["tun-in"],
-            "process_name": ["steam"],
-            "process_path": ["/usr/bin/curl"],
-            "process_path_regex": ["^/opt/discord/.*"],
+            "type": "logical",
+            "mode": "or",
+            "rules": [
+                {"inbound": ["tun-in"], "process_name": ["steam"]},
+                {"inbound": ["tun-in"], "process_path": ["/usr/bin/curl"]},
+                {"inbound": ["tun-in"], "process_path_regex": ["^/opt/discord/.*"]}
+            ],
             "action": "route",
             "outbound": "direct"
         })

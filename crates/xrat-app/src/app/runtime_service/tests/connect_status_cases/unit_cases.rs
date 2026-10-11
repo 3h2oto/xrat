@@ -1184,13 +1184,16 @@ async fn managed_xray_launch_skips_resolution_for_dns_ip_literals_and_special_se
 }
 
 #[tokio::test]
+#[cfg(target_os = "linux")]
 async fn managed_xray_tun_launch_applies_split_blacklist_and_whitelist() {
     let mut context = test_context().await;
     context.app_config.runtime.engine = "xray".to_string();
     context.app_config.runtime.tun.enabled = true;
     context.app_config.runtime.tun.split_mode = crate::app::config::TunSplitMode::Blacklist;
-    context.app_config.runtime.tun.blacklist =
-        vec!["firefox".to_string(), "/usr/bin/curl".to_string()];
+    context.app_config.runtime.tun.blacklist = vec![
+        "xrat-fixture-browser-213".to_string(),
+        "/xrat-fixtures/curl".to_string(),
+    ];
     context.runtime_paths.xray_path =
         write_fake_xray_version(&context, "Xray 26.7.28 (Xray, Penetrates Everything.)");
     let config = imported_config(&context, test_node()).await;
@@ -1217,12 +1220,12 @@ async fn managed_xray_tun_launch_applies_split_blacklist_and_whitelist() {
     assert_eq!(rules[5]["inboundTag"], serde_json::json!(["tun-in"]));
     assert_eq!(
         rules[5]["process"],
-        serde_json::json!(["firefox", "/usr/bin/curl"])
+        serde_json::json!(["xrat-fixture-browser-213", "/xrat-fixtures/curl"])
     );
     assert_eq!(rules[5]["outboundTag"], "direct");
 
     context.app_config.runtime.tun.split_mode = crate::app::config::TunSplitMode::Whitelist;
-    context.app_config.runtime.tun.whitelist = vec!["telegram-desktop".to_string()];
+    context.app_config.runtime.tun.whitelist = vec!["xrat-fixture-chat-213".to_string()];
     let launch = RuntimeService::new(&context)
         .resolve_launch(&config)
         .expect("xray TUN whitelist launch should resolve");
@@ -1243,7 +1246,10 @@ async fn managed_xray_tun_launch_applies_split_blacklist_and_whitelist() {
     assert_eq!(rules[4]["process"], serde_json::json!(["self/"]));
     assert_eq!(rules[4]["outboundTag"], "direct");
     assert_eq!(rules[5]["inboundTag"], serde_json::json!(["tun-in"]));
-    assert_eq!(rules[5]["process"], serde_json::json!(["telegram-desktop"]));
+    assert_eq!(
+        rules[5]["process"],
+        serde_json::json!(["xrat-fixture-chat-213"])
+    );
     assert_eq!(rules[5]["outboundTag"], "proxy");
     assert_eq!(rules[6]["inboundTag"], serde_json::json!(["tun-in"]));
     assert_eq!(rules[6]["outboundTag"], "direct");
@@ -1256,8 +1262,8 @@ async fn managed_singbox_tun_launch_applies_split_blacklist_and_whitelist() {
     context.app_config.runtime.tun.enabled = true;
     context.app_config.runtime.tun.split_mode = crate::app::config::TunSplitMode::Blacklist;
     context.app_config.runtime.tun.blacklist = vec![
-        "firefox".to_string(),
-        "/usr/bin/curl".to_string(),
+        "xrat-fixture-browser-213".to_string(),
+        "/xrat-fixtures/curl".to_string(),
         "/opt/discord/".to_string(),
     ];
     let config = imported_config(&context, test_node()).await;
@@ -1272,20 +1278,26 @@ async fn managed_singbox_tun_launch_applies_split_blacklist_and_whitelist() {
     let rules = value["route"]["rules"].as_array().unwrap();
     assert_eq!(rules[0]["action"], "sniff");
     assert_eq!(rules[1]["ip_is_private"], true);
-    assert_eq!(rules[2]["inbound"], serde_json::json!(["tun-in"]));
-    assert_eq!(rules[2]["process_name"], serde_json::json!(["firefox"]));
     assert_eq!(
-        rules[2]["process_path"],
-        serde_json::json!(["/usr/bin/curl"])
+        rules[2]["rules"][0]["inbound"],
+        serde_json::json!(["tun-in"])
     );
     assert_eq!(
-        rules[2]["process_path_regex"],
+        rules[2]["rules"][0]["process_name"],
+        serde_json::json!(["xrat-fixture-browser-213"])
+    );
+    assert_eq!(
+        rules[2]["rules"][1]["process_path"],
+        serde_json::json!(["/xrat-fixtures/curl"])
+    );
+    assert_eq!(
+        rules[2]["rules"][2]["process_path_regex"],
         serde_json::json!(["^/opt/discord/.*"])
     );
     assert_eq!(rules[2]["outbound"], "direct");
 
     context.app_config.runtime.tun.split_mode = crate::app::config::TunSplitMode::Whitelist;
-    context.app_config.runtime.tun.whitelist = vec!["telegram-desktop".to_string()];
+    context.app_config.runtime.tun.whitelist = vec!["xrat-fixture-chat-213".to_string()];
     let launch = RuntimeService::new(&context)
         .resolve_launch(&config)
         .expect("sing-box TUN whitelist launch should resolve");
@@ -1299,7 +1311,7 @@ async fn managed_singbox_tun_launch_applies_split_blacklist_and_whitelist() {
     assert_eq!(rules[2]["inbound"], serde_json::json!(["tun-in"]));
     assert_eq!(
         rules[2]["process_name"],
-        serde_json::json!(["telegram-desktop"])
+        serde_json::json!(["xrat-fixture-chat-213"])
     );
     assert_eq!(rules[2]["outbound"], "proxy");
     assert_eq!(rules[3]["inbound"], serde_json::json!(["tun-in"]));
