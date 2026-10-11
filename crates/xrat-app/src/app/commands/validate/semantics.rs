@@ -332,6 +332,16 @@ pub(crate) fn validate_tun(
     if !tun.enabled {
         return;
     }
+    #[cfg(target_os = "macos")]
+    if let Err(error) = crate::app::services::runtime_tuning::tun_validation::validate(tun, engine)
+    {
+        errors.push(Diagnostic::new(
+            "[runtime.tun]",
+            error,
+            "macOS managed capture uses sing-box and a utun interface.",
+            "select sing-box, use an interface such as utun99, and disable strict_route.",
+        ));
+    }
     if !matches!(engine, "xray" | "sing-box") {
         errors.push(Diagnostic::new(
             "[runtime.tun].enabled",

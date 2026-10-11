@@ -4,6 +4,10 @@ use crate::app::daemon::ipc::{self, TunStatePayload};
 use crate::app::runtime_service::RuntimeService;
 use crate::app::{AppError, Result};
 
+#[cfg(test)]
+#[path = "tun_control_tests.rs"]
+mod tests;
+
 pub(crate) async fn apply(
     context: &mut AppContext,
     enabled: Option<bool>,
@@ -70,8 +74,12 @@ where
     match apply(context, Some(target_enabled), standalone_owner).await {
         Ok(payload) => Ok(payload),
         Err(error) => {
-            let _ = restore_tun_settings_on_disk(&config_path, &previous_tun);
-            Err(error)
+            match restore_tun_settings_on_disk(&config_path, &previous_tun, &config.runtime.tun) {
+                Ok(()) => Err(error),
+                Err(rollback) => Err(AppError::InvalidArgument(format!(
+                    "{error}; configuration rollback failed: {rollback}"
+                ))),
+            }
         }
     }
 }
@@ -107,8 +115,15 @@ fn apply_tun_settings_to_session(session: &mut ConfigEditSession, tun: &TunSetti
 fn restore_tun_settings_on_disk(
     config_path: &std::path::Path,
     previous_tun: &TunSettings,
+    expected_tun: &TunSettings,
 ) -> Result<()> {
     let mut session = ConfigEditSession::open(config_path).map_err(AppError::InvalidArgument)?;
+    let current: crate::app::config::AppConfig = toml::from_str(&session.original_contents)?;
+    if current.runtime.tun != *expected_tun {
+        return Err(AppError::InvalidArgument(
+            "TUN settings changed concurrently; refusing to overwrite the newer settings".into(),
+        ));
+    }
     apply_tun_settings_to_session(&mut session, previous_tun)?;
     session.save().map(|_| ()).map_err(|error| {
         AppError::InvalidArgument(format!("Could not restore TUN settings: {error}"))

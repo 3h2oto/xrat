@@ -50,9 +50,14 @@ pub(crate) fn capture_state(
 }
 
 pub(crate) fn check_engine(context: &AppContext, ports: &RuntimeProcessPorts) -> Result<()> {
-    if !cfg!(target_os = "linux") {
+    if !cfg!(any(target_os = "linux", target_os = "macos")) {
         return Err(AppError::InvalidArgument(
-            "Managed TUN is supported on Linux only.".into(),
+            "Managed TUN requires Linux or macOS (sing-box).".into(),
+        ));
+    }
+    if cfg!(target_os = "macos") && context.app_config.runtime.engine != "sing-box" {
+        return Err(AppError::InvalidArgument(
+            "macOS managed TUN requires sing-box.".into(),
         ));
     }
     let binary = match context.app_config.runtime.engine.as_str() {

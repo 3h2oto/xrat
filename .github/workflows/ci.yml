@@ -55,6 +55,22 @@ jobs:
         with:
           key: macos-check-${{ matrix.target }}
       - run: cargo check --locked --workspace --target ${{ matrix.target }}
+      - name: Native macOS split resolution and lifecycle guards
+        if: matrix.target == 'aarch64-apple-darwin'
+        run: |
+          cargo test --locked -p xrat-app split_tunnel
+          cargo test --locked -p xrat-app tun_validation
+          cargo test --locked -p xrat-app tun_control::tests
+          cargo test --locked -p xrat-support net::
+      - name: Native privileged utun release contract
+        if: matrix.target == 'aarch64-apple-darwin'
+        run: |
+          set -euo pipefail
+          curl -fL --retry 3 https://github.com/SagerNet/sing-box/releases/download/v1.13.21/sing-box-1.13.21-darwin-arm64.tar.gz -o "$RUNNER_TEMP/sing-box-macos.tar.gz"
+          echo "62bca85bf08b9145288729cf010c98ea9877b8086f7369cde9e127012d509424  $RUNNER_TEMP/sing-box-macos.tar.gz" | shasum -a 256 -c -
+          tar -xzf "$RUNNER_TEMP/sing-box-macos.tar.gz" -C "$RUNNER_TEMP"
+          cargo test --locked -p xrat-support --lib --no-run --message-format=json | jq -r 'select(.reason == "compiler-artifact" and .target.name == "xrat_support" and .executable != null) | .executable' > "$RUNNER_TEMP/macos-support-test"
+          sudo env XRAT_MACOS_SINGBOX="$RUNNER_TEMP/sing-box-1.13.21-darwin-arm64/sing-box" "$(cat "$RUNNER_TEMP/macos-support-test")" --ignored --exact net::macos_links::tests::native_utun_release_preserves_dns_after_graceful_and_forced_exit --nocapture
 
   sdk-native:
     name: SDK native engines

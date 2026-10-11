@@ -75,8 +75,10 @@ Grant `CAP_NET_ADMIN` and `CAP_NET_RAW` to the files TUN needs and configure sys
 xrat tun setup
 ```
 
-This runs `sudo setcap cap_net_admin,cap_net_raw+ep <file>` for the selected
-engine binary and for the xrat binary. On Linux systems with an installed systemd
+On Linux the selected engine receives
+`cap_net_admin,cap_net_raw,cap_dac_read_search,cap_sys_ptrace+ep` for capture and
+process matching. XRAT receives only `cap_net_admin,cap_net_raw+ep` for cleanup.
+On Linux systems with an installed systemd
 user service, it also automatically installs a drop-in override
 `~/.config/systemd/user/xrat-daemon.service.d/10-tun.conf` (`NoNewPrivileges=false`)
 and reloads the user daemon (`systemctl --user daemon-reload`). Use `--dry-run` to print
@@ -90,10 +92,51 @@ is reinstalled or upgraded, so re-run `xrat tun setup` after `xrat install` or
 
 ## Requirements
 
-- Linux and either Xray >= 26.7.11 or sing-box. V2Ray TUN is unsupported.
-- `libcap` tools (`setcap`/`getcap`) available on `PATH`.
+- Linux: Xray >= 26.7.11 or sing-box, with `libcap` tools (`setcap`/`getcap`).
+- macOS: sing-box, a root runtime owner and a numbered `utun` interface.
+- V2Ray TUN is unsupported; Xray managed TUN is Linux-only.
 
 When a daemon is running, `tun status` also inspects its effective `CAP_NET_ADMIN`
 and `NoNewPrivs` through the daemon socket peer PID. The JSON `daemon` object
 contains its PID, readiness and status; it is `null` when no daemon is reachable.
 A drop-in on disk alone does not make an already-running daemon ready.
+
+## Split tunneling
+
+`whitelist` sends selected applications through the proxy and others direct.
+`blacklist` sends selected applications direct and others through the proxy.
+`all` captures all applications. DNS interception and private/LAN routing retain
+their precedence. Names, executable paths and application directories match as
+alternatives.
+
+Desktop selections preserve their desktop ID, real executable and companion
+workers. Executable symlinks include their canonical targets. Shell wrappers are
+inspected for literal `exec /path/to/app` statements and are never executed.
+Variable-based wrappers require an explicit executable or application directory.
+Inspect resolved rules and warnings with `xrat tun split list` before relying on
+application matching. `xrat tun split status` also shows wrapper warnings and the
+compiled engine matchers.
+
+## macOS
+
+Set `runtime.engine = "sing-box"`. Managed capture defaults to `utun99` and
+requires a root runtime owner with explicit config and database paths:
+
+```bash
+sudo xrat --config /absolute/config.toml --database /absolute/db.sqlite daemon start
+```
+
+`xrat tun setup` prints instructions; it does not install a root launchd service.
+The installed user launchd service cannot acquire root privileges. Explicit paths
+ensure the privileged process uses your configuration.
+
+Application discovery searches `/Applications`, `/System/Applications` and
+`~/Applications`. A bundle directory such as `/Applications/Firefox.app/` includes
+nested helper processes. Running apps use executable paths or their enclosing
+bundle directories.
+
+`strict_route` and `route_exclude_address` are rejected on macOS. Startup refuses
+VPN default routes or conflicting capture routes. Cleanup waits for the
+engine to release its `utun` socket, retaining ownership if release fails.
+macOS traffic, DNS and restoration acceptance requires a native privileged run;
+Linux checks do not establish that runtime proof.

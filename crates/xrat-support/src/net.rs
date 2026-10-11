@@ -179,7 +179,11 @@ impl TunInterfaceOps for SystemTunInterfaceOps {
         {
             kernel_links::inspect(name)
         }
-        #[cfg(not(target_os = "linux"))]
+        #[cfg(target_os = "macos")]
+        {
+            macos_links::inspect(name)
+        }
+        #[cfg(not(any(target_os = "linux", target_os = "macos")))]
         {
             if interface_exists(name) {
                 Ok(Some(KernelInterfaceInfo {
@@ -193,14 +197,19 @@ impl TunInterfaceOps for SystemTunInterfaceOps {
         }
     }
 
-    fn delete_interface(&self, _name: &str, expected_ifindex: u32) -> std::io::Result<()> {
+    fn delete_interface(&self, name: &str, expected_ifindex: u32) -> std::io::Result<()> {
         #[cfg(target_os = "linux")]
         {
+            let _ = name;
             linux_netlink::delete_link_by_index(expected_ifindex)
         }
-        #[cfg(not(target_os = "linux"))]
+        #[cfg(target_os = "macos")]
         {
-            let _ = expected_ifindex;
+            macos_links::wait_for_release(name, expected_ifindex)
+        }
+        #[cfg(not(any(target_os = "linux", target_os = "macos")))]
+        {
+            let _ = (name, expected_ifindex);
             Err(std::io::Error::new(
                 std::io::ErrorKind::Unsupported,
                 "in-process TUN interface deletion is only supported on Linux",
@@ -212,6 +221,27 @@ impl TunInterfaceOps for SystemTunInterfaceOps {
 #[cfg(target_os = "linux")]
 #[path = "net/link.rs"]
 mod kernel_links;
+
+#[cfg(target_os = "macos")]
+#[path = "net/macos.rs"]
+mod macos_links;
+
+#[cfg(any(target_os = "macos", test))]
+#[path = "net/macos_routes.rs"]
+mod macos_routes;
+
+#[cfg(target_os = "macos")]
+pub fn preflight_macos_capture(
+    addresses: &[String],
+    owned: Option<(&str, u32)>,
+) -> std::io::Result<()> {
+    macos_routes::preflight(addresses, owned)
+}
+
+#[cfg(target_os = "macos")]
+pub fn macos_capture_ready(addresses: &[String], interface: &str) -> std::io::Result<bool> {
+    macos_routes::ready(addresses, interface)
+}
 
 #[cfg(target_os = "linux")]
 #[path = "net/rules.rs"]
@@ -345,7 +375,11 @@ mod tests {
 
     #[test]
     fn detects_loopback_and_missing_interfaces() {
-        assert!(interface_exists("lo"));
+        assert!(interface_exists(if cfg!(target_os = "macos") {
+            "lo0"
+        } else {
+            "lo"
+        }));
         assert!(!interface_exists("xrat-missing-interface"));
         assert!(!interface_exists("  "));
     }

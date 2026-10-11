@@ -1,11 +1,43 @@
 use crate::app::config::TunSettings;
 
 pub(crate) fn validate(tun: &TunSettings, engine: &str) -> Result<(), String> {
+    validate_for_platform(tun, engine, std::env::consts::OS)
+}
+
+fn validate_for_platform(tun: &TunSettings, engine: &str, platform: &str) -> Result<(), String> {
     if !tun.enabled {
         return Ok(());
     }
-    if !cfg!(target_os = "linux") {
-        return Err("[runtime.tun] managed capture is Linux-only".into());
+    if !matches!(platform, "linux" | "macos") {
+        return Err("[runtime.tun] managed capture requires Linux or macOS".into());
+    }
+    if platform == "macos" {
+        if engine != "sing-box" {
+            return Err(
+                "[runtime.tun] macOS managed capture requires sing-box; Xray TUN is Linux-only"
+                    .into(),
+            );
+        }
+        if !tun
+            .interface_name
+            .strip_prefix("utun")
+            .is_some_and(|suffix| {
+                !suffix.is_empty()
+                    && suffix.bytes().all(|byte| byte.is_ascii_digit())
+                    && suffix.parse::<u32>().is_ok_and(|unit| unit < u32::MAX)
+            })
+        {
+            return Err("[runtime.tun].interface_name on macOS must be utun followed by a number, for example utun99".into());
+        }
+        if tun.strict_route {
+            return Err("[runtime.tun].strict_route is unsupported on macOS".into());
+        }
+        if !tun.route_exclude_address.is_empty() {
+            return Err(
+                "[runtime.tun].route_exclude_address is not yet supported by managed macOS capture"
+                    .into(),
+            );
+        }
     }
     if !matches!(engine, "xray" | "sing-box") {
         return Err("[runtime.tun] requires Xray or sing-box; V2Ray TUN is unsupported".into());
@@ -56,6 +88,26 @@ pub(crate) fn validate(tun: &TunSettings, engine: &str) -> Result<(), String> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn macos_requires_singbox_and_an_explicit_utun_without_linux_options() {
+        let mut tun = TunSettings {
+            enabled: true,
+            interface_name: "utun99".into(),
+            ..Default::default()
+        };
+        assert!(validate_for_platform(&tun, "sing-box", "macos").is_ok());
+        assert!(validate_for_platform(&tun, "xray", "macos").is_err());
+        assert!(validate_for_platform(&tun, "sing-box", "windows").is_err());
+        tun.interface_name = "xrat0".into();
+        assert!(validate_for_platform(&tun, "sing-box", "macos").is_err());
+        tun.interface_name = "utun99".into();
+        tun.route_exclude_address = vec!["192.168.0.0/16".into()];
+        assert!(validate_for_platform(&tun, "sing-box", "macos").is_err());
+        tun.route_exclude_address.clear();
+        tun.strict_route = true;
+        assert!(validate_for_platform(&tun, "sing-box", "macos").is_err());
+    }
 
     #[test]
     #[cfg(target_os = "linux")]
