@@ -28,3 +28,12 @@ fn fixture_worker() {
     process::assert_isolated();
     tun::serve();
 }
+
+#[test]
+#[ignore = "private application worker launched by tun_network"]
+fn split_traffic_worker() {
+    process::assert_isolated();
+    // Separate short-lived clients beyond sing-box's one-second process cache.
+    std::thread::sleep(std::time::Duration::from_millis(1200));
+    fixtures::send("203.0.113.2", false);
+}

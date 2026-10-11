@@ -229,6 +229,56 @@ fn core_pid(root: &Path) -> i64 {
             .unwrap()
     })
 }
+
+fn split_traffic(cli: &Cli, events: &Events) -> Value {
+    let mut receipt = Vec::new();
+    let application_dir = cli.root.join("split/helper-app");
+    fs::create_dir_all(&application_dir).unwrap();
+    let applications = [
+        cli.root.join("split/name-client"),
+        cli.root.join("split/path-client"),
+        application_dir.join("worker"),
+        cli.root.join("split/other-client"),
+    ];
+    for executable in &applications {
+        fs::copy(std::env::current_exe().unwrap(), executable).unwrap();
+    }
+    for list in ["blacklist", "whitelist"] {
+        cli.run(&[
+            "tun",
+            "split",
+            "add",
+            list,
+            "name-client",
+            applications[1].to_str().unwrap(),
+            &format!("{}/", application_dir.display()),
+        ]);
+    }
+    for mode in ["whitelist", "blacklist"] {
+        cli.run(&["tun", "split", "mode", mode]);
+        for (index, executable) in applications.iter().enumerate() {
+            let start = events.all().len();
+            process::checked(Command::new(executable).args([
+                "--ignored",
+                "--exact",
+                "split_traffic_worker",
+                "--nocapture",
+            ]));
+            let proxied = events.all()[start..].contains(&json!(["proxy", "203.0.113.2", 8080]));
+            assert_eq!(
+                proxied,
+                (index < 3) == (mode == "whitelist"),
+                "{mode}: wrong route for {}",
+                executable.display()
+            );
+            receipt.push(json!({"mode": mode, "executable": executable, "proxied": proxied}));
+        }
+        dns("split-protected-dns.test", false, "203.0.113.53", 53);
+    }
+    cli.run(&["tun", "split", "mode", "all"]);
+    cli.run(&["tun", "split", "clear", "both"]);
+    json!(receipt)
+}
 pub fn exercise() {
     let directory = process::directory("XRAT_RUNTIME_OUTPUT");
     let xray = process::path("XRAT_RUNTIME_XRAY");
@@ -366,6 +416,7 @@ pub fn exercise() {
                 "excluded LAN UDP was captured"
             );
         }
+        let split_receipt = split_traffic(&cli, &events);
         cli.run(&["tun", "disable", "--json"]);
         restored(&baseline, 10, "live disable did not restore proxy mode");
         proxy();
@@ -475,7 +526,7 @@ pub fn exercise() {
         owner.signal("-TERM");
         owner.wait(30);
         restored(&baseline, 30, "SIGTERM left network state");
-        receipts.push(json!({"engine": engine, "stack": stack, "ipv6": ipv6, "events": traffic, "before": baseline, "active": active, "after": snapshot()}));
+        receipts.push(json!({"engine": engine, "stack": stack, "ipv6": ipv6, "events": traffic, "split": split_receipt, "before": baseline, "active": active, "after": snapshot()}));
         println!("PASS {engine}/{stack}/ipv6={ipv6}");
     }
     assert_eq!(receipts.len(), 5);
