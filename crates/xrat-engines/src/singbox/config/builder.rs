@@ -453,12 +453,6 @@ impl SingboxConfig {
                 }),
             );
         }
-        let split_insert_idx = route
-            .rules
-            .iter()
-            .position(|rule| rule["ip_is_private"] == true)
-            .map_or(sniff_after, |idx| idx + 1);
-
         let mut split_rules = Vec::new();
         match split.mode {
             SingboxTunSplitMode::All => {}
@@ -478,11 +472,7 @@ impl SingboxConfig {
                 }));
             }
         }
-        if !split_rules.is_empty() {
-            route
-                .rules
-                .splice(split_insert_idx..split_insert_idx, split_rules);
-        }
+        route.rules.extend(split_rules);
     }
 }
 

@@ -241,9 +241,6 @@ impl<'a> RuntimeService<'a> {
                 resolved_hosts: &resolved_hosts,
             };
             enable_tun_capture(&mut xray_config, &tun_options);
-            let compiled_split =
-                crate::app::services::split_tunnel::compile_split_rules(&runtime.tun);
-            enable_tun_split_routing(&mut xray_config, &compiled_split.to_xray_options());
         }
 
         crate::app::services::runtime_tuning::apply_xray_dns_runtime(
@@ -254,6 +251,12 @@ impl<'a> RuntimeService<'a> {
 
         if runtime.stats.enabled {
             enable_stats_api(&mut xray_config, &runtime.stats.host, runtime.stats.port);
+        }
+
+        if runtime.tun.enabled {
+            let compiled_split =
+                crate::app::services::split_tunnel::compile_split_rules(&runtime.tun);
+            enable_tun_split_routing(&mut xray_config, &compiled_split.to_xray_options());
         }
 
         let (ready_host, ready_port) = if let Some((host, port, _)) = socks {

@@ -126,19 +126,65 @@ pub fn enable_tun_split_routing(config: &mut XrayConfig, split: &XrayTunSplitOpt
             mux: None,
         });
     }
+    if !config
+        .outbounds
+        .iter()
+        .any(|outbound| outbound.tag == "block")
+    {
+        config.outbounds.push(Outbound {
+            tag: "block".to_string(),
+            protocol: "blackhole".to_string(),
+            settings: json!({}),
+            stream_settings: None,
+            mux: None,
+        });
+    }
 
     let routing = config.routing.get_or_insert_with(|| RoutingConfig {
         domain_strategy: None,
         rules: Vec::new(),
     });
 
-    let insert_idx = routing
-        .rules
-        .iter()
-        .position(|rule| rule.outbound_tag == "api")
-        .map_or(0, |idx| idx + 1);
-
     let mut split_rules = Vec::new();
+    if !routing.rules.iter().any(|rule| {
+        rule.outbound_tag == "block"
+            && rule.port.as_deref() == Some("443")
+            && rule.network.as_deref() == Some("udp")
+            && rule
+                .inbound_tag
+                .as_ref()
+                .is_some_and(|tags| tags.iter().any(|tag| tag == "tun-in"))
+    }) {
+        split_rules.push(RoutingRule {
+            kind: "field".to_string(),
+            domain: None,
+            ip: None,
+            port: Some("443".to_string()),
+            network: Some("udp".to_string()),
+            inbound_tag: Some(vec!["tun-in".to_string()]),
+            process: None,
+            outbound_tag: "block".to_string(),
+        });
+    }
+    if !routing.rules.iter().any(|rule| {
+        rule.outbound_tag == "direct"
+            && rule
+                .process
+                .as_ref()
+                .is_some_and(|procs| procs.iter().any(|proc| proc == "self/"))
+    }) {
+        split_rules.push(RoutingRule {
+            kind: "field".to_string(),
+            domain: None,
+            ip: None,
+            port: None,
+            network: None,
+            inbound_tag: Some(vec!["tun-in".to_string()]),
+            process: Some(vec!["self/".to_string()]),
+            outbound_tag: "direct".to_string(),
+        });
+    }
+
     match split.mode {
         XrayTunSplitMode::All => {}
         XrayTunSplitMode::Blacklist => {
@@ -154,24 +200,6 @@ pub fn enable_tun_split_routing(config: &mut XrayConfig, split: &XrayTunSplitOpt
             });
         }
         XrayTunSplitMode::Whitelist => {
-            if !routing.rules.iter().any(|rule| {
-                rule.outbound_tag == "direct"
-                    && rule
-                        .process
-                        .as_ref()
-                        .is_some_and(|procs| procs.iter().any(|proc| proc == "self/"))
-            }) {
-                split_rules.push(RoutingRule {
-                    kind: "field".to_string(),
-                    domain: None,
-                    ip: None,
-                    port: None,
-                    network: None,
-                    inbound_tag: Some(vec!["tun-in".to_string()]),
-                    process: Some(vec!["self/".to_string()]),
-                    outbound_tag: "direct".to_string(),
-                });
-            }
             if !split.processes.is_empty() {
                 split_rules.push(RoutingRule {
                     kind: "field".to_string(),
@@ -196,9 +224,7 @@ pub fn enable_tun_split_routing(config: &mut XrayConfig, split: &XrayTunSplitOpt
             });
         }
     }
-    if !split_rules.is_empty() {
-        routing.rules.splice(insert_idx..insert_idx, split_rules);
-    }
+    routing.rules.extend(split_rules);
 }
 
 pub(super) fn field_rule(
