@@ -18,6 +18,7 @@ fn canonical_executable_paths_are_kept_for_symlink_rules() {
     let dir = tempfile::tempdir().unwrap();
     let binary = dir.path().join("actual-binary");
     std::fs::write(&binary, "binary fixture").unwrap();
+    let canonical_binary = std::fs::canonicalize(&binary).unwrap();
     let alias = dir.path().join("alias");
     std::os::unix::fs::symlink(&binary, &alias).unwrap();
     let tun = TunSettings {
@@ -29,12 +30,12 @@ fn canonical_executable_paths_are_kept_for_symlink_rules() {
     assert!(
         compiled
             .singbox_process_paths
-            .contains(&binary.display().to_string())
+            .contains(&canonical_binary.display().to_string())
     );
     assert!(
         compiled
             .xray_processes
-            .contains(&binary.display().to_string())
+            .contains(&canonical_binary.display().to_string())
     );
 }
 
@@ -210,7 +211,9 @@ fn compiles_split_rules_for_xray_and_singbox() {
 #[test]
 fn resolves_shebang_wrapper_script_to_real_binary() {
     let dir = tempfile::tempdir().unwrap();
-    let wrapper = dir.path().join("zen-browser");
+    let wrapper = std::fs::canonicalize(dir.path())
+        .unwrap()
+        .join("zen-browser");
     std::fs::write(
         &wrapper,
         "#!/bin/bash\n\nexec /opt/zen-browser-bin/zen-bin \"$@\"\n",
