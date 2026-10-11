@@ -7,6 +7,10 @@ use xrat_engines::xray::{XrayTunSplitMode, XrayTunSplitOptions};
 
 use crate::app::config::{TunSettings, TunSplitMode};
 
+#[cfg(any(target_os = "macos", test))]
+#[path = "split_tunnel/macos.rs"]
+mod macos;
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case")]
 pub enum AppSource {
@@ -99,33 +103,35 @@ pub fn compile_split_rules_with_dirs(
         if trimmed.is_empty() {
             continue;
         }
-        let resolved_items = if trimmed.starts_with("desktop:") || trimmed.ends_with(".desktop") {
-            match resolve_desktop_specifier_in_dirs(trimmed, desktop_dirs) {
-                Some(items) => items,
-                None => {
-                    let fallback = trimmed
-                        .strip_prefix("desktop:")
-                        .unwrap_or(trimmed)
-                        .strip_suffix(".desktop")
-                        .unwrap_or(trimmed)
-                        .trim();
-                    warnings.push(format!(
-                        "desktop application `{trimmed}` was not found in XDG desktop directories; falling back to `{fallback}`"
-                    ));
-                    if fallback.is_empty() {
-                        Vec::new()
-                    } else {
-                        vec![fallback.to_string()]
-                    }
+        let resolved_items =
+            if let Some(items) = resolve_desktop_specifier_in_dirs(trimmed, desktop_dirs) {
+                items
+            } else if trimmed.starts_with("desktop:") || trimmed.ends_with(".desktop") {
+                let fallback = trimmed.strip_prefix("desktop:").unwrap_or(trimmed);
+                let fallback = fallback.strip_suffix(".desktop").unwrap_or(fallback).trim();
+                warnings.push(format!(
+                    "desktop application `{trimmed}` was not found; falling back to `{fallback}`"
+                ));
+                if fallback.is_empty() {
+                    Vec::new()
+                } else {
+                    vec![fallback.to_string()]
                 }
-            }
-        } else if !trimmed.ends_with('/') {
-            expand_wrapper_and_bin_companions(trimmed)
-        } else {
-            vec![trimmed.to_string()]
-        };
+            } else if !trimmed.ends_with('/') {
+                expand_wrapper_and_bin_companions(trimmed)
+            } else {
+                expand_directory_rules(trimmed)
+            };
 
         for item in resolved_items {
+            if let Some(path) = crate::app::tun_privileges::resolve_executable(Path::new(&item))
+                && std::fs::metadata(&path).is_ok_and(|metadata| metadata.len() <= 16 * 1024)
+                && std::fs::read(&path).is_ok_and(|bytes| bytes.starts_with(b"#!"))
+                && extract_target_from_wrapper_script(&path).is_none()
+            {
+                warnings.push(format!("wrapper `{item}` has no literal exec target; specify its real executable path or application directory"));
+            }
+
             if !seen.insert(item.clone()) {
                 continue;
             }
@@ -182,6 +188,12 @@ pub fn normalize_app_entry_with_dirs(
     if trimmed.contains('\0') || trimmed.contains('\n') || trimmed.contains('\r') {
         return Err("application entry cannot contain newline or NUL characters".to_string());
     }
+    if trimmed.starts_with('/') && trimmed.ends_with(".app") {
+        if !Path::new(trimmed).is_dir() {
+            return Err(format!("application bundle {trimmed:?} was not found"));
+        }
+        return Ok(vec![format!("{trimmed}/")]);
+    }
 
     if resolve_desktop {
         if let Some(resolved) = resolve_desktop_specifier_in_dirs(trimmed, desktop_dirs)
@@ -202,42 +214,65 @@ pub fn normalize_app_entry_with_dirs(
         ));
     }
 
-    Ok(vec![trimmed.to_string()])
+    Ok(if trimmed.ends_with('/') {
+        expand_directory_rules(trimmed)
+    } else {
+        expand_wrapper_and_bin_companions(trimmed)
+    })
+}
+
+fn expand_directory_rules(directory: &str) -> Vec<String> {
+    let mut directories = vec![directory.to_string()];
+    if let Ok(canonical) = std::fs::canonicalize(directory) {
+        let canonical = format!("{}/", canonical.display());
+        if canonical != directory {
+            directories.push(canonical);
+        }
+    }
+    directories
 }
 
 pub fn desktop_search_dirs() -> Vec<PathBuf> {
-    let mut dirs = Vec::new();
-    if let Some(data_home) = std::env::var_os("XDG_DATA_HOME") {
-        dirs.push(PathBuf::from(data_home).join("applications"));
-    } else if let Some(home) = std::env::var_os("HOME") {
-        dirs.push(PathBuf::from(home).join(".local/share/applications"));
-    }
-
-    if let Some(data_dirs) = std::env::var_os("XDG_DATA_DIRS") {
-        for dir in std::env::split_paths(&data_dirs) {
-            dirs.push(dir.join("applications"));
+    #[cfg(target_os = "macos")]
+    return macos::application_dirs();
+    #[cfg(not(target_os = "macos"))]
+    {
+        let mut dirs = Vec::new();
+        if let Some(data_home) = std::env::var_os("XDG_DATA_HOME") {
+            dirs.push(PathBuf::from(data_home).join("applications"));
+        } else if let Some(home) = std::env::var_os("HOME") {
+            dirs.push(PathBuf::from(home).join(".local/share/applications"));
         }
-    } else {
-        dirs.push(PathBuf::from("/usr/local/share/applications"));
-        dirs.push(PathBuf::from("/usr/share/applications"));
-    }
 
-    for extra in [
-        "/var/lib/flatpak/exports/share/applications",
-        "/var/lib/snapd/desktop/applications",
-    ] {
-        let path = PathBuf::from(extra);
-        if !dirs.contains(&path) {
-            dirs.push(path);
+        if let Some(data_dirs) = std::env::var_os("XDG_DATA_DIRS") {
+            for dir in std::env::split_paths(&data_dirs) {
+                dirs.push(dir.join("applications"));
+            }
+        } else {
+            dirs.push(PathBuf::from("/usr/local/share/applications"));
+            dirs.push(PathBuf::from("/usr/share/applications"));
         }
+
+        for extra in [
+            "/var/lib/flatpak/exports/share/applications",
+            "/var/lib/snapd/desktop/applications",
+        ] {
+            let path = PathBuf::from(extra);
+            if !dirs.contains(&path) {
+                dirs.push(path);
+            }
+        }
+        dirs
     }
-    dirs
 }
 
 pub fn resolve_desktop_specifier_in_dirs(
     specifier: &str,
     desktop_dirs: &[PathBuf],
 ) -> Option<Vec<String>> {
+    if specifier.starts_with('/') && specifier.ends_with(".app") && Path::new(specifier).is_dir() {
+        return Some(vec![format!("{specifier}/")]);
+    }
     let query = specifier
         .strip_prefix("desktop:")
         .unwrap_or(specifier)
@@ -292,7 +327,11 @@ pub fn resolve_desktop_specifier_in_dirs(
         });
         let name_matches = app.name.to_ascii_lowercase() == query_lower;
         if id_matches || name_matches {
-            return Some(vec![app.process_name]);
+            return app
+                .exec_path
+                .as_deref()
+                .map(resolve_exec_target_rules)
+                .or_else(|| Some(vec![app.process_name]));
         }
     }
 
@@ -344,6 +383,11 @@ fn resolve_exec_target_rules(exec_target: &str) -> Vec<String> {
     if results.is_empty() {
         results.push(exec_target.to_string());
     }
+    for item in expand_wrapper_and_bin_companions(exec_target) {
+        if !results.contains(&item) {
+            results.push(item);
+        }
+    }
     results
 }
 
@@ -373,6 +417,12 @@ fn expand_wrapper_and_bin_companions(entry: &str) -> Vec<String> {
         }
     }
     if let Ok(canonical) = std::fs::canonicalize(&full_path) {
+        let canonical_path = canonical.display().to_string();
+        if (path.is_absolute() || canonical.file_name().is_some_and(|name| name != entry))
+            && !results.contains(&canonical_path)
+        {
+            results.push(canonical_path);
+        }
         if let Some(canon_name) = canonical.file_name().and_then(|n| n.to_str())
             && !canon_name.is_empty()
             && let Some(parent) = canonical.parent()
@@ -388,6 +438,13 @@ fn expand_wrapper_and_bin_companions(entry: &str) -> Vec<String> {
             && !results.iter().any(|existing| existing == &opt_dir)
         {
             results.push(opt_dir);
+        }
+        #[cfg(target_os = "macos")]
+        if let Some(bundle) = macos::bundle_directory(&canonical) {
+            let directory = format!("{}/", bundle.display());
+            if !results.contains(&directory) {
+                results.push(directory);
+            }
         }
     }
     results
@@ -418,10 +475,16 @@ fn extract_target_from_wrapper_script(path: &Path) -> Option<String> {
         if line.is_empty() || line.starts_with('#') {
             continue;
         }
-        let candidate_line = line.strip_prefix("exec ").map(str::trim).unwrap_or(line);
+        let Some(candidate_line) = line.strip_prefix("exec ").map(str::trim) else {
+            continue;
+        };
+        if candidate_line.contains(['`', ';', '|', '&']) {
+            continue;
+        }
         if let Some(target) = extract_executable_from_exec_line(candidate_line) {
             let target_path = Path::new(&target);
-            if target_path.is_absolute()
+            if !target.contains('$')
+                && target_path.is_absolute()
                 && let Some(name) = target_path.file_name().and_then(|n| n.to_str())
                 && !matches!(
                     name,
@@ -475,20 +538,14 @@ pub fn parse_desktop_entry_content(desktop_id: &str, content: &str) -> Option<(S
         let key = key.trim();
         let value = value.trim();
         match key {
-            "Name" if name.is_none() => {
-                if !value.is_empty() {
-                    name = Some(value.to_string());
-                }
+            "Name" if name.is_none() && !value.is_empty() => {
+                name = Some(value.to_string());
             }
-            "TryExec" if try_exec.is_none() => {
-                if !value.is_empty() {
-                    try_exec = Some(value.to_string());
-                }
+            "TryExec" if try_exec.is_none() && !value.is_empty() => {
+                try_exec = Some(value.to_string());
             }
-            "Exec" if exec.is_none() => {
-                if !value.is_empty() {
-                    exec = Some(value.to_string());
-                }
+            "Exec" if exec.is_none() && !value.is_empty() => {
+                exec = Some(value.to_string());
             }
             "Type" => {
                 entry_type = Some(value.to_string());
@@ -631,6 +688,14 @@ fn tokenize_desktop_exec(exec: &str) -> Vec<String> {
     tokens
 }
 
+fn discovery_key(app: &DiscoveredApp) -> String {
+    if cfg!(target_os = "macos") {
+        app.rule_entry.clone()
+    } else {
+        app.process_name.clone()
+    }
+}
+
 pub fn discover_apps(
     include_running: bool,
     include_desktop: bool,
@@ -654,23 +719,24 @@ pub fn discover_apps_with_dirs(
 
     if include_running {
         for app in discover_running_apps() {
-            by_process.insert(app.process_name.clone(), app);
+            by_process.insert(discovery_key(&app), app);
         }
     }
 
     if include_desktop {
         for app in discover_desktop_apps_in_dirs(desktop_dirs) {
-            match by_process.get_mut(&app.process_name) {
+            match by_process.get_mut(&discovery_key(&app)) {
                 Some(existing) => {
                     existing.name = app.name;
                     existing.desktop_id = app.desktop_id;
+                    existing.rule_entry = app.rule_entry;
                     if existing.exec_path.is_none() {
                         existing.exec_path = app.exec_path;
                     }
                     existing.source = AppSource::RunningAndDesktop;
                 }
                 None => {
-                    by_process.insert(app.process_name.clone(), app);
+                    by_process.insert(discovery_key(&app), app);
                 }
             }
         }
@@ -711,61 +777,67 @@ pub fn discover_apps_with_dirs(
 }
 
 pub fn discover_desktop_apps_in_dirs(desktop_dirs: &[PathBuf]) -> Vec<DiscoveredApp> {
-    let mut seen_ids = BTreeSet::new();
-    let mut apps = Vec::new();
+    #[cfg(target_os = "macos")]
+    return macos::discover_bundles(desktop_dirs);
+    #[cfg(not(target_os = "macos"))]
+    {
+        let mut seen_ids = BTreeSet::new();
+        let mut apps = Vec::new();
 
-    for dir in desktop_dirs {
-        let Ok(entries) = std::fs::read_dir(dir) else {
-            continue;
-        };
-        for entry in entries.flatten() {
-            let path = entry.path();
-            if !path.is_file() || path.extension().is_none_or(|ext| ext != "desktop") {
-                continue;
-            }
-            let Some(file_name) = path.file_name().and_then(|n| n.to_str()) else {
+        for dir in desktop_dirs {
+            let Ok(entries) = std::fs::read_dir(dir) else {
                 continue;
             };
-            if !seen_ids.insert(file_name.to_string()) {
-                continue;
-            }
-            let Ok(content) = std::fs::read_to_string(&path) else {
-                continue;
-            };
-            let Some((name, exec_target)) = parse_desktop_entry_content(file_name, &content) else {
-                continue;
-            };
-            let exec_path_obj = Path::new(&exec_target);
-            let process_name = resolve_exec_target_rules(&exec_target)
-                .into_iter()
-                .next()
-                .unwrap_or_else(|| {
-                    exec_path_obj
-                        .file_name()
-                        .and_then(|n| n.to_str())
-                        .unwrap_or(&exec_target)
-                        .to_string()
+            for entry in entries.flatten() {
+                let path = entry.path();
+                if !path.is_file() || path.extension().is_none_or(|ext| ext != "desktop") {
+                    continue;
+                }
+                let Some(file_name) = path.file_name().and_then(|n| n.to_str()) else {
+                    continue;
+                };
+                if !seen_ids.insert(file_name.to_string()) {
+                    continue;
+                }
+                let Ok(content) = std::fs::read_to_string(&path) else {
+                    continue;
+                };
+                let Some((name, exec_target)) = parse_desktop_entry_content(file_name, &content)
+                else {
+                    continue;
+                };
+                let exec_path_obj = Path::new(&exec_target);
+                let process_name = resolve_exec_target_rules(&exec_target)
+                    .into_iter()
+                    .next()
+                    .unwrap_or_else(|| {
+                        exec_path_obj
+                            .file_name()
+                            .and_then(|n| n.to_str())
+                            .unwrap_or(&exec_target)
+                            .to_string()
+                    });
+                if process_name.is_empty() {
+                    continue;
+                }
+                let exec_path = if exec_path_obj.is_absolute() {
+                    Some(exec_target)
+                } else {
+                    crate::app::tun_privileges::resolve_executable(exec_path_obj)
+                        .map(|p| p.display().to_string())
+                };
+                apps.push(DiscoveredApp {
+                    name,
+                    desktop_id: Some(file_name.to_string()),
+                    rule_entry: file_name.to_string(),
+                    process_name,
+                    exec_path,
+                    source: AppSource::Desktop,
                 });
-            if process_name.is_empty() {
-                continue;
             }
-            let exec_path = if exec_path_obj.is_absolute() {
-                Some(exec_target)
-            } else {
-                crate::app::tun_privileges::resolve_executable(exec_path_obj)
-                    .map(|p| p.display().to_string())
-            };
-            apps.push(DiscoveredApp {
-                name,
-                desktop_id: Some(file_name.to_string()),
-                rule_entry: process_name.clone(),
-                process_name,
-                exec_path,
-                source: AppSource::Desktop,
-            });
         }
+        apps
     }
-    apps
 }
 
 pub fn discover_running_apps() -> Vec<DiscoveredApp> {
@@ -824,7 +896,11 @@ pub fn discover_running_apps() -> Vec<DiscoveredApp> {
         }
         by_name.into_values().collect()
     }
-    #[cfg(not(target_os = "linux"))]
+    #[cfg(target_os = "macos")]
+    {
+        macos::running_apps()
+    }
+    #[cfg(not(any(target_os = "linux", target_os = "macos")))]
     {
         Vec::new()
     }
@@ -845,135 +921,5 @@ fn escape_regex(literal: &str) -> String {
 }
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn extracts_executable_from_complex_desktop_exec_lines() {
-        assert_eq!(
-            extract_executable_from_exec_line("/usr/lib/firefox/firefox %u"),
-            Some("/usr/lib/firefox/firefox".to_string())
-        );
-        assert_eq!(
-            extract_executable_from_exec_line(
-                "env BAMF_DESKTOP_FILE_HINT=/var/lib/snapd/desktop/applications/telegram.desktop /opt/telegram/Telegram -- %u"
-            ),
-            Some("/opt/telegram/Telegram".to_string())
-        );
-        assert_eq!(
-            extract_executable_from_exec_line(
-                "/usr/bin/flatpak run --branch=stable --arch=x86_64 --command=telegram-desktop org.telegram.desktop -- %u"
-            ),
-            Some("telegram-desktop".to_string())
-        );
-        assert_eq!(
-            extract_executable_from_exec_line("\"/opt/Google Chrome/chrome\" --new-window %U"),
-            Some("/opt/Google Chrome/chrome".to_string())
-        );
-    }
-
-    #[test]
-    fn parses_desktop_files_and_skips_hidden_or_non_app_entries() {
-        let valid = r#"
-[Desktop Entry]
-Type=Application
-Name=Firefox Web Browser
-Exec=/usr/lib/firefox/firefox %u
-"#;
-        assert_eq!(
-            parse_desktop_entry_content("firefox.desktop", valid),
-            Some((
-                "Firefox Web Browser".to_string(),
-                "/usr/lib/firefox/firefox".to_string()
-            ))
-        );
-
-        let hidden = r#"
-[Desktop Entry]
-Type=Application
-Name=Hidden Helper
-NoDisplay=true
-Exec=/usr/bin/helper
-"#;
-        assert_eq!(parse_desktop_entry_content("helper.desktop", hidden), None);
-    }
-
-    #[test]
-    fn resolves_desktop_specifiers_from_custom_directory() {
-        let dir = tempfile::tempdir().unwrap();
-        std::fs::write(
-            dir.path().join("org.telegram.desktop"),
-            "[Desktop Entry]\nType=Application\nName=Telegram Desktop\nExec=/usr/bin/telegram-desktop -- %u\n",
-        )
-        .unwrap();
-        let dirs = vec![dir.path().to_path_buf()];
-
-        let resolved = normalize_app_entry_with_dirs("org.telegram.desktop", true, &dirs).unwrap();
-        assert_eq!(resolved, vec!["telegram-desktop".to_string()]);
-
-        let by_name =
-            normalize_app_entry_with_dirs("desktop:Telegram Desktop", true, &dirs).unwrap();
-        assert_eq!(by_name, vec!["telegram-desktop".to_string()]);
-    }
-
-    #[test]
-    fn compiles_split_rules_for_xray_and_singbox() {
-        let tun = TunSettings {
-            split_mode: TunSplitMode::Blacklist,
-            blacklist: vec![
-                "firefox".to_string(),
-                "/usr/bin/curl".to_string(),
-                "/opt/discord/".to_string(),
-            ],
-            ..Default::default()
-        };
-
-        let compiled = compile_split_rules_with_dirs(&tun, &[]);
-        assert_eq!(compiled.mode, TunSplitMode::Blacklist);
-        assert_eq!(
-            compiled.xray_processes,
-            vec!["firefox", "/usr/bin/curl", "/opt/discord/"]
-        );
-        assert_eq!(compiled.singbox_process_names, vec!["firefox"]);
-        assert_eq!(compiled.singbox_process_paths, vec!["/usr/bin/curl"]);
-        assert_eq!(
-            compiled.singbox_process_path_regexes,
-            vec!["^/opt/discord/.*"]
-        );
-    }
-
-    #[test]
-    fn resolves_shebang_wrapper_script_to_real_binary() {
-        let dir = tempfile::tempdir().unwrap();
-        let wrapper = dir.path().join("zen-browser");
-        std::fs::write(
-            &wrapper,
-            "#!/bin/bash\n\nexec /opt/zen-browser-bin/zen-bin \"$@\"\n",
-        )
-        .unwrap();
-        assert_eq!(
-            extract_target_from_wrapper_script(&wrapper),
-            Some("/opt/zen-browser-bin/zen-bin".to_string())
-        );
-
-        let tun = TunSettings {
-            split_mode: TunSplitMode::Whitelist,
-            whitelist: vec![wrapper.display().to_string()],
-            ..Default::default()
-        };
-        let compiled = compile_split_rules_with_dirs(&tun, &[]);
-        assert_eq!(
-            compiled.xray_processes,
-            vec![
-                wrapper.display().to_string(),
-                "zen-bin".to_string(),
-                "/opt/zen-browser-bin/".to_string()
-            ]
-        );
-        assert_eq!(compiled.singbox_process_names, vec!["zen-bin".to_string()]);
-        assert_eq!(
-            compiled.singbox_process_path_regexes,
-            vec!["^/opt/zen-browser-bin/.*".to_string()]
-        );
-    }
-}
+#[path = "split_tunnel/tests.rs"]
+mod tests;
