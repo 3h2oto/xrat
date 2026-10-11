@@ -119,6 +119,8 @@ pub fn compile_split_rules_with_dirs(
                     }
                 }
             }
+        } else if !trimmed.ends_with('/') {
+            expand_wrapper_and_bin_companions(trimmed)
         } else {
             vec![trimmed.to_string()]
         };
@@ -300,16 +302,24 @@ pub fn resolve_desktop_specifier_in_dirs(
 fn resolve_exec_target_rules(exec_target: &str) -> Vec<String> {
     let mut results = Vec::new();
     let path = Path::new(exec_target);
-    if let Some(name) = path.file_name().and_then(|n| n.to_str())
-        && !name.is_empty()
-    {
-        results.push(name.to_string());
-    }
     let resolved_path = if path.is_absolute() {
-        Some(path.to_path_buf())
+        path.is_file().then(|| path.to_path_buf())
     } else {
         crate::app::tun_privileges::resolve_executable(path)
     };
+    if let Some(full_path) = &resolved_path
+        && let Some(wrapped) = extract_target_from_wrapper_script(full_path)
+        && let Some(wrapped_name) = Path::new(&wrapped).file_name().and_then(|n| n.to_str())
+        && !wrapped_name.is_empty()
+    {
+        results.push(wrapped_name.to_string());
+    }
+    if let Some(name) = path.file_name().and_then(|n| n.to_str())
+        && !name.is_empty()
+        && !results.iter().any(|existing| existing == name)
+    {
+        results.push(name.to_string());
+    }
     if let Some(full_path) = resolved_path
         && let Ok(canonical) = std::fs::canonicalize(&full_path)
         && let Some(canon_name) = canonical.file_name().and_then(|n| n.to_str())
@@ -318,14 +328,118 @@ fn resolve_exec_target_rules(exec_target: &str) -> Vec<String> {
             canon_name,
             "sh" | "bash" | "dash" | "zsh" | "python" | "python3" | "env" | "flatpak" | "snap"
         )
-        && !results.iter().any(|existing| existing == canon_name)
     {
-        results.push(canon_name.to_string());
+        if !results.iter().any(|existing| existing == canon_name) {
+            results.push(canon_name.to_string());
+        }
+        if let Some(parent) = canonical.parent() {
+            let bin_companion = format!("{canon_name}-bin");
+            if parent.join(&bin_companion).is_file()
+                && !results.iter().any(|existing| existing == &bin_companion)
+            {
+                results.push(bin_companion);
+            }
+        }
     }
     if results.is_empty() {
         results.push(exec_target.to_string());
     }
     results
+}
+
+fn expand_wrapper_and_bin_companions(entry: &str) -> Vec<String> {
+    let mut results = vec![entry.to_string()];
+    let path = Path::new(entry);
+    let resolved = if path.is_absolute() {
+        path.is_file().then(|| path.to_path_buf())
+    } else {
+        crate::app::tun_privileges::resolve_executable(path)
+    };
+    let Some(full_path) = resolved else {
+        return results;
+    };
+    if let Some(wrapped) = extract_target_from_wrapper_script(&full_path) {
+        let wrapped_path = Path::new(&wrapped);
+        if let Some(wrapped_name) = wrapped_path.file_name().and_then(|n| n.to_str())
+            && !wrapped_name.is_empty()
+            && !results.iter().any(|existing| existing == wrapped_name)
+        {
+            results.push(wrapped_name.to_string());
+        }
+        if let Some(opt_dir) = extract_opt_app_dir(wrapped_path)
+            && !results.iter().any(|existing| existing == &opt_dir)
+        {
+            results.push(opt_dir);
+        }
+    }
+    if let Ok(canonical) = std::fs::canonicalize(&full_path) {
+        if let Some(canon_name) = canonical.file_name().and_then(|n| n.to_str())
+            && !canon_name.is_empty()
+            && let Some(parent) = canonical.parent()
+        {
+            let bin_companion = format!("{canon_name}-bin");
+            if parent.join(&bin_companion).is_file()
+                && !results.iter().any(|existing| existing == &bin_companion)
+            {
+                results.push(bin_companion);
+            }
+        }
+        if let Some(opt_dir) = extract_opt_app_dir(&canonical)
+            && !results.iter().any(|existing| existing == &opt_dir)
+        {
+            results.push(opt_dir);
+        }
+    }
+    results
+}
+
+fn extract_opt_app_dir(path: &Path) -> Option<String> {
+    let rel = path.strip_prefix("/opt").ok()?;
+    let mut components = rel.components();
+    let app_dir = components.next()?.as_os_str().to_str()?;
+    if app_dir.is_empty() || components.next().is_none() {
+        return None;
+    }
+    Some(format!("/opt/{app_dir}/"))
+}
+
+fn extract_target_from_wrapper_script(path: &Path) -> Option<String> {
+    let metadata = std::fs::metadata(path).ok()?;
+    if !metadata.is_file() || metadata.len() > 16 * 1024 {
+        return None;
+    }
+    let bytes = std::fs::read(path).ok()?;
+    if !bytes.starts_with(b"#!") {
+        return None;
+    }
+    let content = std::str::from_utf8(&bytes).ok()?;
+    for raw_line in content.lines().rev() {
+        let line = raw_line.trim();
+        if line.is_empty() || line.starts_with('#') {
+            continue;
+        }
+        let candidate_line = line.strip_prefix("exec ").map(str::trim).unwrap_or(line);
+        if let Some(target) = extract_executable_from_exec_line(candidate_line) {
+            let target_path = Path::new(&target);
+            if target_path.is_absolute()
+                && let Some(name) = target_path.file_name().and_then(|n| n.to_str())
+                && !matches!(
+                    name,
+                    "sh" | "bash"
+                        | "dash"
+                        | "zsh"
+                        | "python"
+                        | "python3"
+                        | "env"
+                        | "flatpak"
+                        | "snap"
+                )
+            {
+                return Some(target);
+            }
+        }
+    }
+    None
 }
 
 pub fn parse_desktop_entry_content(desktop_id: &str, content: &str) -> Option<(String, String)> {
@@ -622,11 +736,16 @@ pub fn discover_desktop_apps_in_dirs(desktop_dirs: &[PathBuf]) -> Vec<Discovered
                 continue;
             };
             let exec_path_obj = Path::new(&exec_target);
-            let process_name = exec_path_obj
-                .file_name()
-                .and_then(|n| n.to_str())
-                .unwrap_or(&exec_target)
-                .to_string();
+            let process_name = resolve_exec_target_rules(&exec_target)
+                .into_iter()
+                .next()
+                .unwrap_or_else(|| {
+                    exec_path_obj
+                        .file_name()
+                        .and_then(|n| n.to_str())
+                        .unwrap_or(&exec_target)
+                        .to_string()
+                });
             if process_name.is_empty() {
                 continue;
             }
@@ -820,6 +939,41 @@ Exec=/usr/bin/helper
         assert_eq!(
             compiled.singbox_process_path_regexes,
             vec!["^/opt/discord/.*"]
+        );
+    }
+
+    #[test]
+    fn resolves_shebang_wrapper_script_to_real_binary() {
+        let dir = tempfile::tempdir().unwrap();
+        let wrapper = dir.path().join("zen-browser");
+        std::fs::write(
+            &wrapper,
+            "#!/bin/bash\n\nexec /opt/zen-browser-bin/zen-bin \"$@\"\n",
+        )
+        .unwrap();
+        assert_eq!(
+            extract_target_from_wrapper_script(&wrapper),
+            Some("/opt/zen-browser-bin/zen-bin".to_string())
+        );
+
+        let tun = TunSettings {
+            split_mode: TunSplitMode::Whitelist,
+            whitelist: vec![wrapper.display().to_string()],
+            ..Default::default()
+        };
+        let compiled = compile_split_rules_with_dirs(&tun, &[]);
+        assert_eq!(
+            compiled.xray_processes,
+            vec![
+                wrapper.display().to_string(),
+                "zen-bin".to_string(),
+                "/opt/zen-browser-bin/".to_string()
+            ]
+        );
+        assert_eq!(compiled.singbox_process_names, vec!["zen-bin".to_string()]);
+        assert_eq!(
+            compiled.singbox_process_path_regexes,
+            vec!["^/opt/zen-browser-bin/.*".to_string()]
         );
     }
 }
