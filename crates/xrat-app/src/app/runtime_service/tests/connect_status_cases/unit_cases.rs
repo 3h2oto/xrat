@@ -1205,11 +1205,21 @@ async fn managed_xray_tun_launch_applies_split_blacklist_and_whitelist() {
     let rules = value["routing"]["rules"].as_array().unwrap();
     assert_eq!(rules[0]["outboundTag"], "api");
     assert_eq!(rules[1]["inboundTag"], serde_json::json!(["tun-in"]));
+    assert_eq!(rules[1]["port"], "53");
+    assert_eq!(rules[1]["outboundTag"], "dns-out");
+    assert_eq!(rules[3]["inboundTag"], serde_json::json!(["tun-in"]));
+    assert_eq!(rules[3]["port"], "443");
+    assert_eq!(rules[3]["network"], "udp");
+    assert_eq!(rules[3]["outboundTag"], "block");
+    assert_eq!(rules[4]["inboundTag"], serde_json::json!(["tun-in"]));
+    assert_eq!(rules[4]["process"], serde_json::json!(["self/"]));
+    assert_eq!(rules[4]["outboundTag"], "direct");
+    assert_eq!(rules[5]["inboundTag"], serde_json::json!(["tun-in"]));
     assert_eq!(
-        rules[1]["process"],
+        rules[5]["process"],
         serde_json::json!(["firefox", "/usr/bin/curl"])
     );
-    assert_eq!(rules[1]["outboundTag"], "direct");
+    assert_eq!(rules[5]["outboundTag"], "direct");
 
     context.app_config.runtime.tun.split_mode = crate::app::config::TunSplitMode::Whitelist;
     context.app_config.runtime.tun.whitelist = vec!["telegram-desktop".to_string()];
@@ -1223,13 +1233,20 @@ async fn managed_xray_tun_launch_applies_split_blacklist_and_whitelist() {
     let rules = value["routing"]["rules"].as_array().unwrap();
     assert_eq!(rules[0]["outboundTag"], "api");
     assert_eq!(rules[1]["inboundTag"], serde_json::json!(["tun-in"]));
-    assert_eq!(rules[1]["process"], serde_json::json!(["self/"]));
-    assert_eq!(rules[1]["outboundTag"], "direct");
-    assert_eq!(rules[2]["inboundTag"], serde_json::json!(["tun-in"]));
-    assert_eq!(rules[2]["process"], serde_json::json!(["telegram-desktop"]));
-    assert_eq!(rules[2]["outboundTag"], "proxy");
+    assert_eq!(rules[1]["port"], "53");
+    assert_eq!(rules[1]["outboundTag"], "dns-out");
     assert_eq!(rules[3]["inboundTag"], serde_json::json!(["tun-in"]));
-    assert_eq!(rules[3]["outboundTag"], "direct");
+    assert_eq!(rules[3]["port"], "443");
+    assert_eq!(rules[3]["network"], "udp");
+    assert_eq!(rules[3]["outboundTag"], "block");
+    assert_eq!(rules[4]["inboundTag"], serde_json::json!(["tun-in"]));
+    assert_eq!(rules[4]["process"], serde_json::json!(["self/"]));
+    assert_eq!(rules[4]["outboundTag"], "direct");
+    assert_eq!(rules[5]["inboundTag"], serde_json::json!(["tun-in"]));
+    assert_eq!(rules[5]["process"], serde_json::json!(["telegram-desktop"]));
+    assert_eq!(rules[5]["outboundTag"], "proxy");
+    assert_eq!(rules[6]["inboundTag"], serde_json::json!(["tun-in"]));
+    assert_eq!(rules[6]["outboundTag"], "direct");
 }
 
 #[tokio::test]
