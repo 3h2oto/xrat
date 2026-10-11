@@ -80,7 +80,14 @@ pub(crate) fn check_engine(context: &AppContext, ports: &RuntimeProcessPorts) ->
     crate::app::tun_privileges::ensure_engine_capability_with_spawner(
         &resolved,
         ports.spawner.clone(),
-    )
+    )?;
+    if context.app_config.runtime.tun.split_mode != crate::app::config::TunSplitMode::All {
+        crate::app::tun_privileges::ensure_engine_process_routing_capability_with_spawner(
+            &resolved,
+            ports.spawner.clone(),
+        )?;
+    }
+    Ok(())
 }
 
 pub(crate) async fn apply(
