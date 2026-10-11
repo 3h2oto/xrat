@@ -4,7 +4,10 @@ use super::{
     generate_singbox_runtime_config_with_dns,
 };
 use std::collections::BTreeMap;
+use std::io::Write;
+use tempfile::NamedTempFile;
 use xrat_model::{Node, Protocol};
+use xrat_support::process::Command;
 
 #[test]
 fn generates_hy2_singbox_config_with_optional_fields() {
@@ -785,6 +788,101 @@ fn parses_socks_and_http_tls_requirements() {
     assert_eq!(
         config.outbounds[0]["tls"]["server_name"],
         "proxy.example.com"
+    );
+}
+
+#[test]
+fn tun_split_routing_blacklist_and_whitelist_emit_expected_singbox_rules() {
+    use super::{SingboxTunSplitMode, SingboxTunSplitOptions};
+
+    let mut bl_config = generate_singbox_runtime_config(
+        &hy2_node(None),
+        vec![
+            SingboxInbound::socks("socks-in", "127.0.0.1", 1080, None),
+            SingboxInbound::tun(tun_options()).expect("tun inbound"),
+        ],
+        None,
+        None,
+    )
+    .unwrap();
+    bl_config.enable_tun_route_with_split(&SingboxTunSplitOptions {
+        mode: SingboxTunSplitMode::Blacklist,
+        process_name: vec!["steam".to_string()],
+        process_path: vec!["/usr/bin/curl".to_string()],
+        process_path_regex: vec!["^/opt/discord/.*".to_string()],
+    });
+    let bl_value = serde_json::to_value(&bl_config).unwrap();
+    let bl_rules = bl_value["route"]["rules"].as_array().unwrap();
+    assert_eq!(
+        bl_rules.last().unwrap(),
+        &serde_json::json!({
+            "inbound": ["tun-in"],
+            "process_name": ["steam"],
+            "process_path": ["/usr/bin/curl"],
+            "process_path_regex": ["^/opt/discord/.*"],
+            "action": "route",
+            "outbound": "direct"
+        })
+    );
+    if Command::new("sing-box").arg("version").output().is_ok() {
+        assert_valid_singbox(&bl_config);
+    }
+
+    let mut wl_config = generate_singbox_runtime_config(
+        &hy2_node(None),
+        vec![
+            SingboxInbound::socks("socks-in", "127.0.0.1", 1080, None),
+            SingboxInbound::tun(tun_options()).expect("tun inbound"),
+        ],
+        None,
+        None,
+    )
+    .unwrap();
+    wl_config.enable_tun_route_with_split(&SingboxTunSplitOptions {
+        mode: SingboxTunSplitMode::Whitelist,
+        process_name: vec!["firefox".to_string()],
+        process_path: Vec::new(),
+        process_path_regex: Vec::new(),
+    });
+    let wl_value = serde_json::to_value(&wl_config).unwrap();
+    let wl_rules = wl_value["route"]["rules"].as_array().unwrap();
+    assert_eq!(
+        wl_rules[wl_rules.len() - 2],
+        serde_json::json!({
+            "inbound": ["tun-in"],
+            "process_name": ["firefox"],
+            "action": "route",
+            "outbound": "proxy"
+        })
+    );
+    assert_eq!(
+        wl_rules[wl_rules.len() - 1],
+        serde_json::json!({
+            "inbound": ["tun-in"],
+            "action": "route",
+            "outbound": "direct"
+        })
+    );
+    assert_eq!(wl_value["route"]["final"], "proxy");
+    if Command::new("sing-box").arg("version").output().is_ok() {
+        assert_valid_singbox(&wl_config);
+    }
+}
+
+fn assert_valid_singbox(config: &super::SingboxConfig) {
+    let mut file = NamedTempFile::with_suffix(".json").unwrap();
+    file.write_all(serde_json::to_string_pretty(config).unwrap().as_bytes())
+        .unwrap();
+    file.flush().unwrap();
+    let output = Command::new("sing-box")
+        .args(["check", "-c"])
+        .arg(file.path())
+        .output()
+        .unwrap();
+    assert!(
+        output.status.success(),
+        "sing-box rejected config: {}",
+        String::from_utf8_lossy(&output.stderr)
     );
 }
 

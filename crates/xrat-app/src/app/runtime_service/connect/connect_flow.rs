@@ -63,6 +63,14 @@ impl<'a> RuntimeService<'a> {
                 &launch.binary_path,
                 self.process_ports.spawner.clone(),
             )?;
+            if self.context.app_config.runtime.tun.split_mode
+                != crate::app::config::TunSplitMode::All
+            {
+                crate::app::tun_privileges::ensure_engine_process_routing_capability_with_spawner(
+                    &launch.binary_path,
+                    self.process_ports.spawner.clone(),
+                )?;
+            }
             self.verify_tun_interface()?;
         }
 

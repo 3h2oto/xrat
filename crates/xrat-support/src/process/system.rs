@@ -2,19 +2,38 @@ use super::*;
 use tokio::io::{AsyncRead, AsyncReadExt};
 
 pub struct SystemProcessSpawner;
-struct SystemChild(std::process::Child);
+struct SystemChild {
+    id: u32,
+    child: Option<std::process::Child>,
+}
 impl ChildHandle for SystemChild {
     fn id(&self) -> u32 {
-        self.0.id()
+        self.id
     }
     fn try_wait(&mut self) -> io::Result<Option<ExitStatus>> {
-        self.0.try_wait()
+        match &mut self.child {
+            Some(child) => child.try_wait(),
+            None => Ok(None),
+        }
     }
     fn wait(&mut self) -> io::Result<ExitStatus> {
-        self.0.wait()
+        match &mut self.child {
+            Some(child) => child.wait(),
+            None => Err(io::Error::other("child handle was already detached")),
+        }
     }
     fn kill(&mut self) -> io::Result<()> {
-        self.0.kill()
+        match &mut self.child {
+            Some(child) => child.kill(),
+            None => Ok(()),
+        }
+    }
+    fn detach(&mut self) {
+        if let Some(mut child) = self.child.take() {
+            std::thread::spawn(move || {
+                let _ = child.wait();
+            });
+        }
     }
 }
 fn stdio(value: &Stdio) -> io::Result<std::process::Stdio> {
@@ -39,6 +58,11 @@ fn command(spec: &CommandSpec) -> io::Result<std::process::Command> {
     }
     if let Some(value) = &spec.stderr {
         command.stderr(stdio(value)?);
+    }
+    #[cfg(unix)]
+    if spec.detached {
+        use std::os::unix::process::CommandExt;
+        command.process_group(0);
     }
     Ok(command)
 }
@@ -72,6 +96,7 @@ async fn read_output(reader: Option<impl AsyncRead + Unpin>) -> io::Result<Vec<u
 impl ProcessSpawner for SystemProcessSpawner {
     fn spawn(&self, spec: &CommandSpec) -> io::Result<Child> {
         let mut child = command(spec)?.spawn()?;
+        let id = child.id();
         let stdout = child
             .stdout
             .take()
@@ -81,7 +106,10 @@ impl ProcessSpawner for SystemProcessSpawner {
             .take()
             .map(|pipe| Box::new(pipe) as Box<dyn Read + Send>);
         Ok(Child::from_handle(
-            Box::new(SystemChild(child)),
+            Box::new(SystemChild {
+                id,
+                child: Some(child),
+            }),
             stdout,
             stderr,
         ))

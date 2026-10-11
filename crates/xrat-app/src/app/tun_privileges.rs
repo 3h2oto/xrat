@@ -8,7 +8,8 @@ use crate::app::AppError;
 use crate::app::context::AppContext;
 
 /// Capabilities granted by `xrat tun setup`.
-pub const TUN_CAPABILITIES: &str = "cap_net_admin,cap_net_raw+ep";
+pub const TUN_CAPABILITIES: &str =
+    "cap_net_admin,cap_net_raw,cap_dac_read_search,cap_sys_ptrace+ep";
 
 pub struct TunPrivilegeFile {
     pub label: &'static str,
@@ -86,6 +87,10 @@ pub fn has_net_admin(capabilities: &str) -> bool {
     capabilities.contains("cap_net_admin")
 }
 
+pub fn has_process_routing_caps(capabilities: &str) -> bool {
+    capabilities.contains("cap_dac_read_search") && capabilities.contains("cap_sys_ptrace")
+}
+
 /// Fail before launch when the engine binary is known to lack `CAP_NET_ADMIN`.
 /// An unknown result is allowed; the native validation or spawn reports the real
 /// failure in that case.
@@ -113,8 +118,35 @@ pub fn ensure_engine_capability_with_spawner(
     Ok(())
 }
 
+/// Fail before launch when split tunneling (`blacklist` or `whitelist`) is active
+/// and the engine binary lacks `CAP_DAC_READ_SEARCH` + `CAP_SYS_PTRACE`.
+pub fn ensure_engine_process_routing_capability_with_spawner(
+    binary_path: &Path,
+    spawner: std::sync::Arc<dyn xrat_support::process::ProcessSpawner>,
+) -> crate::app::Result<()> {
+    if !capabilities_supported() {
+        return Ok(());
+    }
+    #[cfg(target_os = "linux")]
+    if std::fs::read_to_string("/proc/self/status")
+        .is_ok_and(|status| inherits_process_routing_caps(&status))
+    {
+        return Ok(());
+    }
+    let Some(capabilities) = file_capabilities_with_spawner(binary_path, spawner) else {
+        return Ok(());
+    };
+    if !has_process_routing_caps(&capabilities) {
+        return Err(AppError::InvalidArgument(format!(
+            "the TUN engine at {} lacks CAP_DAC_READ_SEARCH and CAP_SYS_PTRACE required for split tunneling; run `xrat tun setup` to grant them",
+            binary_path.display()
+        )));
+    }
+    Ok(())
+}
+
 #[cfg(target_os = "linux")]
-fn inherits_net_admin(status: &str) -> bool {
+fn inherits_capability_mask(status: &str, required_mask: u64) -> bool {
     let value = |field: &str| {
         status
             .lines()
@@ -124,11 +156,21 @@ fn inherits_net_admin(status: &str) -> bool {
     let capability = |field: &str| {
         value(field)
             .and_then(|raw| u64::from_str_radix(raw, 16).ok())
-            .is_some_and(|mask| mask & (1 << 12) != 0)
+            .is_some_and(|mask| (mask & required_mask) == required_mask)
     };
     let root = value("Uid:").and_then(|uids| uids.split_whitespace().nth(1)) == Some("0");
     capability("CapBnd:")
         && (capability("CapAmb:") || (root && capability("CapPrm:") && capability("CapEff:")))
+}
+
+#[cfg(target_os = "linux")]
+fn inherits_net_admin(status: &str) -> bool {
+    inherits_capability_mask(status, 1 << 12)
+}
+
+#[cfg(target_os = "linux")]
+fn inherits_process_routing_caps(status: &str) -> bool {
+    inherits_capability_mask(status, (1 << 2) | (1 << 19))
 }
 
 /// Inspect whether systemd user service blocks TUN capabilities via NoNewPrivileges=true.

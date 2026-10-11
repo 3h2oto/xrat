@@ -34,6 +34,7 @@ pub struct CommandSpec {
     pub stdout: Option<Stdio>,
     pub stderr: Option<Stdio>,
     pub kill_on_drop: bool,
+    pub detached: bool,
 }
 
 pub trait ChildHandle: Send {
@@ -41,6 +42,7 @@ pub trait ChildHandle: Send {
     fn try_wait(&mut self) -> io::Result<Option<ExitStatus>>;
     fn wait(&mut self) -> io::Result<ExitStatus>;
     fn kill(&mut self) -> io::Result<()>;
+    fn detach(&mut self) {}
 }
 
 pub struct Child {
@@ -91,6 +93,7 @@ impl StartupChild {
         &mut self.child
     }
     pub fn detach(mut self) {
+        self.child.handle.detach();
         self.detached = true;
     }
 }
@@ -135,6 +138,7 @@ impl Command {
                 stdout: None,
                 stderr: None,
                 kill_on_drop: false,
+                detached: false,
             },
             spawner,
         }
@@ -177,6 +181,10 @@ impl Command {
     }
     pub fn kill_on_drop(&mut self, value: bool) -> &mut Self {
         self.spec.kill_on_drop = value;
+        self
+    }
+    pub fn detached(&mut self, value: bool) -> &mut Self {
+        self.spec.detached = value;
         self
     }
     pub fn spawn(&mut self) -> io::Result<Child> {
