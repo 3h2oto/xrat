@@ -22,7 +22,7 @@ impl Engine {
         std::fs::write(
             &wrapper,
             format!(
-                "#!/bin/sh\nprintf '%s' \"$$\" > {}\nexec {} \"$@\"\n",
+                "#!/bin/sh\nprintf '%s\\n' \"$$\" >> {}\nexec {} \"$@\"\n",
                 quoted(pid_file.to_str().unwrap()),
                 quoted(&binary)
             ),
@@ -41,7 +41,7 @@ impl Engine {
         std::fs::write(
             &self.binary,
             format!(
-                "#!/bin/sh\nprintf '%s' \"$$\" > '{}'\nexec {command}\n",
+                "#!/bin/sh\nprintf '%s\\n' \"$$\" >> '{}'\nexec {command}\n",
                 self.pid_file.display()
             ),
         )
@@ -49,16 +49,20 @@ impl Engine {
     }
 
     pub async fn assert_stopped(&self) {
-        let pid = std::fs::read_to_string(&self.pid_file).unwrap();
-        let path = PathBuf::from(format!("/proc/{pid}"));
+        let recorded = std::fs::read_to_string(&self.pid_file).unwrap();
+        let pids: Vec<u32> = recorded.lines().map(|pid| pid.parse().unwrap()).collect();
+        assert!(!pids.is_empty(), "engine did not record a PID");
         for _ in 0..100 {
-            if !path.exists() {
+            if pids
+                .iter()
+                .all(|pid| !PathBuf::from(format!("/proc/{pid}")).exists())
+            {
                 return;
             }
             tokio::time::sleep(Duration::from_millis(20)).await;
         }
         panic!(
-            "engine {pid} survived probe completion/cancellation in {}",
+            "engine PIDs {pids:?} survived probe completion/cancellation in {}",
             self.directory.path().display()
         );
     }
