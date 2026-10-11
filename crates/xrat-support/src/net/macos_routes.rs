@@ -25,7 +25,7 @@ fn capture_destinations(addresses: &[String]) -> Vec<String> {
     destinations
 }
 
-fn rows(snapshot: &str) -> impl Iterator<Item = (&str, &str)> {
+fn rows(snapshot: &str) -> impl Iterator<Item = (&str, &str, &str)> {
     let interface_column = snapshot
         .lines()
         .find_map(|line| line.split_whitespace().position(|column| column == "Netif"))
@@ -33,8 +33,10 @@ fn rows(snapshot: &str) -> impl Iterator<Item = (&str, &str)> {
     snapshot.lines().filter_map(move |line| {
         let mut columns = line.split_whitespace();
         let destination = columns.next()?;
-        let interface = columns.nth(interface_column.checked_sub(1)?)?;
-        Some((destination, interface))
+        let _gateway = columns.next()?;
+        let flags = columns.next()?;
+        let interface = columns.nth(interface_column.checked_sub(3)?)?;
+        Some((destination, interface, flags))
     })
 }
 
@@ -68,9 +70,9 @@ fn prefix_key(destination: &str) -> Option<(u128, u8, bool)> {
 }
 
 fn check_snapshot(snapshot: &str, destinations: &[String], owned: Option<&str>) -> io::Result<()> {
-    for (destination, interface) in rows(snapshot) {
+    for (destination, interface, flags) in rows(snapshot) {
         if Some(interface) != owned
-            && ((interface.starts_with("utun") && destination == "default")
+            && ((interface.starts_with("utun") && destination == "default" && !flags.contains('I'))
                 || prefix_key(destination).is_some_and(|key| {
                     destinations
                         .iter()
@@ -115,7 +117,7 @@ pub(super) fn preflight(addresses: &[String], owned: Option<(&str, u32)>) -> io:
 pub(super) fn ready(addresses: &[String], interface: &str) -> io::Result<bool> {
     let snapshot = snapshot()?;
     Ok(capture_destinations(addresses).iter().all(|expected| {
-        rows(&snapshot).any(|(destination, name)| {
+        rows(&snapshot).any(|(destination, name, _)| {
             prefix_key(destination) == prefix_key(expected) && name == interface
         })
     }))
@@ -140,6 +142,15 @@ mod tests {
         assert!(check_snapshot("1/8 172.19.0.2 UGSc en0", &destinations, None).is_err());
         assert!(check_snapshot("1 172.19.0.2 UGSc ppp0", &destinations, None).is_err());
         assert!(check_snapshot("default 10.0.0.1 UGSc utun5", &destinations, None).is_err());
+        assert!(
+            check_snapshot(
+                "Internet6:\nDestination Gateway Flags Netif Expire\ndefault fe80::%utun0 UGcIg utun0\n",
+                &destinations,
+                None
+            )
+            .is_ok()
+        );
+        assert!(check_snapshot("1/8 172.19.0.2 UGScI utun5", &destinations, None).is_err());
         assert!(check_snapshot("fe80::%utun5/64 link#8 UcI utun5", &destinations, None).is_ok());
         assert!(
             check_snapshot("1/8 172.19.0.2 UGSc utun99", &destinations, Some("utun99")).is_ok()
