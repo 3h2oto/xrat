@@ -65,7 +65,10 @@ Tracked in [issue #214](https://github.com/mhyrzt/xrat/issues/214).
   attribution and teardown failures; they are not used as acceptance evidence.
 - Native macOS CI now runs platform resolution/validation tests and a
   checksum-pinned root utun lifecycle test covering graceful/forced exit and DNS
-  configuration preservation. These new CI steps have not run yet. Full managed
-  macOS application traffic acceptance remains pending a native privileged run.
+  configuration preservation. Both native steps passed in
+  [CI run 38146948279](https://github.com/mhyrzt/xrat/actions/runs/38146948279).
+  Interface-scoped default routes are preserved; global VPN defaults and
+  conflicting capture prefixes remain blocked. Full managed macOS application
+  traffic acceptance remains pending a native privileged run.
 - Linux-to-macOS cross-check was blocked by the missing Apple C toolchain/SDK,
   before compiling the application. It provides no macOS build proof.
