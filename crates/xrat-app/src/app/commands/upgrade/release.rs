@@ -88,6 +88,8 @@ pub(crate) async fn upgrade(
     progress.finish_and_clear();
     result?;
 
+    crate::app::services::release_notes::cache_release(&client, &version).await;
+
     println!(
         "{}",
         output::success(

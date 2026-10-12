@@ -4,6 +4,7 @@ pub mod dashboard;
 pub mod engine_probe;
 mod lifecycle;
 pub mod proxy_pac;
+pub(crate) mod release_notes;
 pub mod releases;
 pub mod rotation;
 pub mod runtime_control;

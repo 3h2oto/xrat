@@ -14,6 +14,24 @@ initialization, allowing `xrat upgrade` to recover from a database migration or
 connection failure. The newly installed binary still runs migrations before the
 command reports success.
 
+## Release notes after upgrading
+
+After a successful release upgrade, xrat caches the installed release's notes in
+`release-notes.json` under the xrat data directory (`XRAT_PATH`, or
+`~/.config/xrat`). Notes appear only in a “What's new” modal on the next TUI
+launch of that version, with Markdown formatting and wrapped, scrollable text.
+No release notes are printed by the upgrade command.
+
+Use `↑`/`↓` or `j`/`k` to scroll, `PageUp`/`PageDown` to move a page, and
+`Home`/`End` to jump to the start/end. Press `Enter` or `Esc` to dismiss and
+save that version as seen. Closing the terminal before dismissal leaves the
+notes pending for the next launch. Reinstalling the same version preserves
+dismissal.
+
+Viewing works offline. If release notes cannot be fetched, the modal shows a
+link to the release instead. A notes fetch or cache failure does not fail the
+upgrade. Source upgrades do not fetch GitHub release notes.
+
 ## Flags
 
 | Flag               | Description                                           | Default |

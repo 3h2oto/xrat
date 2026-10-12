@@ -79,3 +79,28 @@ fn invalid_or_multi_link_input_stays_in_modal_with_error() {
         );
     }
 }
+
+#[test]
+fn release_note_dismissal_closes_modal_even_when_cache_save_fails() {
+    use crate::app::services::release_notes::ReleaseNotes;
+    use crate::tui::view::release_notes::ReleaseNotesModal;
+
+    let root = tempfile::tempdir().unwrap();
+    let notes = ReleaseNotes {
+        version: "v1.2.3".into(),
+        body: "# Changes".into(),
+        seen: false,
+    };
+    notes.save(root.path()).unwrap();
+    let blocked_root = tempfile::NamedTempFile::new().unwrap();
+    let mut app = TuiApp::default();
+    let mut modal = Some(ReleaseNotesModal::new(notes.clone()));
+    super::event_loop::dismiss_release_notes(&mut app, &mut modal, blocked_root.path());
+    assert!(modal.is_none());
+    assert!(ReleaseNotes::pending(root.path(), "1.2.3").is_some());
+
+    let mut modal = Some(ReleaseNotesModal::new(notes));
+    super::event_loop::dismiss_release_notes(&mut app, &mut modal, root.path());
+    assert!(modal.is_none());
+    assert!(ReleaseNotes::pending(root.path(), "1.2.3").is_none());
+}
