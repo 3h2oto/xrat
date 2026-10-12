@@ -5,6 +5,11 @@ pub async fn run(context: &AppContext) -> crate::app::Result<()> {
     let mut terminal = TerminalSession::enter()?;
     let data = TuiData::load(&context, false).await?;
     let mut app = TuiApp::with_data(data);
+    let mut release_notes = crate::app::services::release_notes::ReleaseNotes::pending(
+        &context.runtime_paths.root_dir,
+        env!("CARGO_PKG_VERSION"),
+    )
+    .map(crate::tui::view::release_notes::ReleaseNotesModal::new);
     let (task_tx, mut task_rx) = mpsc::unbounded_channel();
     let (version_tx, mut version_rx) = mpsc::unbounded_channel();
     let (logs_tx, mut logs_rx) = mpsc::unbounded_channel();
@@ -91,7 +96,12 @@ pub async fn run(context: &AppContext) -> crate::app::Result<()> {
             needs_redraw = true;
         }
         if needs_redraw {
-            terminal.draw(|frame| crate::tui::view::render(frame, &app))?;
+            terminal.draw(|frame| {
+                crate::tui::view::render(frame, &app);
+                if let Some(modal) = &mut release_notes {
+                    modal.render(frame);
+                }
+            })?;
             needs_redraw = false;
         }
 
@@ -106,6 +116,17 @@ pub async fn run(context: &AppContext) -> crate::app::Result<()> {
                     app.needs_full_clear = true;
                 }
                 Event::Key(key) => {
+                    if let Some(modal) = &mut release_notes {
+                        if modal.handle_key(key) {
+                            dismiss_release_notes(
+                                &mut app,
+                                &mut release_notes,
+                                &context.runtime_paths.root_dir,
+                            );
+                            app.needs_full_clear = true;
+                        }
+                        continue;
+                    }
                     let bulk_confirm_open = app.pending_bulk.is_some();
                     let action = if let Some(split_modal) = &app.split_modal {
                         crate::tui::keymap::action_for_split_modal_key(key, split_modal.mode())
@@ -576,6 +597,25 @@ pub async fn run(context: &AppContext) -> crate::app::Result<()> {
     }
 
     Ok(())
+}
+
+pub(super) fn dismiss_release_notes(
+    app: &mut TuiApp,
+    modal: &mut Option<crate::tui::view::release_notes::ReleaseNotesModal>,
+    root: &std::path::Path,
+) {
+    if let Some(modal) = modal.take() {
+        let mut seen = modal.notes;
+        seen.seen = true;
+        if let Err(error) = seen.save(root) {
+            app.set_chrome_message(
+                format!(
+                    "Could not save release-note dismissal: {error}; notes may reappear next time"
+                ),
+                true,
+            );
+        }
+    }
 }
 
 pub(super) fn prepare_import_submission(app: &mut TuiApp) -> Option<tasks::TuiImport> {

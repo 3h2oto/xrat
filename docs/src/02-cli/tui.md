@@ -7,8 +7,8 @@ xrat tui
 ```
 
 `xrat setup` also installs an `xratui` shortcut next to the `xrat` binary (run
-automatically by `install.sh`/`just install`, or manually after `cargo
-install`/`cargo binstall`):
+automatically by `install.sh`/`just install`, or manually after
+`cargo install`/`cargo binstall`):
 
 ```bash
 xratui
@@ -22,6 +22,24 @@ The TUI is an interactive view over xrat's shared database, subscription,
 testing, and runtime services. It does not keep a separate copy of business
 logic: config changes, imports, tests, and runtime operations use the same app
 services as the CLI commands.
+
+## Release notes after upgrading
+
+After a successful release upgrade, xrat caches the installed release's notes in
+`release-notes.json` under the xrat data directory (`XRAT_PATH`, or
+`~/.config/xrat`). Notes appear only in a “What's new” modal on the next TUI
+launch of that version, with Markdown formatting and wrapped, scrollable text.
+No release notes are printed by the upgrade command.
+
+Use `↑`/`↓` or `j`/`k` to scroll, `PageUp`/`PageDown` to move a page, and
+`Home`/`End` to jump to the start/end. Press `Enter` or `Esc` to dismiss and
+save that version as seen. Closing the terminal before dismissal leaves the
+notes pending for the next launch. Reinstalling the same version preserves
+dismissal.
+
+Viewing works offline. If release notes cannot be fetched, the modal shows a
+link to the release instead. A notes fetch or cache failure does not fail the
+upgrade. Source upgrades do not fetch GitHub release notes.
 
 ## Tabs
 
@@ -43,24 +61,24 @@ separate Tests view.
 
 ## Global Keys
 
-| Key           | Action                                            |
-| ------------- | ------------------------------------------------- |
-| `[`, `]`      | Switch to previous / next table tab               |
-| `Tab`         | Cycle card focus (Table → Detail → Log → Runtime) |
-| `Shift+Tab`   | Cycle card focus in reverse                       |
-| `1`           | Focus the table card                              |
-| `2`           | Focus the logs/events card                        |
-| `3`           | Focus the detail card                             |
-| `4`           | Focus the runtime card                            |
-| `j`, `k`      | Move row / scroll the focused card down/up        |
-| arrow keys    | Move row / scroll the focused card down/up        |
-| `PgUp`, `PgDn`| Page the focused card up / down                   |
-| `Home`, `End` | Jump to the top / bottom of the focused card      |
-| `i`           | Import a config or subscription link              |
-| `,`           | Open the settings editor                          |
-| `?`           | Open help                                         |
-| `Esc`         | Close modal, leave search, or go back             |
-| `q`, `Ctrl+C` | Quit                                              |
+| Key            | Action                                            |
+| -------------- | ------------------------------------------------- |
+| `[`, `]`       | Switch to previous / next table tab               |
+| `Tab`          | Cycle card focus (Table → Detail → Log → Runtime) |
+| `Shift+Tab`    | Cycle card focus in reverse                       |
+| `1`            | Focus the table card                              |
+| `2`            | Focus the logs/events card                        |
+| `3`            | Focus the detail card                             |
+| `4`            | Focus the runtime card                            |
+| `j`, `k`       | Move row / scroll the focused card down/up        |
+| arrow keys     | Move row / scroll the focused card down/up        |
+| `PgUp`, `PgDn` | Page the focused card up / down                   |
+| `Home`, `End`  | Jump to the top / bottom of the focused card      |
+| `i`            | Import a config or subscription link              |
+| `,`            | Open the settings editor                          |
+| `?`            | Open help                                         |
+| `Esc`          | Close modal, leave search, or go back             |
+| `q`, `Ctrl+C`  | Quit                                              |
 
 ## Cards and Scrolling
 
@@ -69,8 +87,8 @@ detail panel, and Runtime. Card titles show their direct focus shortcuts (`1:`,
 `2:`, `3:`, `4:`). `Tab` / `Shift+Tab` move focus between them; the focused card
 is drawn with an accent border. `j`/`k` (or the arrow keys) move the row
 selection when the table is focused, and scroll the focused card otherwise.
-`PgUp`/`PgDn` step by a screenful and `Home`/`End` jump to the first/last row
-or top/bottom of the card. Cards that overflow their height show a scrollbar.
+`PgUp`/`PgDn` step by a screenful and `Home`/`End` jump to the first/last row or
+top/bottom of the card. Cards that overflow their height show a scrollbar.
 
 In the Logs card, long messages wrap inside the message column and continuation
 lines stay indented under it, so the time, level, source, and kind columns stay
@@ -93,11 +111,11 @@ right. Deeper groups share their parent page under subheaders such as `General`,
 active pane. Use `/` to filter, `Enter` to edit or toggle, `h`/`l` to cycle
 choices, and `r` to remove an explicit override and return to its built-in
 default. List fields use comma-separated values. Secret fields stay masked;
-enter a literal replacement or `env:VARIABLE_NAME`. `Ctrl+S` validates and
-saves without closing the modal, while `Esc` cancels the current edit or closes
-the modal. Closing with unsaved changes asks for confirmation. On compact
-terminals, only the focused Sections or Values pane is shown; use `Left` and
-`Right` to switch between them.
+enter a literal replacement or `env:VARIABLE_NAME`. `Ctrl+S` validates and saves
+without closing the modal, while `Esc` cancels the current edit or closes the
+modal. Closing with unsaved changes asks for confirmation. On compact terminals,
+only the focused Sections or Values pane is shown; use `Left` and `Right` to
+switch between them.
 
 A contextual Help pane follows the selected field. It explains what the field
 controls, shows its accepted values or input format, provides a safe TOML
@@ -110,10 +128,10 @@ the Help pane includes the same legend. Secret examples use safe placeholders
 configured secret contents.
 
 Saving patches only changed keys, preserving comments and unrelated sections.
-New values apply to subsequent TUI tests and connections immediately. Changes
-to runtime or routing generation offer to restart an active proxy after saving;
-daemon-owned rotation, subscription-refresh, and API-server settings report
-that the daemon must be restarted.
+New values apply to subsequent TUI tests and connections immediately. Changes to
+runtime or routing generation offer to restart an active proxy after saving;
+daemon-owned rotation, subscription-refresh, and API-server settings report that
+the daemon must be restarted.
 
 ## Configs Tab
 
@@ -225,8 +243,8 @@ the `All configs` and `Orphans` rows.
 Press `i` from either tab to open the import modal, then paste one supported
 config share link or one HTTP(S) subscription URL. Config links are saved
 immediately. Subscription URLs open a second, compact name prompt; leaving it
-blank uses the displayed random name. File paths, raw base64 payloads, JSON,
-and multi-link text remain available through [`xrat import <input>`](import.md).
+blank uses the displayed random name. File paths, raw base64 payloads, JSON, and
+multi-link text remain available through [`xrat import <input>`](import.md).
 
 Subscription refresh runs as a background task. While it runs, the Runtime card
 shows live activity and the bottom bar shows completion summaries that
@@ -248,8 +266,8 @@ URLs, timeouts, and other stage settings come from `config.toml`. This mirrors
 rotation's stage selection rather than the full `xrat test` pipeline — for a CLI
 bulk test with identical semantics, run `xrat test --enabled-only` and align
 `[testing]` stages with `[runtime.rotation].test_stages`. Tests use the `t`
-chord leader: `t t` (focused), `t a` (all enabled), `t v` (visible),
-`t r` (failed), `t s` (stale), and `t c` cancels a running batch.
+chord leader: `t t` (focused), `t a` (all enabled), `t v` (visible), `t r`
+(failed), `t s` (stale), and `t c` cancels a running batch.
 
 While a batch is running, the gauge updates without blocking navigation.
 Cancelling requests cooperative cancellation; the active operation reports
@@ -264,19 +282,19 @@ stay visible under both tabs.
 The Logs card is tabbed. Focus it with `2`, `Tab`, or `Shift+Tab`, then switch
 tabs:
 
-| Key       | Action                                       |
-| --------- | -------------------------------------------- |
-| `[` / `]` | Cycle to the previous / next log tab         |
-| `C l`     | Clear the active log view (view-only)        |
+| Key       | Action                                        |
+| --------- | --------------------------------------------- |
+| `[` / `]` | Cycle to the previous / next log tab          |
+| `C l`     | Clear the active log view (view-only)         |
 | `C s`     | Clear the traffic view / counters (view-only) |
 | `C p`     | Clear all persisted events from the database  |
 
-| Tab     | Shows                                                            |
-| ------- | --------------------------------------------------------------- |
-| Events  | Structured app/runtime events (same data as `xrat logs`)        |
-| Engine  | Parsed xray / sing-box engine logs for the latest session       |
-| Traffic | Live throughput + probe dashboard (charts, see below)           |
-| API     | HTTP API requests recorded by the server (`source = api`)       |
+| Tab     | Shows                                                     |
+| ------- | --------------------------------------------------------- |
+| Events  | Structured app/runtime events (same data as `xrat logs`)  |
+| Engine  | Parsed xray / sing-box engine logs for the latest session |
+| Traffic | Live throughput + probe dashboard (charts, see below)     |
+| API     | HTTP API requests recorded by the server (`source = api`) |
 
 The Engine and Traffic tab titles show the active engine and version.
 
@@ -301,8 +319,8 @@ info/debug/trace are neutral/accent.
 
 The Traffic tab samples the active engine once per second — the xray gRPC
 `StatsService` or the sing-box Clash API `/connections` endpoint — and resets
-its history on each new runtime session. It is enabled by `[runtime.stats]`
-(see [config reference](../05-reference/config-file.md)). The top row shows a
+its history on each new runtime session. It is enabled by `[runtime.stats]` (see
+[config reference](../05-reference/config-file.md)). The top row shows a
 throughput summary (total ↓/↑ and current rate) next to a probe table
 (`Name | Value | mean ± std | n | last update`) built from the active config's
 recent `connection_tests`. The lower row pairs a bidirectional traffic chart

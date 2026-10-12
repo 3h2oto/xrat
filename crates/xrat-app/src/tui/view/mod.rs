@@ -10,3 +10,5 @@ use crate::tui::app::TuiApp;
 
 mod render;
 pub use render::render;
+
+pub(crate) mod release_notes;
