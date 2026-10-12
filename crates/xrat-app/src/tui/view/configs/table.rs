@@ -31,16 +31,50 @@ pub fn render(frame: &mut Frame<'_>, area: Rect, app: &TuiApp, focused: bool) {
     if metric_columns.country {
         headers.push("Country");
     }
-    let header = Row::new(headers).style(theme::accent_style().add_modifier(Modifier::BOLD));
+    let header = Row::new(headers).style(theme::secondary_style().add_modifier(Modifier::BOLD));
 
     let visible = app.visible_configs();
     let rows = visible.iter().enumerate().map(|(idx, config)| {
+        let is_focused = idx == app.config_list.focused;
         let is_stale = config.real_delay_ms.is_none()
             && config.tcp_ms.is_none()
             && config.failure_reason.is_none()
             && config.is_enabled
             && !config.is_deleted;
-        let style = if idx == app.config_list.focused {
+
+        let row_style = if is_focused {
+            theme::selection_style().add_modifier(Modifier::BOLD)
+        } else if !config.is_enabled || config.is_deleted {
+            theme::muted_style()
+        } else {
+            theme::chrome_style()
+        };
+
+        let state_style = if config.is_active {
+            theme::success_style().add_modifier(Modifier::BOLD)
+        } else if config.is_deleted || config.failure_reason.is_some() {
+            theme::failure_style()
+        } else if !config.is_enabled {
+            theme::muted_style()
+        } else if is_stale {
+            theme::warning_style()
+        } else {
+            theme::chrome_style()
+        };
+
+        let proto_style = if !config.is_enabled || config.is_deleted {
+            theme::muted_style()
+        } else {
+            theme::secondary_style()
+        };
+
+        let ref_style = if !config.is_enabled || config.is_deleted {
+            theme::muted_style()
+        } else {
+            theme::secondary_style()
+        };
+
+        let name_style = if is_focused {
             theme::accent_style().add_modifier(Modifier::BOLD)
         } else if config.is_active {
             theme::success_style().add_modifier(Modifier::BOLD)
@@ -48,50 +82,56 @@ pub fn render(frame: &mut Frame<'_>, area: Rect, app: &TuiApp, focused: bool) {
             theme::muted_style()
         } else if config.failure_reason.is_some() {
             theme::failure_style()
-        } else if is_stale {
-            theme::warning_style()
         } else {
             theme::chrome_style()
         };
 
         let mut cells = vec![
-            Cell::from(state_marker(config)),
-            Cell::from(config.display_ref().to_string()),
-            Cell::from(truncate_name(config.display_name())),
-            Cell::from(config.protocol.clone()),
+            Cell::from(state_marker(config)).style(state_style),
+            Cell::from(config.display_ref().to_string()).style(ref_style),
+            Cell::from(truncate_name(config.display_name())).style(name_style),
+            Cell::from(config.protocol.clone()).style(proto_style),
             Cell::from(config.address_label().to_string()),
-            Cell::from(config.port_label()),
-            Cell::from(config.network_label()),
+            Cell::from(config.port_label()).style(theme::muted_style()),
+            Cell::from(config.network_label()).style(theme::muted_style()),
         ];
         if metric_columns.icmp {
-            cells.push(Cell::from(test_metric_label(app, config, || {
-                config.icmp_label()
-            })));
+            let label = test_metric_label(app, config, || config.icmp_label());
+            let style = theme::latency_text_style(&label);
+            cells.push(Cell::from(label).style(style));
         }
         if metric_columns.tcp {
-            cells.push(Cell::from(test_metric_label(app, config, || {
-                config.tcp_label()
-            })));
+            let label = test_metric_label(app, config, || config.tcp_label());
+            let style = theme::latency_text_style(&label);
+            cells.push(Cell::from(label).style(style));
         }
         if metric_columns.real_delay {
-            cells.push(Cell::from(test_metric_label(app, config, || {
-                config.delay_label()
-            })));
+            let label = test_metric_label(app, config, || config.delay_label());
+            let style = theme::latency_text_style(&label);
+            cells.push(Cell::from(label).style(style));
         }
         if metric_columns.download {
-            cells.push(Cell::from(test_metric_label(app, config, || {
-                config.download_label()
-            })));
+            let label = test_metric_label(app, config, || config.download_label());
+            let style = if label == "-" {
+                theme::muted_style()
+            } else {
+                theme::series_style("download")
+            };
+            cells.push(Cell::from(label).style(style));
         }
         if metric_columns.upload {
-            cells.push(Cell::from(test_metric_label(app, config, || {
-                config.upload_label()
-            })));
+            let label = test_metric_label(app, config, || config.upload_label());
+            let style = if label == "-" {
+                theme::muted_style()
+            } else {
+                theme::series_style("upload")
+            };
+            cells.push(Cell::from(label).style(style));
         }
         if metric_columns.country {
             cells.push(Cell::from(config.country_label().to_string()));
         }
-        Row::new(cells).style(style)
+        Row::new(cells).style(row_style)
     });
 
     let mut constraints = vec![
@@ -138,17 +178,13 @@ pub fn render(frame: &mut Frame<'_>, area: Rect, app: &TuiApp, focused: bool) {
 }
 
 fn border_style(focused: bool) -> ratatui::style::Style {
-    if focused {
-        theme::accent_style()
-    } else {
-        theme::chrome_style()
-    }
+    theme::border_style(focused)
 }
 
 fn tab_title(app: &TuiApp) -> Line<'static> {
     let mut spans = vec![
         Span::raw(" "),
-        Span::styled("1:", theme::accent_style().add_modifier(Modifier::BOLD)),
+        Span::styled("1:", theme::secondary_style().add_modifier(Modifier::BOLD)),
         Span::raw(" "),
         Span::styled(
             "[Configs]",

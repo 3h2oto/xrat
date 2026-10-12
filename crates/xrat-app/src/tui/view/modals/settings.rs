@@ -158,7 +158,7 @@ pub fn render_settings_modal(frame: &mut Frame<'_>, area: Rect, app: &TuiApp) {
         if group != last_group {
             field_rows.push((
                 None,
-                Line::styled(format!("  {group}"), theme::muted_style().bold()),
+                Line::styled(format!("  {group}"), theme::secondary_style().bold()),
             ));
             last_group = group;
         }
@@ -256,34 +256,34 @@ pub fn render_settings_modal(frame: &mut Frame<'_>, area: Rect, app: &TuiApp) {
         );
         let help_lines = vec![
             Line::from(vec![
-                Span::styled("Description  ", theme::accent_style().bold()),
+                Span::styled("Description  ", theme::secondary_style().bold()),
                 Span::styled(setting.help.description, theme::chrome_style()),
             ]),
             Line::from(vec![
-                Span::styled("Values       ", theme::accent_style().bold()),
+                Span::styled("Values       ", theme::secondary_style().bold()),
                 Span::styled(setting.possible_values(), theme::chrome_style()),
             ]),
             Line::from(vec![
-                Span::styled("Default      ", theme::accent_style().bold()),
+                Span::styled("Default      ", theme::secondary_style().bold()),
                 Span::styled(default_value, theme::chrome_style()),
             ]),
             Line::from(vec![
-                Span::styled("Source       ", theme::accent_style().bold()),
+                Span::styled("Source       ", theme::secondary_style().bold()),
                 Span::styled(settings_source_display(setting), theme::chrome_style()),
             ]),
             Line::from(vec![
-                Span::styled("Legend       ", theme::accent_style().bold()),
+                Span::styled("Legend       ", theme::secondary_style().bold()),
                 Span::styled(
                     "· inherited default   + explicit override   * unsaved",
                     theme::muted_style(),
                 ),
             ]),
             Line::from(vec![
-                Span::styled("Example      ", theme::accent_style().bold()),
+                Span::styled("Example      ", theme::secondary_style().bold()),
                 Span::styled(setting.help.example, theme::chrome_style()),
             ]),
             Line::from(vec![
-                Span::styled("Applies      ", theme::accent_style().bold()),
+                Span::styled("Applies      ", theme::secondary_style().bold()),
                 Span::styled(applies, applies_style),
             ]),
         ];
@@ -454,7 +454,9 @@ pub(crate) fn settings_section_name(segment: &str) -> String {
     segment
         .split('_')
         .map(|word| match word {
-            "api" | "dns" | "http" | "https" | "icmp" | "tcp" => word.to_ascii_uppercase(),
+            "api" | "dns" | "http" | "https" | "icmp" | "tcp" | "tui" | "ui" => {
+                word.to_ascii_uppercase()
+            }
             "auth" => "Authentication".to_string(),
             "geoip" => "GeoIP".to_string(),
             _ => {

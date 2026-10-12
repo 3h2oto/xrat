@@ -36,6 +36,7 @@ fn exposes_supported_roots_and_effective_defaults() {
         "testing",
         "server",
         "parser",
+        "tui",
     ];
 
     assert!(session.settings.iter().all(|setting| {
@@ -43,6 +44,13 @@ fn exposes_supported_roots_and_effective_defaults() {
             .iter()
             .any(|root| setting.path.starts_with(root))
     }));
+    assert!(
+        session
+            .settings
+            .iter()
+            .any(|setting| setting.path == "tui.theme"
+                && setting.value == SettingValue::Text("default".to_string()))
+    );
     assert!(
         session
             .settings

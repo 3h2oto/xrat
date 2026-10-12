@@ -218,6 +218,7 @@ impl TuiApp {
         }
         modal.error = None;
         modal.notice = None;
+        sync_live_theme_preview(modal);
     }
 
     pub(super) fn settings_cycle(&mut self, direction: i32) {
@@ -240,6 +241,7 @@ impl TuiApp {
         }
         modal.error = None;
         modal.notice = None;
+        sync_live_theme_preview(modal);
     }
 
     pub(super) fn settings_reset(&mut self) {
@@ -255,6 +257,7 @@ impl TuiApp {
         modal.session.settings[setting_index].reset_to_default();
         modal.error = None;
         modal.notice = None;
+        sync_live_theme_preview(modal);
     }
 
     pub(crate) fn prepare_settings_save(&mut self) -> bool {
@@ -278,6 +281,7 @@ impl TuiApp {
         }
         modal.error = None;
         modal.notice = None;
+        sync_live_theme_preview(modal);
         true
     }
 
@@ -286,10 +290,33 @@ impl TuiApp {
             return;
         };
         if discard {
+            if let Some(setting) = modal
+                .session
+                .settings
+                .iter()
+                .find(|s| s.path == "tui.theme")
+                && let SettingValue::Text(ref name) = setting.original_value
+                && let Ok(theme) = name.parse::<crate::tui::theme::TuiTheme>()
+            {
+                crate::tui::theme::set_active(theme);
+            }
             self.settings_modal = None;
             self.needs_full_clear = true;
         } else {
             modal.discard_confirm = false;
         }
+    }
+}
+
+fn sync_live_theme_preview(modal: &SettingsModalState) {
+    if let Some(setting) = modal
+        .session
+        .settings
+        .iter()
+        .find(|s| s.path == "tui.theme")
+        && let SettingValue::Text(ref name) = setting.value
+        && let Ok(theme) = name.parse::<crate::tui::theme::TuiTheme>()
+    {
+        crate::tui::theme::set_active(theme);
     }
 }

@@ -228,3 +228,47 @@ fn nested_groups_are_folded_into_their_parent_page() {
     assert!(visible_sections.contains(&"runtime.socks"));
     assert!(visible_sections.contains(&"runtime.socks.auth"));
 }
+
+#[test]
+fn theme_setting_cycles_previews_live_and_reverts_on_discard() {
+    let _guard = crate::tui::theme::TEST_THEME_LOCK.lock().unwrap();
+    crate::tui::theme::set_active(crate::tui::theme::TuiTheme::Default);
+    let (_root, mut app) = app_with_settings("[tui]\ntheme = \"default\"\n");
+    focus_setting(&mut app, "tui.theme");
+
+    app.apply(TuiAction::SettingsCycle(1));
+    assert_eq!(
+        crate::tui::theme::active(),
+        crate::tui::theme::TuiTheme::Ansi
+    );
+
+    app.apply(TuiAction::Back);
+    app.apply(TuiAction::SettingsConfirmDiscard(true));
+    assert_eq!(
+        crate::tui::theme::active(),
+        crate::tui::theme::TuiTheme::Default
+    );
+}
+
+#[test]
+fn theme_setting_saves_to_config() {
+    let _guard = crate::tui::theme::TEST_THEME_LOCK.lock().unwrap();
+    crate::tui::theme::set_active(crate::tui::theme::TuiTheme::Default);
+    let (_root, mut app) = app_with_settings("[tui]\ntheme = \"default\"\n");
+    focus_setting(&mut app, "tui.theme");
+
+    app.apply(TuiAction::SettingsCycle(1));
+    app.apply(TuiAction::SettingsCycle(1));
+    assert_eq!(
+        crate::tui::theme::active(),
+        crate::tui::theme::TuiTheme::Catppuccin
+    );
+
+    assert!(app.prepare_settings_save());
+    let outcome = app.settings_modal.as_mut().unwrap().session.save().unwrap();
+    assert_eq!(
+        outcome.config.tui.theme,
+        crate::tui::theme::TuiTheme::Catppuccin
+    );
+    assert_eq!(outcome.changed_paths, ["tui.theme"]);
+}

@@ -4,7 +4,7 @@ mod data;
 mod keymap;
 mod run;
 mod task;
-mod theme;
+pub mod theme;
 mod view;
 
 pub use run::run;

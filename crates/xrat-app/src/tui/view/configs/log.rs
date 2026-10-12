@@ -120,7 +120,7 @@ fn event_lines(app: &TuiApp, content_width: usize) -> Vec<Line<'_>> {
                     "{:<EVENT_SOURCE_WIDTH$}",
                     truncate(&event.source, EVENT_SOURCE_WIDTH)
                 ),
-                theme::chrome_style(),
+                theme::secondary_style(),
             ),
             Span::raw("  "),
             Span::styled(
@@ -177,7 +177,7 @@ fn api_lines(app: &TuiApp, content_width: usize) -> Vec<Line<'_>> {
             Span::raw("  "),
             Span::styled(
                 format!("{:<API_METHOD_WIDTH$}", truncate(&method, API_METHOD_WIDTH)),
-                theme::chrome_style(),
+                theme::secondary_style().add_modifier(Modifier::BOLD),
             ),
             Span::raw("  "),
             Span::styled(

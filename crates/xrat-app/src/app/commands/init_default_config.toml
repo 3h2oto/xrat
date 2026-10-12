@@ -369,3 +369,12 @@ pac_allowed_hosts = ["localhost", "127.0.0.1", "::1"]
 # default_editions = ["country", "city", "asn"]
 # auto_update = false
 # update_interval_hours = 168
+
+
+# -----------------------------------------------------------------
+# [tui] — terminal user interface preferences
+# -----------------------------------------------------------------
+# [tui]
+# # Color palette: "default", "ansi", "catppuccin", "dracula",
+# # "gruvbox", "nord", "tokyo-night", or "light".
+# theme = "default"

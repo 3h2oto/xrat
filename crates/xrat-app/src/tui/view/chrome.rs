@@ -21,7 +21,7 @@ pub fn render_key_bar(frame: &mut Frame<'_>, area: Rect, app: &TuiApp) {
     }
 
     let actions = [
-        Span::styled("Keybindings: ", theme::chrome_style()),
+        Span::styled("Keybindings: ", theme::muted_style()),
         Span::styled("?", theme::accent_style().bold()),
     ];
 
@@ -87,7 +87,7 @@ fn chord_hint(leader: char) -> Vec<Span<'static>> {
     let mut spans = vec![
         Span::styled(
             keymap::chord_title(leader).to_string(),
-            theme::accent_style().bold(),
+            theme::secondary_style().bold(),
         ),
         Span::raw("  "),
     ];

@@ -708,6 +708,19 @@ default 30-second upload timeout.
 
 ---
 
+## [tui]
+
+Terminal user interface display preferences.
+
+```toml
+[tui]
+theme = "catppuccin"
+```
+
+| Field   | Type   | Default     | Description                                                                                                            |
+| ------- | ------ | ----------- | ---------------------------------------------------------------------------------------------------------------------- |
+| `theme` | string | `"default"` | Color theme: `"default"`, `"ansi"`, `"catppuccin"`, `"dracula"`, `"gruvbox"`, `"nord"`, `"tokyo-night"`, or `"light"` |
+
 ## Environment Variable References
 
 Sensitive fields accept environment variable references:
