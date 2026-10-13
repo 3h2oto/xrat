@@ -3,16 +3,18 @@ use pulldown_cmark::{Event, Options, Parser, Tag, TagEnd};
 use ratatui::{
     Frame,
     layout::Rect,
-    style::{Color, Modifier, Style},
+    style::{Modifier, Style},
     text::{Line, Span, Text},
-    widgets::{Block, Borders, Clear, Paragraph, Wrap},
+    widgets::{Block, Borders, Paragraph, Wrap},
 };
 
 use crate::app::services::release_notes::ReleaseNotes;
+use crate::tui::theme;
 
 pub(crate) struct ReleaseNotesModal {
     pub notes: ReleaseNotes,
     text: Text<'static>,
+    palette: theme::ThemePalette,
     scroll: usize,
     max_scroll: usize,
     page: usize,
@@ -22,6 +24,7 @@ impl ReleaseNotesModal {
     pub fn new(notes: ReleaseNotes) -> Self {
         Self {
             text: markdown(&notes.body),
+            palette: theme::palette(),
             notes,
             scroll: 0,
             max_scroll: 0,
@@ -50,6 +53,11 @@ impl ReleaseNotesModal {
     }
 
     pub fn render(&mut self, frame: &mut Frame<'_>) {
+        let palette = theme::palette();
+        if self.palette != palette {
+            self.text = markdown(&self.notes.body);
+            self.palette = palette;
+        }
         let screen = frame.area();
         let width = screen.width.saturating_sub(4).min(100);
         let height = screen.height.saturating_sub(2);
@@ -59,11 +67,11 @@ impl ReleaseNotesModal {
             width,
             height,
         );
-        frame.render_widget(Clear, area);
+        crate::tui::theme::clear(frame, area);
         let block = Block::default()
             .borders(Borders::ALL)
-            .border_style(Style::default().fg(Color::Cyan))
-            .style(Style::default().bg(Color::Black).fg(Color::White))
+            .border_style(theme::accent_style())
+            .style(theme::surface_style())
             .title(format!(" What's new · {} ", self.notes.version))
             .title_bottom(" ↑↓ / j k · PgUp/PgDn · Home/End · Enter/Esc close ");
         let inner = block.inner(area);
@@ -89,7 +97,7 @@ impl ReleaseNotesModal {
                 (self.scroll + self.page).min(count)
             );
             frame.render_widget(
-                Paragraph::new(footer).style(Style::default().fg(Color::DarkGray)),
+                Paragraph::new(footer).style(theme::muted_style()),
                 Rect::new(inner.x, inner.y + inner.height - 1, inner.width, 1),
             );
         }
@@ -115,19 +123,23 @@ fn markdown(source: &str) -> Text<'static> {
             Event::Start(tag) => {
                 let base = *styles.last().unwrap();
                 let style = match &tag {
-                    Tag::Heading { .. } => base.fg(Color::Cyan).add_modifier(Modifier::BOLD),
+                    Tag::Heading { .. } => base
+                        .patch(theme::accent_style())
+                        .add_modifier(Modifier::BOLD),
                     Tag::Strong => base.add_modifier(Modifier::BOLD),
                     Tag::Emphasis => base.add_modifier(Modifier::ITALIC),
                     Tag::Strikethrough => base.add_modifier(Modifier::CROSSED_OUT),
-                    Tag::CodeBlock(_) => base.fg(Color::Yellow),
-                    Tag::Link { .. } => base.fg(Color::Blue).add_modifier(Modifier::UNDERLINED),
+                    Tag::CodeBlock(_) => base.patch(theme::warning_style()),
+                    Tag::Link { .. } => base
+                        .patch(theme::secondary_style())
+                        .add_modifier(Modifier::UNDERLINED),
                     _ => base,
                 };
                 if matches!(tag, Tag::Item) {
                     spans.push(Span::raw("  • "));
                 }
                 if matches!(tag, Tag::BlockQuote(_)) {
-                    spans.push(Span::styled("│ ", Style::default().fg(Color::DarkGray)));
+                    spans.push(Span::styled("│ ", theme::muted_style()));
                 }
                 styles.push(style);
             }
@@ -164,17 +176,16 @@ fn markdown(source: &str) -> Text<'static> {
                     ));
                 }
             }
-            Event::Code(text) => spans.push(Span::styled(
-                text.into_string(),
-                Style::default().fg(Color::Yellow),
-            )),
+            Event::Code(text) => {
+                spans.push(Span::styled(text.into_string(), theme::warning_style()))
+            }
             Event::SoftBreak => spans.push(Span::raw(" ")),
             Event::HardBreak => flush(&mut lines, &mut spans),
             Event::Rule => {
                 flush(&mut lines, &mut spans);
                 lines.push(Line::styled(
                     "────────────────────────",
-                    Style::default().fg(Color::DarkGray),
+                    theme::muted_style(),
                 ));
             }
             Event::TaskListMarker(done) => {
@@ -223,6 +234,7 @@ mod tests {
 
     #[test]
     fn malformed_markdown_remains_readable_and_control_codes_are_removed() {
+        let _guard = theme::TEST_THEME_LOCK.lock().unwrap();
         let text = markdown("# Heading\n\n**unfinished [link\n\n```rust\ncode\u{1b}[31m\n");
         let plain = text.to_string();
         assert!(plain.contains("Heading"));
@@ -233,7 +245,7 @@ mod tests {
             text.lines[0]
                 .spans
                 .iter()
-                .any(|span| span.style.fg == Some(Color::Cyan))
+                .any(|span| span.style.fg == theme::accent_style().fg)
         );
     }
 }

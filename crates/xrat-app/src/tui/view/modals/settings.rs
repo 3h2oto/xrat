@@ -9,7 +9,7 @@ pub fn render_settings_modal(frame: &mut Frame<'_>, area: Rect, app: &TuiApp) {
     let height = area.height.saturating_sub(2).clamp(20, 40);
     let modal_area = centered_rect_fixed(width, height, area);
     let compact = modal_area.width < 80;
-    frame.render_widget(Clear, modal_area);
+    crate::tui::theme::clear(frame, modal_area);
 
     let dirty = if modal.session.is_dirty() { " *" } else { "" };
     let title = format!(" Settings{dirty} · {} ", modal.session.path_display());

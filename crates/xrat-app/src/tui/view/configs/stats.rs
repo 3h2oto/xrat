@@ -14,7 +14,7 @@ use ratatui::style::Style;
 use ratatui::symbols::Marker;
 use ratatui::text::{Line, Span};
 use ratatui::widgets::{
-    Axis, Block, Borders, Cell, Chart, Clear, Dataset, GraphType, Paragraph, Row, Table,
+    Axis, Block, Borders, Cell, Chart, Dataset, GraphType, Paragraph, Row, Table,
 };
 
 use crate::tui::app::TuiApp;
@@ -33,7 +33,7 @@ pub fn render(
         .borders(Borders::ALL)
         .border_style(theme::border_style(focused));
     let inner = block.inner(area);
-    frame.render_widget(Clear, area);
+    crate::tui::theme::clear(frame, area);
     frame.render_widget(block, area);
 
     if !app.data.runtime.pid_running {

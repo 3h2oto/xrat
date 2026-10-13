@@ -238,15 +238,15 @@ fn theme_setting_cycles_previews_live_and_reverts_on_discard() {
 
     app.apply(TuiAction::SettingsCycle(1));
     assert_eq!(
-        crate::tui::theme::active(),
-        crate::tui::theme::TuiTheme::Ansi
+        crate::tui::theme::palette(),
+        crate::tui::theme::TuiTheme::Ansi.palette()
     );
 
     app.apply(TuiAction::Back);
     app.apply(TuiAction::SettingsConfirmDiscard(true));
     assert_eq!(
-        crate::tui::theme::active(),
-        crate::tui::theme::TuiTheme::Default
+        crate::tui::theme::palette(),
+        crate::tui::theme::TuiTheme::Default.palette()
     );
 }
 
@@ -260,15 +260,123 @@ fn theme_setting_saves_to_config() {
     app.apply(TuiAction::SettingsCycle(1));
     app.apply(TuiAction::SettingsCycle(1));
     assert_eq!(
-        crate::tui::theme::active(),
-        crate::tui::theme::TuiTheme::Catppuccin
+        crate::tui::theme::palette(),
+        crate::tui::theme::TuiTheme::Catppuccin.palette()
     );
 
     assert!(app.prepare_settings_save());
     let outcome = app.settings_modal.as_mut().unwrap().session.save().unwrap();
     assert_eq!(
         outcome.config.tui.theme,
-        crate::tui::theme::TuiTheme::Catppuccin
+        crate::tui::theme::TuiTheme::Catppuccin.into()
     );
     assert_eq!(outcome.changed_paths, ["tui.theme"]);
+}
+
+#[test]
+fn custom_theme_previews_and_discard_restores_original_custom_palette() {
+    let _guard = crate::tui::theme::TEST_THEME_LOCK.lock().unwrap();
+    let contents = r##"
+[tui]
+theme = "custom"
+[tui.themes.custom]
+extends = "light"
+accent = "#123456"
+"##;
+    let (_root, mut app) = app_with_settings(contents);
+    let settings = &app.settings_modal.as_ref().unwrap().session.tui;
+    let original = settings.resolve(&settings.theme).unwrap();
+    crate::tui::theme::set_palette(original);
+    focus_setting(&mut app, "tui.theme");
+    app.apply(TuiAction::SettingsCycle(1));
+    assert_ne!(crate::tui::theme::palette(), original);
+    app.apply(TuiAction::Back);
+    app.apply(TuiAction::SettingsConfirmDiscard(true));
+    assert_eq!(crate::tui::theme::palette(), original);
+    crate::tui::theme::set_active(crate::tui::theme::TuiTheme::Default);
+}
+
+#[test]
+fn custom_theme_selection_saves_and_preserves_definition_and_comments() {
+    let _guard = crate::tui::theme::TEST_THEME_LOCK.lock().unwrap();
+    let contents = r##"
+[tui]
+theme = "light"
+# Keep my palette intact.
+[tui.themes.custom]
+extends = "nord"
+accent = "#123456" # my accent
+"##;
+    let (root, mut app) = app_with_settings(contents);
+    focus_setting(&mut app, "tui.theme");
+    app.apply(TuiAction::SettingsCycle(1));
+    assert_eq!(
+        crate::tui::theme::palette().accent,
+        ratatui::style::Color::Rgb(18, 52, 86)
+    );
+    assert!(app.prepare_settings_save());
+    let outcome = app.settings_modal.as_mut().unwrap().session.save().unwrap();
+    assert_eq!(outcome.config.tui.theme.as_str(), "custom");
+    let saved = fs::read_to_string(root.path().join("config.toml")).unwrap();
+    assert!(saved.contains("# Keep my palette intact."));
+    assert!(saved.contains("accent = \"#123456\" # my accent"));
+    assert_eq!(outcome.changed_paths, ["tui.theme"]);
+    focus_setting(&mut app, "runtime.socks.enabled");
+    app.apply(TuiAction::SettingsSubmit);
+    let second = app.settings_modal.as_mut().unwrap().session.save().unwrap();
+    assert_eq!(second.config.tui.themes, outcome.config.tui.themes);
+    crate::tui::theme::set_active(crate::tui::theme::TuiTheme::Default);
+}
+
+#[test]
+fn reset_theme_previews_default_and_discard_restores_custom() {
+    let _guard = crate::tui::theme::TEST_THEME_LOCK.lock().unwrap();
+    let (_root, mut app) =
+        app_with_settings("[tui]\ntheme = 'custom'\n[tui.themes.custom]\nextends = 'light'");
+    focus_setting(&mut app, "tui.theme");
+    app.apply(TuiAction::SettingsReset);
+    assert_eq!(
+        crate::tui::theme::palette(),
+        crate::tui::theme::TuiTheme::Default.palette()
+    );
+    app.apply(TuiAction::Back);
+    app.apply(TuiAction::SettingsConfirmDiscard(true));
+    assert_eq!(
+        crate::tui::theme::palette(),
+        crate::tui::theme::TuiTheme::Light.palette()
+    );
+    crate::tui::theme::set_active(crate::tui::theme::TuiTheme::Default);
+}
+
+#[test]
+fn discard_after_save_restores_last_saved_palette() {
+    let _guard = crate::tui::theme::TEST_THEME_LOCK.lock().unwrap();
+    let (_root, mut app) =
+        app_with_settings("[tui]\ntheme = 'light'\n[tui.themes.custom]\nextends = 'nord'\n");
+    focus_setting(&mut app, "tui.theme");
+    app.apply(TuiAction::SettingsCycle(1));
+    assert!(app.prepare_settings_save());
+    app.settings_modal.as_mut().unwrap().session.save().unwrap();
+    let saved = crate::tui::theme::palette();
+    app.apply(TuiAction::SettingsCycle(1));
+    assert_ne!(crate::tui::theme::palette(), saved);
+    app.apply(TuiAction::Back);
+    app.apply(TuiAction::SettingsConfirmDiscard(true));
+    assert_eq!(crate::tui::theme::palette(), saved);
+    crate::tui::theme::set_active(crate::tui::theme::TuiTheme::Default);
+}
+
+#[test]
+fn legacy_ui_theme_can_be_saved_without_duplicate_sections() {
+    let _guard = crate::tui::theme::TEST_THEME_LOCK.lock().unwrap();
+    let (root, mut app) =
+        app_with_settings("[ui]\ntheme = 'light'\n[ui.themes.custom]\nextends = 'nord'\n");
+    focus_setting(&mut app, "tui.theme");
+    app.apply(TuiAction::SettingsCycle(1));
+    let outcome = app.settings_modal.as_mut().unwrap().session.save().unwrap();
+    assert_eq!(outcome.config.tui.theme.as_str(), "custom");
+    let saved = fs::read_to_string(root.path().join("config.toml")).unwrap();
+    assert!(saved.contains("[tui.themes.custom]"));
+    assert!(!saved.contains("[ui]"));
+    crate::tui::theme::set_active(crate::tui::theme::TuiTheme::Default);
 }

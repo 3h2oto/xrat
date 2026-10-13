@@ -1,11 +1,14 @@
 use ratatui::Frame;
 use ratatui::layout::Rect;
 use ratatui::style::Modifier;
-use ratatui::text::Line;
+use ratatui::text::{Line, Span};
 
 use crate::tui::app::TuiApp;
 use crate::tui::theme;
-use crate::tui::view::shared::{PanelStyle, numbered_title, push_detail, render_scroll_panel};
+use crate::tui::view::shared::{
+    PanelStyle, numbered_title, push_detail, push_detail_line, push_styled_detail,
+    render_scroll_panel,
+};
 
 const LABEL_WIDTH: usize = crate::tui::theme::DETAIL_LABEL_WIDTH;
 const RIGHT_PAD: u16 = crate::tui::theme::DETAIL_RIGHT_PAD;
@@ -66,22 +69,35 @@ pub fn render(frame: &mut Frame<'_>, area: Rect, app: &TuiApp, focused: bool) {
         push_detail(&mut lines, "TUN", tun, LABEL_WIDTH, content_width);
     }
 
-    let engines = if app.engines.is_empty() {
-        "-".to_string()
-    } else {
-        app.engines
-            .iter()
-            .map(|engine| match (engine.available, &engine.version) {
-                (true, Some(version)) => format!("{} {} ✓", engine.name, version),
-                (true, None) => format!("{} ✓", engine.name),
-                (false, _) => format!("{} ✗", engine.name),
-            })
-            .collect::<Vec<_>>()
-            .join(" · ")
-    };
-    push_detail(&mut lines, "Engines", &engines, LABEL_WIDTH, content_width);
+    let mut engines = Vec::new();
+    for engine in &app.engines {
+        if !engines.is_empty() {
+            engines.push(Span::styled(" · ", theme::muted_style()));
+        }
+        let text = match (engine.available, &engine.version) {
+            (true, Some(version)) => format!("{} {} ✓", engine.name, version),
+            (true, None) => format!("{} ✓", engine.name),
+            (false, _) => format!("{} ✗", engine.name),
+        };
+        let style = if engine.available {
+            theme::success_style()
+        } else {
+            theme::failure_style()
+        };
+        engines.push(Span::styled(text, style));
+    }
+    if engines.is_empty() {
+        engines.push(Span::styled("-", theme::muted_style()));
+    }
+    push_detail_line(
+        &mut lines,
+        "Engines",
+        Line::from(engines),
+        LABEL_WIDTH,
+        content_width,
+    );
 
-    push_detail(
+    push_styled_detail(
         &mut lines,
         "Daemon",
         if data.daemon.running {
@@ -89,6 +105,7 @@ pub fn render(frame: &mut Frame<'_>, area: Rect, app: &TuiApp, focused: bool) {
         } else {
             "stopped"
         },
+        theme::available_style(data.daemon.running),
         LABEL_WIDTH,
         content_width,
     );
@@ -98,10 +115,11 @@ pub fn render(frame: &mut Frame<'_>, area: Rect, app: &TuiApp, focused: bool) {
         } else {
             "off".to_string()
         };
-        push_detail(
+        push_styled_detail(
             &mut lines,
             "Rotation",
             &rotation,
+            theme::available_style(data.daemon.rotation_enabled),
             LABEL_WIDTH,
             content_width,
         );
@@ -167,7 +185,14 @@ pub fn render(frame: &mut Frame<'_>, area: Rect, app: &TuiApp, focused: bool) {
     }
 
     if let Some(reason) = rt.failure_reason.as_deref() {
-        push_detail(&mut lines, "Failure", reason, LABEL_WIDTH, content_width);
+        push_styled_detail(
+            &mut lines,
+            "Failure",
+            reason,
+            theme::failure_style(),
+            LABEL_WIDTH,
+            content_width,
+        );
     }
 
     let viewport = render_scroll_panel(

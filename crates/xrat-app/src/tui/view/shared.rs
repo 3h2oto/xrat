@@ -2,11 +2,10 @@ use std::cell::Cell;
 
 use ratatui::Frame;
 use ratatui::layout::Rect;
-use ratatui::style::Modifier;
+use ratatui::style::{Modifier, Style};
 use ratatui::text::{Line, Span};
 use ratatui::widgets::{
-    Block, Borders, Clear, Padding, Paragraph, Scrollbar, ScrollbarOrientation, ScrollbarState,
-    Wrap,
+    Block, Borders, Padding, Paragraph, Scrollbar, ScrollbarOrientation, ScrollbarState, Wrap,
 };
 
 use crate::tui::theme;
@@ -19,17 +18,49 @@ pub fn push_detail<'a>(
     content_width: usize,
 ) {
     let value = value.into();
-    let label_text = format!("{label} ");
-    let val_style = theme::value_style(label, &value);
+    let style = if value == "-" || value == "none" {
+        theme::muted_style()
+    } else {
+        theme::chrome_style()
+    };
+    push_styled_detail(lines, label, value, style, label_width, content_width);
+}
 
-    if label_width + value.chars().count() <= content_width {
-        lines.push(Line::from(vec![
+pub fn push_styled_detail<'a>(
+    lines: &mut Vec<Line<'a>>,
+    label: &str,
+    value: impl Into<String>,
+    style: Style,
+    label_width: usize,
+    content_width: usize,
+) {
+    push_detail_line(
+        lines,
+        label,
+        Line::from(Span::styled(value.into(), style)),
+        label_width,
+        content_width,
+    );
+}
+
+pub fn push_detail_line<'a>(
+    lines: &mut Vec<Line<'a>>,
+    label: &str,
+    mut value: Line<'a>,
+    label_width: usize,
+    content_width: usize,
+) {
+    let label_text = format!("{label} ");
+    if label_width + value.width() <= content_width {
+        value.spans.insert(
+            0,
             Span::styled(format!("{label_text:<label_width$}"), theme::muted_style()),
-            Span::styled(value, val_style),
-        ]));
+        );
+        lines.push(value);
     } else {
         lines.push(Line::from(Span::styled(label_text, theme::muted_style())));
-        lines.push(Line::from(Span::styled(format!("  {value}"), val_style)));
+        value.spans.insert(0, Span::raw("  "));
+        lines.push(value);
     }
 }
 
@@ -50,7 +81,7 @@ pub fn numbered_title(number: u8, title: &'static str) -> Line<'static> {
             format!("{number}:"),
             theme::secondary_style().add_modifier(Modifier::BOLD),
         ),
-        Span::raw(format!(" {title} ")),
+        Span::styled(format!(" {title} "), theme::chrome_style()),
     ])
 }
 
@@ -73,7 +104,7 @@ pub fn render_scroll_panel(
 
     let inner = block.inner(area);
 
-    frame.render_widget(Clear, area);
+    crate::tui::theme::clear(frame, area);
     frame.render_widget(block, area);
 
     // Pin the header row (if any) and scroll only the body beneath it.
@@ -115,6 +146,7 @@ pub fn render_scroll_panel(
             .position(offset as usize);
         frame.render_stateful_widget(
             Scrollbar::new(ScrollbarOrientation::VerticalRight)
+                .style(theme::muted_style())
                 .begin_symbol(None)
                 .end_symbol(None),
             body_area,

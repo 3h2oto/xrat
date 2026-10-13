@@ -1,7 +1,7 @@
 use ratatui::Frame;
 use ratatui::layout::{Constraint, Direction, Layout, Rect};
 use ratatui::text::{Line, Span};
-use ratatui::widgets::{Block, Borders, Clear, Gauge, Paragraph};
+use ratatui::widgets::{Block, Borders, Gauge, Paragraph};
 
 use crate::tui::app::TuiApp;
 use crate::tui::task::TuiTaskKind;
@@ -11,7 +11,7 @@ pub fn render(frame: &mut Frame<'_>, area: Rect, app: &TuiApp) {
     let block = Block::default().title(" Testing ").borders(Borders::ALL);
     let inner = block.inner(area);
 
-    frame.render_widget(Clear, area);
+    crate::tui::theme::clear(frame, area);
     frame.render_widget(block, area);
 
     let summary = summary_label(app);

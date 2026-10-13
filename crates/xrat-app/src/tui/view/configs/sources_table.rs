@@ -2,7 +2,7 @@ use ratatui::Frame;
 use ratatui::layout::{Constraint, Rect};
 use ratatui::style::Modifier;
 use ratatui::text::{Line, Span};
-use ratatui::widgets::{Block, Borders, Cell, Clear, Row, Table, TableState};
+use ratatui::widgets::{Block, Borders, Cell, Row, Table, TableState};
 
 use crate::tui::app::TuiApp;
 use crate::tui::theme;
@@ -86,7 +86,7 @@ pub fn render(frame: &mut Frame<'_>, area: Rect, app: &TuiApp, focused: bool) {
     .column_spacing(1);
 
     let mut state = TableState::default().with_selected(Some(app.source_list.focused));
-    frame.render_widget(Clear, area);
+    crate::tui::theme::clear(frame, area);
     frame.render_stateful_widget(table, area, &mut state);
 }
 

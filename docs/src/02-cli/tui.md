@@ -99,11 +99,17 @@ aligned and one entry never blends into the next.
 Press `,` from either tab to edit operational values from the active
 `config.toml`, including runtime and inbound settings, rotation, tests,
 subscription refresh, routing, the API server, parser mode, and the TUI color
-theme. Fixed DNS options are editable and take effect on the next managed-runtime
-restart. Database, binary paths, dynamic `[dns.hosts]` entries, and Geo/MMDB asset
-management remain file-only settings. Engine-specific DNS limitations are
-reported when a runtime configuration is generated. Theme changes preview live
-immediately as you cycle options.
+theme. Fixed DNS options are editable and take effect on the next
+managed-runtime restart. Database, binary paths, dynamic `[dns.hosts]` entries,
+and Geo/MMDB asset management remain file-only settings. Engine-specific DNS
+limitations are reported when a runtime configuration is generated. Theme
+changes preview live immediately as you cycle options. The selector includes
+built-in palettes and custom names defined under `[tui.themes.<name>]`. Define
+custom colors in TOML; the Settings modal selects palettes rather than editing
+individual colors. Reset previews `default`, and discarding changes restores the
+last saved palette. See
+[custom theme configuration](../05-reference/config-file.md#named-custom-themes)
+for color fields and examples.
 
 The modal shows a two-level setting tree on the left and effective values on the
 right. Deeper groups share their parent page under subheaders such as `General`,

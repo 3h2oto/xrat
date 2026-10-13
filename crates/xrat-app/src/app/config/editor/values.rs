@@ -64,7 +64,7 @@ pub(crate) fn flatten_settings(
         let default_value = defaults.get(key).unwrap_or(&serde_json::Value::Null);
         if matches!(
             path.as_str(),
-            "dns.resolvers" | "dns.rules" | "dns.outbound.rules"
+            "dns.resolvers" | "dns.rules" | "dns.outbound.rules" | "tui.themes"
         ) {
             continue;
         }
@@ -203,7 +203,7 @@ pub(crate) fn json_secret_value(value: &serde_json::Value) -> SettingValue {
 
 pub(crate) fn setting_kind(path: &str, value: &SettingValue) -> SettingKind {
     if let Some(options) = enum_options(path) {
-        return SettingKind::Enum(options);
+        return SettingKind::Enum(options.iter().map(|option| (*option).to_string()).collect());
     }
     match value {
         SettingValue::Bool(_) => SettingKind::Bool,

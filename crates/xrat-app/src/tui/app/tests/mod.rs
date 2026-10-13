@@ -5,4 +5,5 @@ mod import;
 mod navigation;
 mod settings;
 mod tasks;
+mod theme_rendering;
 mod view;

@@ -31,7 +31,7 @@ pub(crate) enum SettingKind {
     Integer,
     Text,
     List { numeric: bool },
-    Enum(&'static [&'static str]),
+    Enum(Vec<String>),
     Secret,
 }
 
@@ -142,7 +142,7 @@ impl EditableSetting {
         };
         let position = options
             .iter()
-            .position(|option| *option == current)
+            .position(|option| option == current)
             .unwrap_or(0);
         let next = if direction < 0 {
             (position + options.len() - 1) % options.len()
@@ -155,7 +155,7 @@ impl EditableSetting {
     }
 
     pub(crate) fn set_from_input(&mut self, input: &str) -> Result<(), String> {
-        self.value = match self.kind {
+        self.value = match &self.kind {
             SettingKind::Integer => SettingValue::Integer(
                 input
                     .trim()
@@ -170,7 +170,7 @@ impl EditableSetting {
                     .filter(|value| !value.is_empty())
                     .map(str::to_string)
                     .collect();
-                if numeric && values.iter().any(|value| value.parse::<i64>().is_err()) {
+                if *numeric && values.iter().any(|value| value.parse::<i64>().is_err()) {
                     return Err("list values must be whole numbers".to_string());
                 }
                 SettingValue::List(values)
@@ -196,6 +196,7 @@ pub(crate) struct ConfigEditSession {
     pub(crate) original_contents: String,
     pub(crate) document: DocumentMut,
     pub(crate) settings: Vec<EditableSetting>,
+    pub(crate) tui: crate::app::config::TuiSettings,
 }
 
 #[derive(Debug)]

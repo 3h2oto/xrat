@@ -6,15 +6,26 @@ impl ConfigEditSession {
     pub(crate) fn open(path: &Path) -> Result<Self, String> {
         let original_contents = fs::read_to_string(path)
             .map_err(|error| format!("could not read {}: {error}", path.display()))?;
-        let document = original_contents
+        let mut document = original_contents
             .parse::<DocumentMut>()
             .map_err(|error| format!("config is not valid TOML: {error}"))?;
+        if !document.as_table().contains_key("tui")
+            && let Some(settings) = document.as_table_mut().remove("ui")
+        {
+            document.as_table_mut().insert("tui", settings);
+        }
         let config: AppConfig = toml::from_str(&original_contents)
             .map_err(|error| format!("config could not be loaded: {error}"))?;
         let defaults = operational_values(&AppConfig::default())?;
         let current = operational_values(&config)?;
         let mut settings = Vec::new();
         flatten_settings("", &current, &defaults, &document, &mut settings);
+        if let Some(setting) = settings
+            .iter_mut()
+            .find(|setting| setting.path == "tui.theme")
+        {
+            setting.kind = SettingKind::Enum(config.tui.theme_names());
+        }
         settings
             .sort_by(|left, right| (&left.section, &left.path).cmp(&(&right.section, &right.path)));
         Ok(Self {
@@ -22,6 +33,7 @@ impl ConfigEditSession {
             original_contents,
             document,
             settings,
+            tui: config.tui,
         })
     }
 
@@ -96,6 +108,7 @@ impl ConfigEditSession {
         }
         atomic_write(&self.path, candidate.as_bytes())?;
 
+        self.tui = config.tui.clone();
         self.original_contents = candidate;
         self.document = document;
         for setting in &mut self.settings {

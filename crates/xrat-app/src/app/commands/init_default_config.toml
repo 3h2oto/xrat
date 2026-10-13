@@ -376,5 +376,14 @@ pac_allowed_hosts = ["localhost", "127.0.0.1", "::1"]
 # -----------------------------------------------------------------
 # [tui]
 # # Color palette: "default", "ansi", "catppuccin", "dracula",
-# # "gruvbox", "nord", "tokyo-night", or "light".
+# # "gruvbox", "nord", "tokyo-night", "light", or a custom name.
 # theme = "default"
+#
+# # Optional custom colors; set theme = "my-theme" above to select.
+# [tui.themes.my-theme]
+# extends = "catppuccin"
+# background = "#1e1e2e"
+# foreground = "#cdd6f4"
+# accent = "#89b4fa"
+# selection_background = "#45475a"
+# selection_foreground = "#cdd6f4"

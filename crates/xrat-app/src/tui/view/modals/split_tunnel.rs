@@ -11,7 +11,7 @@ pub fn render_split_modal(frame: &mut Frame<'_>, area: Rect, app: &TuiApp) {
     let width = area.width.saturating_sub(4).clamp(56, 112);
     let height = area.height.saturating_sub(2).clamp(18, 36);
     let modal_area = centered_rect_fixed(width, height, area);
-    frame.render_widget(Clear, modal_area);
+    crate::tui::theme::clear(frame, modal_area);
 
     let dirty = if modal.is_dirty() { " *" } else { "" };
     let title = format!(" TUN Split Tunneling{dirty} ");
