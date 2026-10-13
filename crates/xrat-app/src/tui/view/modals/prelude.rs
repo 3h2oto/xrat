@@ -1,7 +1,7 @@
 pub(crate) use ratatui::Frame;
 pub(crate) use ratatui::layout::{Alignment, Constraint, Direction, Layout, Rect};
 pub(crate) use ratatui::text::{Line, Span};
-pub(crate) use ratatui::widgets::{Block, Borders, Clear, Padding, Paragraph, Wrap};
+pub(crate) use ratatui::widgets::{Block, Borders, Padding, Paragraph, Wrap};
 pub(crate) use unicode_width::UnicodeWidthStr;
 
 pub(crate) use crate::app::config::{EditableSetting, SettingKind, SettingValue};

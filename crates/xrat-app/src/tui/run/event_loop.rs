@@ -2,7 +2,13 @@ use super::*;
 
 pub async fn run(context: &AppContext) -> crate::app::Result<()> {
     let mut context = context.clone();
-    crate::tui::theme::set_active(context.app_config.tui.theme);
+    crate::tui::theme::set_palette(
+        context
+            .app_config
+            .tui
+            .resolve(&context.app_config.tui.theme)
+            .map_err(crate::app::AppError::InvalidArgument)?,
+    );
     let mut terminal = TerminalSession::enter()?;
     let data = TuiData::load(&context, false).await?;
     let mut app = TuiApp::with_data(data);
@@ -415,7 +421,13 @@ pub async fn run(context: &AppContext) -> crate::app::Result<()> {
                                     .filter_map(|path| path.split('.').next())
                                     .collect();
                                 context.app_config = outcome.config;
-                                crate::tui::theme::set_active(context.app_config.tui.theme);
+                                crate::tui::theme::set_palette(
+                                    context
+                                        .app_config
+                                        .tui
+                                        .resolve(&context.app_config.tui.theme)
+                                        .map_err(crate::app::AppError::InvalidArgument)?,
+                                );
                                 geo_lookup = crate::app::services::dashboard::build_geo_lookup(
                                     &context.app_config,
                                     &context.runtime_paths,

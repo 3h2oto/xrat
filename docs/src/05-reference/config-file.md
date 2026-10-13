@@ -717,9 +717,69 @@ Terminal user interface display preferences.
 theme = "catppuccin"
 ```
 
-| Field   | Type   | Default     | Description                                                                                                            |
-| ------- | ------ | ----------- | ---------------------------------------------------------------------------------------------------------------------- |
-| `theme` | string | `"default"` | Color theme: `"default"`, `"ansi"`, `"catppuccin"`, `"dracula"`, `"gruvbox"`, `"nord"`, `"tokyo-night"`, or `"light"` |
+`theme` defaults to `"default"`. Choose `"default"`, `"ansi"`, `"catppuccin"`,
+`"dracula"`, `"gruvbox"`, `"nord"`, `"tokyo-night"`, `"light"`, or a custom
+name. RGB themes paint their own background; `ansi` keeps the terminal
+background and uses its ANSI palette. The RGB palettes adapt their muted and
+status colors for readable text on both normal and selected surfaces. The `[ui]`
+spelling remains an alias for `[tui]`; use one spelling throughout your file.
+
+### Named custom themes
+
+Define a palette in the same config file, then select it by name:
+
+```toml
+[tui]
+theme = "my-theme"
+
+[tui.themes.my-theme]
+extends = "catppuccin"
+background = "#1e1e2e"
+foreground = "#cdd6f4"
+accent = "#89b4fa"
+selection_background = "#45475a"
+selection_foreground = "#cdd6f4"
+```
+
+`extends` defaults to `"default"` and accepts built-in themes or their aliases.
+Custom themes cannot extend other custom themes. Omitted colors inherit from the
+base palette. Custom names start with a lowercase letter and contain only
+lowercase letters, digits, and hyphens. Built-in names and aliases are reserved.
+
+| Color field            | Used for                                                    |
+| ---------------------- | ----------------------------------------------------------- |
+| `background`           | Screen, panel and modal backgrounds                         |
+| `foreground`           | Ordinary text                                               |
+| `accent`               | Focus, actions and highlighted headings                     |
+| `secondary`            | Table headers, protocol labels and informational log levels |
+| `muted`                | Secondary text, inactive borders and missing values         |
+| `success`              | Successful tests and available engines                      |
+| `warning`              | Warnings and intermediate latency                           |
+| `failure`              | Errors, failed tests and unavailable engines                |
+| `download`             | Download throughput and series                              |
+| `upload`               | Upload throughput and series                                |
+| `selection_background` | Selected rows                                               |
+| `selection_foreground` | Ordinary text in selected rows                              |
+
+Colors accept `#RRGGBB` (case-insensitive hex digits), `terminal`, or an ANSI
+name: `black`, `red`, `green`, `yellow`, `blue`, `magenta`, `cyan`, `gray`,
+`dark-gray`, `light-red`, `light-green`, `light-yellow`, `light-blue`,
+`light-magenta`, `light-cyan`, or `white`. `terminal` uses the terminal's
+default foreground or background for that field. ANSI colors depend on the
+terminal's configured palette. Status-colored cells retain their semantic
+foreground when selected, so choose backgrounds that also contrast with those
+colors.
+
+Unknown color fields, malformed colors, reserved names, invalid bases, and an
+undefined selected theme are configuration errors. Check your file with
+`xrat validate config.toml`. Built-in aliases are normalized to canonical names;
+custom names match exactly. The legacy `solarized-light` alias still selects
+`light` (a Latte-inspired palette), but is deprecated; use `light` or `latte`.
+
+Custom definitions are edited in TOML. Settings lists them alongside built-ins
+and supports live preview, save, reset, and discard. Saving other settings
+preserves custom theme definitions and comments. Reopen Settings after editing
+the file externally to refresh the available names.
 
 ## Environment Variable References
 

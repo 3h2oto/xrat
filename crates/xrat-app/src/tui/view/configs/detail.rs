@@ -6,7 +6,9 @@ use ratatui::text::Line;
 use crate::tui::app::TuiApp;
 use crate::tui::data::{TuiConfigRow, TuiMetricColumns};
 use crate::tui::theme;
-use crate::tui::view::shared::{PanelStyle, numbered_title, push_detail, render_scroll_panel};
+use crate::tui::view::shared::{
+    PanelStyle, numbered_title, push_detail, push_styled_detail, render_scroll_panel,
+};
 
 pub fn render(frame: &mut Frame<'_>, area: Rect, app: &TuiApp, focused: bool) {
     let config = app.focused_config();
@@ -70,10 +72,11 @@ fn detail_lines<'a>(
                 content_width,
             );
             push_detail(&mut lines, "Ref", &config.r#ref, LABEL_WIDTH, content_width);
-            push_detail(
+            push_styled_detail(
                 &mut lines,
                 "Protocol",
                 &config.protocol,
+                theme::secondary_style().add_modifier(Modifier::BOLD),
                 LABEL_WIDTH,
                 content_width,
             );
@@ -92,46 +95,59 @@ fn detail_lines<'a>(
                 content_width,
             );
             if metric_columns.icmp {
-                push_detail(
+                push_styled_detail(
                     &mut lines,
                     "ICMP",
                     config.icmp_label(),
+                    theme::optional_latency_style(config.icmp_ms),
                     LABEL_WIDTH,
                     content_width,
                 );
             }
             if metric_columns.tcp {
-                push_detail(
+                push_styled_detail(
                     &mut lines,
                     "TCP",
                     config.tcp_label(),
+                    theme::optional_latency_style(config.tcp_ms),
                     LABEL_WIDTH,
                     content_width,
                 );
             }
             if metric_columns.real_delay {
-                push_detail(
+                push_styled_detail(
                     &mut lines,
                     "Real Delay",
                     config.delay_label(),
+                    theme::optional_latency_style(config.real_delay_ms),
                     LABEL_WIDTH,
                     content_width,
                 );
             }
             if metric_columns.download {
-                push_detail(
+                push_styled_detail(
                     &mut lines,
                     "Download",
                     config.download_detail_label(),
+                    if config.download_mbps.is_some() {
+                        theme::series_style("download")
+                    } else {
+                        theme::muted_style()
+                    },
                     LABEL_WIDTH,
                     content_width,
                 );
             }
             if metric_columns.upload {
-                push_detail(
+                push_styled_detail(
                     &mut lines,
                     "Upload",
                     config.upload_detail_label(),
+                    if config.upload_mbps.is_some() {
+                        theme::series_style("upload")
+                    } else {
+                        theme::muted_style()
+                    },
                     LABEL_WIDTH,
                     content_width,
                 );
@@ -175,32 +191,44 @@ fn detail_lines<'a>(
                 LABEL_WIDTH,
                 content_width,
             );
-            push_detail(
+            push_styled_detail(
                 &mut lines,
                 "Enabled",
                 yes_no(config.is_enabled),
+                theme::available_style(config.is_enabled),
                 LABEL_WIDTH,
                 content_width,
             );
-            push_detail(
+            push_styled_detail(
                 &mut lines,
                 "Active",
                 yes_no(config.is_active),
+                theme::available_style(config.is_active),
                 LABEL_WIDTH,
                 content_width,
             );
-            push_detail(
+            push_styled_detail(
                 &mut lines,
                 "Deleted",
                 yes_no(config.is_deleted),
+                if config.is_deleted {
+                    theme::failure_style()
+                } else {
+                    theme::muted_style()
+                },
                 LABEL_WIDTH,
                 content_width,
             );
             lines.push(Line::raw(""));
-            push_detail(
+            push_styled_detail(
                 &mut lines,
                 "Failure",
                 config.failure_reason.as_deref().unwrap_or("-"),
+                if config.failure_reason.is_some() {
+                    theme::failure_style()
+                } else {
+                    theme::muted_style()
+                },
                 LABEL_WIDTH,
                 content_width,
             );

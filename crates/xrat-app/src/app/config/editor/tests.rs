@@ -100,7 +100,7 @@ fn help_metadata_covers_every_exposed_setting() {
             assert!(
                 options
                     .iter()
-                    .all(|option| possible_values.contains(option)),
+                    .all(|option| possible_values.contains(option.as_str())),
                 "{}",
                 setting.path
             );

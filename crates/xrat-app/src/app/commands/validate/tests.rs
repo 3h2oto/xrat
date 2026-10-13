@@ -523,3 +523,42 @@ fn rejects_invalid_tui_theme() {
     assert!(diagnostic.problem.contains("neon-glow"));
     assert!(diagnostic.fix.contains("catppuccin"));
 }
+
+#[test]
+fn accepts_named_custom_theme_and_legacy_ui_alias() {
+    for section in ["tui", "ui"] {
+        let input = format!(
+            "[{section}]\ntheme = 'custom'\n[{section}.themes.custom]\nextends = 'catppuccin'\naccent = '#123456'"
+        );
+        assert!(errors_for_toml(&input).is_empty(), "{input}");
+    }
+}
+
+#[test]
+fn rejects_invalid_custom_theme_colors_names_and_bases() {
+    for (input, problem) in [
+        ("[tui.themes.custom]\naccent = '#12345g'", "accent"),
+        ("[tui.themes.nord]", "reserved"),
+        ("[tui.themes.custom]\nextends = 'custom'", "extends"),
+        ("[tui.themes.custom]\nacccent = 'red'", "acccent"),
+    ] {
+        let errors = errors_for_toml(input);
+        assert!(!errors.is_empty(), "{input}");
+        assert!(
+            errors[0].problem.contains(problem) || errors[0].field.contains(problem),
+            "{errors:?}"
+        );
+    }
+}
+
+#[test]
+fn theme_validation_normalizes_builtin_aliases_like_configuration_loading() {
+    assert!(errors_for_toml("[tui]\ntheme = ' MoCha '").is_empty());
+}
+
+#[test]
+fn custom_color_diagnostic_identifies_exact_field() {
+    let errors = errors_for_toml("[tui.themes.custom]\naccent = '#12345g'");
+    let diagnostic = find(&errors, "[tui.themes.custom].accent");
+    assert!(diagnostic.problem.contains("#12345g"));
+}

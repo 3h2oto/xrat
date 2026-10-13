@@ -24,7 +24,7 @@ pub(crate) use editor::{
     update_runtime_binary_path,
 };
 
-pub use self::tui::TuiSettings;
+pub use self::tui::{CustomTheme, ThemeColor, ThemeName, TuiSettings};
 pub use crate::tui::theme::TuiTheme;
 pub use database::{
     DatabaseBackend, DatabaseSettings, PostgresDatabaseSettings, SqliteDatabaseSettings,

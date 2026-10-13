@@ -29,17 +29,6 @@ const GEOIP_PROVIDER_ENUM: &[(&str, &[&str])] =
 const TUN_SPLIT_MODE_ENUM: &[(&str, &[&str])] =
     &[("all", &[]), ("blacklist", &[]), ("whitelist", &[])];
 
-const TUI_THEME_ENUM: &[(&str, &[&str])] = &[
-    ("default", &["amber", "warm"]),
-    ("ansi", &["terminal"]),
-    ("catppuccin", &["mocha", "catppuccin-mocha"]),
-    ("dracula", &[]),
-    ("gruvbox", &["gruvbox-dark"]),
-    ("nord", &[]),
-    ("tokyo-night", &["tokyonight"]),
-    ("light", &["latte", "solarized-light"]),
-];
-
 /// Field-level checks against the raw TOML value, run before deserializing into
 /// `AppConfig`. These catch invalid enum values and wrong types on fields that
 /// would otherwise fail deserialization with only a generic parse error.
@@ -100,20 +89,7 @@ pub(crate) fn check_known_fields(value: &toml::Value, errors: &mut Vec<Diagnosti
         TUN_SPLIT_MODE_ENUM,
         errors,
     );
-    check_scalar_enum(
-        value,
-        &["tui", "theme"],
-        "[tui].theme",
-        TUI_THEME_ENUM,
-        errors,
-    );
-    check_scalar_enum(
-        value,
-        &["ui", "theme"],
-        "[ui].theme",
-        TUI_THEME_ENUM,
-        errors,
-    );
+    super::tui::check_fields(value, errors);
 }
 
 pub(crate) fn check_status_acceptance_fields(value: &toml::Value, errors: &mut Vec<Diagnostic>) {

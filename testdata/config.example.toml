@@ -204,3 +204,12 @@ timeout = 5000 # ms
 [tui]
 theme = "default"
 
+
+# Optional named palette; select with [tui].theme = "my-theme".
+# [tui.themes.my-theme]
+# extends = "catppuccin"
+# background = "#1e1e2e"
+# foreground = "#cdd6f4"
+# accent = "#89b4fa"
+# selection_background = "#45475a"
+# selection_foreground = "#cdd6f4"

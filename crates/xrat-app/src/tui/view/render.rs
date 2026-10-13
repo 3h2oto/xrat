@@ -2,6 +2,7 @@ use super::*;
 
 pub fn render(frame: &mut Frame<'_>, app: &TuiApp) {
     let area = frame.area();
+    crate::tui::theme::clear(frame, area);
     let shell = Layout::default()
         .direction(Direction::Vertical)
         .constraints([Constraint::Min(5), Constraint::Length(1)])

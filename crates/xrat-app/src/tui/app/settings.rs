@@ -196,7 +196,7 @@ impl TuiApp {
             return;
         };
         let setting = &mut modal.session.settings[setting_index];
-        match setting.kind {
+        match &setting.kind {
             SettingKind::Bool => {
                 setting.toggle();
             }
@@ -290,15 +290,8 @@ impl TuiApp {
             return;
         };
         if discard {
-            if let Some(setting) = modal
-                .session
-                .settings
-                .iter()
-                .find(|s| s.path == "tui.theme")
-                && let SettingValue::Text(ref name) = setting.original_value
-                && let Ok(theme) = name.parse::<crate::tui::theme::TuiTheme>()
-            {
-                crate::tui::theme::set_active(theme);
+            if let Ok(palette) = modal.session.tui.resolve(&modal.session.tui.theme) {
+                crate::tui::theme::set_palette(palette);
             }
             self.settings_modal = None;
             self.needs_full_clear = true;
@@ -309,14 +302,21 @@ impl TuiApp {
 }
 
 fn sync_live_theme_preview(modal: &SettingsModalState) {
+    if modal
+        .selected_setting_index()
+        .is_none_or(|index| modal.session.settings[index].path != "tui.theme")
+    {
+        return;
+    }
     if let Some(setting) = modal
         .session
         .settings
         .iter()
         .find(|s| s.path == "tui.theme")
         && let SettingValue::Text(ref name) = setting.value
-        && let Ok(theme) = name.parse::<crate::tui::theme::TuiTheme>()
+        && let Ok(theme) = crate::app::config::ThemeName::parse(name)
+        && let Ok(palette) = modal.session.tui.resolve(&theme)
     {
-        crate::tui::theme::set_active(theme);
+        crate::tui::theme::set_palette(palette);
     }
 }

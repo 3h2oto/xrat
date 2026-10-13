@@ -1,5 +1,5 @@
 use std::str::FromStr;
-use std::sync::atomic::{AtomicU8, Ordering};
+use std::sync::{LazyLock, RwLock};
 
 use ratatui::style::{Color, Style};
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
@@ -16,7 +16,8 @@ pub const DETAIL_LABEL_WIDTH: usize = 13;
 /// estimate) wrap before they collide with the right border.
 pub const DETAIL_RIGHT_PAD: u16 = 3;
 
-static ACTIVE_THEME: AtomicU8 = AtomicU8::new(TuiTheme::Default as u8);
+static ACTIVE_PALETTE: LazyLock<RwLock<ThemePalette>> =
+    LazyLock::new(|| RwLock::new(TuiTheme::Default.palette()));
 
 #[cfg(test)]
 pub static TEST_THEME_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
@@ -61,35 +62,26 @@ impl TuiTheme {
         }
     }
 
-    pub fn from_u8(value: u8) -> Self {
-        match value {
-            1 => Self::Ansi,
-            2 => Self::Catppuccin,
-            3 => Self::Dracula,
-            4 => Self::Gruvbox,
-            5 => Self::Nord,
-            6 => Self::TokyoNight,
-            7 => Self::Light,
-            _ => Self::Default,
-        }
-    }
-
     pub fn palette(self) -> ThemePalette {
         match self {
             Self::Default => ThemePalette {
-                chrome: Color::Rgb(237, 225, 205),
+                selection_foreground: Color::Rgb(237, 225, 205),
+                background: Color::Rgb(28, 25, 22),
+                foreground: Color::Rgb(237, 225, 205),
                 accent: Color::Rgb(247, 181, 99),
                 secondary: Color::Rgb(130, 195, 225),
-                muted: Color::Rgb(148, 139, 123),
+                muted: Color::Rgb(160, 152, 137),
                 success: Color::Rgb(97, 198, 128),
-                failure: Color::Rgb(229, 96, 84),
+                failure: Color::Rgb(233, 120, 109),
                 warning: Color::Rgb(204, 170, 80),
                 download: Color::Rgb(120, 180, 235),
                 upload: Color::Rgb(210, 130, 220),
-                selection_bg: Color::Rgb(58, 48, 38),
+                selection_background: Color::Rgb(58, 48, 38),
             },
             Self::Ansi => ThemePalette {
-                chrome: Color::Reset,
+                selection_foreground: Color::White,
+                background: Color::Reset,
+                foreground: Color::Reset,
                 accent: Color::Cyan,
                 secondary: Color::Blue,
                 muted: Color::DarkGray,
@@ -98,79 +90,91 @@ impl TuiTheme {
                 warning: Color::Yellow,
                 download: Color::Blue,
                 upload: Color::Magenta,
-                selection_bg: Color::Indexed(8),
+                selection_background: Color::Indexed(8),
             },
             Self::Catppuccin => ThemePalette {
-                chrome: Color::Rgb(205, 214, 244),
-                accent: Color::Rgb(137, 180, 250),
-                secondary: Color::Rgb(203, 166, 247),
-                muted: Color::Rgb(108, 112, 134),
+                selection_foreground: Color::Rgb(205, 214, 244),
+                background: Color::Rgb(30, 30, 46),
+                foreground: Color::Rgb(205, 214, 244),
+                accent: Color::Rgb(143, 184, 250),
+                secondary: Color::Rgb(203, 167, 247),
+                muted: Color::Rgb(177, 182, 200),
                 success: Color::Rgb(166, 227, 161),
-                failure: Color::Rgb(243, 139, 168),
+                failure: Color::Rgb(245, 157, 181),
                 warning: Color::Rgb(249, 226, 175),
                 download: Color::Rgb(116, 199, 236),
                 upload: Color::Rgb(245, 194, 231),
-                selection_bg: Color::Rgb(69, 71, 90),
+                selection_background: Color::Rgb(69, 71, 90),
             },
             Self::Dracula => ThemePalette {
-                chrome: Color::Rgb(248, 248, 242),
-                accent: Color::Rgb(189, 147, 249),
+                selection_foreground: Color::Rgb(248, 248, 242),
+                background: Color::Rgb(40, 42, 54),
+                foreground: Color::Rgb(248, 248, 242),
+                accent: Color::Rgb(201, 167, 250),
                 secondary: Color::Rgb(139, 233, 253),
-                muted: Color::Rgb(98, 114, 164),
+                muted: Color::Rgb(172, 182, 210),
                 success: Color::Rgb(80, 250, 123),
-                failure: Color::Rgb(255, 85, 85),
+                failure: Color::Rgb(255, 154, 154),
                 warning: Color::Rgb(241, 250, 140),
                 download: Color::Rgb(139, 233, 253),
-                upload: Color::Rgb(255, 121, 198),
-                selection_bg: Color::Rgb(68, 71, 90),
+                upload: Color::Rgb(255, 147, 209),
+                selection_background: Color::Rgb(68, 71, 90),
             },
             Self::Gruvbox => ThemePalette {
-                chrome: Color::Rgb(235, 219, 178),
+                selection_foreground: Color::Rgb(235, 219, 178),
+                background: Color::Rgb(40, 40, 40),
+                foreground: Color::Rgb(235, 219, 178),
                 accent: Color::Rgb(254, 128, 25),
                 secondary: Color::Rgb(142, 192, 124),
-                muted: Color::Rgb(146, 131, 116),
+                muted: Color::Rgb(171, 160, 148),
                 success: Color::Rgb(184, 187, 38),
-                failure: Color::Rgb(251, 73, 52),
+                failure: Color::Rgb(252, 123, 108),
                 warning: Color::Rgb(250, 189, 47),
-                download: Color::Rgb(131, 165, 152),
-                upload: Color::Rgb(211, 134, 155),
-                selection_bg: Color::Rgb(60, 56, 54),
+                download: Color::Rgb(136, 169, 156),
+                upload: Color::Rgb(214, 141, 161),
+                selection_background: Color::Rgb(60, 56, 54),
             },
             Self::Nord => ThemePalette {
-                chrome: Color::Rgb(236, 239, 244),
+                selection_foreground: Color::Rgb(236, 239, 244),
+                background: Color::Rgb(46, 52, 64),
+                foreground: Color::Rgb(236, 239, 244),
                 accent: Color::Rgb(136, 192, 208),
-                secondary: Color::Rgb(129, 161, 193),
-                muted: Color::Rgb(129, 141, 161),
+                secondary: Color::Rgb(150, 177, 203),
+                muted: Color::Rgb(166, 174, 188),
                 success: Color::Rgb(163, 190, 140),
-                failure: Color::Rgb(191, 97, 106),
+                failure: Color::Rgb(216, 159, 164),
                 warning: Color::Rgb(235, 203, 139),
                 download: Color::Rgb(143, 188, 187),
-                upload: Color::Rgb(180, 142, 173),
-                selection_bg: Color::Rgb(59, 66, 82),
+                upload: Color::Rgb(195, 165, 189),
+                selection_background: Color::Rgb(59, 66, 82),
             },
             Self::TokyoNight => ThemePalette {
-                chrome: Color::Rgb(192, 202, 245),
+                selection_foreground: Color::Rgb(192, 202, 245),
+                background: Color::Rgb(26, 27, 38),
+                foreground: Color::Rgb(192, 202, 245),
                 accent: Color::Rgb(122, 162, 247),
                 secondary: Color::Rgb(187, 154, 247),
-                muted: Color::Rgb(86, 95, 137),
+                muted: Color::Rgb(154, 165, 206),
                 success: Color::Rgb(158, 206, 106),
                 failure: Color::Rgb(247, 118, 142),
                 warning: Color::Rgb(224, 175, 104),
                 download: Color::Rgb(125, 207, 255),
                 upload: Color::Rgb(187, 154, 247),
-                selection_bg: Color::Rgb(41, 46, 66),
+                selection_background: Color::Rgb(41, 46, 66),
             },
             Self::Light => ThemePalette {
-                chrome: Color::Rgb(76, 79, 105),
-                accent: Color::Rgb(30, 102, 245),
-                secondary: Color::Rgb(136, 57, 239),
-                muted: Color::Rgb(140, 143, 161),
-                success: Color::Rgb(64, 160, 43),
-                failure: Color::Rgb(210, 15, 57),
-                warning: Color::Rgb(223, 142, 29),
-                download: Color::Rgb(4, 165, 229),
-                upload: Color::Rgb(136, 57, 239),
-                selection_bg: Color::Rgb(220, 224, 232),
+                selection_foreground: Color::Rgb(76, 79, 105),
+                background: Color::Rgb(239, 241, 245),
+                foreground: Color::Rgb(76, 79, 105),
+                accent: Color::Rgb(27, 90, 217),
+                secondary: Color::Rgb(127, 53, 224),
+                muted: Color::Rgb(96, 98, 118),
+                success: Color::Rgb(45, 113, 30),
+                failure: Color::Rgb(198, 14, 54),
+                warning: Color::Rgb(138, 88, 18),
+                download: Color::Rgb(3, 106, 147),
+                upload: Color::Rgb(127, 53, 224),
+                selection_background: Color::Rgb(220, 224, 232),
             },
         }
     }
@@ -219,7 +223,9 @@ impl<'de> Deserialize<'de> for TuiTheme {
 /// Color set assigned to TUI UI components.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct ThemePalette {
-    pub chrome: Color,
+    pub background: Color,
+    pub selection_foreground: Color,
+    pub foreground: Color,
     pub accent: Color,
     pub secondary: Color,
     pub muted: Color,
@@ -228,23 +234,39 @@ pub struct ThemePalette {
     pub warning: Color,
     pub download: Color,
     pub upload: Color,
-    pub selection_bg: Color,
+    pub selection_background: Color,
 }
 
-pub fn active() -> TuiTheme {
-    TuiTheme::from_u8(ACTIVE_THEME.load(Ordering::Relaxed))
+pub fn set_palette(palette: ThemePalette) {
+    *ACTIVE_PALETTE.write().expect("theme palette lock poisoned") = palette;
 }
 
+#[cfg(test)]
 pub fn set_active(theme: TuiTheme) {
-    ACTIVE_THEME.store(theme as u8, Ordering::Relaxed);
+    set_palette(theme.palette());
 }
 
 pub fn palette() -> ThemePalette {
-    active().palette()
+    *ACTIVE_PALETTE.read().expect("theme palette lock poisoned")
+}
+
+pub fn surface_style() -> Style {
+    let palette = palette();
+    Style::default()
+        .fg(palette.foreground)
+        .bg(palette.background)
+}
+
+pub fn clear(frame: &mut ratatui::Frame<'_>, area: ratatui::layout::Rect) {
+    frame.render_widget(ratatui::widgets::Clear, area);
+    frame.render_widget(
+        ratatui::widgets::Block::default().style(surface_style()),
+        area,
+    );
 }
 
 pub fn chrome_style() -> Style {
-    Style::default().fg(palette().chrome)
+    Style::default().fg(palette().foreground)
 }
 
 pub fn accent_style() -> Style {
@@ -272,7 +294,9 @@ pub fn warning_style() -> Style {
 }
 
 pub fn selection_style() -> Style {
-    Style::default().bg(palette().selection_bg)
+    Style::default()
+        .fg(palette().selection_foreground)
+        .bg(palette().selection_background)
 }
 
 /// Border style for cards and modals. Focused panels get the primary accent,
@@ -306,56 +330,18 @@ pub fn latency_text_style(text: &str) -> Style {
     }
 }
 
-/// Automatic semantic style for detail panel values based on key name and content.
-pub fn value_style(label: &str, value: &str) -> Style {
-    let trimmed = value.trim();
-    if trimmed == "-" || trimmed == "none" {
-        return muted_style();
+pub fn available_style(available: bool) -> Style {
+    if available {
+        success_style()
+    } else {
+        muted_style()
     }
-    match label {
-        "Enabled" | "Active" => {
-            if trimmed == "yes" {
-                success_style()
-            } else {
-                muted_style()
-            }
-        }
-        "Deleted" => {
-            if trimmed == "yes" {
-                failure_style()
-            } else {
-                muted_style()
-            }
-        }
-        "Daemon" => {
-            if trimmed == "running" {
-                success_style()
-            } else {
-                muted_style()
-            }
-        }
-        "Rotation" => {
-            if trimmed.starts_with("on") {
-                success_style()
-            } else {
-                muted_style()
-            }
-        }
-        "Protocol" => secondary_style().add_modifier(ratatui::style::Modifier::BOLD),
-        "ICMP" | "TCP" | "Real Delay" => latency_text_style(trimmed),
-        "Download" => series_style("download"),
-        "Upload" => series_style("upload"),
-        "Failure" => failure_style(),
-        _ => {
-            if trimmed == "yes" || trimmed.contains('✓') {
-                success_style()
-            } else if trimmed == "no" || trimmed.contains('✗') {
-                failure_style()
-            } else {
-                chrome_style()
-            }
-        }
-    }
+}
+
+pub fn optional_latency_style(ms: Option<i64>) -> Style {
+    ms.and_then(|ms| u64::try_from(ms).ok())
+        .map(latency_style)
+        .unwrap_or_else(muted_style)
 }
 
 /// Dynamic style for latency and throughput metrics in graphs and tables.
@@ -367,7 +353,7 @@ pub fn series_style(label: &str) -> Style {
         "real-delay" => p.accent,
         "download" => p.download,
         "upload" => p.upload,
-        _ => p.chrome,
+        _ => p.foreground,
     };
     Style::default().fg(color)
 }
@@ -387,83 +373,5 @@ pub fn severity_style(level: &str) -> Style {
 }
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn parses_canonical_names_and_aliases() {
-        assert_eq!("default".parse::<TuiTheme>().unwrap(), TuiTheme::Default);
-        assert_eq!("amber".parse::<TuiTheme>().unwrap(), TuiTheme::Default);
-        assert_eq!("warm".parse::<TuiTheme>().unwrap(), TuiTheme::Default);
-        assert_eq!("ansi".parse::<TuiTheme>().unwrap(), TuiTheme::Ansi);
-        assert_eq!("terminal".parse::<TuiTheme>().unwrap(), TuiTheme::Ansi);
-        assert_eq!(
-            "catppuccin".parse::<TuiTheme>().unwrap(),
-            TuiTheme::Catppuccin
-        );
-        assert_eq!("mocha".parse::<TuiTheme>().unwrap(), TuiTheme::Catppuccin);
-        assert_eq!("dracula".parse::<TuiTheme>().unwrap(), TuiTheme::Dracula);
-        assert_eq!("gruvbox".parse::<TuiTheme>().unwrap(), TuiTheme::Gruvbox);
-        assert_eq!("nord".parse::<TuiTheme>().unwrap(), TuiTheme::Nord);
-        assert_eq!(
-            "tokyo-night".parse::<TuiTheme>().unwrap(),
-            TuiTheme::TokyoNight
-        );
-        assert_eq!(
-            "tokyonight".parse::<TuiTheme>().unwrap(),
-            TuiTheme::TokyoNight
-        );
-        assert_eq!("light".parse::<TuiTheme>().unwrap(), TuiTheme::Light);
-        assert_eq!("latte".parse::<TuiTheme>().unwrap(), TuiTheme::Light);
-    }
-
-    #[test]
-    fn rejects_unknown_theme() {
-        assert!("invalid-theme".parse::<TuiTheme>().is_err());
-    }
-
-    #[test]
-    fn switching_theme_updates_active_palette_and_styles() {
-        let _guard = TEST_THEME_LOCK.lock().unwrap();
-        set_active(TuiTheme::Default);
-        assert_eq!(active(), TuiTheme::Default);
-        let default_accent = accent_style();
-        let default_secondary = secondary_style();
-
-        set_active(TuiTheme::Nord);
-        assert_eq!(active(), TuiTheme::Nord);
-        let nord_accent = accent_style();
-        let nord_secondary = secondary_style();
-        assert_ne!(default_accent, nord_accent);
-        assert_ne!(default_secondary, nord_secondary);
-
-        set_active(TuiTheme::Default);
-    }
-
-    #[test]
-    fn latency_style_thresholds() {
-        let _guard = TEST_THEME_LOCK.lock().unwrap();
-        set_active(TuiTheme::Default);
-        assert_eq!(latency_style(50), success_style());
-        assert_eq!(latency_style(250), warning_style());
-        assert_eq!(latency_style(600), failure_style());
-
-        assert_eq!(latency_text_style("42 ms"), success_style());
-        assert_eq!(latency_text_style("200ms"), warning_style());
-        assert_eq!(latency_text_style("500 ms"), failure_style());
-        assert_eq!(latency_text_style("-"), muted_style());
-    }
-
-    #[test]
-    fn semantic_value_style() {
-        let _guard = TEST_THEME_LOCK.lock().unwrap();
-        set_active(TuiTheme::Default);
-        assert_eq!(value_style("Enabled", "yes"), success_style());
-        assert_eq!(value_style("Enabled", "no"), muted_style());
-        assert_eq!(value_style("Deleted", "yes"), failure_style());
-        assert_eq!(value_style("Daemon", "running"), success_style());
-        assert_eq!(value_style("Daemon", "stopped"), muted_style());
-        assert_eq!(value_style("Failure", "timeout"), failure_style());
-        assert_eq!(value_style("Any", "-"), muted_style());
-    }
-}
+#[path = "theme_tests.rs"]
+mod tests;

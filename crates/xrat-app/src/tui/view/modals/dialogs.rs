@@ -27,7 +27,7 @@ pub fn render_import_modal(frame: &mut Frame<'_>, area: Rect, app: &TuiApp) {
     let modal_height = if has_error { 8 } else { 7 };
     let modal_area = centered_rect_fixed(WIDTH.min(area.width), modal_height, area);
 
-    frame.render_widget(Clear, modal_area);
+    crate::tui::theme::clear(frame, modal_area);
     let footer = Line::from(vec![
         Span::styled(" Enter", theme::accent_style().bold()),
         Span::styled(format!(" {submit_label}   "), theme::muted_style()),
@@ -106,7 +106,7 @@ pub fn render_rename_modal(frame: &mut Frame<'_>, area: Rect, app: &TuiApp) {
     let modal_height = if has_error { 6 } else { 5 };
     let modal_area = centered_rect_fixed(modal_width, modal_height, area);
 
-    frame.render_widget(Clear, modal_area);
+    crate::tui::theme::clear(frame, modal_area);
     let footer = Line::from(vec![
         Span::styled(" Enter", theme::accent_style().bold()),
         Span::styled(" save   ", theme::muted_style()),
@@ -217,7 +217,7 @@ pub fn render_qr_modal(frame: &mut Frame<'_>, area: Rect, app: &TuiApp) {
     let content_height = qr_lines.len() as u16 + 1 + vertical_pad * 2;
 
     let modal_area = centered_rect_fixed(inner_width + 2, content_height + 2, area);
-    frame.render_widget(Clear, modal_area);
+    crate::tui::theme::clear(frame, modal_area);
 
     let block = Block::default()
         .title(format!(" {} ", modal.kind.modal_title()))
