@@ -28,6 +28,7 @@ pub(crate) fn operational_values(config: &AppConfig) -> Result<serde_json::Value
     insert_serialized(&mut root, "testing", &config.testing)?;
     insert_serialized(&mut root, "server", &config.server)?;
     insert_serialized(&mut root, "parser", &config.parser)?;
+    insert_serialized(&mut root, "tui", &config.tui)?;
     Ok(serde_json::Value::Object(root))
 }
 
@@ -240,6 +241,7 @@ pub(crate) fn enum_options(path: &str) -> Option<&'static [&'static str]> {
         }
         "testing.geoip.remote.provider" => Some(&["ip-whois", "ip-api"]),
         "parser.parse_mode" => Some(&["strict", "lenient", "auto", "loose"]),
+        "tui.theme" => Some(crate::tui::theme::TuiTheme::CANONICAL_NAMES),
         _ => None,
     }
 }

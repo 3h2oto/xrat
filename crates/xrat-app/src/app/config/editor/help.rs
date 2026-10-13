@@ -681,6 +681,11 @@ pub(super) fn for_path(path: &str) -> Option<SettingHelp> {
             "",
             "parse_mode = \"strict\"",
         ),
+        "tui.theme" => help(
+            "Selects the color palette used across the interactive TUI.",
+            "",
+            "theme = \"catppuccin\"",
+        ),
         _ => return None,
     })
 }

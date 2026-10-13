@@ -20,15 +20,16 @@ pub fn push_detail<'a>(
 ) {
     let value = value.into();
     let label_text = format!("{label} ");
+    let val_style = theme::value_style(label, &value);
 
     if label_width + value.chars().count() <= content_width {
         lines.push(Line::from(vec![
             Span::styled(format!("{label_text:<label_width$}"), theme::muted_style()),
-            Span::raw(value),
+            Span::styled(value, val_style),
         ]));
     } else {
         lines.push(Line::from(Span::styled(label_text, theme::muted_style())));
-        lines.push(Line::from(Span::raw(format!("  {value}"))));
+        lines.push(Line::from(Span::styled(format!("  {value}"), val_style)));
     }
 }
 
@@ -47,7 +48,7 @@ pub fn numbered_title(number: u8, title: &'static str) -> Line<'static> {
         Span::raw(" "),
         Span::styled(
             format!("{number}:"),
-            theme::accent_style().add_modifier(Modifier::BOLD),
+            theme::secondary_style().add_modifier(Modifier::BOLD),
         ),
         Span::raw(format!(" {title} ")),
     ])
@@ -64,15 +65,10 @@ pub fn render_scroll_panel(
     scroll: &Cell<u16>,
     style: PanelStyle,
 ) -> u16 {
-    let border_style = if style.focused {
-        theme::accent_style()
-    } else {
-        theme::chrome_style()
-    };
     let block = Block::default()
         .title(style.title)
         .borders(Borders::ALL)
-        .border_style(border_style)
+        .border_style(theme::border_style(style.focused))
         .padding(Padding::new(0, style.right_pad, 0, 0));
 
     let inner = block.inner(area);

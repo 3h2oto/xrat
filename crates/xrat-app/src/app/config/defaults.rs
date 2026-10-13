@@ -109,3 +109,5 @@ pub const DEFAULT_SERVER_HOST: &str = "127.0.0.1";
 pub const DEFAULT_SERVER_PORT: u16 = 18203;
 pub const DEFAULT_SERVER_PAC_ENABLED: bool = true;
 pub const DEFAULT_SERVER_PAC_ALLOWED_HOSTS: &[&str] = &["localhost", "127.0.0.1", "::1"];
+
+pub const DEFAULT_TUI_THEME: &str = "default";

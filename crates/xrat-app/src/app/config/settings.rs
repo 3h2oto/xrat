@@ -14,6 +14,8 @@ pub struct AppConfig {
     pub parser: ParserSettings,
     pub testing: TestingSettings,
     pub server: ServerSettings,
+    #[serde(alias = "ui")]
+    pub tui: TuiSettings,
 }
 
 pub fn load(config_path: &Path) -> crate::app::Result<AppConfig> {

@@ -496,3 +496,30 @@ fn accepts_valid_config_written_to_disk() {
         "valid config should have no errors: {errors:?}"
     );
 }
+
+#[test]
+fn accepts_valid_tui_theme() {
+    let errors = errors_for_toml(
+        r#"
+        [tui]
+        theme = "catppuccin"
+        "#,
+    );
+    assert!(
+        errors.is_empty(),
+        "valid theme should have no errors: {errors:?}"
+    );
+}
+
+#[test]
+fn rejects_invalid_tui_theme() {
+    let errors = errors_for_toml(
+        r#"
+        [tui]
+        theme = "neon-glow"
+        "#,
+    );
+    let diagnostic = find(&errors, "[tui].theme");
+    assert!(diagnostic.problem.contains("neon-glow"));
+    assert!(diagnostic.fix.contains("catppuccin"));
+}

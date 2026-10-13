@@ -10,12 +10,12 @@ use crate::tui::theme;
 pub fn render(frame: &mut Frame<'_>, area: Rect, app: &TuiApp, focused: bool) {
     app.panel_viewport.table.set(area.height.saturating_sub(3));
     let header = Row::new(["Ref", "Name", "Kind", "Configs", "Updated"])
-        .style(theme::accent_style().add_modifier(Modifier::BOLD));
+        .style(theme::secondary_style().add_modifier(Modifier::BOLD));
 
     let focused_row = app.source_list.focused;
     let pseudo_style = |row_index: usize| {
         if focused_row == row_index {
-            theme::accent_style().add_modifier(Modifier::BOLD)
+            theme::selection_style().add_modifier(Modifier::BOLD)
         } else {
             theme::muted_style()
         }
@@ -47,14 +47,15 @@ pub fn render(frame: &mut Frame<'_>, area: Rect, app: &TuiApp, focused: bool) {
     .style(pseudo_style(1));
 
     let source_rows = app.data.sources.iter().enumerate().map(|(idx, source)| {
-        let style = if idx + 2 == focused_row {
-            theme::accent_style().add_modifier(Modifier::BOLD)
+        let is_focused = idx + 2 == focused_row;
+        let style = if is_focused {
+            theme::selection_style().add_modifier(Modifier::BOLD)
         } else {
             theme::chrome_style()
         };
 
         Row::new(vec![
-            Cell::from(source.display_ref().to_string()),
+            Cell::from(source.display_ref().to_string()).style(theme::secondary_style()),
             Cell::from(source.display_name().to_string()),
             Cell::from(source.kind.clone()),
             Cell::from(source.config_count.to_string()),
@@ -80,11 +81,7 @@ pub fn render(frame: &mut Frame<'_>, area: Rect, app: &TuiApp, focused: bool) {
         Block::default()
             .title(tab_title(app))
             .borders(Borders::ALL)
-            .border_style(if focused {
-                theme::accent_style()
-            } else {
-                theme::chrome_style()
-            }),
+            .border_style(theme::border_style(focused)),
     )
     .column_spacing(1);
 
@@ -96,7 +93,7 @@ pub fn render(frame: &mut Frame<'_>, area: Rect, app: &TuiApp, focused: bool) {
 fn tab_title(app: &TuiApp) -> Line<'static> {
     Line::from(vec![
         Span::raw(" "),
-        Span::styled("1:", theme::accent_style().add_modifier(Modifier::BOLD)),
+        Span::styled("1:", theme::secondary_style().add_modifier(Modifier::BOLD)),
         Span::raw(" "),
         Span::styled(" Configs ", theme::muted_style()),
         Span::styled(

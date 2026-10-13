@@ -98,6 +98,7 @@ fn parses_minimal_config_with_defaults() {
         config.server.pac_allowed_hosts,
         vec!["localhost", "127.0.0.1", "::1"]
     );
+    assert_eq!(config.tui.theme, crate::tui::theme::TuiTheme::Default);
 }
 
 #[test]

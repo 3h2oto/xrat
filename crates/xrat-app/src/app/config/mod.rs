@@ -17,12 +17,15 @@ mod secret;
 mod server;
 mod subscriptions;
 mod testing;
+mod tui;
 
 pub(crate) use editor::{
     ConfigEditSession, EditableSetting, SettingEffect, SettingKind, SettingValue,
     update_runtime_binary_path,
 };
 
+pub use self::tui::TuiSettings;
+pub use crate::tui::theme::TuiTheme;
 pub use database::{
     DatabaseBackend, DatabaseSettings, PostgresDatabaseSettings, SqliteDatabaseSettings,
 };

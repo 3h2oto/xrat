@@ -34,13 +34,16 @@ pub fn render(frame: &mut Frame<'_>, area: Rect, app: &TuiApp, focused: bool) {
     } else {
         format!("[{}]", rt.status)
     };
-    let mut lines = vec![
-        Line::styled(
-            status_line,
-            theme::accent_style().add_modifier(Modifier::BOLD),
-        ),
-        Line::raw(""),
-    ];
+    let status_style = if rt.status == "connected" {
+        theme::success_style().add_modifier(Modifier::BOLD)
+    } else if rt.status == "stopped" {
+        theme::muted_style().add_modifier(Modifier::BOLD)
+    } else if rt.status == "error" || rt.status == "failed" {
+        theme::failure_style().add_modifier(Modifier::BOLD)
+    } else {
+        theme::accent_style().add_modifier(Modifier::BOLD)
+    };
+    let mut lines = vec![Line::styled(status_line, status_style), Line::raw("")];
     push_detail(&mut lines, "Active", active, LABEL_WIDTH, content_width);
     push_detail(&mut lines, "Task", &task, LABEL_WIDTH, content_width);
 

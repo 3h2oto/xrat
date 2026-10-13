@@ -200,3 +200,7 @@ timeout = 30_000 # ms
 [testing.tcp]
 enabled = true
 timeout = 5000 # ms
+
+[tui]
+theme = "default"
+

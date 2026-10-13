@@ -10,7 +10,7 @@
 
 use ratatui::Frame;
 use ratatui::layout::{Constraint, Direction, Layout, Rect};
-use ratatui::style::{Color, Style};
+use ratatui::style::Style;
 use ratatui::symbols::Marker;
 use ratatui::text::{Line, Span};
 use ratatui::widgets::{
@@ -28,15 +28,10 @@ pub fn render(
     title: Line<'static>,
     focused: bool,
 ) {
-    let border_style = if focused {
-        theme::accent_style()
-    } else {
-        theme::chrome_style()
-    };
     let block = Block::default()
         .title(title)
         .borders(Borders::ALL)
-        .border_style(border_style);
+        .border_style(theme::border_style(focused));
     let inner = block.inner(area);
     frame.render_widget(Clear, area);
     frame.render_widget(block, area);
@@ -171,8 +166,8 @@ fn render_probe_table(frame: &mut Frame<'_>, area: Rect, app: &TuiApp) {
         return;
     }
 
-    let header =
-        Row::new(["Name", "Value", "mean ± std", "n", "last update"]).style(theme::muted_style());
+    let header = Row::new(["Name", "Value", "mean ± std", "n", "last update"])
+        .style(theme::secondary_style().add_modifier(ratatui::style::Modifier::BOLD));
     let widths = [
         Constraint::Length(11),
         Constraint::Length(11),
@@ -195,6 +190,13 @@ fn metric_row(
         Some(current) => format!("{} {unit}", format_num(current, decimals)),
         None => "-".to_string(),
     };
+    let value_style = if value == "-" {
+        theme::muted_style()
+    } else if unit == "ms" {
+        theme::latency_text_style(&value)
+    } else {
+        color_for(label)
+    };
     let mean_std = match (summary.mean, summary.std) {
         (Some(mean), Some(std)) if summary.count > 1 => format!(
             "{} ± {}",
@@ -205,7 +207,7 @@ fn metric_row(
     };
     Row::new(vec![
         Cell::from(Span::styled(label.to_string(), color_for(label))),
-        Cell::from(value),
+        Cell::from(value).style(value_style),
         Cell::from(mean_std),
         Cell::from(summary.count.to_string()),
         Cell::from(last.to_string()),
@@ -394,18 +396,10 @@ fn render_message(frame: &mut Frame<'_>, area: Rect, message: &str) {
     );
 }
 
-/// Fixed per-metric colors, shared between the probe table labels and graph
-/// lines so the two read as the same series.
+/// Metric colors from the active theme palette, shared between the probe table
+/// labels and graph lines so the two read as the same series.
 fn color_for(label: &str) -> Style {
-    let color = match label {
-        "icmp" => Color::Rgb(97, 198, 128),
-        "tcp" => Color::Rgb(204, 170, 80),
-        "real-delay" => Color::Rgb(247, 181, 99),
-        "download" => Color::Rgb(120, 180, 235),
-        "upload" => Color::Rgb(210, 130, 220),
-        _ => return theme::chrome_style(),
-    };
-    Style::default().fg(color)
+    theme::series_style(label)
 }
 
 /// Last `count` elements of `values`, copied into a fresh vector.
