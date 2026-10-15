@@ -6,7 +6,10 @@ use crate::app::commands::output;
 use crate::app::commands::progress::CliProgress;
 use crate::cli::UpgradeArgs;
 
-use super::{install_binary, run_post_upgrade_migrations_with_spawner};
+use super::{
+    install_binary, restart_daemon_if_active, run_post_upgrade_migrations_with_spawner,
+    run_post_upgrade_tun_setup_with_spawner, should_restart_daemon, should_restore_tun,
+};
 
 pub(crate) async fn upgrade(
     args: &UpgradeArgs,
@@ -66,6 +69,8 @@ pub(crate) async fn upgrade_with_spawner(
         )));
     }
 
+    let restore_tun = should_restore_tun(target, config_path, args);
+
     let progress = CliProgress::spinner(true, format!("installing to {}", target.display()));
     let result = install_binary(&built, target);
     progress.finish_and_clear();
@@ -75,6 +80,13 @@ pub(crate) async fn upgrade_with_spawner(
     let result = run_post_upgrade_migrations_with_spawner(target, config_path, spawner.clone());
     progress.finish_and_clear();
     result?;
+
+    if restore_tun {
+        let tun_ok = run_post_upgrade_tun_setup_with_spawner(target, config_path, spawner.clone());
+        if tun_ok && should_restart_daemon(config_path, args) {
+            restart_daemon_if_active(target, config_path, spawner.clone());
+        }
+    }
 
     println!("{}", output::success("upgraded xrat from source", color));
 
@@ -166,5 +178,54 @@ mod process_tests {
                 assert_eq!(std::fs::read_to_string(&target).unwrap(), "new fixture");
             }
         }
+    }
+
+    #[tokio::test]
+    async fn source_upgrade_triggers_tun_setup_when_enabled() {
+        let root = tempfile::tempdir().unwrap();
+        let source = root.path().join("source");
+        std::fs::create_dir_all(source.join("target/release")).unwrap();
+        std::fs::write(source.join("Cargo.toml"), "fixture").unwrap();
+        std::fs::write(source.join("target/release/xrat"), "new fixture").unwrap();
+        let target = root.path().join("xrat");
+        std::fs::write(&target, "old fixture").unwrap();
+        let config = root.path().join("config.toml");
+        let args = UpgradeArgs {
+            source: true,
+            path: source,
+            tun_setup: true,
+            no_restart_daemon: true,
+            ..Default::default()
+        };
+        let spawner = Arc::new(UpgradeSpawner {
+            calls: Mutex::new(Vec::new()),
+            fail_build: false,
+        });
+        let result = upgrade_with_spawner(&args, &target, &config, spawner.clone()).await;
+        result.unwrap();
+
+        let calls = spawner.calls.lock().unwrap();
+        assert_eq!(calls.len(), 3);
+        assert_eq!(calls[0].0, "cargo");
+        assert_eq!(calls[1].0, target.as_os_str());
+        assert_eq!(
+            calls[1].1,
+            vec![
+                std::ffi::OsString::from("--config"),
+                config.clone().into_os_string(),
+                "db".into(),
+                "migrate".into()
+            ]
+        );
+        assert_eq!(calls[2].0, target.as_os_str());
+        assert_eq!(
+            calls[2].1,
+            vec![
+                std::ffi::OsString::from("--config"),
+                config.into_os_string(),
+                "tun".into(),
+                "setup".into()
+            ]
+        );
     }
 }

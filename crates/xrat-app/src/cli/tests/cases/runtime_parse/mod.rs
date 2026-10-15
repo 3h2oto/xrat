@@ -7,4 +7,5 @@ mod proxy;
 mod rotate;
 mod runtime;
 mod tun;
+mod upgrade;
 mod validate;

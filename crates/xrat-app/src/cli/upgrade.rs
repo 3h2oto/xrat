@@ -32,4 +32,20 @@ pub struct UpgradeArgs {
         default_value_t = 120
     )]
     pub timeout_secs: u64,
+    #[arg(
+        long = "tun-setup",
+        help = "Force running `tun setup` after upgrade to restore capabilities.",
+        conflicts_with = "no_tun_setup"
+    )]
+    pub tun_setup: bool,
+    #[arg(
+        long = "no-tun-setup",
+        help = "Skip restoring TUN capabilities after upgrade."
+    )]
+    pub no_tun_setup: bool,
+    #[arg(
+        long = "no-restart-daemon",
+        help = "Do not restart running xrat-daemon after upgrade."
+    )]
+    pub no_restart_daemon: bool,
 }

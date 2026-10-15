@@ -8,7 +8,11 @@ use crate::app::commands::output;
 use crate::app::commands::progress::CliProgress;
 use crate::cli::UpgradeArgs;
 
-use super::{REPO, current_version, install_binary, run_post_upgrade_migrations, same_version};
+use super::{
+    REPO, current_version, install_binary, restart_daemon_if_active, run_post_upgrade_migrations,
+    run_post_upgrade_tun_setup_with_spawner, same_version, should_restart_daemon,
+    should_restore_tun,
+};
 
 pub(crate) async fn upgrade(
     args: &UpgradeArgs,
@@ -75,6 +79,8 @@ pub(crate) async fn upgrade(
     progress.finish_and_clear();
     result?;
 
+    let restore_tun = should_restore_tun(target, config_path, args);
+
     let progress = CliProgress::spinner(true, format!("installing to {}", target.display()));
     let result = (|| {
         extract_binary(work.path(), &filename)?;
@@ -87,6 +93,14 @@ pub(crate) async fn upgrade(
     let result = run_post_upgrade_migrations(target, config_path);
     progress.finish_and_clear();
     result?;
+
+    if restore_tun {
+        let spawner = std::sync::Arc::new(xrat_support::process::SystemProcessSpawner);
+        let tun_ok = run_post_upgrade_tun_setup_with_spawner(target, config_path, spawner.clone());
+        if tun_ok && should_restart_daemon(config_path, args) {
+            restart_daemon_if_active(target, config_path, spawner);
+        }
+    }
 
     crate::app::services::release_notes::cache_release(&client, &version).await;
 
