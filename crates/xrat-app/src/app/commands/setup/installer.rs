@@ -65,13 +65,47 @@ pub async fn install(context: &AppContext, args: &InstallArgs) -> crate::app::Re
         println!("{}", output::warn(warning, color));
     }
     if context.app_config.runtime.tun.enabled {
-        println!(
-            "{}",
-            output::notice(
-                "TUN is enabled; reinstalling the core resets file capabilities. Run `xrat tun setup`, then `xrat daemon restart`.",
-                color,
-            )
+        let auto_setup = matches!(
+            context.app_config.runtime.tun.auto_setup_on_upgrade,
+            crate::app::config::TunAutoSetupMode::Auto
+                | crate::app::config::TunAutoSetupMode::Always
         );
+        if auto_setup {
+            println!(
+                "{}",
+                output::notice(
+                    "TUN is enabled; restoring file capabilities with `xrat tun setup`...",
+                    color,
+                )
+            );
+            let setup_args = crate::cli::TunSetupArgs::default();
+            if let Err(err) = crate::app::commands::tun::run(
+                context,
+                &crate::cli::TunArgs {
+                    action: crate::cli::TunAction::Setup(setup_args),
+                },
+            )
+            .await
+            {
+                println!(
+                    "{}",
+                    output::warn(
+                        format!(
+                            "Could not auto-restore TUN capabilities: {err}; run `xrat tun setup` manually."
+                        ),
+                        color,
+                    )
+                );
+            }
+        } else {
+            println!(
+                "{}",
+                output::notice(
+                    "TUN is enabled; reinstalling the core resets file capabilities. Run `xrat tun setup`, then `xrat daemon restart`.",
+                    color,
+                )
+            );
+        }
     }
 
     events::record(
