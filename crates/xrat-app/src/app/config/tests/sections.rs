@@ -262,3 +262,50 @@ max_entries = 100
     assert_eq!(config.testing.geoip.cache.ttl_secs, 60);
     assert_eq!(config.testing.geoip.cache.max_entries, 100);
 }
+
+#[test]
+fn parses_tun_upgrade_settings() {
+    use crate::app::config::TunAutoSetupMode;
+
+    // Test default when omitted
+    let config: AppConfig =
+        toml::from_str("[runtime.tun]\nenabled = true\n").expect("config should parse");
+    assert_eq!(
+        config.runtime.tun.auto_setup_on_upgrade,
+        TunAutoSetupMode::Auto
+    );
+    assert!(config.runtime.tun.restart_daemon_on_upgrade);
+
+    // Test string variants
+    let config: AppConfig = toml::from_str(
+        "[runtime.tun]\nauto_setup_on_upgrade = \"always\"\nrestart_daemon_on_upgrade = false\n",
+    )
+    .expect("config should parse");
+    assert_eq!(
+        config.runtime.tun.auto_setup_on_upgrade,
+        TunAutoSetupMode::Always
+    );
+    assert!(!config.runtime.tun.restart_daemon_on_upgrade);
+
+    let config: AppConfig = toml::from_str("[runtime.tun]\nauto_setup_on_upgrade = \"never\"\n")
+        .expect("config should parse");
+    assert_eq!(
+        config.runtime.tun.auto_setup_on_upgrade,
+        TunAutoSetupMode::Never
+    );
+
+    // Test boolean variants
+    let config: AppConfig = toml::from_str("[runtime.tun]\nauto_setup_on_upgrade = true\n")
+        .expect("config should parse");
+    assert_eq!(
+        config.runtime.tun.auto_setup_on_upgrade,
+        TunAutoSetupMode::Always
+    );
+
+    let config: AppConfig = toml::from_str("[runtime.tun]\nauto_setup_on_upgrade = false\n")
+        .expect("config should parse");
+    assert_eq!(
+        config.runtime.tun.auto_setup_on_upgrade,
+        TunAutoSetupMode::Never
+    );
+}

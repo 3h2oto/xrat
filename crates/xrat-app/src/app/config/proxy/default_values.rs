@@ -80,6 +80,8 @@ impl Default for TunSettings {
             split_mode: TunSplitMode::All,
             blacklist: Vec::new(),
             whitelist: Vec::new(),
+            auto_setup_on_upgrade: crate::app::config::TunAutoSetupMode::Auto,
+            restart_daemon_on_upgrade: defaults::DEFAULT_TUN_RESTART_DAEMON_ON_UPGRADE,
         }
     }
 }

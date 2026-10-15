@@ -52,6 +52,80 @@ impl TunSplitMode {
     }
 }
 
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub enum TunAutoSetupMode {
+    #[default]
+    Auto,
+    Always,
+    Never,
+}
+
+impl TunAutoSetupMode {
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::Auto => "auto",
+            Self::Always => "always",
+            Self::Never => "never",
+        }
+    }
+
+    pub fn from_config_str(value: &str) -> Option<Self> {
+        match value.trim().to_ascii_lowercase().as_str() {
+            "auto" => Some(Self::Auto),
+            "always" => Some(Self::Always),
+            "never" => Some(Self::Never),
+            _ => None,
+        }
+    }
+}
+
+impl Serialize for TunAutoSetupMode {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        serializer.serialize_str(self.as_str())
+    }
+}
+
+impl<'de> Deserialize<'de> for TunAutoSetupMode {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        struct TunAutoSetupModeVisitor;
+
+        impl<'de> serde::de::Visitor<'de> for TunAutoSetupModeVisitor {
+            type Value = TunAutoSetupMode;
+
+            fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
+                formatter.write_str(r#""auto", "always", "never", or a boolean"#)
+            }
+
+            fn visit_bool<E>(self, value: bool) -> Result<Self::Value, E>
+            where
+                E: serde::de::Error,
+            {
+                Ok(if value {
+                    TunAutoSetupMode::Always
+                } else {
+                    TunAutoSetupMode::Never
+                })
+            }
+
+            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
+            where
+                E: serde::de::Error,
+            {
+                TunAutoSetupMode::from_config_str(value)
+                    .ok_or_else(|| E::unknown_variant(value, &["auto", "always", "never"]))
+            }
+        }
+
+        deserializer.deserialize_any(TunAutoSetupModeVisitor)
+    }
+}
+
 #[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq)]
 #[serde(default)]
 pub struct TunSettings {
@@ -66,6 +140,8 @@ pub struct TunSettings {
     pub split_mode: TunSplitMode,
     pub blacklist: Vec<String>,
     pub whitelist: Vec<String>,
+    pub auto_setup_on_upgrade: TunAutoSetupMode,
+    pub restart_daemon_on_upgrade: bool,
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq)]

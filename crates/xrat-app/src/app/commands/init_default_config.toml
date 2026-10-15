@@ -146,6 +146,10 @@ level = "warning"
 # blacklist = []
 # # Apps routed through VPN when split_mode = "whitelist" (all other TUN traffic goes direct).
 # whitelist = []
+# # Automatically restore TUN capabilities after `xrat upgrade` ("auto", "always", "never").
+# auto_setup_on_upgrade = "auto"
+# # Restart running xrat-daemon after upgrade if TUN capabilities were restored.
+# restart_daemon_on_upgrade = true
 
 # Automatic config rotation: periodically switch to a healthy config.
 [runtime.rotation]

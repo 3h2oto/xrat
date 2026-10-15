@@ -355,6 +355,16 @@ pub(super) fn for_path(path: &str) -> Option<SettingHelp> {
             "Process names (firefox), executable paths (/usr/bin/curl), directories (/usr/lib/firefox/), or .desktop IDs.",
             "whitelist = [\"firefox\", \"telegram-desktop\"]",
         ),
+        "runtime.tun.auto_setup_on_upgrade" => help(
+            "Controls automatic restoration of TUN file capabilities during `xrat upgrade`.",
+            "auto (detects prior TUN setup), always, or never.",
+            "auto_setup_on_upgrade = \"auto\"",
+        ),
+        "runtime.tun.restart_daemon_on_upgrade" => help(
+            "Automatically restarts running xrat-daemon after `xrat upgrade` when TUN capabilities are restored.",
+            "",
+            "restart_daemon_on_upgrade = true",
+        ),
         "subscriptions.auto_refresh" => help(
             "Enables periodic refresh of URL-backed subscriptions in the daemon.",
             "",
