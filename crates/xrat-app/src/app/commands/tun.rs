@@ -802,10 +802,6 @@ async fn setup_capabilities(context: &AppContext, args: &TunSetupArgs) -> crate:
         .map(|file| format!("sudo setcap {} {}", file.capabilities, file.path.display()))
         .collect();
 
-    if args.sudoers {
-        install_sudoers_rule(&files, args.dry_run, color)?;
-    }
-
     if args.dry_run {
         for command in &commands {
             println!("{command}");
@@ -896,120 +892,6 @@ async fn setup_capabilities(context: &AppContext, args: &TunSetupArgs) -> crate:
             "Privileges prepared. Run `xrat tun enable`. Repeat setup only after replacing the engine or xrat binary."
         };
         println!("{}", output::notice(message, color));
-        #[cfg(target_os = "linux")]
-        if !args.sudoers && !std::path::Path::new("/etc/sudoers.d/xrat-tun").is_file() {
-            println!(
-                "{}",
-                output::notice(
-                    "Tip: run `xrat tun setup --sudoers` once to allow passwordless capability updates during future upgrades.",
-                    color,
-                )
-            );
-        }
     }
     Ok(())
-}
-
-#[cfg(target_os = "linux")]
-fn install_sudoers_rule(
-    files: &[TunPrivilegeFile],
-    dry_run: bool,
-    color: bool,
-) -> crate::app::Result<()> {
-    use std::io::Write;
-
-    let username = std::env::var("USER")
-        .or_else(|_| std::env::var("LOGNAME"))
-        .map_err(|_| {
-            AppError::InvalidArgument(
-                "could not determine current username for sudoers".to_string(),
-            )
-        })?;
-
-    let setcap_path = tun_privileges::resolve_executable(std::path::Path::new("setcap"))
-        .unwrap_or_else(|| std::path::PathBuf::from("/usr/sbin/setcap"));
-
-    let mut lines =
-        vec!["# Managed by xrat: allows passwordless setcap for TUN capture".to_string()];
-    for file in files {
-        let escaped_caps = file.capabilities.replace(',', "\\,");
-        lines.push(format!(
-            "{} ALL=(ALL) NOPASSWD: {} {} {}",
-            username,
-            setcap_path.display(),
-            escaped_caps,
-            file.path.display()
-        ));
-    }
-    let content = lines.join("\n") + "\n";
-
-    if dry_run {
-        println!("write /etc/sudoers.d/xrat-tun:");
-        for line in &lines {
-            println!("  {line}");
-        }
-        return Ok(());
-    }
-
-    let mut tmp = tempfile::Builder::new()
-        .prefix("xrat-tun-")
-        .suffix(".sudoers")
-        .tempfile()
-        .map_err(|e| {
-            AppError::InvalidArgument(format!("cannot create tempfile for sudoers: {e}"))
-        })?;
-    tmp.write_all(content.as_bytes())?;
-    tmp.as_file().sync_all()?;
-
-    let visudo_status = xrat_support::process::Command::new("sudo")
-        .args(["visudo", "-cf", tmp.path().to_str().unwrap()])
-        .status()
-        .map_err(|e| AppError::InvalidArgument(format!("cannot run visudo: {e}")))?;
-    if !visudo_status.success() {
-        return Err(AppError::InvalidArgument(format!(
-            "visudo syntax check failed ({visudo_status}); aborting sudoers installation"
-        )));
-    }
-
-    let install_status = xrat_support::process::Command::new("sudo")
-        .args([
-            "install",
-            "-m",
-            "0440",
-            "-o",
-            "root",
-            "-g",
-            "root",
-            tmp.path().to_str().unwrap(),
-            "/etc/sudoers.d/xrat-tun",
-        ])
-        .status()
-        .map_err(|e| {
-            AppError::InvalidArgument(format!("cannot install /etc/sudoers.d/xrat-tun: {e}"))
-        })?;
-    if !install_status.success() {
-        return Err(AppError::InvalidArgument(format!(
-            "installing /etc/sudoers.d/xrat-tun failed ({install_status})"
-        )));
-    }
-
-    println!(
-        "{}",
-        output::success(
-            "Installed /etc/sudoers.d/xrat-tun for passwordless setcap.",
-            color
-        )
-    );
-    Ok(())
-}
-
-#[cfg(not(target_os = "linux"))]
-fn install_sudoers_rule(
-    _files: &[TunPrivilegeFile],
-    _dry_run: bool,
-    _color: bool,
-) -> crate::app::Result<()> {
-    Err(AppError::InvalidArgument(
-        "sudoers configuration is only supported on Linux".to_string(),
-    ))
 }

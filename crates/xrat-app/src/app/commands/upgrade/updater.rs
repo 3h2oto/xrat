@@ -165,15 +165,14 @@ pub(crate) fn run_post_upgrade_tun_setup_with_spawner(
     }
 }
 
-pub(crate) fn restart_daemon_if_active(
+pub(crate) async fn restart_daemon_if_active(
     target: &Path,
     config_path: &Path,
     spawner: std::sync::Arc<dyn xrat_support::process::ProcessSpawner>,
 ) {
-    let color = output::color_enabled();
-
     #[cfg(target_os = "linux")]
     {
+        let color = output::color_enabled();
         let is_systemd_active = Command::with_spawner("systemctl", spawner.clone())
             .args(["--user", "is-active", "--quiet", "xrat-daemon.service"])
             .status()
@@ -211,7 +210,23 @@ pub(crate) fn restart_daemon_if_active(
                 .join("runtime")
         });
     let socket_path = crate::app::daemon::ipc::default_socket_path(&runtime_dir);
-    if socket_path.exists() {
+    restart_standalone_if_active(target, config_path, &socket_path, spawner).await;
+}
+
+pub(super) async fn restart_standalone_if_active(
+    target: &Path,
+    config_path: &Path,
+    socket_path: &Path,
+    spawner: std::sync::Arc<dyn xrat_support::process::ProcessSpawner>,
+) {
+    let color = output::color_enabled();
+    if tokio::time::timeout(
+        std::time::Duration::from_secs(2),
+        crate::app::daemon::ipc::ping_daemon(socket_path),
+    )
+    .await
+    .is_ok_and(|response| response.is_ok())
+    {
         let status = Command::with_spawner(target, spawner)
             .arg("--config")
             .arg(config_path)

@@ -98,7 +98,7 @@ pub(crate) async fn upgrade(
         let spawner = std::sync::Arc::new(xrat_support::process::SystemProcessSpawner);
         let tun_ok = run_post_upgrade_tun_setup_with_spawner(target, config_path, spawner.clone());
         if tun_ok && should_restart_daemon(config_path, args) {
-            restart_daemon_if_active(target, config_path, spawner);
+            restart_daemon_if_active(target, config_path, spawner).await;
         }
     }
 

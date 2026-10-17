@@ -88,9 +88,10 @@ Restart an installed systemd daemon with
 `systemctl --user restart xrat-daemon.service` so it picks up the override and
 capabilities. For a standalone daemon, use `xrat daemon restart`.
 
-Pass `--sudoers` to install a drop-in rule in `/etc/sudoers.d/xrat-tun` allowing passwordless
-`setcap` for xrat and engine binaries. This allows future `xrat upgrade` runs to restore
-capabilities completely unattended.
+Capability restoration uses normal sudo authentication and may prompt for a password.
+XRAT does not install passwordless sudoers rules. If you previously used the
+removed `--sudoers` helper, review and remove `/etc/sudoers.d/xrat-tun` with
+`sudo rm /etc/sudoers.d/xrat-tun` to revoke its persistent grant.
 
 File capabilities are automatically restored during `xrat upgrade` (and core reinstalls via
 `xrat install`) when TUN was previously configured (see `auto_setup_on_upgrade` in settings),

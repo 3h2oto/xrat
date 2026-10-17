@@ -79,11 +79,6 @@ pub struct TunStatusArgs {
 pub struct TunSetupArgs {
     #[arg(long, help = "Print the setcap command without running it.")]
     pub dry_run: bool,
-    #[arg(
-        long,
-        help = "Install a sudoers drop-in rule in /etc/sudoers.d/xrat-tun to allow passwordless setcap."
-    )]
-    pub sudoers: bool,
 }
 
 #[derive(Debug, Args, Default)]

@@ -30,12 +30,11 @@ fn parses_tun_subcommands() {
         _ => panic!("expected tun command"),
     }
 
-    let setup = Cli::parse_from(["xrat", "tun", "setup", "--dry-run", "--sudoers"]);
+    let setup = Cli::parse_from(["xrat", "tun", "setup", "--dry-run"]);
     match setup.command {
         Command::Tun(args) => match args.action {
             TunAction::Setup(setup) => {
                 assert!(setup.dry_run);
-                assert!(setup.sudoers);
             }
             _ => panic!("expected tun setup action"),
         },
@@ -189,4 +188,9 @@ fn parses_tun_split_subcommands() {
         },
         _ => panic!("expected tun command"),
     }
+}
+
+#[test]
+fn rejects_unsafe_sudoers_helper() {
+    assert!(Cli::try_parse_from(["xrat", "tun", "setup", "--sudoers"]).is_err());
 }

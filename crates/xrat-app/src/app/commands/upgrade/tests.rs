@@ -51,3 +51,77 @@ fn should_restart_daemon_respects_flag_and_config() {
     let args = UpgradeArgs::default();
     assert!(!should_restart_daemon(&config_path, &args));
 }
+
+#[cfg(unix)]
+#[tokio::test]
+async fn stale_socket_does_not_start_daemon_after_upgrade() {
+    use std::os::unix::net::UnixListener;
+    use std::sync::Arc;
+
+    let root = tempfile::tempdir().unwrap();
+    let socket_path = root.path().join("daemon.sock");
+    let listener = UnixListener::bind(&socket_path).unwrap();
+    drop(listener);
+    assert!(socket_path.exists());
+    let marker = root.path().join("started");
+    let target = root.path().join("xrat");
+    std::fs::write(
+        &target,
+        format!("#!/bin/sh\ntouch '{}'\n", marker.display()),
+    )
+    .unwrap();
+    super::updater::set_executable(&target).unwrap();
+
+    super::updater::restart_standalone_if_active(
+        &target,
+        &root.path().join("config.toml"),
+        &socket_path,
+        Arc::new(xrat_support::process::SystemProcessSpawner),
+    )
+    .await;
+
+    assert!(
+        !marker.exists(),
+        "stale socket must not trigger daemon restart"
+    );
+}
+
+#[cfg(unix)]
+#[tokio::test]
+async fn responsive_daemon_is_restarted_after_upgrade() {
+    use std::sync::Arc;
+    use tokio::io::{AsyncReadExt, AsyncWriteExt};
+
+    let root = tempfile::tempdir().unwrap();
+    let socket_path = root.path().join("daemon.sock");
+    let listener = tokio::net::UnixListener::bind(&socket_path).unwrap();
+    let server = tokio::spawn(async move {
+        let (mut stream, _) = listener.accept().await.unwrap();
+        let mut request = Vec::new();
+        stream.read_to_end(&mut request).await.unwrap();
+        let response = crate::app::daemon::ipc::ping_response();
+        stream
+            .write_all(&serde_json::to_vec(&response).unwrap())
+            .await
+            .unwrap();
+    });
+    let marker = root.path().join("started");
+    let target = root.path().join("xrat");
+    std::fs::write(
+        &target,
+        format!("#!/bin/sh\ntouch '{}'\n", marker.display()),
+    )
+    .unwrap();
+    super::updater::set_executable(&target).unwrap();
+
+    super::updater::restart_standalone_if_active(
+        &target,
+        &root.path().join("config.toml"),
+        &socket_path,
+        Arc::new(xrat_support::process::SystemProcessSpawner),
+    )
+    .await;
+
+    server.await.unwrap();
+    assert!(marker.exists(), "responsive daemon must be restarted");
+}

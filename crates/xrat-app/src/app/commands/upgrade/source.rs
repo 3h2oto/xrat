@@ -84,7 +84,7 @@ pub(crate) async fn upgrade_with_spawner(
     if restore_tun {
         let tun_ok = run_post_upgrade_tun_setup_with_spawner(target, config_path, spawner.clone());
         if tun_ok && should_restart_daemon(config_path, args) {
-            restart_daemon_if_active(target, config_path, spawner.clone());
+            restart_daemon_if_active(target, config_path, spawner.clone()).await;
         }
     }
 
@@ -145,6 +145,7 @@ mod process_tests {
             let args = UpgradeArgs {
                 source: true,
                 path: source,
+                no_tun_setup: true,
                 ..Default::default()
             };
             let spawner = Arc::new(UpgradeSpawner {
