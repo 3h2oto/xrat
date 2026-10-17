@@ -13,24 +13,18 @@ pub use subscription::import_subscription;
 
 pub fn load_nodes(input: &str) -> crate::app::Result<(ImportSource, Vec<Node>)> {
     let (source, input_data) = read_input(input)?;
-    let config_text = decode_or_raw_text(&input_data)?;
-    reject_raw_json_config(&config_text)?;
-    let normalized_text = expand_url_list(&config_text)?;
-
-    Ok((source, parse_text(&normalized_text)))
+    Ok((source, parse_nodes(&input_data)?))
 }
 
 pub async fn load_nodes_async(input: &str) -> crate::app::Result<(ImportSource, Vec<Node>)> {
     let (source, input_data) = read_input_async(input).await?;
-    Ok((source, parse_nodes_async(&input_data).await?))
+    Ok((source, parse_nodes(&input_data)?))
 }
 
-async fn parse_nodes_async(input_data: &[u8]) -> crate::app::Result<Vec<Node>> {
+fn parse_nodes(input_data: &[u8]) -> crate::app::Result<Vec<Node>> {
     let config_text = decode_or_raw_text(input_data)?;
     reject_raw_json_config(&config_text)?;
-    let normalized_text = expand_url_list_async(&config_text).await?;
-
-    Ok(parse_text(&normalized_text))
+    Ok(parse_text(&config_text))
 }
 
 pub async fn persist_nodes(
@@ -84,56 +78,30 @@ fn reject_raw_json_config(config_text: &str) -> crate::app::Result<()> {
     Ok(())
 }
 
-fn expand_url_list(input: &str) -> crate::app::Result<String> {
-    let mut collected = Vec::new();
-    let mut saw_url = false;
-
-    for line in input.lines() {
-        let trimmed = line.trim();
-        if trimmed.is_empty() {
-            continue;
-        }
-
-        if looks_like_url(trimmed) {
-            saw_url = true;
-            let (_, body) = read_input(trimmed)?;
-            collected.push(decode_or_raw_text(&body)?);
-        } else {
-            collected.push(trimmed.to_string());
-        }
+pub async fn load_url_list(path: &str) -> crate::app::Result<(ImportSource, Vec<Node>)> {
+    if !std::path::Path::new(path).is_file() {
+        return Err(AppError::InvalidArgument(
+            "--url-list requires a local file of subscription URLs".into(),
+        ));
     }
-
-    if saw_url {
-        Ok(collected.join("\n"))
-    } else {
-        Ok(input.to_string())
+    let (source, bytes) = read_input_async(path).await?;
+    let text = decode_or_raw_text(&bytes)?;
+    let urls: Vec<_> = text
+        .lines()
+        .map(str::trim)
+        .filter(|line| !line.is_empty() && !line.starts_with('#'))
+        .collect();
+    if urls.iter().any(|url| !looks_like_url(url)) {
+        return Err(AppError::InvalidArgument(
+            "--url-list accepts only HTTP(S) subscription URLs".into(),
+        ));
     }
-}
-
-async fn expand_url_list_async(input: &str) -> crate::app::Result<String> {
-    let mut collected = Vec::new();
-    let mut saw_url = false;
-
-    for line in input.lines() {
-        let trimmed = line.trim();
-        if trimmed.is_empty() {
-            continue;
-        }
-
-        if looks_like_url(trimmed) {
-            saw_url = true;
-            let (_, body) = read_input_async(trimmed).await?;
-            collected.push(decode_or_raw_text(&body)?);
-        } else {
-            collected.push(trimmed.to_string());
-        }
+    let mut nodes = Vec::new();
+    for url in urls {
+        let (_, body) = read_input_async(url).await?;
+        nodes.extend(parse_nodes(&body)?);
     }
-
-    if saw_url {
-        Ok(collected.join("\n"))
-    } else {
-        Ok(input.to_string())
-    }
+    Ok((source, nodes))
 }
 
 #[cfg(test)]

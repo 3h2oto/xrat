@@ -14,8 +14,11 @@ pub async fn run(context: &AppContext, args: &crate::cli::ImportArgs) -> crate::
             )
         })
         .collect();
-    let result =
-        import::import_subscription(&context.db, &args.input, args.name.as_deref(), &headers).await;
+    let result = if args.url_list {
+        import_url_list(context, args).await
+    } else {
+        import::import_subscription(&context.db, &args.input, args.name.as_deref(), &headers).await
+    };
     progress.finish_and_clear();
     let summary = result?;
     let subscription = context
@@ -52,4 +55,12 @@ pub async fn run(context: &AppContext, args: &crate::cli::ImportArgs) -> crate::
     );
 
     Ok(())
+}
+
+async fn import_url_list(
+    context: &AppContext,
+    args: &crate::cli::ImportArgs,
+) -> crate::app::Result<xrat_db::ImportSummary> {
+    let (source, nodes) = import::load_url_list(&args.input).await?;
+    import::persist_nodes(&context.db, source, &nodes, args.name.as_deref(), None).await
 }

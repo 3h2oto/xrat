@@ -8,6 +8,13 @@ pub struct ImportArgs {
     pub input: String,
 
     #[arg(
+        long,
+        conflicts_with = "headers",
+        help = "Read a local file of subscription URLs and fetch each once."
+    )]
+    pub url_list: bool,
+
+    #[arg(
         short = 'n',
         long,
         value_name = "NAME",

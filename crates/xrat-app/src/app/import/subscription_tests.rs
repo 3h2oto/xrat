@@ -154,11 +154,12 @@ async fn subscription_headers_reject_non_url_inputs() {
 }
 
 #[tokio::test]
-async fn subscription_headers_do_not_reach_nested_subscription_urls() {
+async fn subscription_contents_are_nodes_not_nested_subscriptions() {
     let (context, _root) = crate::app::tests::TestAppBuilder::new("subscription-nested")
         .build_with_root()
         .await;
-    let (nested, nested_requests) = server(vec![nodes_response()]).await;
+    let nested_listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let nested = format!("http://{}", nested_listener.local_addr().unwrap());
     let (url, requests) = server(vec![response("200 OK", "", &nested)]).await;
     let headers = BTreeMap::from([("x-hwid".into(), "device-secret".into())]);
     assert_eq!(
@@ -169,5 +170,82 @@ async fn subscription_headers_do_not_reach_nested_subscription_urls() {
         1
     );
     assert!(requests.await.unwrap()[0].contains("x-hwid: device-secret\r\n"));
-    assert!(!nested_requests.await.unwrap()[0].contains("device-secret"));
+    assert!(
+        tokio::time::timeout(Duration::from_millis(100), nested_listener.accept())
+            .await
+            .is_err()
+    );
+}
+
+#[tokio::test]
+async fn https_nodes_survive_import_and_both_refresh_paths_without_connections() {
+    let (context, _root) = crate::app::tests::TestAppBuilder::new("https-nodes")
+        .build_with_root()
+        .await;
+    let proxy = TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let node = format!("https://{}#Proxy", proxy.local_addr().unwrap());
+    let payload = format!("{node}\nvless://uuid-123@example.com:443#One");
+    let (url, requests) = server(vec![response("200 OK", "", &payload); 3]).await;
+    assert_eq!(
+        import_subscription(&context.db, &url, None, &BTreeMap::new())
+            .await
+            .unwrap()
+            .imported_configs,
+        2
+    );
+    assert_eq!(
+        commands::update::update_all(&context)
+            .await
+            .unwrap()
+            .succeeded,
+        1
+    );
+    assert_eq!(
+        subscription_refresh::refresh_all(&context).await.succeeded,
+        1
+    );
+    assert_eq!(requests.await.unwrap().len(), 3);
+    assert!(
+        tokio::time::timeout(Duration::from_millis(100), proxy.accept())
+            .await
+            .is_err()
+    );
+}
+
+#[tokio::test]
+async fn explicit_url_list_fetches_once_and_does_not_expand_responses() {
+    let root = tempfile::tempdir().unwrap();
+    let proxy = TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let node = format!("https://{}#Proxy", proxy.local_addr().unwrap());
+    let (first, first_requests) = server(vec![response("200 OK", "", &node)]).await;
+    let (second, second_requests) = server(vec![nodes_response()]).await;
+    let path = root.path().join("urls.txt");
+    std::fs::write(&path, format!("# subscriptions\n{first}\n\n{second}\n")).unwrap();
+    let (source, nodes) = super::load_url_list(path.to_str().unwrap()).await.unwrap();
+    assert_eq!(source.kind, xrat_db::SourceKind::File);
+    assert_eq!(nodes.len(), 2);
+    assert_eq!(first_requests.await.unwrap().len(), 1);
+    assert_eq!(second_requests.await.unwrap().len(), 1);
+    assert!(
+        tokio::time::timeout(Duration::from_millis(100), proxy.accept())
+            .await
+            .is_err()
+    );
+}
+
+#[tokio::test]
+async fn url_list_rejects_remote_inputs_and_invalid_entries_before_fetching() {
+    assert!(
+        super::load_url_list("https://example.invalid/list")
+            .await
+            .is_err()
+    );
+    let root = tempfile::tempdir().unwrap();
+    let path = root.path().join("urls.txt");
+    std::fs::write(
+        &path,
+        "https://example.invalid/sub\nvless://uuid@example.com:443",
+    )
+    .unwrap();
+    assert!(super::load_url_list(path.to_str().unwrap()).await.is_err());
 }

@@ -81,3 +81,29 @@ async fn omitted_name_preserves_existing_import_behavior() {
         .expect("subscription should exist");
     assert_eq!(subscription.name, None);
 }
+
+#[tokio::test]
+async fn local_plain_and_base64_http_nodes_are_parsed_without_fetching() {
+    use base64::Engine;
+    let root = tempfile::tempdir().unwrap();
+    let text = "https://example.invalid:443#TLS\nhttp://example.invalid:8080#Plain";
+    for payload in [
+        text.to_string(),
+        base64::engine::general_purpose::STANDARD.encode(text),
+    ] {
+        let path = root.path().join("nodes.txt");
+        std::fs::write(&path, payload).unwrap();
+        assert_eq!(
+            super::load_nodes(path.to_str().unwrap()).unwrap().1.len(),
+            2
+        );
+        assert_eq!(
+            super::load_nodes_async(path.to_str().unwrap())
+                .await
+                .unwrap()
+                .1
+                .len(),
+            2
+        );
+    }
+}

@@ -131,3 +131,23 @@ the single URI, normalizes it, deduplicates, and persists directly.
 
 For the full config-management command set, see
 [`config management`](config-management.md).
+
+## Subscription URL lists
+
+Normal imports decode and parse subscription contents as proxy nodes. HTTP(S)
+links inside a response or local node file are never fetched as subscriptions.
+To import a list of subscription URLs, put one URL per line in a local file:
+
+```bash
+xrat import ./subscriptions.txt --url-list --name "Combined subscriptions"
+```
+
+Blank lines and lines starting with `#` are ignored. Every remaining line must
+be an HTTP(S) URL. Each URL is fetched once; its response is parsed as nodes
+without following embedded URLs. The results are merged under the local file
+source, which is not automatically refreshed. Re-run the command to refresh it.
+`--url-list` requires a local file and cannot be combined with `--header`.
+
+Previously, imports automatically fetched HTTP(S) lines inside their contents.
+Use `--url-list` for files that intentionally contain subscription URLs. For a
+single HTTP(S) proxy URI supplied directly, use `xrat add "https://host:443"`.

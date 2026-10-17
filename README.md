@@ -173,6 +173,21 @@ xrat import ./sip008.json
 xrat import ./xray.json
 ```
 
+Subscription responses and local node files are parsed as proxy configs. HTTP(S)
+proxy links inside them are not fetched as additional subscriptions.
+
+For a local file containing subscription URLs, one per line, opt in explicitly:
+
+```bash
+xrat import ./subscriptions.txt --url-list --name 'Combined subscriptions'
+```
+
+Each listed URL is fetched once, and its response is parsed without following
+embedded URLs. Blank lines and `#` comments are ignored. This mode requires a
+local file and cannot be combined with `--header`. The combined file source is
+not automatically refreshed; re-run the command to refresh it. If you previously
+relied on automatic URL-list expansion, use `--url-list` for those files.
+
 Add individual configs with `xrat add`, followed by a supported share link.
 Examples for each type (replace the sample addresses and credentials with
 yours):

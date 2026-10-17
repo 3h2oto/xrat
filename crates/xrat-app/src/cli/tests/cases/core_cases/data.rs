@@ -401,3 +401,23 @@ fn parses_update_with_optional_refs() {
         _ => panic!("expected update command"),
     }
 }
+
+#[test]
+fn import_url_list_is_explicit_and_conflicts_with_headers() {
+    let cli = Cli::try_parse_from(["xrat", "import", "urls.txt", "--url-list"]).unwrap();
+    let crate::cli::Command::Import(args) = cli.command else {
+        panic!("expected import")
+    };
+    assert!(args.url_list);
+    assert!(
+        Cli::try_parse_from([
+            "xrat",
+            "import",
+            "urls.txt",
+            "--url-list",
+            "--header",
+            "X-Test: value"
+        ])
+        .is_err()
+    );
+}

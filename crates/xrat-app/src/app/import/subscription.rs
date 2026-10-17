@@ -31,7 +31,7 @@ pub async fn import_subscription(
             .build()?
     };
     let (source, bytes) = read_input_async_with_headers(input, &client, request_headers).await?;
-    let nodes = super::parse_nodes_async(&bytes).await?;
+    let nodes = super::parse_nodes(&bytes)?;
     super::persist_nodes(database, source, &nodes, name, Some(headers)).await
 }
 
