@@ -1,33 +1,21 @@
-## xrat v0.30.1
+## xrat v0.30.2
 
-Fix subscription imports that mistakenly fetched HTTP(S) proxy links as nested
-subscriptions, causing unnecessary connections and TLS verification failures
-(issue [#223](https://github.com/mhyrzt/xrat/issues/223): “HTTPS proxy URIs in
-subscription content are incorrectly fetched as subscription URLs”).
+Enable Thin Link-Time Optimization (LTO) and symbol stripping for release builds,
+while keeping local development builds unoptimized for fast iteration.
 
-### Fixes
+### Build improvements
 
-- Parse downloaded subscription contents as proxy nodes without fetching embedded
-  HTTP(S) links. The fix also applies to local node files and manual, TUI, and
-  automatic subscription refreshes.
-- Preserve HTTPS proxy nodes without contacting their endpoints during import.
-  TLS certificate verification remains enabled for subscription downloads.
+- Release builds use `opt-level = 3` with Thin LTO for cross-crate optimization.
+- Release binaries strip symbols to reduce distributed executable size.
+- Development builds explicitly use `opt-level = 0`; incremental compilation and
+  debugging information keep their Cargo defaults.
+- Existing release and Docker build commands automatically use these settings.
 
 ### Upgrade notes
 
-Automatic URL-list expansion has been replaced by an explicit option. If your
-local file contains subscription URLs rather than proxy nodes, use:
+- No CLI, configuration, or database schema changes.
+- Release builds can take longer due to Thin LTO. Runtime performance and size
+  improvements vary by target and workload; no benchmark speedup is claimed.
+- Stripped release binaries provide less symbol information for diagnostics.
 
-```bash
-xrat import ./subscriptions.txt --url-list --name 'Combined subscriptions'
-```
-
-- List mode requires a local file with one HTTP(S) subscription URL per line;
-  blank lines and `#` comments are ignored.
-- Each listed URL is fetched once. Response contents are parsed as nodes without
-  following embedded URLs.
-- `--url-list` cannot be combined with `--header`. The combined file source is not
-  automatically refreshed; re-run the command to refresh it.
-- No database migration is added in this release.
-
-**Full Changelog**: https://github.com/mhyrzt/xrat/compare/v0.30.0...v0.30.1
+**Full Changelog**: https://github.com/mhyrzt/xrat/compare/v0.30.1...v0.30.2

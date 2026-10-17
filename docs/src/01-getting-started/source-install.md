@@ -51,6 +51,12 @@ For a release build using the locked dependency graph:
 just release
 ```
 
+Development builds use `opt-level = 0` and retain Cargo's default debugging
+information and incremental compilation. Release builds use `opt-level = 3`,
+Thin LTO, and symbol stripping. These release settings also apply to the GitHub
+release workflow and source-built Docker images. Thin LTO can increase build
+time; symbol stripping reduces diagnostic information in distributed binaries.
+
 The release binary is written to:
 
 ```text
