@@ -40,7 +40,7 @@ async fn supplied_name_is_persisted_and_updates_existing_url() {
             value: "https://example.com/sub".to_string(),
             name: None,
         };
-        persist_nodes(&database, source, &[node], Some(name))
+        persist_nodes(&database, source, &[node], Some(name), None)
             .await
             .expect("import should persist");
     }
@@ -69,7 +69,7 @@ async fn omitted_name_preserves_existing_import_behavior() {
         name: None,
     };
 
-    persist_nodes(&database, source, &[node], None)
+    persist_nodes(&database, source, &[node], None, None)
         .await
         .expect("import should persist");
 

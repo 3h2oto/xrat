@@ -18,9 +18,21 @@ pub async fn import_nodes(
     source: &ImportSource,
     nodes: &[Node],
 ) -> crate::Result<ImportSummary> {
+    import_nodes_with_headers(pool, source, nodes, None).await
+}
+
+pub async fn import_nodes_with_headers(
+    pool: &DbPool,
+    source: &ImportSource,
+    nodes: &[Node],
+    headers: Option<&std::collections::BTreeMap<String, String>>,
+) -> crate::Result<ImportSummary> {
     let subscription_id = subscriptions::find_or_create(pool, source).await?;
     let summary = configs::import_nodes(pool, subscription_id, nodes).await?;
     if matches!(source.kind, SourceKind::Url) {
+        if let Some(headers) = headers {
+            subscriptions::set_headers(pool, subscription_id, headers).await?;
+        }
         subscriptions::mark_refreshed(pool, subscription_id).await?;
     }
     Ok(summary)

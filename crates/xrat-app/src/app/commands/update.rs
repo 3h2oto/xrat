@@ -131,7 +131,9 @@ async fn update_targets(
             .filter(|value| !value.is_empty())
             .unwrap_or(subscription.r#ref.as_str())
             .to_string();
-        match refresh_one(context, source_url).await {
+        match import::import_subscription(&context.db, source_url, None, &subscription.headers)
+            .await
+        {
             Ok(import_summary) => {
                 summary.succeeded += 1;
                 summary.imported_configs += import_summary.imported_configs;
@@ -157,14 +159,6 @@ async fn update_targets(
     }
 
     Ok(summary)
-}
-
-async fn refresh_one(
-    context: &AppContext,
-    source_url: &str,
-) -> crate::app::Result<xrat_db::ImportSummary> {
-    let (source, nodes) = import::load_nodes_async(source_url).await?;
-    Ok(context.db.import_nodes(&source, &nodes).await?)
 }
 
 fn print_summary(summary: &SubscriptionUpdateSummary) {

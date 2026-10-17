@@ -38,6 +38,7 @@ fn subscription_outputs_include_refs() {
         source_kind: "url".to_string(),
         source_url: Some("https://example.com/sub".to_string()),
         name: Some("main".to_string()),
+        headers: std::collections::BTreeMap::from([("x-hwid".into(), "private-device".into())]),
         created_at: "created".to_string(),
         updated_at: "updated".to_string(),
         config_count: 3,
@@ -54,6 +55,10 @@ fn subscription_outputs_include_refs() {
     assert!(tsv.starts_with("ref\tkind\t"));
     assert_eq!(json["ref"], "123456abcdef");
     assert!(json.get("id").is_none());
+    assert!(json.get("headers").is_none());
+    for output in [table, tsv, json.to_string()] {
+        assert!(!output.contains("private-device"));
+    }
 }
 
 #[test]

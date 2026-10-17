@@ -8,6 +8,9 @@ use xrat_model::Node;
 use xrat_support::decode::decode_or_raw_text;
 use xrat_support::url::looks_like_url;
 
+mod subscription;
+pub use subscription::import_subscription;
+
 pub fn load_nodes(input: &str) -> crate::app::Result<(ImportSource, Vec<Node>)> {
     let (source, input_data) = read_input(input)?;
     let config_text = decode_or_raw_text(&input_data)?;
@@ -19,11 +22,15 @@ pub fn load_nodes(input: &str) -> crate::app::Result<(ImportSource, Vec<Node>)> 
 
 pub async fn load_nodes_async(input: &str) -> crate::app::Result<(ImportSource, Vec<Node>)> {
     let (source, input_data) = read_input_async(input).await?;
-    let config_text = decode_or_raw_text(&input_data)?;
+    Ok((source, parse_nodes_async(&input_data).await?))
+}
+
+async fn parse_nodes_async(input_data: &[u8]) -> crate::app::Result<Vec<Node>> {
+    let config_text = decode_or_raw_text(input_data)?;
     reject_raw_json_config(&config_text)?;
     let normalized_text = expand_url_list_async(&config_text).await?;
 
-    Ok((source, parse_text(&normalized_text)))
+    Ok(parse_text(&normalized_text))
 }
 
 pub async fn persist_nodes(
@@ -31,11 +38,14 @@ pub async fn persist_nodes(
     mut source: ImportSource,
     nodes: &[Node],
     name: Option<&str>,
+    headers: Option<&std::collections::BTreeMap<String, String>>,
 ) -> crate::app::Result<ImportSummary> {
     if let Some(name) = name {
         source.name = Some(name.to_string());
     }
-    let summary = database.import_nodes(&source, nodes).await?;
+    let summary = database
+        .import_nodes_with_headers(&source, nodes, headers)
+        .await?;
     if let Some(name) = name {
         database
             .set_subscription_name(summary.subscription_id, name)
@@ -128,3 +138,6 @@ async fn expand_url_list_async(input: &str) -> crate::app::Result<String> {
 
 #[cfg(test)]
 mod tests;
+
+#[cfg(test)]
+mod subscription_tests;

@@ -79,6 +79,7 @@ pub enum RedirectPolicy {
     Default,
     None,
     Limited(usize),
+    SameOrigin,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
@@ -286,6 +287,10 @@ pub struct RequestBuilder {
 }
 
 impl RequestBuilder {
+    pub fn headers(mut self, headers: HeaderMap) -> Self {
+        self.request.headers.extend(headers);
+        self
+    }
     pub fn bearer_auth(mut self, value: &str) -> Self {
         match HeaderValue::from_str(&format!("Bearer {value}")) {
             Ok(value) => {

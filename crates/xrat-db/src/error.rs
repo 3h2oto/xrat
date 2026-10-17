@@ -15,6 +15,9 @@ pub enum DbError {
     #[error("invalid runtime session status in database: {0}")]
     InvalidRuntimeSessionStatus(String),
 
+    #[error("invalid subscription headers in database")]
+    SubscriptionHeaders(#[from] serde_json::Error),
+
     #[error("unsupported protocol in database: {0}")]
     UnsupportedProtocol(String),
 }

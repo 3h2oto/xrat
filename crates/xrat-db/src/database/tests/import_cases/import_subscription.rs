@@ -1,4 +1,67 @@
 use super::*;
+use std::collections::BTreeMap;
+
+#[tokio::test]
+async fn subscription_headers_are_preserved_or_replaced_on_import() {
+    let db_path = test_database_path("xrat-subscription-headers");
+    let db = Database::connect_sqlite(&db_path).await.unwrap();
+    verify_subscription_headers(&db).await;
+    let _ = std::fs::remove_file(db_path);
+}
+
+pub(in super::super) async fn verify_subscription_headers(db: &Database) {
+    let source = ImportSource {
+        kind: SourceKind::Url,
+        value: "https://example.com/headers".into(),
+        name: None,
+    };
+    let mut node = test_node("headers");
+    node.address = "headers.example.com".into();
+    node.raw_config = "vless://uuid-123@headers.example.com:443#headers".into();
+    let original = BTreeMap::from([
+        ("x-hwid".into(), "device-secret".into()),
+        ("user-agent".into(), "Happ".into()),
+    ]);
+    let replacement = BTreeMap::from([("x-hwid".into(), "replacement-secret".into())]);
+    let empty = BTreeMap::new();
+    for (supplied, expected) in [
+        (Some(&original), &original),
+        (None, &original),
+        (Some(&replacement), &replacement),
+        (Some(&empty), &empty),
+    ] {
+        let summary = db
+            .import_nodes_with_headers(&source, std::slice::from_ref(&node), supplied)
+            .await
+            .unwrap();
+        let stored = db
+            .get_subscription_by_id(summary.subscription_id)
+            .await
+            .unwrap()
+            .unwrap();
+        assert_eq!(&stored.headers, expected);
+        assert_eq!(
+            db.list_subscriptions()
+                .await
+                .unwrap()
+                .iter()
+                .find(|subscription| subscription.id == stored.id)
+                .unwrap()
+                .headers,
+            *expected
+        );
+        assert_eq!(
+            db.list_refreshable_due_subscriptions(i64::MAX)
+                .await
+                .unwrap()
+                .iter()
+                .find(|subscription| subscription.id == stored.id)
+                .unwrap()
+                .headers,
+            *expected
+        );
+    }
+}
 
 #[tokio::test]
 async fn imports_nodes_and_creates_subscription() {

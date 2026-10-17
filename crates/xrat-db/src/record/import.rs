@@ -1,3 +1,5 @@
+use std::collections::BTreeMap;
+
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum SourceKind {
     Url,
@@ -35,6 +37,7 @@ pub struct ImportSummary {
 pub struct RefreshableSubscription {
     pub id: xrat_model::SubscriptionId,
     pub source_url: String,
+    pub headers: BTreeMap<String, String>,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -44,6 +47,7 @@ pub struct SubscriptionRecord {
     pub source_kind: String,
     pub source_url: Option<String>,
     pub name: Option<String>,
+    pub headers: BTreeMap<String, String>,
     pub created_at: String,
     pub updated_at: String,
     pub config_count: i64,

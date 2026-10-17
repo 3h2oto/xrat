@@ -138,6 +138,54 @@ fn import_name_is_trimmed_and_must_not_be_empty() {
 }
 
 #[test]
+fn parses_repeatable_subscription_headers_as_sensitive_values() {
+    let cli = Cli::parse_from([
+        "xrat",
+        "import",
+        "https://example.com/sub",
+        "--header",
+        "X-HWID: device-secret",
+        "--header",
+        "Authorization: Bearer value:with:colons",
+        "--header",
+        "X-Empty:",
+    ]);
+    let Command::Import(args) = cli.command else {
+        panic!("expected import")
+    };
+    assert_eq!(args.headers[0].0, "x-hwid");
+    assert_eq!(args.headers[0].1, "device-secret");
+    assert_eq!(args.headers[1].1, "Bearer value:with:colons");
+    assert_eq!(args.headers[2].1, "");
+    assert!(args.headers.iter().all(|(_, value)| value.is_sensitive()));
+    assert!(!format!("{args:?}").contains("device-secret"));
+}
+
+#[test]
+fn rejects_malformed_subscription_headers() {
+    for header in [
+        "missing-colon",
+        ": value",
+        "Bad Name: value",
+        "X-Test: value\r\nInjected: yes",
+        "X-Test: value\n",
+        "X-Test: \0",
+    ] {
+        assert!(
+            Cli::try_parse_from([
+                "xrat",
+                "import",
+                "https://example.com/sub",
+                "--header",
+                header,
+            ])
+            .is_err(),
+            "accepted malformed header"
+        );
+    }
+}
+
+#[test]
 fn import_without_input_reports_missing_argument() {
     let error = Cli::try_parse_from(["xrat", "import"]).expect_err("input should be required");
     let rendered = error.to_string();

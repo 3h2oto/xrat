@@ -3,7 +3,7 @@
 Import a subscription URL, file, or raw text into the database.
 
 ```bash
-xrat import <input> [--name <name>]
+xrat import <input> [--name <name>] [--header 'Name: value']...
 ```
 
 ## Arguments
@@ -14,9 +14,10 @@ xrat import <input> [--name <name>]
 
 ## Options
 
-| Option               | Description                                      |
-| -------------------- | ------------------------------------------------ |
-| `-n`, `--name <name>` | Name for the imported subscription source        |
+| Option                 | Description                                    |
+| ---------------------- | ---------------------------------------------- |
+| `-n`, `--name <name>`   | Name for the imported subscription source       |
+| `--header <NAME:VALUE>` | HTTP header for URL subscriptions (repeatable)  |
 
 ## Input Formats
 
@@ -51,6 +52,19 @@ Import from a local file:
 ```bash
 xrat import ./nodes.txt
 ```
+
+Import with custom headers:
+
+```bash
+xrat import https://example.com/sub.txt \
+  --header 'X-HWID: device-id' \
+  --header 'User-Agent: Happ'
+```
+
+Headers are saved for `update` and automatic refreshes. Each successful `import`
+replaces the saved set; omitting `--header` clears it.
+With headers, redirects must keep the same scheme, host, and port.
+Header values are stored unencrypted.
 
 Import raw base64 subscription text:
 
