@@ -34,13 +34,16 @@ upgrade. Source upgrades do not fetch GitHub release notes.
 
 ## Flags
 
-| Flag               | Description                                           | Default |
-| ------------------ | ----------------------------------------------------- | ------- |
-| `--source`         | Build and install from source instead of downloading  | off     |
-| `--path <dir>`     | Source directory to build from when `--source` is set | `.`     |
-| `--version <tag>`  | Download a specific release tag instead of the latest | latest  |
-| `--force`          | Reinstall even when already on the requested version  | off     |
-| `--timeout <secs>` | HTTP request timeout in seconds for release downloads | `120`   |
+| Flag                  | Description                                           | Default |
+| --------------------- | ----------------------------------------------------- | ------- |
+| `--source`            | Build and install from source instead of downloading  | off     |
+| `--path <dir>`        | Source directory to build from when `--source` is set | `.`     |
+| `--version <tag>`     | Download a specific release tag instead of the latest | latest  |
+| `--force`             | Reinstall even when already on the requested version  | off     |
+| `--timeout <secs>`    | HTTP request timeout in seconds for release downloads | `120`   |
+| `--tun-setup`         | Force running `tun setup` after upgrade to restore capabilities | off |
+| `--no-tun-setup`      | Skip restoring TUN capabilities after upgrade         | off     |
+| `--no-restart-daemon` | Do not restart running xrat-daemon after upgrade      | off     |
 
 ## Release upgrade (default)
 
@@ -58,6 +61,11 @@ xrat upgrade
    failure is reported as part of the upgrade instead of surfacing on the next
    unrelated command. If migrations fail, see [`db migrate`](db.md) for recovery
    details.
+5. If TUN was previously configured (or when `--tun-setup` is passed), automatically
+   restores TUN file capabilities via `tun setup`. If a running daemon is detected,
+   restarts it so the process picks up the newly granted capabilities (configurable
+   via `[runtime.tun].auto_setup_on_upgrade` and `[runtime.tun].restart_daemon_on_upgrade`).
+
 
 Prebuilt archives are available for Linux (`x86_64` and `aarch64`, musl) and
 macOS (`x86_64` and `aarch64`, darwin). On other platforms or architectures

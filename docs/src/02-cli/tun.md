@@ -86,9 +86,15 @@ the commands and planned file changes without running them.
 
 Restart an installed systemd daemon with
 `systemctl --user restart xrat-daemon.service` so it picks up the override and
-capabilities. For a standalone daemon, use `xrat daemon restart`. File capabilities are lost whenever the managed engine binary
-is reinstalled or upgraded, so re-run `xrat tun setup` after `xrat install` or
-`xrat upgrade`.
+capabilities. For a standalone daemon, use `xrat daemon restart`.
+
+Pass `--sudoers` to install a drop-in rule in `/etc/sudoers.d/xrat-tun` allowing passwordless
+`setcap` for xrat and engine binaries. This allows future `xrat upgrade` runs to restore
+capabilities completely unattended.
+
+File capabilities are automatically restored during `xrat upgrade` (and core reinstalls via
+`xrat install`) when TUN was previously configured (see `auto_setup_on_upgrade` in settings),
+so manual re-setup is only required if auto-restoration is disabled or failed.
 
 ## Requirements
 
