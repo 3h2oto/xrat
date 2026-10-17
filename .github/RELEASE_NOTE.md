@@ -1,50 +1,58 @@
-## xrat v0.29.0
+## xrat v0.30.0
 
-Define your own TUI palette and enjoy more consistent built-in themes across
-panels, selected rows, Settings, and release notes.
+Import subscriptions that require custom HTTP headers, and keep Linux TUN
+privileges ready across future upgrades.
 
-### Custom themes
+### Custom subscription headers
 
-Create a named theme in config.toml, inherit a built-in palette, and override
-only the colors you want to change:
+Pass repeatable headers when importing a subscription:
 
-```toml
-[tui]
-theme = "my-theme"
-
-[tui.themes.my-theme]
-extends = "catppuccin"
-accent = "#89b4fa"
-selection_foreground = "#cdd6f4"
+```bash
+xrat import https://example.com/sub.txt \
+  --header 'X-HWID: device-id' \
+  --header 'User-Agent: Happ'
 ```
 
-- Color overrides accept `#RRGGBB`, ANSI color names, or `terminal`.
-- Settings lists configured custom themes alongside the eight built-in themes.
-  Preview changes live, save with `Ctrl+S`, or discard to restore the last saved
-  palette. Custom color definitions remain editable in TOML.
-- `xrat validate` identifies invalid colors and unknown fields precisely.
-  Built-in names and aliases are reserved; custom themes inherit built-ins only.
-- Saving Settings preserves custom definitions and comments and supports the
-  legacy `[ui]` section.
+- Headers are saved per subscription and reused by CLI, TUI, and automatic
+  refreshes.
+- Each successful URL import replaces the saved header set; importing without
+  `--header` clears it. Failed HTTP imports preserve existing headers.
+- Custom headers stay within the original scheme, host, and port during
+  redirects and are not forwarded to nested subscription URLs.
+- Header values are hidden from list/show output and marked sensitive on HTTP
+  requests. They are stored unencrypted in the database.
 
-### Theme fixes
+### TUN upgrade automation
 
-- RGB palettes now paint their intended backgrounds and use explicit
-  selected-row foreground/background pairs. Muted and status colors have
-  improved contrast.
-- Panels, modals, scrollbars, and release-note Markdown follow the active
-  palette.
-- Status colors follow actual config state; mixed engine availability is colored
-  per engine rather than showing the entire summary as successful.
-- Discarding changes after saving restores the most recently saved theme.
+- Linux upgrades can restore TUN file capabilities when prior setup is detected
+  or TUN is enabled. Core reinstalls also restore capabilities when TUN is enabled.
+- After successful upgrade-time restoration, an active daemon is restarted to
+  pick up the capabilities. A stale standalone daemon socket does not start an
+  inactive daemon.
+- Configure `[runtime.tun].auto_setup_on_upgrade` as `"auto"` (default), `"always"`,
+  or `"never"`, and `restart_daemon_on_upgrade` as `true` or `false`.
+- Use `xrat upgrade --tun-setup`, `--no-tun-setup`, or `--no-restart-daemon` to
+  override automation for an individual upgrade.
+- Capability restoration uses normal sudo authentication and may prompt for a
+  password. XRAT does not install passwordless sudoers rules.
 
 ### Upgrade notes
 
-No database migration is required. Existing built-in names and aliases remain
-accepted. RGB themes now paint their own background; choose `ansi` or define a
-custom `background = "terminal"` to retain your terminal background.
+- Adds database migration 0024 for subscription headers on SQLite and PostgreSQL;
+  migrations run automatically.
+- When upgrading from v0.29.0, run `xrat tun setup` and restart the daemon once if
+  TUN capabilities need restoring. The new upgrade automation takes effect when
+  the upgrade is launched by v0.30.0 or later.
+- If you used the short-lived `tun setup --sudoers` helper from an unreleased
+  source build, review and remove `/etc/sudoers.d/xrat-tun` with
+  `sudo rm /etc/sudoers.d/xrat-tun`. The helper has been removed.
 
-The legacy `solarized-light` alias still selects the Latte-inspired `light`
-palette but is deprecated; use `light` or `latte`.
+### Contributors
 
-**Full Changelog**: https://github.com/mhyrzt/xrat/compare/v0.28.0...v0.29.0
+Thank you to [@vaniog](https://github.com/vaniog) for custom subscription headers
+([#225](https://github.com/mhyrzt/xrat/pull/225)), and
+[@f02xygen](https://github.com/f02xygen) for TUN upgrade automation
+([#224](https://github.com/mhyrzt/xrat/pull/224)). Follow-up privilege and daemon
+hardening shipped in [#227](https://github.com/mhyrzt/xrat/pull/227).
+
+**Full Changelog**: https://github.com/mhyrzt/xrat/compare/v0.29.0...v0.30.0
