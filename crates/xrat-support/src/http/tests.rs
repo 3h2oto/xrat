@@ -1,6 +1,8 @@
 use super::*;
+use axum::{Router, response::Redirect, routing::get};
 use std::collections::VecDeque;
 use std::sync::Mutex;
+use tokio::net::TcpListener;
 struct ScriptedBody(VecDeque<Result<Vec<u8>, HttpError>>);
 #[async_trait]
 impl ResponseBody for ScriptedBody {
@@ -125,4 +127,84 @@ fn safe_summary_never_copies_untrusted_request_or_response_details() {
         assert!(error.safe_summary().contains(&code.to_string()));
         assert!(!error.safe_summary().contains("secret"));
     }
+}
+
+async fn redirect_server(target: &str) -> String {
+    let target = target.to_owned();
+    let app = Router::new()
+        .route(
+            "/",
+            get(move || async move { Redirect::temporary(&target) }),
+        )
+        .route("/loop", get(|| async { Redirect::temporary("/loop") }))
+        .route(
+            "/headers",
+            get(|headers: HeaderMap| async move {
+                headers.get("x-hwid").unwrap().to_str().unwrap().to_owned()
+            }),
+        );
+    let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let address = listener.local_addr().unwrap();
+    tokio::spawn(async move { axum::serve(listener, app).await.unwrap() });
+    format!("http://{address}")
+}
+
+#[tokio::test]
+async fn same_origin_redirect_preserves_custom_headers() {
+    let url = redirect_server("/headers").await;
+    let client = Client::builder()
+        .redirect(RedirectPolicy::SameOrigin)
+        .build()
+        .unwrap();
+    let headers = HeaderMap::from_iter([(
+        HeaderName::from_static("x-hwid"),
+        HeaderValue::from_static("device-secret"),
+    )]);
+    let body = client
+        .get(&url)
+        .headers(headers)
+        .send()
+        .await
+        .unwrap()
+        .text()
+        .await
+        .unwrap();
+    assert_eq!(body, "device-secret");
+}
+
+#[tokio::test]
+async fn same_origin_redirect_blocks_other_origins() {
+    let destination = TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let target = format!(
+        "http://{}/private-token?key=secret",
+        destination.local_addr().unwrap()
+    );
+    let url = redirect_server(&target).await;
+    let client = Client::builder()
+        .redirect(RedirectPolicy::SameOrigin)
+        .build()
+        .unwrap();
+    let error = client.get(&url).send().await.err().unwrap();
+    assert!(error.is_redirect());
+    assert!(!error.safe_summary().contains("secret"));
+    assert!(
+        tokio::time::timeout(Duration::from_millis(100), destination.accept())
+            .await
+            .is_err()
+    );
+}
+
+#[tokio::test]
+async fn same_origin_redirect_keeps_loop_limit() {
+    let url = redirect_server("/loop").await;
+    let client = Client::builder()
+        .redirect(RedirectPolicy::SameOrigin)
+        .build()
+        .unwrap();
+    let error = tokio::time::timeout(Duration::from_secs(5), client.get(&url).send())
+        .await
+        .unwrap()
+        .err()
+        .unwrap();
+    assert!(error.is_redirect());
 }

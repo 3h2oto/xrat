@@ -30,6 +30,19 @@ impl ReqwestHttpClient {
             RedirectPolicy::Limited(count) => {
                 builder.redirect(reqwest::redirect::Policy::limited(count))
             }
+            RedirectPolicy::SameOrigin => {
+                builder.redirect(reqwest::redirect::Policy::custom(|attempt| {
+                    // reqwest strips only known sensitive headers on redirects; set_sensitive
+                    // hides values in Debug but does not protect custom headers such as X-HWID.
+                    if let Some(original) = attempt.previous().first()
+                        && original.origin() != attempt.url().origin()
+                    {
+                        attempt.error("cross-origin subscription redirect is not allowed")
+                    } else {
+                        reqwest::redirect::Policy::limited(10).redirect(attempt)
+                    }
+                }))
+            }
         };
         Ok(Self {
             client: builder.build().map_err(adapt_error)?,

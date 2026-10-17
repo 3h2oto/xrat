@@ -2,14 +2,20 @@ use crate::app::commands::output;
 use crate::app::commands::progress::CliProgress;
 use crate::app::{context::AppContext, import};
 
-pub async fn run(context: &AppContext, input: &str, name: Option<&str>) -> crate::app::Result<()> {
+pub async fn run(context: &AppContext, args: &crate::cli::ImportArgs) -> crate::app::Result<()> {
     let progress = CliProgress::spinner(true, "importing subscription");
-    let result = async {
-        let (source, nodes) = import::load_nodes_async(input).await?;
-        let summary = import::persist_nodes(&context.db, source, &nodes, name).await?;
-        crate::app::Result::Ok(summary)
-    }
-    .await;
+    let headers = args
+        .headers
+        .iter()
+        .map(|(name, value)| {
+            (
+                name.to_string(),
+                String::from_utf8_lossy(value.as_bytes()).into_owned(),
+            )
+        })
+        .collect();
+    let result =
+        import::import_subscription(&context.db, &args.input, args.name.as_deref(), &headers).await;
     progress.finish_and_clear();
     let summary = result?;
     let subscription = context

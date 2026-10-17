@@ -10,6 +10,15 @@ impl Database {
         repository::import_nodes(&self.pool, source, nodes).await
     }
 
+    pub async fn import_nodes_with_headers(
+        &self,
+        source: &ImportSource,
+        nodes: &[xrat_model::Node],
+        headers: Option<&std::collections::BTreeMap<String, String>>,
+    ) -> crate::Result<ImportSummary> {
+        repository::import_nodes_with_headers(&self.pool, source, nodes, headers).await
+    }
+
     pub async fn get_config_count(&self) -> crate::Result<i64> {
         repository::get_config_count(&self.pool).await
     }

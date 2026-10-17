@@ -9,7 +9,6 @@
 use crate::app::context::AppContext;
 use crate::app::events;
 use crate::app::import;
-use xrat_db::ImportSummary;
 use xrat_support::time::now_epoch_seconds;
 
 #[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
@@ -71,7 +70,14 @@ async fn refresh_targets(context: &AppContext, cutoff_epoch_secs: i64) -> Refres
 
     for subscription in due {
         outcome.attempted += 1;
-        match refresh_one(context, &subscription.source_url).await {
+        match import::import_subscription(
+            &context.db,
+            &subscription.source_url,
+            None,
+            &subscription.headers,
+        )
+        .await
+        {
             Ok(summary) => {
                 outcome.succeeded += 1;
                 outcome.imported_configs += summary.imported_configs;
@@ -112,9 +118,4 @@ async fn refresh_targets(context: &AppContext, cutoff_epoch_secs: i64) -> Refres
     }
 
     outcome
-}
-
-async fn refresh_one(context: &AppContext, source_url: &str) -> crate::app::Result<ImportSummary> {
-    let (source, nodes) = import::load_nodes_async(source_url).await?;
-    Ok(context.db.import_nodes(&source, &nodes).await?)
 }

@@ -3,7 +3,7 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use async_trait::async_trait;
-pub use reqwest::header::{HeaderMap, HeaderValue};
+pub use reqwest::header::{HeaderMap, HeaderName, HeaderValue};
 pub use reqwest::{Method, StatusCode};
 
 mod reqwest_adapter;

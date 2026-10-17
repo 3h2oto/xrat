@@ -193,6 +193,35 @@ pub async fn set_name(pool: &DbPool, id: SubscriptionId, name: &str) -> crate::R
     Ok(())
 }
 
+pub async fn set_headers(
+    pool: &DbPool,
+    id: SubscriptionId,
+    headers: &std::collections::BTreeMap<String, String>,
+) -> crate::Result<()> {
+    let json = serde_json::to_string(headers)?;
+    match pool {
+        DbPool::Sqlite(pool) => {
+            sqlx::query(
+                "UPDATE subscriptions SET headers_json = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?",
+            )
+            .bind(&json)
+            .bind(id)
+            .execute(pool)
+            .await?;
+        }
+        DbPool::Postgres(pool) => {
+            sqlx::query(
+                "UPDATE subscriptions SET headers_json = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2",
+            )
+            .bind(&json)
+            .bind(id)
+            .execute(pool)
+            .await?;
+        }
+    }
+    Ok(())
+}
+
 /// Stamp a subscription as refreshed now. `last_refreshed_at` holds epoch
 /// seconds as text (matching the `cooldown_until` convention) so the scheduler
 /// can compare it without timezone parsing.
@@ -226,7 +255,7 @@ pub async fn list_refreshable_due(
     cutoff_epoch_secs: i64,
 ) -> crate::Result<Vec<RefreshableSubscription>> {
     const SQLITE_SQL: &str = r#"
-        SELECT id, source_url
+        SELECT id, source_url, headers_json
         FROM subscriptions
         WHERE source_kind = 'url'
           AND source_url IS NOT NULL
@@ -238,7 +267,7 @@ pub async fn list_refreshable_due(
         ORDER BY id ASC
         "#;
     const POSTGRES_SQL: &str = r#"
-        SELECT id, source_url
+        SELECT id, source_url, headers_json
         FROM subscriptions
         WHERE source_kind = 'url'
           AND source_url IS NOT NULL
@@ -250,28 +279,29 @@ pub async fn list_refreshable_due(
         ORDER BY id ASC
         "#;
 
-    let map = |row: (i64, Option<String>)| {
-        row.1.map(|source_url| RefreshableSubscription {
+    let map = |row: (i64, String, String)| -> crate::Result<RefreshableSubscription> {
+        Ok(RefreshableSubscription {
             id: row.0.into(),
-            source_url,
+            source_url: row.1,
+            headers: serde_json::from_str(&row.2)?,
         })
     };
 
     match pool {
-        DbPool::Sqlite(pool) => Ok(sqlx::query_as::<_, (i64, Option<String>)>(SQLITE_SQL)
+        DbPool::Sqlite(pool) => sqlx::query_as::<_, (i64, String, String)>(SQLITE_SQL)
             .bind(cutoff_epoch_secs)
             .fetch_all(pool)
             .await?
             .into_iter()
-            .filter_map(map)
-            .collect()),
-        DbPool::Postgres(pool) => Ok(sqlx::query_as::<_, (i64, Option<String>)>(POSTGRES_SQL)
+            .map(map)
+            .collect(),
+        DbPool::Postgres(pool) => sqlx::query_as::<_, (i64, String, String)>(POSTGRES_SQL)
             .bind(cutoff_epoch_secs)
             .fetch_all(pool)
             .await?
             .into_iter()
-            .filter_map(map)
-            .collect()),
+            .map(map)
+            .collect(),
     }
 }
 
@@ -301,6 +331,7 @@ pub async fn get_by_id(
             subscriptions.source_kind,
             subscriptions.source_url,
             subscriptions.name,
+            subscriptions.headers_json,
             subscriptions.created_at,
             subscriptions.updated_at,
             COUNT(configs.id) AS config_count
@@ -315,6 +346,7 @@ pub async fn get_by_id(
             subscriptions.source_kind,
             subscriptions.source_url,
             subscriptions.name,
+            subscriptions.headers_json,
             subscriptions.created_at,
             subscriptions.updated_at
         "#;
@@ -325,6 +357,7 @@ pub async fn get_by_id(
             subscriptions.source_kind,
             subscriptions.source_url,
             subscriptions.name,
+            subscriptions.headers_json,
             subscriptions.created_at,
             subscriptions.updated_at,
             COUNT(configs.id) AS config_count
@@ -339,21 +372,24 @@ pub async fn get_by_id(
             subscriptions.source_kind,
             subscriptions.source_url,
             subscriptions.name,
+            subscriptions.headers_json,
             subscriptions.created_at,
             subscriptions.updated_at
         "#;
 
     match pool {
-        DbPool::Sqlite(pool) => Ok(sqlx::query(SQLITE_SQL)
+        DbPool::Sqlite(pool) => sqlx::query(SQLITE_SQL)
             .bind(id)
             .fetch_optional(pool)
             .await?
-            .map(map_subscription_row)),
-        DbPool::Postgres(pool) => Ok(sqlx::query(POSTGRES_SQL)
+            .map(map_subscription_row)
+            .transpose(),
+        DbPool::Postgres(pool) => sqlx::query(POSTGRES_SQL)
             .bind(id)
             .fetch_optional(pool)
             .await?
-            .map(map_subscription_row)),
+            .map(map_subscription_row)
+            .transpose(),
     }
 }
 
@@ -365,6 +401,7 @@ pub async fn list(pool: &DbPool) -> crate::Result<Vec<SubscriptionRecord>> {
             subscriptions.source_kind,
             subscriptions.source_url,
             subscriptions.name,
+            subscriptions.headers_json,
             subscriptions.created_at,
             subscriptions.updated_at,
             COUNT(configs.id) AS config_count
@@ -378,23 +415,24 @@ pub async fn list(pool: &DbPool) -> crate::Result<Vec<SubscriptionRecord>> {
             subscriptions.source_kind,
             subscriptions.source_url,
             subscriptions.name,
+            subscriptions.headers_json,
             subscriptions.created_at,
             subscriptions.updated_at
         ORDER BY subscriptions.id ASC
         "#;
 
     match pool {
-        DbPool::Sqlite(pool) => Ok(sqlx::query(SQL)
+        DbPool::Sqlite(pool) => sqlx::query(SQL)
             .fetch_all(pool)
             .await?
             .into_iter()
             .map(map_subscription_row)
-            .collect()),
-        DbPool::Postgres(pool) => Ok(sqlx::query(SQL)
+            .collect(),
+        DbPool::Postgres(pool) => sqlx::query(SQL)
             .fetch_all(pool)
             .await?
             .into_iter()
             .map(map_subscription_row)
-            .collect()),
+            .collect(),
     }
 }

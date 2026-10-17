@@ -11,3 +11,4 @@ mod upsert;
 
 mod fixtures;
 pub(super) use fixtures::test_node;
+pub(super) use import_subscription::verify_subscription_headers;

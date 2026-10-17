@@ -60,9 +60,13 @@ async fn run_import(context: &AppContext, import: TuiImport) -> crate::app::Resu
             Ok("added 1 config".to_string())
         }
         TuiImport::Subscription { url, name } => {
-            let (source, nodes) = crate::app::import::load_nodes_async(&url).await?;
-            let summary =
-                crate::app::import::persist_nodes(&context.db, source, &nodes, Some(&name)).await?;
+            let summary = crate::app::import::import_subscription(
+                &context.db,
+                &url,
+                Some(&name),
+                &Default::default(),
+            )
+            .await?;
             Ok(format!(
                 "imported {} configs into {name}",
                 summary.imported_configs

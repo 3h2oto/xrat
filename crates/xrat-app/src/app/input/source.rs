@@ -36,6 +36,14 @@ pub async fn read_input_async_with_client(
     input: &str,
     client: &xrat_support::http::Client,
 ) -> crate::app::Result<(ImportSource, Vec<u8>)> {
+    read_input_async_with_headers(input, client, xrat_support::http::HeaderMap::new()).await
+}
+
+pub async fn read_input_async_with_headers(
+    input: &str,
+    client: &xrat_support::http::Client,
+    headers: xrat_support::http::HeaderMap,
+) -> crate::app::Result<(ImportSource, Vec<u8>)> {
     if looks_like_url(input) {
         return Ok((
             ImportSource {
@@ -43,7 +51,7 @@ pub async fn read_input_async_with_client(
                 value: input.to_string(),
                 name: None,
             },
-            fetch_url_async_with_client(input, client).await?,
+            fetch_url_async_with_headers(input, client, headers).await?,
         ));
     }
 
@@ -74,8 +82,17 @@ pub async fn fetch_url_async_with_client(
     url: &str,
     client: &xrat_support::http::Client,
 ) -> crate::app::Result<Vec<u8>> {
+    fetch_url_async_with_headers(url, client, xrat_support::http::HeaderMap::new()).await
+}
+
+async fn fetch_url_async_with_headers(
+    url: &str,
+    client: &xrat_support::http::Client,
+    headers: xrat_support::http::HeaderMap,
+) -> crate::app::Result<Vec<u8>> {
     let response = client
         .get(url)
+        .headers(headers)
         .send()
         .await
         .map_err(safe_input_error)?

@@ -182,6 +182,7 @@ fn maps_subscription_record_to_source_row() {
         source_kind: "url".to_string(),
         source_url: Some("https://example.com/sub".to_string()),
         name: Some("main".to_string()),
+        headers: Default::default(),
         created_at: "created".to_string(),
         updated_at: "updated".to_string(),
         config_count: 42,
