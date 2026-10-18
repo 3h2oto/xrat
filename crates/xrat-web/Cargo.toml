@@ -5,9 +5,13 @@ edition.workspace = true
 license.workspace = true
 description = "Shared WebUI API contracts and Dioxus frontend for XRAT"
 
+[[bin]]
+name = "xrat-web"
+path = "src/main.rs"
+required-features = ["ui"]
 
 [features]
-default = []
+default = ["ui"]
 ui = ["dep:dioxus", "dep:serde_json", "dep:serde_urlencoded", "dep:gloo-net", "dep:gloo-timers", "dep:web-sys", "dep:wasm-bindgen", "dep:icons", "dep:strum", "dep:tw_merge", "dep:js-sys"]
 
 [dependencies]

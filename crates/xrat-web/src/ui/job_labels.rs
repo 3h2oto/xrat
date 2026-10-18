@@ -1,0 +1,31 @@
+pub fn job_label(kind: &str) -> String {
+    match kind {
+        "bulk" => "Bulk operation",
+        "import" => "Configuration import",
+        "add" => "Configuration addition",
+        "enable" => "Configuration activation",
+        "disable" => "Configuration deactivation",
+        "delete" => "Configuration deletion",
+        "restore" => "Configuration restore",
+        "delete_subscription" => "Subscription deletion",
+        "rename_subscription" => "Subscription rename",
+        "connect" => "Connection",
+        "disconnect" => "Disconnection",
+        "refresh" => "Subscription refresh",
+        "test" => "Connection test",
+        "rotate" => "Connection rotation",
+        "scan" => "TCP scan",
+        "parse" => "Configuration check",
+        "purge" => "Configuration cleanup",
+        "clear_events" => "Event history cleanup",
+        "install_engine" => "Engine installation",
+        "tun" => "TUN update",
+        "validate" => "Configuration validation",
+        "upgrade" => "XRAT upgrade",
+        "geoip_update" => "GeoIP update",
+        "geoip_lookup" => "GeoIP lookup",
+        "rotation" => "Automatic rotation update",
+        _ => return kind.replace('_', " "),
+    }
+    .into()
+}

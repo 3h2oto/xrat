@@ -45,6 +45,7 @@
   - [Auto-Rotation](03-features/auto-rotation.md)
   - [IP Scanning](03-features/ip-scanning.md)
   - [HTTP API](03-features/http-api.md)
+  - [Web UI](03-features/web-ui.md)
   - [Deduplication](03-features/deduplication.md)
 - [Deployment](04-deployment/README.md)
   - [systemd](04-deployment/systemd.md)

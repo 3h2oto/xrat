@@ -15,6 +15,7 @@ crates/
   xrat-config/          # subscription import and protocol link parsing
   xrat-db/              # connection, records, repositories, migrations wiring
   xrat-prober/          # TCP/ICMP/download/upload/real-delay probing
+  xrat-web/             # shared API types; optional Dioxus browser frontend
   xrat-app/             # application services, CLI, TUI, HTTP server
   xrat-sdk/             # curated public facade for embedding
 src/                    # thin main.rs + lib.rs compatibility re-exports
@@ -31,7 +32,8 @@ continue to resolve, and it re-exports the frontends from `xrat-app`
 xrat-sdk      -> xrat-config + xrat-engines + xrat-model + xrat-prober
                  + optional xrat-app (services feature)
 xrat-app      -> xrat-config + xrat-db + xrat-engines + xrat-model
-                 + xrat-prober + xrat-support
+                 + xrat-prober + xrat-support + xrat-web (types only)
+xrat-web      -> serde; UI dependencies behind the default ui feature
 xrat-db       -> xrat-config + xrat-model + xrat-support
 xrat-config   -> xrat-model + xrat-support
 xrat-prober   -> xrat-engines + xrat-model + xrat-support
@@ -72,7 +74,7 @@ version that already exists, so a partially completed release can be re-run:
 
 ```text
 xrat-model -> xrat-support -> xrat-config -> xrat-engines -> xrat-db
--> xrat-prober -> xrat-app -> xrat-sdk -> xrat
+-> xrat-prober -> xrat-web -> xrat-app -> xrat-sdk -> xrat
 ```
 
 The service templates embedded by `xrat daemon install` live in

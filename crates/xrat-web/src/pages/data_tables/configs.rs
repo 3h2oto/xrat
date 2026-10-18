@@ -1,0 +1,361 @@
+use super::{bulk::*, controls::*, state::*, values::*};
+use crate::pages::run;
+use crate::pages::workspace::{ConfigActions, ConfigToggle};
+use crate::ui::icon_button::IconButton;
+use crate::ui::{
+    badge::{Badge, BadgeVariant},
+    button::ButtonVariant,
+    card::Card,
+    states::EmptyState,
+    table::*,
+};
+use dioxus::prelude::*;
+use icons::{FlaskConical, Plus};
+use std::collections::BTreeSet;
+use xrat_web::types::{Action, BulkOperation, ConfigRow, SubscriptionRow};
+
+#[component]
+pub fn ConfigTable(
+    configs: Vec<ConfigRow>,
+    subscriptions: Vec<SubscriptionRow>,
+    operator: bool,
+    loading: bool,
+    on_reload: EventHandler,
+    on_import: EventHandler,
+    pending_delete: Signal<Option<i64>>,
+) -> Element {
+    let mut state = use_table_state(false, "/ui/configs");
+    let mut selected = use_signal(BTreeSet::<i64>::new);
+    let filter_key = state().filter_key();
+    use_effect(use_reactive!(|(filter_key,)| {
+        let _ = &filter_key;
+        selected.write().clear();
+    }));
+    let filtered = filtered_configs(&configs, &subscriptions, &state());
+    let valid_ids = filtered.iter().map(|row| row.id).collect::<BTreeSet<_>>();
+    use_effect(use_reactive!(|(valid_ids,)| {
+        if selected.peek().iter().any(|id| !valid_ids.contains(id)) {
+            selected.write().retain(|id| valid_ids.contains(id));
+        }
+    }));
+    let columns = CONFIG_COLUMNS
+        .iter()
+        .filter(|col| state().columns.contains(col.key))
+        .copied()
+        .collect::<Vec<_>>();
+    let page = state()
+        .page
+        .min(filtered.len().div_ceil(state().per_page).max(1));
+    let max_page = filtered.len().div_ceil(state().per_page).max(1);
+    use_effect(use_reactive!(|(max_page,)| {
+        if state().page > max_page {
+            state.write().page = max_page;
+        }
+    }));
+    let shown = filtered
+        .iter()
+        .skip((page - 1) * state().per_page)
+        .take(state().per_page)
+        .copied()
+        .collect::<Vec<_>>();
+    let page_ids = shown.iter().map(|row| row.id).collect::<Vec<_>>();
+    let all_checked = !page_ids.is_empty() && page_ids.iter().all(|id| selected().contains(id));
+    let some_checked = page_ids.iter().any(|id| selected().contains(id));
+    let protocols = configs
+        .iter()
+        .map(|row| row.protocol.clone())
+        .collect::<BTreeSet<_>>();
+    let countries = configs
+        .iter()
+        .filter_map(|row| row.country.clone())
+        .collect::<BTreeSet<_>>();
+    let mut export = vec![
+        std::iter::once("Name".into())
+            .chain(columns.iter().map(|col| col.label.into()))
+            .chain(std::iter::once("State".into()))
+            .collect::<Vec<_>>(),
+    ];
+    export.extend(
+        filtered
+            .iter()
+            .filter(|row| selected().is_empty() || selected().contains(&row.id))
+            .map(|row| {
+                std::iter::once(config_name(row))
+                    .chain(
+                        columns
+                            .iter()
+                            .map(|col| config_value(row, col.key, &subscriptions).text()),
+                    )
+                    .chain(std::iter::once(config_state(row).into()))
+                    .collect()
+            }),
+    );
+    let operations = [
+        BulkOperation::Enable,
+        BulkOperation::Disable,
+        BulkOperation::Test,
+        BulkOperation::Restore,
+        BulkOperation::Delete,
+    ]
+    .iter()
+    .map(|op| {
+        (
+            *op,
+            filtered
+                .iter()
+                .filter(|row| {
+                    selected().contains(&row.id)
+                        && match op {
+                            BulkOperation::Restore => row.deleted,
+                            BulkOperation::Enable => !row.deleted && !row.enabled,
+                            BulkOperation::Disable => !row.deleted && row.enabled,
+                            _ => !row.deleted,
+                        }
+                })
+                .map(|row| row.id)
+                .collect(),
+        )
+    })
+    .collect::<Vec<_>>();
+    rsx! {
+        Card { class: "data-table-panel",
+            div { class: "data-page-heading",
+                div {
+                    h2 { "Configurations" }
+                    p { "Your connections, together in one place." }
+                }
+                if operator {
+                    div { class: "data-primary-actions",
+                        IconButton {
+                            label: "Test enabled",
+                            variant: ButtonVariant::Outline,
+                            disabled: !configs.iter().any(|row| row.enabled && !row.deleted),
+                            onclick: move |_| run(Action::Test { id: None }),
+                            FlaskConical {}
+                        }
+                        IconButton {
+                            label: "Import configs",
+                            onclick: move |_| on_import.call(()),
+                            Plus {}
+                        }
+                    }
+                }
+            }
+            if configs.is_empty() {
+                EmptyState {
+                    title: "Wow, so empty 👀",
+                    description: "Import a subscription or paste configuration links to begin.",
+                }
+                if operator {
+                    p {
+                        class: "import-paste-hint",
+                        "data-import-paste": "true",
+                        "Press "
+                        kbd { "⌘V" }
+                        " / "
+                        kbd { "Ctrl+V" }
+                        " to paste a configuration or subscription."
+                    }
+                }
+            } else {
+                div { class: "data-toolbar",
+                    SearchBox { state, subscriptions: false }
+                    ViewActions {
+                        state,
+                        subscriptions: false,
+                        csv: csv(&export),
+                        loading,
+                        on_reload,
+                    }
+                }
+                div { class: "data-filters",
+                    FilterSelect {
+                        label: "Protocol",
+                        field: "protocol",
+                        state,
+                        options: std::iter::once(("".into(), "All protocols".into()))
+                            .chain(protocols.into_iter().map(|value| (value.clone(), value)))
+                            .collect::<Vec<_>>(),
+                    }
+                    FilterSelect {
+                        label: "State",
+                        field: "state",
+                        state,
+                        options: vec![
+                            ("".into(), "All states".into()),
+                            ("enabled".into(), "Enabled".into()),
+                            ("disabled".into(), "Disabled".into()),
+                        ],
+                    }
+                    FilterSelect {
+                        label: "Subscription",
+                        field: "subscription",
+                        state,
+                        options: std::iter::once(("".into(), "All subscriptions".into()))
+                            .chain(std::iter::once(("none".into(), "No subscription".into())))
+                            .chain(subscriptions.iter().map(|sub| (sub.id.to_string(), sub.name.clone())))
+                            .collect::<Vec<_>>(),
+                    }
+                    FilterSelect {
+                        label: "Test result",
+                        field: "test",
+                        state,
+                        options: vec![
+                            ("".into(), "All results".into()),
+                            ("passed".into(), "Passed".into()),
+                            ("failed".into(), "Failed".into()),
+                            ("untested".into(), "Not tested".into()),
+                        ],
+                    }
+                    FilterSelect {
+                        label: "Country",
+                        field: "country",
+                        state,
+                        options: std::iter::once(("".into(), "All countries".into()))
+                            .chain(countries.into_iter().map(|value| (value.clone(), value)))
+                            .collect::<Vec<_>>(),
+                    }
+                    LatencyFilter { state }
+                    label { class: "data-deleted-toggle",
+                        input {
+                            r#type: "checkbox",
+                            checked: state().show_deleted,
+                            onchange: move |event: FormEvent| {
+                                let mut next = state.write();
+                                next.show_deleted = event.checked();
+                                next.page = 1;
+                                if !next.show_deleted && next.state == "deleted" {
+                                    next.state.clear();
+                                }
+                            },
+                        }
+                        "Show deleted configs"
+                    }
+                }
+                if operator {
+                    BulkActions {
+                        selected,
+                        operations,
+                        matching: filtered.iter().map(|row| row.id).collect::<Vec<_>>(),
+                    }
+                }
+                if filtered.is_empty() {
+                    EmptyState {
+                        title: "No matching configurations",
+                        description: "Adjust your filters or reset the table view.",
+                    }
+                } else {
+                    TableWrapper {
+                        class: "data-table-wrapper",
+                        aria_label: "Configurations table, scroll for more rows or columns",
+                        Table { class: "data-table",
+                            TableHeader {
+                                TableRow {
+                                    if operator {
+                                        TableHead { class: "data-selection-cell",
+                                            input {
+                                                r#type: "checkbox",
+                                                checked: all_checked,
+                                                "aria-checked": if some_checked && !all_checked { "mixed" } else if all_checked { "true" } else { "false" },
+                                                aria_label: "Select all configurations on this page",
+                                                onchange: {
+                                                    let ids = page_ids.clone();
+                                                    move |_| toggle_page(&mut selected.write(), &ids)
+                                                },
+                                            }
+                                        }
+                                    }
+                                    SortHead {
+                                        column: "name",
+                                        label: "Name",
+                                        state,
+                                    }
+                                    for column in &columns {
+                                        SortHead {
+                                            key: "{column.key}",
+                                            column: column.key,
+                                            label: column.label,
+                                            state,
+                                        }
+                                    }
+                                    SortHead {
+                                        column: "state",
+                                        label: "State",
+                                        state,
+                                    }
+                                    if operator {
+                                        TableHead { "Actions" }
+                                    }
+                                }
+                            }
+                            TableBody {
+                                for row in shown {
+                                    TableRow {
+                                        key: "{row.id}",
+                                        data_state: if selected().contains(&row.id) { "selected" } else { "" },
+                                        if operator {
+                                            TableCell { class: "data-selection-cell",
+                                                input {
+                                                    r#type: "checkbox",
+                                                    checked: selected().contains(&row.id),
+                                                    aria_label: format!("Select {}", config_name(row)),
+                                                    onchange: {
+                                                        let id = row.id;
+                                                        move |event: FormEvent| {
+                                                            if event.checked() {
+                                                                selected.write().insert(id);
+                                                            } else {
+                                                                selected.write().remove(&id);
+                                                            }
+                                                        }
+                                                    },
+                                                }
+                                            }
+                                        }
+                                        TableCell {
+                                            div { class: "data-row-name", "{config_name(row)}" }
+                                        }
+                                        for column in &columns {
+                                            TableCell { key: "{column.key}",
+                                                Cell {
+                                                    value: config_value(row, column.key, &subscriptions),
+                                                    date: matches!(column.key, "tested" | "updated"),
+                                                }
+                                            }
+                                        }
+                                        TableCell {
+                                            if row.deleted {
+                                                Badge { variant: BadgeVariant::Muted,
+                                                    "Deleted"
+                                                }
+                                            } else if operator {
+                                                ConfigToggle {
+                                                    id: row.id,
+                                                    enabled: row.enabled,
+                                                }
+                                            } else {
+                                                Badge { variant: BadgeVariant::Outline,
+                                                    "{config_state(row)}"
+                                                }
+                                            }
+                                        }
+                                        if operator {
+                                            TableCell {
+                                                ConfigActions {
+                                                    id: row.id,
+                                                    deleted: row.deleted,
+                                                    pending_delete,
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+                Pagination { state, total: filtered.len() }
+            }
+        }
+    }
+}
