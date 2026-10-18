@@ -93,7 +93,12 @@ pub fn local_log_timestamp(seconds: f64) -> Option<String> {
 #[component]
 pub fn TimeFilter(mut window: TimeWindow, id: String) -> Element {
     rsx! {
-        div { class: "history-time-filter",
+        div { class: concat!(
+            "history-time-filter flex items-end flex-wrap gap-3 [&_>_div]:min-w-40 [&_label]:block ",
+            "[&_label]:text-[11px] [&_label]:font-medium [&_label]:text-muted-foreground [&_label]:mb-[5px] ",
+            "[&&_[data-name=SelectTrigger]]:[height:30px] [&&_[data-name=SelectTrigger]]:[font-size:12px] ",
+            "[&&_[data-name=SelectTrigger]]:[padding:0_9px] [&&_[data-name=SelectTrigger]]:[gap:8px] ",
+        ),
             div {
                 Label { html_for: id.clone(), "Time range" }
                 FormSelect {
@@ -109,7 +114,11 @@ pub fn TimeFilter(mut window: TimeWindow, id: String) -> Element {
                 }
             }
             if !window.valid() {
-                p { role: "alert", class: "error", "Choose valid dates with From before Until." }
+                p {
+                    role: "alert",
+                    class: "error text-destructive text-[14px]",
+                    "Choose valid dates with From before Until."
+                }
             }
             if (window.preset)() == "custom" {
                 div {

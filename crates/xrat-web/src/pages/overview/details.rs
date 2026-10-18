@@ -1,10 +1,10 @@
 use crate::ui::{
-    button::{Button, ButtonSize, ButtonVariant},
+    button::ButtonVariant,
     dialog::{Dialog, DialogContent, DialogDescription, DialogTitle},
     tooltip::{Tooltip, TooltipContent},
 };
 use dioxus::prelude::*;
-use icons::{CircleCheck, CircleX, FileText, Server};
+use icons::{CircleCheck, CircleX, FileText, Info};
 use xrat_web::types::{ConfigRow, Overview};
 
 #[component]
@@ -18,7 +18,14 @@ pub fn ConnectionDetailsLink(data: Overview, stale: bool, name: String) -> Eleme
     rsx! {
         button {
             r#type: "button",
-            class: "dashboard-connection-name",
+            class: concat!(
+                "dashboard-connection-name border-0 bg-transparent text-inherit [font:inherit] cursor-pointer ",
+                "text-left wrap-anywhere underline ",
+                "decoration-[color-mix(in_srgb,_var(--muted)_40%,_transparent)] decoration-dotted ",
+                "underline-offset-[3px] p-0 [&:hover]:text-foreground [&:hover]:decoration-solid ",
+                "[&:focus-visible]:[outline:2px_solid_var(--ring)] [&:focus-visible]:[outline-offset:4px] ",
+                "[&:focus-visible]:rounded-[2px] [&:disabled]:cursor-default [&:disabled]:no-underline",
+            ),
             aria_label: format!("Show connection details for {name}"),
             disabled,
             onclick: move |_| open.set(true),
@@ -39,13 +46,11 @@ pub fn ConnectionDetailsLink(data: Overview, stale: bool, name: String) -> Eleme
 pub fn RuntimeDetailsButton(data: Overview, stale: bool) -> Element {
     let mut open = use_signal(|| false);
     rsx! {
-        Button {
-            size: ButtonSize::Sm,
+        crate::ui::icon_button::IconButton {
+            label: "Show runtime details",
             variant: ButtonVariant::Ghost,
-            class: "dashboard-details-trigger",
             onclick: move |_| open.set(true),
-            Server {}
-            "Runtime"
+            Info {}
         }
         if open() {
             super::runtime::RuntimeDialog { data, stale, on_close: move |_| open.set(false) }
@@ -74,10 +79,10 @@ fn ConnectionDialog(
     rsx! {
         Dialog {
             DialogContent {
-                class: "dashboard-details-dialog",
+                class: "dashboard-details-dialog w-[min(720px,_calc(100vw_-_32px))] max-w-[calc(100vw_-_32px)] max-h-[calc(100dvh_-_40px)] overflow-auto rounded-[12px] bg-card p-5.5",
                 initial_open: true,
                 on_close,
-                div { class: "dashboard-details-heading",
+                div { class: "dashboard-details-heading flex items-start pr-7 gap-2.5 [&_>_svg]:size-4.5 [&_>_svg]:text-primary [&_>_svg]:shrink-[0] [&_h3]:text-[17px] [&_p]:mt-1.5 [&_p]:mb-0 [&_p]:text-[12px] [&_p]:text-muted-foreground [&_p]:mx-0",
                     FileText {}
                     div {
                         DialogTitle { "Connection details" }
@@ -91,14 +96,14 @@ fn ConnectionDialog(
                     }
                 }
                 if let Some(config) = config {
-                    h4 { class: "dashboard-details-name",
+                    h4 { class: "dashboard-details-name mt-5 mb-0 text-[14px] wrap-anywhere mx-0",
                         if config.name.is_empty() {
                             "Configuration #{config.id}"
                         } else {
                             "{config.name}"
                         }
                     }
-                    dl { class: "dashboard-details-grid",
+                    dl { class: "dashboard-details-grid grid grid-cols-[repeat(2,_minmax(0,_1fr))] gap-y-3.5 gap-x-6 mt-4.5 mb-0 mx-0 [@media(width<=540px)]:grid-cols-[minmax(0,_1fr)]",
                         Fact { label: "ID", value: config.id.to_string() }
                         Fact {
                             label: "Reference",
@@ -150,7 +155,7 @@ fn ConnectionDialog(
                         BooleanFact { label: "Deleted", value: config.deleted }
                     }
                 } else {
-                    div { class: "dashboard-details-empty",
+                    div { class: "dashboard-details-empty mt-5.5 text-muted-foreground text-[12px]",
                         "No active configuration yet. Connect a configuration to see its details here."
                     }
                 }
@@ -162,7 +167,7 @@ fn ConnectionDialog(
 #[component]
 pub(super) fn Fact(label: String, value: String) -> Element {
     rsx! {
-        div { class: "dashboard-detail-fact",
+        div { class: "dashboard-detail-fact [&_dt]:text-muted-foreground [&_dt]:text-[11px] [&_dt]:mb-[3px] [&_dd]:text-[12px] [&_dd]:wrap-anywhere [&_dd]:m-0",
             dt { "{label}" }
             dd { "{value}" }
         }
@@ -181,12 +186,12 @@ pub(super) fn endpoint(host: &str, port: i64) -> String {
 pub(super) fn BooleanFact(label: String, value: bool) -> Element {
     let text = if value { "Yes" } else { "No" };
     rsx! {
-        div { class: "dashboard-detail-fact",
+        div { class: "dashboard-detail-fact [&_dt]:text-muted-foreground [&_dt]:text-[11px] [&_dt]:mb-[3px] [&_dd]:text-[12px] [&_dd]:wrap-anywhere [&_dd]:m-0",
             dt { "{label}" }
             dd {
-                Tooltip { class: "runtime-boolean", tabindex: "0",
+                Tooltip { class: "runtime-boolean inline-flex", tabindex: "0",
                     span {
-                        class: if value { "runtime-health is-healthy" } else { "runtime-health" },
+                        class: if value { "runtime-health is-healthy inline-flex items-center text-[color:var(--chart-1)] text-[11px] gap-[5px] [&_svg]:size-[13px] [&_svg]:shrink-[0] [&.is-unhealthy]:text-destructive" } else { "runtime-health inline-flex items-center text-[color:var(--chart-1)] text-[11px] gap-[5px] [&_svg]:size-[13px] [&_svg]:shrink-[0] [&.is-unhealthy]:text-destructive" },
                         role: "img",
                         aria_label: text,
                         if value {

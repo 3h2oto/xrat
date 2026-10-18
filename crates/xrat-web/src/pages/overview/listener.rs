@@ -7,26 +7,42 @@ use dioxus::prelude::*;
 use icons::Copy;
 use xrat_web::types::RuntimeInbound;
 
+pub(super) fn pac_url(available: bool) -> Option<String> {
+    if !available {
+        return None;
+    }
+    web_sys::window()
+        .and_then(|window| window.location().origin().ok())
+        .map(|origin| format!("{origin}/proxy.pac"))
+}
+
 #[component]
 pub fn ListenerLink(inbound: RuntimeInbound) -> Element {
-    let target_id = use_hook(|| crate::hooks::use_random::use_random_id_for("listener-url"));
     let Some(url) = listener_url(&inbound) else {
         return rsx! {
             code { {endpoint(&inbound.host, i64::from(inbound.port))} }
         };
     };
     rsx! {
-        Tooltip { class: "runtime-listener-copy",
+        CopyUrl { url }
+    }
+}
+
+#[component]
+pub(super) fn CopyUrl(url: String) -> Element {
+    let target_id = use_hook(|| crate::hooks::use_random::use_random_id_for("listener-url"));
+    rsx! {
+        Tooltip { class: "runtime-listener-copy flex items-center min-w-0 max-w-full m-0",
             Button {
                 variant: ButtonVariant::Ghost,
-                class: "runtime-listener-button",
+                class: "runtime-listener-button max-w-full h-auto min-h-6.5 justify-start whitespace-normal text-left py-[3px] px-0 gap-[7px] [&_code]:min-w-0 [&_>_svg]:size-3 [&_>_svg]:text-muted-foreground",
                 aria_label: format!("Copy {url}"),
                 "data-copy-textarea": target_id.clone(),
                 code { id: target_id, "{url}" }
                 Copy {}
-                span { class: "sr-only", "Copy listener URL" }
+                span { class: "sr-only", "Copy URL" }
             }
-            TooltipContent { "Click to copy listener URL" }
+            TooltipContent { "Click to copy URL" }
         }
     }
 }
@@ -38,10 +54,9 @@ fn listener_url(inbound: &RuntimeInbound) -> Option<String> {
         "Shadowsocks" => "ss",
         _ => return None,
     };
-    Some(format!(
-        "{scheme}://{}",
-        endpoint(&inbound.host, i64::from(inbound.port))
-    ))
+    let address = endpoint(&inbound.host, i64::from(inbound.port));
+    let suffix = if scheme == "ss" { "/" } else { "" };
+    Some(format!("{scheme}://{address}{suffix}"))
 }
 
 #[cfg(test)]
@@ -69,7 +84,7 @@ mod tests {
         inbound.name = "Shadowsocks".into();
         assert_eq!(
             listener_url(&inbound).as_deref(),
-            Some("ss://[fd00::10]:18200")
+            Some("ss://[fd00::10]:18200/")
         );
         inbound.name = "Unknown".into();
         assert!(listener_url(&inbound).is_none());

@@ -1,3 +1,9 @@
+const COMPONENT_STYLES: &str = concat!(
+    "[&&]:[width:32px] [&&]:[height:18px] [&&]:[padding:1px] [&&]:[border-width:1px] [&&_>_span]:[width:14px] ",
+    "[&&_>_span]:[height:14px] [&&_>_span]:[box-shadow:0_1px_2px_#0003] ",
+    "[&&_>_span[data-state=checked]]:[translate:14px_0] [&&_>_span[data-state=unchecked]]:[translate:0_0] ",
+);
+
 use dioxus::prelude::*;
 use tw_merge::tw_merge;
 
@@ -35,7 +41,7 @@ pub fn Switch(
             disabled,
             aria_label: aria_label.as_deref().unwrap_or("Toggle switch"),
             "data-state": "{state}",
-            class: "{track_class}",
+            class: "{track_class} {COMPONENT_STYLES}",
             onclick: move |_| {
                 if let Some(handler) = on_checked_change {
                     handler.call(!checked);

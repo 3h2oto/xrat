@@ -22,7 +22,7 @@ pub fn SortHead(column: String, label: String, mut state: Signal<TableState>) ->
         th { "aria-sort": if active { if state().descending { "descending" } else { "ascending" } } else { "none" },
             button {
                 r#type: "button",
-                class: "data-sort",
+                class: "data-sort inline-flex items-center bg-transparent border-0 text-inherit text-[11px] py-[3px] px-0 gap-[7px] [&_svg]:size-3 [&_svg]:shrink-[0] [&:hover]:text-foreground",
                 onclick: move |_| state.write().sort_by(&column),
                 "{label}"
                 if active {
@@ -32,7 +32,7 @@ pub fn SortHead(column: String, label: String, mut state: Signal<TableState>) ->
                         ArrowUp {}
                     }
                 } else {
-                    ArrowUpDown { class: "data-sort-idle" }
+                    ArrowUpDown { class: "data-sort-idle opacity-35" }
                 }
             }
         }
@@ -54,13 +54,13 @@ pub fn ColumnPicker(mut state: Signal<TableState>, subscriptions: bool) -> Eleme
                     Columns3 {}
                 }
             }
-            DropdownMenuContent { class: "data-columns-menu",
+            DropdownMenuContent { class: "data-columns-menu max-h-[min(480px,_70dvh)] overflow-y-auto",
                 DropdownMenuLabel { "Visible columns" }
-                p { class: "data-columns-help",
+                p { class: "data-columns-help text-muted-foreground text-[10px] leading-[1.6] pt-0 pb-[7px] m-0 px-[7px]",
                     if subscriptions {
-                        "Name, config count, and actions stay visible."
+                        "Ref, name, config count, and actions stay visible."
                     } else {
-                        "Name, state, and actions stay visible."
+                        "Ref, name, state, and actions stay visible."
                     }
                 }
                 for column in columns {
@@ -70,7 +70,13 @@ pub fn ColumnPicker(mut state: Signal<TableState>, subscriptions: bool) -> Eleme
                         role: "menuitemcheckbox",
                         tabindex: "-1",
                         aria_checked: state().columns.contains(column.key),
-                        class: "data-column-option",
+                        class: concat!(
+                            "data-column-option flex items-center w-full border-0 bg-transparent text-foreground text-left text-[12px] ",
+                            "rounded-[4px] py-1.5 px-[7px] gap-2 [&:hover]:bg-accent [&:focus-visible]:bg-accent ",
+                            "[&&[aria-checked=true]_.data-column-check]:bg-primary ",
+                            "[&&[aria-checked=true]_.data-column-check]:[color:var(--primary-foreground)] ",
+                            "[&&[aria-checked=true]_.data-column-check]:border-primary ",
+                        ),
                         onclick: move |_| {
                             let mut view = state.write();
                             if !view.columns.remove(column.key) {
@@ -79,7 +85,7 @@ pub fn ColumnPicker(mut state: Signal<TableState>, subscriptions: bool) -> Eleme
                                 view.sort_by("name");
                             }
                         },
-                        span { class: "data-column-check",
+                        span { class: "data-column-check size-3.5 border border-solid border-border rounded-[3px] [&_svg]:size-3",
                             if state().columns.contains(column.key) {
                                 Check {}
                             }
@@ -94,7 +100,13 @@ pub fn ColumnPicker(mut state: Signal<TableState>, subscriptions: bool) -> Eleme
 #[component]
 pub fn SearchBox(mut state: Signal<TableState>, subscriptions: bool) -> Element {
     rsx! {
-        div { class: "data-search",
+        div {
+            class: concat!(
+                "data-search flex relative flex-1 min-w-45 max-w-90 [@media(width<=800px)]:max-w-none ",
+                "narrow:basis-full [&_>_svg]:w-3.5 [&_>_svg]:h-3.5 ",
+                "[&_>_svg]:text-muted-foreground [&_>_svg]:absolute [&_>_svg]:left-2.5 [&_>_svg]:top-[50%] ",
+                "[&_>_svg]:transform-[translateY(-50%)] [&_input]:h-8 [&_input]:text-[12px] [&_input]:pl-[31px]",
+            ),
             Search {}
             Input {
                 aria_label: if subscriptions { "Search subscriptions" } else { "Search configurations" },
@@ -138,7 +150,12 @@ pub fn FilterSelect(
             }
         });
     rsx! {
-        div { class: "data-filter",
+        div { class: concat!(
+            "data-filter min-w-27.5 max-w-50 flex-1 narrow:max-w-none [&_label]:text-[10px] ",
+            "[&_label]:text-muted-foreground [&_label]:mt-0 [&_label]:mb-[5px] [&_label]:mx-0 [&_input]:h-7.5 ",
+            "[&_input]:text-[11px] [&&_[data-name=SelectTrigger]]:[height:30px] ",
+            "[&&_[data-name=SelectTrigger]]:[font-size:11px] [&&_[data-name=SelectTrigger]]:[padding-inline:8px] ",
+        ),
             Label { html_for: id.clone(), "{label}" }
             Select {
                 selected_value: value,
@@ -174,7 +191,12 @@ pub fn FilterSelect(
 #[component]
 pub fn LatencyFilter(mut state: Signal<TableState>) -> Element {
     rsx! {
-        div { class: "data-filter data-latency-filter",
+        div { class: concat!(
+            "data-filter data-latency-filter min-w-27.5 max-w-[125px] flex-1 narrow:max-w-none [&_label]:text-[10px] ",
+            "[&_label]:text-muted-foreground [&_label]:mt-0 [&_label]:mb-[5px] [&_label]:mx-0 [&_input]:h-7.5 ",
+            "[&_input]:text-[11px] [&&_[data-name=SelectTrigger]]:[height:30px] ",
+            "[&&_[data-name=SelectTrigger]]:[font-size:11px] [&&_[data-name=SelectTrigger]]:[padding-inline:8px] ",
+        ),
             Label { html_for: "max-delay", "Max delay (ms)" }
             Input {
                 id: "max-delay",
@@ -228,7 +250,7 @@ pub fn Cell(value: CellValue, #[props(default)] date: bool) -> Element {
         return rsx! {
             Tooltip {
                 span {
-                    class: "data-test-icon",
+                    class: "data-test-icon inline-flex items-center text-muted-foreground [&_svg]:w-4 [&_svg]:h-4 [&&[data-result=failed]]:text-destructive ",
                     "data-result": status,
                     role: "img",
                     tabindex: "0",
@@ -259,9 +281,11 @@ pub fn Cell(value: CellValue, #[props(default)] date: bool) -> Element {
         text
     };
     rsx! {
-        span { class: if matches!(value, CellValue::Number(..) | CellValue::Probe { .. }) { "data-number" } else { "data-text" },
+        span { class: if matches!(value, CellValue::Number(..) | CellValue::Probe { .. }) { "data-number tabular-nums font-mono text-[11px]" } else { "data-text block max-w-62.5 overflow-hidden [text-overflow:ellipsis]" },
             if text.is_empty() {
-                span { class: "muted", "—" }
+                span { class: "muted text-muted-foreground text-[13px] leading-[1.7]",
+                    "—"
+                }
             } else {
                 "{text}"
             }
@@ -273,7 +297,15 @@ pub fn Pagination(mut state: Signal<TableState>, total: usize) -> Element {
     let pages = total.div_ceil(state().per_page).max(1);
     let page = state().page.min(pages);
     rsx! {
-        div { class: "data-pagination",
+        div {
+            class: concat!(
+                "data-pagination flex items-center justify-end mt-3.5 text-muted-foreground text-[11px] ",
+                "[&&_.data-filter_>_[data-name=Select]]:[min-width:60px] tabular-nums gap-2 narrow:flex-wrap ",
+                "[&_>_span:first-child]:mr-auto narrow:[&_>_span:first-child]:basis-full [&_.data-filter]:flex ",
+                "[&_.data-filter]:items-center [&_.data-filter]:flex-none [&_.data-filter]:min-w-0 [&_.data-filter]:w-25 ",
+                "[&_.data-filter]:my-0 [&_.data-filter]:mx-2 [&_.data-filter]:gap-1.5 [&_.data-filter_label]:m-0 ",
+                "[&_>_button]:py-0 [&_>_button]:px-1.5 ",
+            ),
             span {
                 if total == 0 {
                     "0 rows"
@@ -322,11 +354,11 @@ pub fn ViewActions(
             .unwrap_or_default()
     );
     rsx! {
-        div { class: "data-view-actions",
+        div { class: "data-view-actions flex items-center gap-[7px] [@media(width<=800px)]:flex-wrap",
             IconButton {
                 label: "Reset table view",
                 variant: ButtonVariant::Ghost,
-               onclick: move |_| state.set(TableState::new(subscriptions)),
+                onclick: move |_| state.set(TableState::new(subscriptions)),
                 RotateCcw {}
             }
             ColumnPicker { state, subscriptions }

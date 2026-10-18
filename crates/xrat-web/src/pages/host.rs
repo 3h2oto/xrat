@@ -50,9 +50,9 @@ pub fn HostAdministration() -> Element {
         .map(|value| (value.expires_at - clock()).max(0))
         .unwrap_or(0);
     rsx! {
-        div { class: "host-page",
+        div { class: "host-page max-w-320 mx-auto",
             if !locked {
-                div { class: "host-heading",
+                div { class: "host-heading flex items-start justify-end mb-3 gap-3.5 [@media(width<=800px)]:flex-wrap",
                     IconButton {
                         label: "Lock now",
                         variant: ButtonVariant::Ghost,
@@ -74,24 +74,30 @@ pub fn HostAdministration() -> Element {
                 }
             }
             if !locked {
-                p { class: "host-session",
+                p { class: "host-session flex items-center text-muted-foreground text-[11px] mb-3.5 tabular-nums gap-[7px] [&_svg]:w-[13px] [&_svg]:h-[13px]",
                     LockOpen {}
                     "Unlocked · locks in {remaining / 60}:{remaining % 60:02}"
                 }
             }
-            div { class: "host-gate",
+            div { class: "host-gate relative",
                 div {
-                    class: "host-controls",
+                    class: "host-controls [&&[data-locked=true]]:[filter:blur(4px)] [&&[data-locked=true]]:[opacity:0.35] [&&[data-locked=true]]:select-none ",
                     "data-locked": locked.to_string(),
                     inert: if locked { Some("") } else { None },
                     aria_hidden: locked.to_string(),
-                    div { class: "host-grid",
-                        Card { class: "panel host-card",
-                            div { class: "host-card-heading",
+                    div { class: "host-grid grid grid-cols-[repeat(2,_minmax(0,_1fr))] gap-4 [@media(width<=800px)]:grid-cols-[minmax(0,_1fr)]",
+                        Card { class: concat!(
+                            "panel host-card mb-0 p-5 gap-3 mobile:pr-4 mobile:pb-4 mobile:pt-4 mobile:pl-4 [&_p]:m-0 ",
+                            "[&_>_.actions]:mt-auto [&_>_button]:mt-auto [&_>_.icon-action]:mt-auto [&_>_.icon-action]:self-start ",
+                            "[&&_[data-name=Field]]:[margin-top:0] ",
+                        ),
+                            div { class: "host-card-heading flex items-center gap-[9px] [&_>_svg]:w-[17px] [&_>_svg]:h-[17px] [&_>_svg]:text-muted-foreground [&_h3]:text-[14px] [&_h3]:font-semibold [&_h3]:m-0",
                                 Download {}
                                 h3 { "Engine" }
                             }
-                            p { class: "muted", "Install or update the proxy engine on this host." }
+                            p { class: "muted text-muted-foreground text-[13px] leading-[1.7]",
+                                "Install or update the proxy engine on this host."
+                            }
                             Field {
                                 Label { html_for: "host-engine", "Managed engine" }
                                 FormSelect {
@@ -122,35 +128,47 @@ pub fn HostAdministration() -> Element {
                                 Download {}
                             }
                         }
-                        Card { class: "panel host-card",
-                            div { class: "host-card-heading",
+                        Card { class: concat!(
+                            "panel host-card mb-0 p-5 gap-3 mobile:pr-4 mobile:pb-4 mobile:pt-4 mobile:pl-4 [&_p]:m-0 ",
+                            "[&_>_.actions]:mt-auto [&_>_button]:mt-auto [&_>_.icon-action]:mt-auto [&_>_.icon-action]:self-start ",
+                            "[&&_[data-name=Field]]:[margin-top:0] ",
+                        ),
+                            div { class: "host-card-heading flex items-center gap-[9px] [&_>_svg]:w-[17px] [&_>_svg]:h-[17px] [&_>_svg]:text-muted-foreground [&_h3]:text-[14px] [&_h3]:font-semibold [&_h3]:m-0",
                                 RefreshCw {}
                                 h3 { "Automatic rotation" }
                             }
-                            p { class: "muted",
+                            p { class: "muted text-muted-foreground text-[13px] leading-[1.7]",
                                 "Rotate connections automatically. Requires a running XRAT daemon."
                             }
                             HostToggle { kind: "rotation", grant, busy }
                         }
-                        Card { class: "panel host-card",
-                            div { class: "host-card-heading",
+                        Card { class: concat!(
+                            "panel host-card mb-0 p-5 gap-3 mobile:pr-4 mobile:pb-4 mobile:pt-4 mobile:pl-4 [&_p]:m-0 ",
+                            "[&_>_.actions]:mt-auto [&_>_button]:mt-auto [&_>_.icon-action]:mt-auto [&_>_.icon-action]:self-start ",
+                            "[&&_[data-name=Field]]:[margin-top:0] ",
+                        ),
+                            div { class: "host-card-heading flex items-center gap-[9px] [&_>_svg]:w-[17px] [&_>_svg]:h-[17px] [&_>_svg]:text-muted-foreground [&_h3]:text-[14px] [&_h3]:font-semibold [&_h3]:m-0",
                                 Network {}
                                 h3 { "Network capture" }
                             }
-                            p { class: "muted",
+                            p { class: "muted text-muted-foreground text-[13px] leading-[1.7]",
                                 "Change TUN capture on the XRAT host. Host privileges must already be provisioned."
                             }
                             HostToggle { kind: "tun", grant, busy }
                         }
-                        Card { class: "panel host-card",
-                            div { class: "host-card-heading",
+                        Card { class: concat!(
+                            "panel host-card mb-0 p-5 gap-3 mobile:pr-4 mobile:pb-4 mobile:pt-4 mobile:pl-4 [&_p]:m-0 ",
+                            "[&_>_.actions]:mt-auto [&_>_button]:mt-auto [&_>_.icon-action]:mt-auto [&_>_.icon-action]:self-start ",
+                            "[&&_[data-name=Field]]:[margin-top:0] ",
+                        ),
+                            div { class: "host-card-heading flex items-center gap-[9px] [&_>_svg]:w-[17px] [&_>_svg]:h-[17px] [&_>_svg]:text-muted-foreground [&_h3]:text-[14px] [&_h3]:font-semibold [&_h3]:m-0",
                                 Globe {}
                                 h3 { "Maintenance" }
                             }
-                            p { class: "muted",
+                            p { class: "muted text-muted-foreground text-[13px] leading-[1.7]",
                                 "Validate server configuration and refresh local GeoIP assets."
                             }
-                            div { class: "actions",
+                            div { class: "actions flex flex-wrap items-center mt-3 gap-2",
                                 IconButton {
                                     label: "Validate config",
                                     variant: ButtonVariant::Outline,
@@ -168,18 +186,24 @@ pub fn HostAdministration() -> Element {
                             }
                         }
                     }
-                    Card { class: "panel host-danger",
-                        div { class: "host-card-heading",
+                    Card { class: "panel host-danger my-5 p-5 gap-2 mobile:pr-4 mobile:pb-4 mobile:pt-4 mobile:pl-4",
+                        div { class: "host-card-heading flex items-center gap-[9px] [&_>_svg]:w-[17px] [&_>_svg]:h-[17px] [&_>_svg]:text-muted-foreground [&_h3]:text-[14px] [&_h3]:font-semibold [&_h3]:m-0",
                             Shield {}
                             h3 { "Changes that need a second look" }
                         }
-                        p { class: "muted",
+                        p { class: "muted text-muted-foreground text-[13px] leading-[1.7]",
                             "These actions remove stored data or replace the installed application."
                         }
-                        div { class: "host-danger-row",
+                        div {
+                            class: concat!(
+                                "host-danger-row flex justify-between items-center border-t border-solid ",
+                                "border-t-[color:color-mix(in_srgb,_var(--border)_30%,_transparent)] py-3.5 px-0 gap-5 ",
+                                "[@media(width<=800px)]:gap-3 [&_strong]:text-[13px] [&_strong]:font-medium [&_p]:mt-[3px] ",
+                                "[&_p]:mb-0 [&_p]:text-[12px] [&_p]:mx-0 [&_button]:text-destructive",
+                            ),
                             div {
                                 strong { "Purge deleted configurations" }
-                                p { class: "muted",
+                                p { class: "muted text-muted-foreground text-[13px] leading-[1.7]",
                                     "Permanently remove configurations already marked as deleted."
                                 }
                             }
@@ -191,10 +215,18 @@ pub fn HostAdministration() -> Element {
                                 Trash2 {}
                             }
                         }
-                        div { class: "host-danger-row",
+                        div {
+                            class: concat!(
+                                "host-danger-row flex justify-between items-center border-t border-solid ",
+                                "border-t-[color:color-mix(in_srgb,_var(--border)_30%,_transparent)] py-3.5 px-0 gap-5 ",
+                                "[@media(width<=800px)]:gap-3 [&_strong]:text-[13px] [&_strong]:font-medium [&_p]:mt-[3px] ",
+                                "[&_p]:mb-0 [&_p]:text-[12px] [&_p]:mx-0 [&_button]:text-destructive",
+                            ),
                             div {
                                 strong { "Clear event history" }
-                                p { class: "muted", "Delete XRAT's recorded operational events." }
+                                p { class: "muted text-muted-foreground text-[13px] leading-[1.7]",
+                                    "Delete XRAT's recorded operational events."
+                                }
                             }
                             IconButton {
                                 label: "Clear history",
@@ -204,10 +236,18 @@ pub fn HostAdministration() -> Element {
                                 ScrollText {}
                             }
                         }
-                        div { class: "host-danger-row",
+                        div {
+                            class: concat!(
+                                "host-danger-row flex justify-between items-center border-t border-solid ",
+                                "border-t-[color:color-mix(in_srgb,_var(--border)_30%,_transparent)] py-3.5 px-0 gap-5 ",
+                                "[@media(width<=800px)]:gap-3 [&_strong]:text-[13px] [&_strong]:font-medium [&_p]:mt-[3px] ",
+                                "[&_p]:mb-0 [&_p]:text-[12px] [&_p]:mx-0 [&_button]:text-destructive",
+                            ),
                             div {
                                 strong { "Upgrade XRAT" }
-                                p { class: "muted", "Install the latest release on this host." }
+                                p { class: "muted text-muted-foreground text-[13px] leading-[1.7]",
+                                    "Install the latest release on this host."
+                                }
                             }
                             IconButton {
                                 label: "Upgrade",
@@ -220,9 +260,14 @@ pub fn HostAdministration() -> Element {
                     }
                 }
                 if locked {
-                    div { class: "host-lock-overlay",
+                    div { class: "host-lock-overlay absolute top-0 right-0 bottom-0 left-0 z-[1] flex justify-center items-start bg-[color:color-mix(in_srgb,_var(--background)_25%,_transparent)] py-15 px-4 [@media(width<=800px)]:pt-8",
                         form {
-                            class: "host-unlock-form",
+                            class: concat!(
+                                "host-unlock-form w-full max-w-87.5 border border-solid border-border rounded-[12px] bg-card ",
+                                "shadow-[0_12px_40px_#0002] p-6.5 [&_h2]:text-[19px] [&_>_button]:w-full [&_>_button]:mt-4.5 ",
+                                "[&_>_.icon-action]:flex [&_>_.icon-action]:w-max [&_>_.icon-action]:mt-4.5 ",
+                                "[&_>_.icon-action]:ml-auto",
+                            ),
                             onsubmit: move |event| {
                                 event.prevent_default();
                                 if unlocking() || password().is_empty() {
@@ -261,9 +306,11 @@ pub fn HostAdministration() -> Element {
                                     unlocking.set(false);
                                 });
                             },
-                            div { class: "host-lock-icon", Lock {} }
+                            div { class: "host-lock-icon grid place-items-center size-9.5 bg-accent text-primary rounded-[10px] mb-4.5 [&_svg]:size-4.5",
+                                Lock {}
+                            }
                             h2 { "Unlock to continue" }
-                            p { class: "muted",
+                            p { class: "muted text-muted-foreground text-[13px] leading-[1.7]",
                                 "Re-enter your password to access host controls for five minutes."
                             }
                             Field {
@@ -279,7 +326,11 @@ pub fn HostAdministration() -> Element {
                                 }
                             }
                             if !error().is_empty() {
-                                p { role: "alert", class: "error", "{error}" }
+                                p {
+                                    role: "alert",
+                                    class: "error text-destructive text-[14px]",
+                                    "{error}"
+                                }
                             }
                             IconButton {
                                 label: "Unlock host controls",
@@ -395,11 +446,18 @@ fn HostToggle(
         .and_then(|settings| settings.items.iter().find(|item| item.path == path))
         .and_then(|setting| setting.value.parse::<bool>().ok());
     rsx! {
-        div { class: "feature-toggle-row",
-            span { class: "muted",
+        div { class: "feature-toggle-row flex items-center justify-between mt-auto pt-2 gap-4 [&_>_span]:flex [&_>_span]:items-center [&_>_span]:text-[12px] [&_>_span]:gap-[7px] [&_>_span_svg]:w-3.5 [&_>_span_svg]:h-3.5",
+            span { class: "muted text-muted-foreground text-[13px] leading-[1.7]",
                 if pending() {
                     Spinner {}
                     "Updating…"
+                } else if status.read().is_none() {
+                    span {
+                        role: "status",
+                        aria_label: "Loading control status",
+                        aria_busy: "true",
+                        crate::ui::skeleton::Skeleton { class: "loading-label w-16 h-3" }
+                    }
                 } else {
                     match checked {
                         Some(true) => "Enabled",

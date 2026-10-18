@@ -1,7 +1,7 @@
 use crate::ui::card::Card;
 use crate::ui::history::{TimeFilter, timestamp, use_time_window};
 use crate::ui::spinner::Spinner;
-use crate::ui::states::{EmptyState, ErrorState, LoadingState};
+use crate::ui::states::{EmptyState, ErrorState, LoadingLayout, LoadingState};
 use crate::ui::table::*;
 use crate::ui::tooltip::{Tooltip, TooltipContent, TooltipPosition};
 use crate::{
@@ -40,10 +40,12 @@ pub fn Jobs() -> Element {
     });
     let current_user = session().map(|session| session.user.username);
     rsx! {
-        Card { class: "panel",
-            div { class: "section-heading",
+        Card { class: "panel mb-5 p-5 mobile:pr-4 mobile:pb-4 mobile:pt-4 mobile:pl-4",
+            div { class: "section-heading flex flex-wrap items-center justify-between mb-4 gap-3 [&_h2]:text-[17px] [&_h2]:m-0",
                 h2 { "Background jobs" }
-                span { class: "muted", "Live updates with polling fallback" }
+                span { class: "muted text-muted-foreground text-[13px] leading-[1.7]",
+                    "Live updates with polling fallback"
+                }
             }
             match data.read().as_ref() {
                 Some(Ok(jobs)) => rsx! {
@@ -55,8 +57,21 @@ pub fn Jobs() -> Element {
                     } else {
                         TimeFilter { window, id: "jobs-time" }
                         if jobs.iter().any(|job| window.contains(job.created_at as f64)) {
-                            TableWrapper { class: "jobs-table-wrapper", aria_label: "Background jobs",
-                                Table { class: "jobs-table",
+                            TableWrapper {
+                                class: "jobs-table-wrapper max-h-[min(55dvh,_560px)] min-h-0 mt-3.5 overflow-auto",
+                                aria_label: "Background jobs",
+                                Table {
+                                    class: concat!(
+                                        "jobs-table [&_th]:text-left [&_th]:align-middle [&_th]:text-[12px] [&_th]:whitespace-nowrap ",
+                                        "[&_th]:py-2 [&_th]:px-2.5 [&_td]:text-left [&_td]:align-middle [&_td]:text-[12px] ",
+                                        "[&_td]:leading-[20px] [&_td]:wrap-anywhere [&_td]:py-2 [&_td]:px-2.5 [&_th:first-child]:w-15.5 ",
+                                        "[&_th:first-child]:text-center [&_td:first-child]:w-15.5 [&_td:first-child]:text-center ",
+                                        "[&_.job-result]:leading-[20px] [&_.job-result]:max-h-22 [&_.job-result]:overflow-auto ",
+                                        "[&_.job-result]:whitespace-pre-wrap [&_.job-result]:wrap-anywhere table-fixed min-w-185 ",
+                                        "max-w-none w-full [&_th:nth-child(2)]:w-37.5 [&_th:nth-child(3)]:w-[175px] ",
+                                        "[&_th:nth-child(4)]:w-22.5 [&_th:last-child]:w-16 [&_th:last-child]:text-center ",
+                                        "[&_td:last-child]:text-center",
+                                    ),
                                     TableHeader {
                                         TableRow {
                                             TableHead { "Status" }
@@ -76,7 +91,7 @@ pub fn Jobs() -> Element {
                                                 TableCell { {crate::ui::job_labels::job_label(&job.kind)} }
                                                 TableCell {
                                                     time {
-                                                        class: "job-time",
+                                                        class: "job-time whitespace-nowrap text-muted-foreground [font-family:inherit] text-[12px] tabular-nums",
                                                         datetime: js_sys::Date::new(&wasm_bindgen::JsValue::from_f64(job.created_at as f64 * 1000.0))
                                                             .to_iso_string()
                                                             .as_string(),
@@ -91,7 +106,9 @@ pub fn Jobs() -> Element {
                                                     }
                                                 }
                                                 TableCell {
-                                                    div { class: "job-result", {job.result.as_deref().unwrap_or("—")} }
+                                                    div { class: "job-result max-w-112 max-h-32 overflow-auto whitespace-pre-wrap wrap-anywhere",
+                                                        {job.result.as_deref().unwrap_or("—")}
+                                                    }
                                                 }
                                                 TableCell {
                                                     if job.state == "running" && matches!(job.kind.as_str(), "test" | "scan" | "bulk") {
@@ -140,7 +157,7 @@ pub fn Jobs() -> Element {
                     ErrorState { message: error.clone() }
                 },
                 None => rsx! {
-                    LoadingState { label: "Loading jobs…" }
+                    LoadingState { label: "Loading jobs…", layout: LoadingLayout::Table }
                 },
             }
         }
@@ -197,9 +214,13 @@ impl Drop for JobStream {
 fn JobStatus(state: String) -> Element {
     let tip = use_hook(|| crate::hooks::use_random::use_random_id_for("job-status"));
     rsx! {
-        Tooltip { class: "job-status-tooltip",
+        Tooltip { class: "job-status-tooltip inline-flex align-top m-0",
             span {
-                class: "job-status",
+                class: concat!(
+                    "job-status inline-flex size-6 justify-center items-center text-muted-foreground rounded-[4px] ",
+                    "[&_svg]:size-4 [&&[data-status=succeeded]]:text-primary [&&[data-status=failed]]:text-destructive ",
+                    "[&&[data-status=interrupted]]:text-destructive [&&[data-status=running]]:text-primary ",
+                ),
                 "data-status": state.clone(),
                 role: "img",
                 aria_label: state.clone(),

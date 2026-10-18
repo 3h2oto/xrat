@@ -1,7 +1,7 @@
 use crate::{
     Notice, Session, api,
     ui::{
-        button::{Button, ButtonVariant},
+        button::{Button, ButtonSize, ButtonVariant},
         dialog::*,
         field::Field,
         input::{Input, InputType},
@@ -12,18 +12,27 @@ use crate::{
     },
 };
 use dioxus::prelude::*;
-use icons::{Lock, RefreshCw};
+use icons::{Download, Lock, RefreshCw};
 use xrat_web::types::{Action, HostUnlock, HostUnlockRequest, Job};
 
 #[component]
-pub fn DashboardAction(action: Action, text: String, disabled: bool, reason: String) -> Element {
+pub fn DashboardAction(
+    action: Action,
+    text: String,
+    disabled: bool,
+    reason: String,
+    #[props(default)] icon_only: bool,
+) -> Element {
     let Session(session) = use_context();
     let Notice(mut notice) = use_context();
     let mut pending = use_signal(|| false);
+    let refresh_subscriptions = matches!(action, Action::Refresh { .. });
     rsx! {
-        Tooltip { class: "dashboard-action-tooltip",
+        Tooltip { class: "dashboard-action-tooltip whitespace-normal m-0",
             Button {
                 variant: ButtonVariant::Outline,
+                size: if icon_only { ButtonSize::IconSm } else { ButtonSize::Default },
+                aria_label: text.clone(),
                 disabled: disabled || pending(),
                 onclick: move |_| {
                     if *pending.peek() || disabled {
@@ -47,10 +56,16 @@ pub fn DashboardAction(action: Action, text: String, disabled: bool, reason: Str
                 },
                 if pending() {
                     Spinner {}
+                } else if refresh_subscriptions {
+                    Download {}
                 } else {
                     RefreshCw {}
                 }
-                "{text}"
+                if icon_only {
+                    span { class: "sr-only", "{text}" }
+                } else {
+                    "{text}"
+                }
             }
             TooltipContent { position: TooltipPosition::Bottom,
                 if pending() {
@@ -79,8 +94,8 @@ pub fn TunControl(
     let mut error = use_signal(String::new);
     rsx! {
         div { class: "dashboard-tun-control",
-            Tooltip { class: "dashboard-action-tooltip",
-                div { class: "dashboard-tun-switch",
+            Tooltip { class: "dashboard-action-tooltip whitespace-normal m-0",
+                div { class: "dashboard-tun-switch flex items-center text-[12px] gap-[9px] [&_small]:text-muted-foreground [&_small]:text-[11px]",
                     span { "TUN" }
                     Switch {
                         checked: enabled,
@@ -192,7 +207,11 @@ pub fn TunControl(
                                 }
                             }
                             if !error().is_empty() {
-                                p { class: "error", role: "alert", "{error}" }
+                                p {
+                                    class: "error text-destructive text-[14px]",
+                                    role: "alert",
+                                    "{error}"
+                                }
                             }
                             DialogFooter {
                                 Button {

@@ -134,7 +134,7 @@ pub fn Field(
     rsx! {
         div {
             "data-name": "Field",
-            class: "{merged}",
+            class: "{merged} [&&]:[margin-top:20px] [&&_[data-name=Field]]:[margin-top:0] ",
             "data-invalid": if invalid { "true" } else { "false" },
             "data-disabled": if disabled { "true" } else { "false" },
             {children}

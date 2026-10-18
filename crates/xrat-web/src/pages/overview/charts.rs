@@ -1,3 +1,4 @@
+use super::layout::CHART_TONES;
 use super::stats::{RatePoint, bytes, label, milliseconds};
 use dioxus::prelude::*;
 use xrat_web::types::{LatencyMetric, ProbePoint};
@@ -156,7 +157,6 @@ pub fn PlotChart(
     unit: String,
     empty: String,
     chart_label: String,
-    footer: Element,
 ) -> Element {
     let mut hovered = use_signal(|| None::<usize>);
     let mut viewport = use_signal(|| PlotBounds {
@@ -211,16 +211,18 @@ pub fn PlotChart(
         .collect::<Vec<_>>();
     rsx! {
         div {
-            class: "dashboard-plot",
+            class: concat!(
+                "dashboard-plot relative min-w-0 min-[1001px]:h700:flex-col ",
+                "min-[1001px]:h700:min-h-0 ",
+                "min-[1001px]:h700:flex-1 ",
+                "min-[1001px]:h700:flex [&_>_svg]:w-full ",
+                "[&_>_svg]:h-[clamp(160px,_22dvh,_260px)] [&_>_svg]:overflow-visible [&_>_svg]:block ",
+                "min-[1001px]:h700:[&_>_svg]:min-h-30 ",
+                "min-[1001px]:h700:[&_>_svg]:flex-1 ",
+                "min-[1001px]:h700:[&_>_svg]:h-0",
+            ),
             "data-name": if area { "AreaChart" } else { "LineChart" },
             if present {
-                div { class: "dashboard-chart-readout",
-                    if let Some(index) = focused {
-                        "{descriptions[index]}"
-                    } else {
-                        "Hover, tap, or use ←/→ on a focused chart"
-                    }
-                }
                 svg {
                     view_box: format!("0 0 {} {}", bounds.width, bounds.height),
                     onresize: move |event: ResizeEvent| {
@@ -244,13 +246,13 @@ pub fn PlotChart(
                                 x2: format!("{}", bounds.right()),
                                 y1: format!("{}", bounds.y(maximum * fraction, maximum)),
                                 y2: format!("{}", bounds.y(maximum * fraction, maximum)),
-                                class: "chart-grid-line",
+                                class: "chart-grid-line stroke-[color-mix(in_srgb,_var(--border)_22%,_transparent)] [stroke-dasharray:3_5]",
                             }
                             text {
                                 x: "58",
                                 y: format!("{}", bounds.y(maximum * fraction, maximum) + 4.0),
                                 text_anchor: "end",
-                                class: "chart-axis-text",
+                                class: "chart-axis-text fill-[var(--muted)] text-[11px] [font-family:inherit]",
                                 {value_label(maximum * fraction, &unit)}
                             }
                         }
@@ -258,16 +260,19 @@ pub fn PlotChart(
                     for series in &series {
                         g {
                             key: "{series.name}",
-                            class: format!("chart-series chart-tone-{}", series.tone),
+                            class: format!("chart-series {}", CHART_TONES[series.tone]),
                             if area {
                                 for path in paths(&series.points, min, span, maximum, true, bounds) {
-                                    path { d: path, class: "chart-area" }
+                                    path {
+                                        d: path,
+                                        class: "chart-area fill-[var(--series-color)] opacity-10",
+                                    }
                                 }
                             }
                             for path in paths(&series.points, min, span, maximum, false, bounds) {
                                 path {
                                     d: path,
-                                    class: "chart-line",
+                                    class: "chart-line stroke-[var(--series-color)] stroke-[2] [stroke-linejoin:round] [stroke-linecap:round] [vector-effect:non-scaling-stroke]",
                                     fill: "none",
                                 }
                             }
@@ -277,7 +282,7 @@ pub fn PlotChart(
                                         cx: format!("{}", bounds.x(point.x, min, span)),
                                         cy: format!("{}", bounds.y(value, maximum)),
                                         r: if series.points.len() == 1 { "3" } else { "1.6" },
-                                        class: "chart-dot",
+                                        class: "chart-dot fill-[var(--series-color)]",
                                     }
                                 }
                             }
@@ -289,7 +294,7 @@ pub fn PlotChart(
                             tabindex: if index + 1 == points.len() { "0" } else { "-1" },
                             role: "img",
                             "aria-label": descriptions[index].clone(),
-                            class: "chart-sample",
+                            class: "chart-sample [&:focus]:[outline:none] [&:hover_.chart-crosshair]:opacity-60 [&:focus_.chart-crosshair]:opacity-60",
                             onmouseenter: move |_| hovered.set(Some(index)),
                             onclick: move |_| hovered.set(Some(index)),
                             onfocus: move |_| hovered.set(Some(index)),
@@ -306,14 +311,14 @@ pub fn PlotChart(
                                 x2: format!("{}", bounds.x(point.x, min, span)),
                                 y1: "12",
                                 y2: format!("{}", bounds.bottom()),
-                                class: "chart-crosshair",
+                                class: "chart-crosshair stroke-[var(--muted)] [stroke-dasharray:2_3] opacity-0 pointer-events-none",
                             }
                         }
                     }
                     text {
                         x: "64",
                         y: format!("{}", bounds.height - 5.0),
-                        class: "chart-axis-text",
+                        class: "chart-axis-text fill-[var(--muted)] text-[11px] [font-family:inherit]",
                         {time_label(min)}
                     }
                     if max > min {
@@ -321,26 +326,47 @@ pub fn PlotChart(
                             x: format!("{}", bounds.right()),
                             y: format!("{}", bounds.height - 5.0),
                             text_anchor: "end",
-                            class: "chart-axis-text",
+                            class: "chart-axis-text fill-[var(--muted)] text-[11px] [font-family:inherit]",
                             {time_label(max)}
                         }
                     }
                 }
             } else {
-                div { class: "dashboard-chart-empty",
+                div {
+                    class: concat!(
+                        "dashboard-chart-empty min-h-30 grid place-items-center border-b border-dashed ",
+                        "border-b-[color:color-mix(in_srgb,_var(--border)_45%,_transparent)] ",
+                        "[background:linear-gradient(_transparent_98%,_color-mix(in_srgb,_var(--border)_10%,_transparent)_98%_)] ",
+                        "[background-size:100%_52px] min-[1001px]:h700:min-h-16 ",
+                        "min-[1001px]:h700:flex-1 [&_p]:text-center [&_p]:max-w-[34ch] ",
+                        "[&_p]:text-muted-foreground [&_p]:text-[12px] [&_p]:leading-[1.8] [&_p]:m-3",
+                    ),
                     p { "{empty}" }
                 }
             }
-            div { class: "dashboard-chart-meta",
-                div { class: "dashboard-chart-legend",
+            div { class: "dashboard-chart-meta shrink-0 flex items-center justify-between flex-wrap gap-y-1.5 gap-x-4 mt-2 [&_.dashboard-chart-legend]:shrink-[0] [&_.dashboard-chart-legend]:m-0",
+                div { class: "dashboard-chart-legend flex flex-wrap mt-[5px] gap-3 min-[1001px]:h700:shrink-[0] [&_>_span]:inline-flex [&_>_span]:items-center [&_>_span]:text-muted-foreground [&_>_span]:text-[10px] [&_>_span]:gap-1.5",
                     for series in &series {
                         span { key: "{series.name}",
-                            i { class: format!("chart-legend-dot chart-tone-{}", series.tone) }
+                            i {
+                                class: format!(
+                                    "chart-legend-dot {} inline-block size-[7px] rounded-[2px] bg-[color:var(--series-color)]",
+                                    CHART_TONES[series.tone],
+                                ),
+                            }
                             "{series.name}"
                         }
                     }
                 }
-                {footer}
+            }
+            if present {
+                div { class: "dashboard-chart-readout text-center w-full mt-2 mb-0 min-h-4.5 text-muted-foreground text-[10px] leading-[1.6] wrap-anywhere mx-0 min-[1001px]:h700:shrink-[0]",
+                    if let Some(index) = focused {
+                        "{descriptions[index]}"
+                    } else {
+                        "Hover, tap, or use ←/→ on a focused chart"
+                    }
+                }
             }
         }
     }

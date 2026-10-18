@@ -9,6 +9,7 @@ use super::{
     history::{TimeFilter, event_time, use_time_window},
     input::Input,
     label::Label,
+    switch::Switch,
 };
 use dioxus::prelude::*;
 use icons::{ArrowUpToLine, Copy, Download, Pause, Play, Search, WrapText, X};
@@ -102,19 +103,19 @@ pub fn LogConsole(
     let errors = filtered.iter().filter(|line| line.level == "error").count();
     let warnings = filtered.iter().filter(|line| line.level == "warn").count();
     rsx! {
-        div { class: "log-viewer",
-            div { class: "log-viewer-topbar",
+        div { class: "log-viewer min-w-0",
+            div { class: "log-viewer-topbar flex items-center justify-between mb-3.5 gap-2 mobile:flex-wrap",
                 div {
-                    class: "log-live-state",
+                    class: "log-live-state flex items-center text-muted-foreground text-[11px] gap-[7px] [&&[data-paused=true]_.log-live-dot]:[background:var(--muted)] ",
                     "data-paused": snapshot.is_some().to_string(),
-                    span { class: "log-live-dot" }
+                    span { class: "log-live-dot size-1.5 rounded-[50%] bg-primary" }
                     if snapshot.is_some() {
                         "Paused"
                     } else {
                         "Live · updates every 3s"
                     }
                 }
-                div { class: "log-viewer-actions",
+                div { class: "log-viewer-actions flex items-center flex-wrap justify-end gap-1",
                     IconButton {
                         label: if snapshot.is_some() { "Resume live updates" } else { "Pause live updates" },
                         variant: ButtonVariant::Ghost,
@@ -141,8 +142,8 @@ pub fn LogConsole(
                     IconButton {
                         label: if wrap() { "Disable line wrapping" } else { "Enable line wrapping" },
                         variant: ButtonVariant::Ghost,
-                        class: if wrap() { "log-control-active" } else { "" },
-                       onclick: move |_| wrap.toggle(),
+                        class: if wrap() { "log-control-active bg-accent text-foreground" } else { "" },
+                        onclick: move |_| wrap.toggle(),
                         WrapText {}
                     }
                     IconButton {
@@ -161,8 +162,33 @@ pub fn LogConsole(
                     }
                 }
             }
-            div { class: "console-toolbar log-filter-toolbar log-filter-row",
-                div { class: "log-search",
+            div {
+                class: concat!(
+                    "console-toolbar log-filter-toolbar log-filter-row flex items-end flex-wrap mb-3.5 pb-0 ",
+                    "[&&_[data-name=SelectTrigger]]:[height:30px] [&&_[data-name=SelectTrigger]]:[font-size:12px] ",
+                    "[&&_[data-name=SelectTrigger]]:[padding:0_9px] [&&_[data-name=SelectTrigger]]:[gap:8px] ",
+                    "[&&_[data-name=SelectTrigger]_svg]:[width:13px] [&&_[data-name=SelectTrigger]_svg]:[height:13px] ",
+                    "justify-start gap-2.5 [&_label]:block [&_label]:text-[11px] [&_label]:font-medium ",
+                    "[&_label]:text-muted-foreground [&_label]:mb-[5px] [&_.history-time-filter_>_div]:min-w-35 ",
+                    "[&_>_div:not(.history-time-filter):not(.log-search)]:min-w-27.5 ",
+                    "[&_>_div:not(.history-time-filter):not(.log-search)]:max-w-55 [&_>_.history-time-filter]:max-w-none ",
+                    "[&_>_.log-search]:flex-1 [&_>_.log-search]:max-w-none [&_>_.log-search]:min-w-55 ",
+                    "mobile:[&_>_.log-search]:basis-full ",
+                ),
+                div {
+                    class: concat!(
+                        "log-search flex relative flex-1 max-w-112.5 min-w-45 mobile:max-w-none ",
+                        "mobile:basis-full [&_>_svg]:absolute [&_>_svg]:left-2.5 [&_>_svg]:top-[50%] ",
+                        "[&_>_svg]:transform-[translateY(-50%)] [&_>_svg]:w-3.5 [&_>_svg]:h-3.5 ",
+                        "[&_>_svg]:text-muted-foreground [&_input]:pl-8 [&_input]:pr-7.5 [&_input]:h-8 ",
+                        "[&_input]:text-[12px] [&_>_button]:absolute [&_>_button]:right-1.5 [&_>_button]:top-[50%] ",
+                        "[&_>_button]:transform-[translateY(-50%)] [&_>_button]:grid [&_>_button]:place-items-center ",
+                        "[&_>_button]:w-5.5 [&_>_button]:h-5.5 [&_>_button]:border-0 [&_>_button]:bg-transparent ",
+                        "[&_>_button]:text-muted-foreground [&_>_button]:rounded-[4px] [&_>_button:hover]:bg-accent ",
+                        "[&_>_button_svg]:w-3 [&_>_button_svg]:h-3 [&_>_.icon-action]:absolute ",
+                        "[&_>_.icon-action]:right-[5px] [&_>_.icon-action]:top-[50%] ",
+                        "[&_>_.icon-action]:transform-[translateY(-50%)]",
+                    ),
                     Search {}
                     Input {
                         aria_label: "Search log output",
@@ -211,22 +237,32 @@ pub fn LogConsole(
                     }
                 }
                 if unknown_count > 0 {
-                    label { class: "log-untimed-toggle",
-                        input {
-                            r#type: "checkbox",
+                    div { class: "log-untimed-toggle items-center cursor-pointer flex! mt-0! mb-1.5! text-[11px]! mx-0! gap-1.5",
+                        Switch {
+                            id: format!("{id}-untimed"),
+                            aria_label: "Include untimed entries",
                             checked: unknown(),
-                            onchange: move |event: FormEvent| unknown.set(event.checked()),
+                            on_checked_change: move |checked| unknown.set(checked),
                         }
-                        "Include {unknown_count} untimed"
+                        label { r#for: format!("{id}-untimed"), "Include untimed" }
                     }
                 }
             }
-            div { class: "log-console-shell",
-                div { class: "log-console-heading",
+            div { class: "log-console-shell border border-solid border-[color:#303030] bg-[color:#0c0c0c] text-[color:#d6d6d6] rounded-[7px] overflow-hidden min-w-0",
+                div {
+                    class: concat!(
+                        "log-console-heading flex items-center justify-between border-b border-solid ",
+                        "border-b-[color:#2a2a2a] text-[color:#aaa] text-[10px] py-2 px-3 gap-2.5 [&_>_div]:flex ",
+                        "[&_>_div]:items-center [&_>_div]:gap-3.5 mobile:[&_>_div]:gap-[9px] ",
+                        "[&_button]:inline-flex [&_button]:items-center [&_button]:border-0 ",
+                        "[&_button]:text-[color:#bbb] [&_button]:bg-transparent [&_button]:text-[10px] ",
+                        "[&_button]:py-0.5 [&_button]:px-0 [&_button]:gap-[5px] [&_button:hover]:text-[color:#eee] ",
+                        "[&_svg]:size-3",
+                    ),
                     span { "Output" }
                     div {
-                        span { class: "log-summary-error", "{errors} errors" }
-                        span { class: "log-summary-warn", "{warnings} warnings" }
+                        span { class: "log-summary-error text-[color:#ef9d99]", "{errors} errors" }
+                        span { class: "log-summary-warn text-[color:#d6ba78]", "{warnings} warnings" }
                         IconButton {
                             label: "Jump to newest log entries",
                             variant: ButtonVariant::Ghost,
@@ -238,19 +274,40 @@ pub fn LogConsole(
                 }
                 div {
                     id: id.clone(),
-                    class: "log-output",
+                    class: concat!(
+                        "log-output h-[clamp(220px,_48dvh,_580px)] max-h-[58dvh] min-h-40 overflow-auto ",
+                        "[&&]:[--log-columns:minmax(140px,_190px)_58px_minmax(80px,_120px)_minmax(0,_1fr)] ",
+                        "[&&]:[scrollbar-width:thin] [&&]:[scrollbar-color:#454545_#0c0c0c] ",
+                        "[&&[data-wrap=false]_.log-entry-message]:[white-space:pre] ",
+                        "[&&[data-wrap=false]_.log-entry-message]:[overflow-wrap:normal] ",
+                        "[@media(max-width:_900px)]:[&&]:[--log-columns:minmax(100px,_145px)_52px_80px_minmax(0,_1fr)] ",
+                        "mobile:[&&]:[--log-columns:minmax(0,_1fr)_54px_minmax(0,_1fr)] ",
+                        "[&&::-webkit-scrollbar-thumb]:[background-color:#555] ",
+                        "[font-family:ui-monospace,_SFMono-Regular,_Consolas,_monospace] text-[12px] leading-[1.75] [cursor:text] ",
+                        "[user-select:text] [overflow-anchor:auto] [scrollbar-gutter:stable] overscroll-contain ",
+                        "[&:focus-visible]:[outline:2px_solid_var(--ring)] [&:focus-visible]:[outline-offset:-2px] ",
+                    ),
                     "data-wrap": wrap().to_string(),
                     role: "region",
                     aria_label: "Read-only log output, newest entries first",
                     tabindex: "0",
-                    div { class: "log-columns-head", aria_hidden: "true",
+                    div {
+                        class: concat!(
+                            "log-columns-head grid grid-cols-[var(--log-columns)] items-start min-w-0 sticky top-0 z-[1] ",
+                            "bg-[color:#151515] text-[color:#888] [font-family:ui-sans-serif,_system-ui,_sans-serif] ",
+                            "text-[10px] border-b border-solid border-b-[color:#252525] py-1.5 px-3 gap-3 ",
+                            "[@media(width<=900px)]:pr-2.5 [@media(width<=900px)]:pl-2.5 [@media(width<=900px)]:gap-2 ",
+                            "mobile:[&_span:last-child]:hidden ",
+                            "mobile:[&_span:nth-child(3)]:text-right",
+                        ),
+                        aria_hidden: "true",
                         span { "Local time" }
                         span { "Level" }
                         span { "Source" }
                         span { "Message" }
                     }
                     if filtered.is_empty() {
-                        div { class: "log-output-empty",
+                        div { class: "log-output-empty text-[color:#858585] text-center [font-family:ui-sans-serif,_system-ui,_sans-serif] py-10.5 px-5 [&_p]:text-[color:#b8b8b8] [&_p]:text-[13px] [&_p]:mt-0 [&_p]:mb-[7px] [&_p]:mx-0 [&_span]:text-[11px] [&_span]:leading-[1.7]",
                             p {
                                 if ordered.is_empty() {
                                     "No logs yet"
@@ -270,19 +327,33 @@ pub fn LogConsole(
                         }
                     }
                     for (key, line) in entries {
-                        div { class: "log-entry", key: "{key}",
+                        div {
+                            class: "log-entry grid grid-cols-[var(--log-columns)] items-start min-w-0 border-b border-solid border-b-[color:#1c1c1c] py-2 px-3 gap-3 [@media(width<=900px)]:pr-2.5 [@media(width<=900px)]:pl-2.5 [@media(width<=900px)]:gap-2 [&:hover]:bg-[color:#151515]",
+                            key: "{key}",
                             time {
-                                class: "log-entry-time",
+                                class: "log-entry-time text-[color:#858585] text-[10px] whitespace-normal wrap-anywhere [font-family:inherit]",
                                 title: format!("Recorded: {}", line.timestamp),
                                 {display_timestamp(line)}
                             }
                             span {
-                                class: "log-entry-level",
+                                class: concat!(
+                                    "log-entry-level inline-block w-fit mt-px rounded-[3px] text-[color:#a1a1a1] border border-solid ",
+                                    "border-[color:#333] text-[9px] leading-[17px] py-0 px-1 [&&[data-level=error]]:[color:#f2aaa6] ",
+                                    "[&&[data-level=error]]:[border-color:#673c3a] [&&[data-level=error]]:[background:#2b1918] ",
+                                    "[&&[data-level=warn]]:[color:#dbc187] [&&[data-level=warn]]:[border-color:#5e5033] ",
+                                    "[&&[data-level=warn]]:[background:#261f13] [&&[data-level=info]]:[color:#a9c6d6] ",
+                                    "[&&[data-level=info]]:[border-color:#354954] [&&[data-level=info]]:[background:#152027] ",
+                                    "[&&[data-level=debug]]:[color:#a6a0b0] [&&[data-level=trace]]:[color:#a6a0b0] ",
+                                ),
                                 "data-level": line.level.clone(),
                                 "{level_label(&line.level)}"
                             }
-                            span { class: "log-entry-source", "{line.source}" }
-                            pre { class: "log-entry-message", "{line.message}" }
+                            span { class: "log-entry-source text-[color:#a5a5a5] whitespace-normal wrap-anywhere text-[10px] mobile:text-right",
+                                "{line.source}"
+                            }
+                            pre { class: "log-entry-message border-0 [background:none] text-[color:#d8d8d8] [font:inherit] whitespace-pre-wrap wrap-anywhere min-w-0 m-0 p-0 mobile:col-span-full",
+                                "{line.message}"
+                            }
                         }
                     }
                 }
@@ -295,7 +366,7 @@ pub fn LogConsole(
                 aria_hidden: "true",
                 value: output,
             }
-            div { class: "console-footnote log-viewer-footnote",
+            div { class: "console-footnote log-viewer-footnote flex justify-between mt-2 mb-0 text-[10px] text-muted-foreground flex-wrap mx-0 gap-3",
                 span { "{filtered.len()} of {ordered.len()} entries · newest first · read-only" }
                 span { "{limit}" }
             }

@@ -1,8 +1,6 @@
 use super::{
     alert::{Alert, AlertDescription, AlertTitle, AlertVariant},
     empty::{Empty, EmptyDescription, EmptyHeader, EmptyTitle},
-    skeleton::Skeleton,
-    spinner::Spinner,
 };
 use dioxus::prelude::*;
 
@@ -18,25 +16,7 @@ pub fn EmptyState(title: String, description: String) -> Element {
     }
 }
 
-#[component]
-pub fn LoadingState(label: String) -> Element {
-    rsx! {
-        div {
-            class: "space-y-3 py-4",
-            role: "status",
-            aria_label: label.clone(),
-            div { class: "flex items-center gap-2 text-muted-foreground text-sm",
-                Spinner {}
-                "{label}"
-            }
-            div { aria_hidden: "true",
-                Skeleton { class: "h-8 w-2/3" }
-                Skeleton { class: "h-8 w-full mt-3" }
-                Skeleton { class: "h-8 w-5/6 mt-3" }
-            }
-        }
-    }
-}
+pub use super::loading::{LoadingLayout, LoadingState};
 
 #[component]
 pub fn ErrorState(message: String) -> Element {

@@ -88,7 +88,11 @@ pub fn FeedbackView() -> Element {
                 ToastList { class: "w-[min(400px,calc(100vw-2rem))] h-auto list-none",
                     li {
                         key: "{message.id}",
-                        class: "toast-notification",
+                        class: concat!(
+                            "toast-notification [&&]:[animation:toast-enter_180ms_cubic-bezier(0.2,_0.8,_0.2,_1)_both] ",
+                            "[&&[data-state=closing]]:[animation:toast-exit_140ms_ease-in_both] ",
+                            "[&&[data-state=closing]]:pointer-events-none ",
+                        ),
                         "data-state": if closing() { "closing" } else { "open" },
                         Alert {
                             class: "bg-card shadow-lg pr-12",

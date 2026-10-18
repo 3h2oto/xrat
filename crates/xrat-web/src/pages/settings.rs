@@ -77,9 +77,18 @@ pub fn SettingsPage() -> Element {
     }
     let count: usize = groups.values().map(Vec::len).sum();
     rsx! {
-        div { class: "settings-page",
-            div { class: "settings-toolbar",
-                div { class: "settings-search",
+        div { class: "settings-page max-w-340 mx-auto",
+            div { class: "settings-toolbar flex items-center justify-between mb-6 gap-4 narrow:flex-wrap narrow:gap-2",
+                div {
+                    class: concat!(
+                        "settings-search min-w-0 flex items-center relative w-[min(100%,_430px)] [&_>_svg]:absolute ",
+                        "[&_>_svg]:left-[11px] [&_>_svg]:w-[15px] [&_>_svg]:h-[15px] [&_>_svg]:text-muted-foreground ",
+                        "[&_>_svg]:pointer-events-none [&_input]:h-8.5 [&_input]:text-[13px] [&_input]:px-8.5 ",
+                        "[&_>_button]:absolute [&_>_button]:right-1.5 [&_>_button]:grid [&_>_button]:place-items-center ",
+                        "[&_>_button]:w-6 [&_>_button]:h-6 [&_>_button]:border-0 [&_>_button]:rounded-[4px] ",
+                        "[&_>_button]:bg-transparent [&_>_button]:text-muted-foreground [&_>_button:hover]:bg-accent ",
+                        "[&_>_button_svg]:w-[13px] [&_>_button_svg]:h-[13px]",
+                    ),
                     Search {}
                     Input {
                         id: "settings-search",
@@ -99,7 +108,7 @@ pub fn SettingsPage() -> Element {
                         }
                     }
                 }
-                div { class: "settings-toolbar-actions",
+                div { class: "settings-toolbar-actions flex items-center shrink-0 gap-1.5 narrow:ml-auto",
                     Button {
                         variant: ButtonVariant::Ghost,
                         disabled: loading() || saving().is_some(),
@@ -193,7 +202,7 @@ pub fn SettingsPage() -> Element {
                 ErrorState { message: load_error() }
             }
             if !drafts().is_empty() {
-                div { class: "settings-draft-bar",
+                div { class: "settings-draft-bar flex justify-between items-center flex-wrap mb-5 bg-accent rounded-[6px] text-[12px] py-2 px-3 gap-3",
                     span { "{drafts().len()} unsaved setting(s)" }
                     Button {
                         variant: ButtonVariant::Ghost,
@@ -210,9 +219,19 @@ pub fn SettingsPage() -> Element {
             if data.is_none() && loading() {
                 LoadingState { label: "Loading settings…" }
             } else if let Some(data) = data {
-                div { class: "settings-layout",
+                div { class: "settings-layout grid grid-cols-[minmax(0,_1fr)] items-start gap-6 [@media(width<=1050px)]:gap-5",
                     nav {
-                        class: "settings-categories",
+                        class: concat!(
+                            "settings-categories flex flex-wrap pb-4 border-b border-solid ",
+                            "border-b-[color:color-mix(in_srgb,_var(--border)_30%,_transparent)] gap-[5px] ",
+                            "[@media(width<=800px)]:hidden [&_button]:flex [&_button]:items-center [&_button]:border-0 ",
+                            "[&_button]:rounded-[6px] [&_button]:text-muted-foreground [&_button]:bg-transparent ",
+                            "[&_button]:text-[12px] [&_button]:text-left [&_button]:py-[9px] [&_button]:px-2.5 ",
+                            "[&_button]:gap-2.5 [&_button:hover]:text-foreground [&_button:hover]:bg-accent ",
+                            "[&_button.selected]:text-foreground [&_button.selected]:bg-accent ",
+                            "[&_button.selected]:font-semibold [&_svg]:size-[15px] [&_svg]:shrink-[0] [&_small]:ml-1.5 ",
+                            "[&_small]:text-[10px] [&_small]:tabular-nums [&_small]:text-muted-foreground",
+                        ),
                         aria_label: "Settings categories",
                         for (key, count) in &categories {
                             button {
@@ -233,7 +252,7 @@ pub fn SettingsPage() -> Element {
                             }
                         }
                     }
-                    div { class: "settings-mobile-category",
+                    div { class: "settings-mobile-category hidden [@media(width<=800px)]:block [@media(width<=800px)]:[&_label]:mb-1.5",
                         Label { html_for: "settings-category", "Category" }
                         FormSelect {
                             id: "settings-category",
@@ -246,9 +265,9 @@ pub fn SettingsPage() -> Element {
                         }
                     }
                     section {
-                        class: "settings-content",
+                        class: "settings-content min-w-0",
                         aria_label: "Settings editor",
-                        div { class: "settings-category-heading",
+                        div { class: "settings-category-heading mb-5 [&_h2]:text-[19px] [&_h2]:m-0 [&_p]:mt-[5px] [&_p]:mb-0 [&_p]:mx-0",
                             h2 {
                                 if searching {
                                     "Search results"
@@ -256,7 +275,7 @@ pub fn SettingsPage() -> Element {
                                     "{category_label(&category())}"
                                 }
                             }
-                            p { class: "muted",
+                            p { class: "muted text-muted-foreground text-[13px] leading-[1.7]",
                                 if searching {
                                     "{count} matching settings"
                                 } else {
@@ -271,8 +290,14 @@ pub fn SettingsPage() -> Element {
                             }
                         }
                         for (group, items) in groups {
-                            Card { class: "settings-section",
-                                div { class: "settings-section-heading",
+                            Card { class: "settings-section mb-5 border-[color:color-mix(in_srgb,_var(--border)_50%,_var(--panel))] rounded-[9px] shadow-none p-0 gap-0",
+                                div {
+                                    class: concat!(
+                                        "settings-section-heading flex justify-between items-center border-b border-solid ",
+                                        "border-b-[color:color-mix(in_srgb,_var(--border)_35%,_transparent)] py-3.5 px-4.5 gap-3 ",
+                                        "narrow:pr-4 narrow:pl-4 [&_h3]:text-[13px] ",
+                                        "[&_h3]:font-semibold [&_h3]:m-0 [&_>_span]:text-[10px] [&_>_span]:text-muted-foreground",
+                                    ),
                                     h3 {
                                         if searching {
                                             "{category_label(category_for(&group))} / "
@@ -291,7 +316,7 @@ pub fn SettingsPage() -> Element {
                                 }
                             }
                         }
-                        p { class: "settings-config-note",
+                        p { class: "settings-config-note flex items-start text-muted-foreground text-[11px] leading-[1.6] mt-6 mb-0 mx-0 gap-2 [&_svg]:size-[13px] [&_svg]:shrink-[0] [&_svg]:mt-0.5",
                             Lock {}
                             "Administrator credentials and TLS settings remain in the host configuration."
                         }
@@ -334,13 +359,28 @@ fn SettingRow(
     let control = format!("setting-{}", setting.path.replace('.', "-"));
     let tip = use_hook(|| crate::hooks::use_random::use_random_id_for("setting-effect"));
     rsx! {
-        div { class: "settings-row", "data-dirty": dirty.to_string(),
-            div { class: "settings-row-copy",
+        div {
+            class: concat!(
+                "settings-row grid grid-cols-[minmax(0,_1fr)_minmax(200px,_0.85fr)] border-b border-solid ",
+                "[&&[data-dirty=true]]:[background:color-mix(in_srgb,_var(--accent)_25%,_var(--panel))] ",
+                "border-b-[color:color-mix(in_srgb,_var(--border)_25%,_transparent)] p-4.5 gap-6 narrow:pr-4 narrow:pb-4 ",
+                "narrow:pt-4 narrow:pl-4 narrow:grid-cols-[minmax(0,_1fr)] ",
+                "[@media(width>520px)_and_(width<=1050px)]:grid-cols-[minmax(0,_1fr)_minmax(160px,_0.85fr)] narrow:gap-3 ",
+                "[@media(width>520px)_and_(width<=1050px)]:gap-3.5 [&:last-child]:border-b-0 ",
+            ),
+            "data-dirty": dirty.to_string(),
+            div {
+                class: concat!(
+                    "settings-row-copy min-w-0 [&_>_label]:block [&_>_label]:text-[13px] [&_>_label]:font-medium ",
+                    "[&_>_label]:leading-[1.5] [&_>_label]:mt-0 [&_>_label]:mb-1 [&_>_label]:mx-0 [&_>_code]:block ",
+                    "[&_>_code]:wrap-anywhere [&_>_code]:text-muted-foreground [&_>_code]:text-[10px] ",
+                    "[&_>_code]:leading-[1.6]",
+                ),
                 Label { html_for: control.clone(), "{setting.label}" }
                 code { "{setting.path}" }
-                Tooltip { class: "settings-effect",
+                Tooltip { class: "settings-effect block w-fit mt-[7px] mb-0 mx-0",
                     span {
-                        class: "settings-effect-label",
+                        class: "settings-effect-label inline-flex items-center text-[10px] text-muted-foreground rounded-[3px] gap-[5px] [&_svg]:w-[11px] [&_svg]:h-[11px]",
                         tabindex: "0",
                         aria_describedby: tip.clone(),
                         if setting.effect == "live" {
@@ -355,10 +395,14 @@ fn SettingRow(
                     }
                 }
             }
-            div { class: "settings-row-control",
+            div { class: concat!(
+                "settings-row-control min-w-0 [align-self:start] [&_input]:h-8 [&_input]:text-[12px] [&_textarea]:min-h-18 ",
+                "[&_textarea]:max-h-55 [&_textarea]:[field-sizing:fixed] [&_textarea]:font-mono [&_textarea]:text-[12px] ",
+                "[&&_[data-name=SelectTrigger]]:[height:32px] [&&_[data-name=SelectTrigger]]:[font-size:12px] ",
+            ),
                 match setting.kind.as_str() {
                     "bool" => rsx! {
-                        div { class: "settings-boolean",
+                        div { class: "settings-boolean flex items-center justify-end min-h-7 text-muted-foreground text-[11px] gap-2.5 narrow:justify-between",
                             span {
                                 if value() == "true" {
                                     "Enabled"
@@ -395,7 +439,9 @@ fn SettingRow(
                             disabled: saving().is_some(),
                             oninput: move |event: FormEvent| value.set(event.value()),
                         }
-                        p { class: "settings-input-help", "Separate entries with commas." }
+                        p { class: "settings-input-help text-muted-foreground text-[10px] leading-[1.6] mt-1.5 mb-0 mx-0",
+                            "Separate entries with commas."
+                        }
                     },
                     _ => rsx! {
                         Input {
@@ -411,15 +457,19 @@ fn SettingRow(
                             },
                         }
                         if secret {
-                            p { class: "settings-input-help", "Existing value hidden. Saving a blank value clears it." }
+                            p { class: "settings-input-help text-muted-foreground text-[10px] leading-[1.6] mt-1.5 mb-0 mx-0",
+                                "Existing value hidden. Saving a blank value clears it."
+                            }
                         }
                         if let Some(unit) = unit_for(&setting.path) {
-                            p { class: "settings-input-help", "{unit}" }
+                            p { class: "settings-input-help text-muted-foreground text-[10px] leading-[1.6] mt-1.5 mb-0 mx-0",
+                                "{unit}"
+                            }
                         }
                     },
                 }
                 if dirty {
-                    div { class: "settings-row-actions",
+                    div { class: "settings-row-actions flex justify-end items-center mt-2.5 gap-[5px]",
                         Button {
                             variant: ButtonVariant::Ghost,
                             disabled: saving().is_some(),

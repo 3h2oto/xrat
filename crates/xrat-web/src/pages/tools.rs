@@ -5,7 +5,7 @@ use crate::ui::{
     input::{Input, InputType},
     label::Label,
     spinner::Spinner,
-    states::ErrorState,
+    states::{ErrorState, LoadingLayout, LoadingState},
     textarea::Textarea,
 };
 use crate::{Notice, Session, api};
@@ -18,7 +18,9 @@ pub fn Tools(section: String) -> Element {
     let Session(session) = use_context();
     if !session().is_some_and(|session| session.user.role.can_operate()) {
         return rsx! {
-            p { class: "empty", "Tools require an operator or administrator account." }
+            p { class: "empty text-muted-foreground leading-[1.8] text-[14px] py-9 px-3",
+                "Tools require an operator or administrator account."
+            }
         };
     }
     rsx! {
@@ -87,8 +89,8 @@ fn ToolEditor(section: String) -> Element {
     let result_id = use_hook(|| crate::hooks::use_random::use_random_id_for("tool-result"));
     let action_section = section.clone();
     rsx! {
-        div { class: "tool-page",
-            Card { class: "tool-editor",
+        div { class: "tool-page grid grid-cols-[minmax(0,_1.15fr)_minmax(0,_1fr)] max-w-320 items-start mx-auto gap-7 [@media(width<=850px)]:grid-cols-[minmax(0,_1fr)] [@media(width<=850px)]:gap-2 [&_.error]:wrap-anywhere",
+            Card { class: "tool-editor rounded-[9px] shadow-none border-[color:color-mix(in_srgb,_var(--border)_50%,_var(--panel))] p-5.5 narrow:pr-4 narrow:pb-4 narrow:pt-4 narrow:pl-4 [&_label]:text-[12px]",
                 form {
                     onsubmit: move |event| {
                         event.prevent_default();
@@ -128,7 +130,7 @@ fn ToolEditor(section: String) -> Element {
                             submitting.set(false);
                         });
                     },
-                    div { class: "tool-section-heading",
+                    div { class: "tool-section-heading mb-5.5 [&_h2]:text-[16px] [&_h2]:font-semibold [&_h2]:m-0 [&_p]:mt-1.5 [&_p]:mb-0 [&_p]:max-w-[48ch] [&_p]:text-muted-foreground [&_p]:text-[12px] [&_p]:leading-[1.7] [&_p]:mx-0",
                         h2 {
                             if scanner {
                                 "Scan targets"
@@ -153,7 +155,7 @@ fn ToolEditor(section: String) -> Element {
                         if scanner || parser {
                             Textarea {
                                 id: "tool-input",
-                                class: "tool-text-input",
+                                class: "tool-text-input min-h-42.5 max-h-[45dvh] resize-y font-mono text-[12px] leading-[1.7]",
                                 rows: 7,
                                 disabled: busy,
                                 value: input(),
@@ -169,7 +171,9 @@ fn ToolEditor(section: String) -> Element {
                                 oninput: move |event: FormEvent| input.set(event.value()),
                             }
                         }
-                        p { id: "tool-input-help", class: "tool-input-help",
+                        p {
+                            id: "tool-input-help",
+                            class: "tool-input-help text-muted-foreground text-[11px] leading-[1.65] mt-1.5 mb-0 mx-0",
                             if scanner {
                                 "One IPv4 or IPv6 address per line, or separated by commas. Up to 4,096 addresses."
                             } else if parser {
@@ -180,7 +184,7 @@ fn ToolEditor(section: String) -> Element {
                         }
                     }
                     if scanner {
-                        div { class: "tool-scan-options",
+                        div { class: "tool-scan-options flex items-end mt-4.5 gap-4 [&_>_div]:w-27.5 [&_>_div]:shrink-[0] [&_p]:mt-0 [&_p]:mb-2 [&_p]:mx-0",
                             Field {
                                 Label { html_for: "scan-port", "Port" }
                                 Input {
@@ -193,15 +197,21 @@ fn ToolEditor(section: String) -> Element {
                                     oninput: move |event: FormEvent| port.set(event.value()),
                                 }
                             }
-                            p { class: "tool-input-help", "4 second timeout per address" }
+                            p { class: "tool-input-help text-muted-foreground text-[11px] leading-[1.65] mt-1.5 mb-0 mx-0",
+                                "4 second timeout per address"
+                            }
                         }
                         if !input().trim().is_empty() {
                             if let Err(message) = &scan {
-                                p { class: "error", role: "alert", "{message}" }
+                                p {
+                                    class: "error text-destructive text-[14px]",
+                                    role: "alert",
+                                    "{message}"
+                                }
                             }
                         }
                     }
-                    div { class: "tool-actions",
+                    div { class: "tool-actions flex items-center flex-wrap mt-6 pt-4 border-t border-solid border-t-[color:color-mix(in_srgb,_var(--border)_35%,_transparent)] gap-[7px]",
                         Button { button_type: "submit", disabled: busy || !valid,
                             if busy {
                                 Spinner {}
@@ -232,7 +242,12 @@ fn ToolEditor(section: String) -> Element {
                         }
                         if parser {
                             a {
-                                class: "tool-export",
+                                class: concat!(
+                                    "tool-export inline-flex items-center text-muted-foreground text-[11px] ml-auto gap-[5px] ",
+                                    "narrow:basis-full narrow:mr-0 narrow:ml-0 ",
+                                    "narrow:mb-0 narrow:mt-2 [&:hover]:text-foreground ",
+                                    "[&_svg]:w-[13px] [&_svg]:h-[13px]",
+                                ),
                                 href: "/api/v1/export",
                                 download: "xrat-subscription.txt",
                                 Download {}
@@ -243,10 +258,10 @@ fn ToolEditor(section: String) -> Element {
                 }
             }
             section {
-                class: "tool-results",
+                class: "tool-results min-w-0 py-4.5 px-0 [@media(width<=850px)]:pr-1 [@media(width<=850px)]:pl-1",
                 aria_label: "Tool result",
                 aria_live: "polite",
-                div { class: "tool-result-heading",
+                div { class: "tool-result-heading [&_h2]:text-[16px] [&_h2]:font-semibold [&_h2]:m-0 flex items-center justify-between mb-4.5 gap-3",
                     h2 { "Result" }
                     if let Some(current) = job() {
                         ToolJobStatus { state: current.state }
@@ -259,20 +274,21 @@ fn ToolEditor(section: String) -> Element {
                     if let Some(output) = &current.result {
                         pre {
                             id: result_id.clone(),
-                            class: "tool-output",
+                            class: "tool-output max-h-[45dvh] overflow-auto wrap-anywhere whitespace-pre-wrap rounded-[6px] bg-accent text-[12px] leading-[1.85] tabular-nums p-4",
                             tabindex: "0",
                             "{output}"
                         }
+                    } else if is_active(&current) {
+                        LoadingState {
+                            label: "Waiting for the tool result",
+                            layout: LoadingLayout::Summary,
+                        }
                     } else {
-                        p { class: "tool-result-placeholder",
-                            if is_active(&current) {
-                                "Waiting for the host to report a result…"
-                            } else {
-                                "This job finished without additional output."
-                            }
+                        p { class: "tool-result-placeholder flex items-center text-muted-foreground text-[12px] leading-[1.8] py-3.5 px-0 gap-[7px]",
+                            "This job finished without additional output."
                         }
                     }
-                    div { class: "tool-result-actions",
+                    div { class: "tool-result-actions [&_a:hover]:text-foreground [&_svg]:w-[13px] [&_svg]:h-[13px] flex items-center justify-between mt-3.5 gap-2.5 [&_a]:inline-flex [&_a]:items-center [&_a]:text-muted-foreground [&_a]:text-[11px] [&_a]:gap-[5px]",
                         a { href: "/ui/jobs",
                             "View in Jobs"
                             ArrowRight {}
@@ -280,7 +296,12 @@ fn ToolEditor(section: String) -> Element {
                         if current.result.is_some() {
                             button {
                                 r#type: "button",
-                                class: "console-copy",
+                                class: concat!(
+                                    "console-copy inline-flex h-7.5 text-[12px] font-medium items-center border border-solid ",
+                                    "border-border rounded-[0.4rem] bg-transparent cursor-pointer text-muted-foreground ",
+                                    "border-transparent py-0 px-[0.6rem] gap-[0.4rem] [&_svg]:size-4 [&:hover]:text-foreground ",
+                                    "[&:hover]:bg-accent [&:disabled]:opacity-40 [&:disabled]:cursor-default",
+                                ),
                                 "data-copy-textarea": result_id.clone(),
                                 Copy {}
                                 span { "Copy" }
@@ -288,12 +309,16 @@ fn ToolEditor(section: String) -> Element {
                         }
                     }
                 } else if submitting() {
-                    p { class: "tool-result-placeholder",
-                        Spinner {}
-                        "Starting job…"
-                    }
+                    LoadingState { label: "Starting job", layout: LoadingLayout::Summary }
                 } else if error().is_empty() {
-                    div { class: "tool-result-empty",
+                    div {
+                        class: concat!(
+                            "tool-result-empty text-muted-foreground py-9.5 px-3 [@media(width<=850px)]:pr-2 ",
+                            "[@media(width<=850px)]:pb-5 [@media(width<=850px)]:pt-5 [@media(width<=850px)]:pl-2 ",
+                            "[&_>_svg]:w-[25px] [&_>_svg]:h-[25px] [&_>_svg]:opacity-65 [&_>_svg]:mb-4 [&_p]:text-[14px] ",
+                            "[&_p]:font-medium [&_p]:text-foreground [&_p]:mt-0 [&_p]:mb-[7px] [&_p]:mx-0 [&_span]:block ",
+                            "[&_span]:max-w-[39ch] [&_span]:text-[12px] [&_span]:leading-[1.8]",
+                        ),
                         if scanner {
                             Radar {}
                         } else if parser {
@@ -337,7 +362,13 @@ fn ToolJobStatus(state: String) -> Element {
         _ => "Failed",
     };
     rsx! {
-        span { class: "tool-job-state", "data-state": state.clone(),
+        span {
+            class: concat!(
+                "tool-job-state inline-flex items-center text-[11px] text-muted-foreground gap-1.5 [&_svg]:w-3.5 ",
+                "[&_svg]:h-3.5 [&&[data-state=failed]]:text-destructive [&&[data-state=interrupted]]:text-destructive ",
+                "[&&[data-state=succeeded]]:text-foreground ",
+            ),
+            "data-state": state.clone(),
             if active {
                 Spinner {}
             } else if state == "succeeded" {

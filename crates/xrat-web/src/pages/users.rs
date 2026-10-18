@@ -11,7 +11,7 @@ use crate::ui::{
     input::{Input, InputType},
     label::Label,
     spinner::Spinner,
-    states::{EmptyState, ErrorState, LoadingState},
+    states::{EmptyState, ErrorState, LoadingLayout, LoadingState},
     switch::Switch,
     table::*,
     tooltip::{Tooltip, TooltipContent, TooltipPosition},
@@ -97,9 +97,21 @@ pub fn Users() -> Element {
         })
         .unwrap_or_default();
     rsx! {
-        div { class: "users-page",
-            div { class: "users-toolbar",
-                div { class: "users-search",
+        div { class: "users-page max-w-320 mx-auto",
+            div { class: "users-toolbar flex items-center mb-5 gap-2.5 [@media(width<=600px)]:flex-wrap [&_>_button]:ml-auto [&_>_.icon-action]:ml-auto",
+                div {
+                    class: concat!(
+                        "users-search relative flex items-center flex-1 max-w-100 min-w-0 ",
+                        "[@media(width<=600px)]:max-w-none [@media(width<=600px)]:basis-full [&_>_svg]:absolute ",
+                        "[&_>_svg]:left-2.5 [&_>_svg]:w-[15px] [&_>_svg]:h-[15px] [&_>_svg]:text-muted-foreground ",
+                        "[&_>_svg]:pointer-events-none [&_input]:h-8 [&_input]:text-[12px] [&_input]:pl-8 ",
+                        "[&_input]:pr-7.5 [&_>_button]:absolute [&_>_button]:right-[5px] [&_>_button]:grid ",
+                        "[&_>_button]:place-items-center [&_>_button]:w-[23px] [&_>_button]:h-[23px] ",
+                        "[&_>_button]:border-0 [&_>_button]:rounded-[4px] [&_>_button]:bg-transparent ",
+                        "[&_>_button]:text-muted-foreground [&_>_button:hover]:bg-accent [&_>_button_svg]:w-3 ",
+                        "[&_>_button_svg]:h-3 [&_>_.icon-action]:absolute [&_>_.icon-action]:right-[5px] ",
+                        "[&_>_.icon-action]:top-[50%] [&_>_.icon-action]:transform-[translateY(-50%)]",
+                    ),
                     Search {}
                     Input {
                         id: "users-search",
@@ -119,7 +131,7 @@ pub fn Users() -> Element {
                         }
                     }
                 }
-                div { class: "users-role-filter",
+                div { class: "users-role-filter w-32.5 shrink-0 [&&_[data-name=SelectTrigger]]:[height:32px] [&&_[data-name=SelectTrigger]]:[font-size:12px]",
                     Label { class: "sr-only", html_for: "users-role-filter", "Filter by role" }
                     FormSelect {
                         id: "users-role-filter",
@@ -148,12 +160,20 @@ pub fn Users() -> Element {
             if !error().is_empty() {
                 ErrorState { message: error() }
             }
-            Card { class: "users-directory",
-                div { class: "users-directory-heading",
+            Card {
+                class: concat!(
+                    "users-directory shadow-none rounded-[9px] ",
+                    "border-[color:color-mix(in_srgb,_var(--border)_50%,_var(--panel))] p-0 gap-0 ",
+                    "[&_.users-table-wrapper]:border-0 [&_.users-table-wrapper]:border-t ",
+                    "[&_.users-table-wrapper]:border-solid ",
+                    "[&_.users-table-wrapper]:border-t-[color:color-mix(in_srgb,_var(--border)_35%,_transparent)] ",
+                    "[&_.users-table-wrapper]:rounded-[0_0_9px_9px] [&_.users-table-wrapper]:max-h-[60dvh]",
+                ),
+                div { class: "users-directory-heading flex items-center justify-between p-4.5 gap-4 [&_h2]:text-[16px] [&_h2]:m-0 [&_p]:mt-[3px] [&_p]:mb-0 [&_p]:text-[11px] [&_p]:tabular-nums [&_p]:mx-0",
                     div {
                         h2 { "Accounts" }
                         if let Some(list) = &data {
-                            p { class: "muted",
+                            p { class: "muted text-muted-foreground text-[13px] leading-[1.7]",
                                 "{list.len()} total · {list.iter().filter(|user| user.enabled).count()} enabled"
                             }
                         }
@@ -162,7 +182,7 @@ pub fn Users() -> Element {
                         label: "Reload accounts",
                         variant: ButtonVariant::Ghost,
                         disabled: loading() || busy(),
-                       onclick: move |_| {
+                        onclick: move |_| {
                             loading.set(true);
                             error.set(String::new());
                             spawn(async move {
@@ -181,7 +201,10 @@ pub fn Users() -> Element {
                     }
                 }
                 if data.is_none() && loading() {
-                    LoadingState { label: "Loading accounts…" }
+                    LoadingState {
+                        label: "Loading accounts…",
+                        layout: LoadingLayout::Table,
+                    }
                 } else if data.is_some() && filtered.is_empty() {
                     EmptyState {
                         title: "No matching accounts",
@@ -189,7 +212,18 @@ pub fn Users() -> Element {
                     }
                 } else if data.is_some() {
                     TableWrapper { class: "users-table-wrapper",
-                        Table { class: "users-table",
+                        Table {
+                            class: concat!(
+                                "users-table [&_th]:align-middle [&_th]:text-left [&_th]:text-[11px] [&_th]:font-medium ",
+                                "[&_th]:py-3 [&_th]:px-4.5 [@media(width<=600px)]:[&_th]:pr-3 ",
+                                "[@media(width<=600px)]:[&_th]:pb-2.5 [@media(width<=600px)]:[&_th]:pt-2.5 ",
+                                "[@media(width<=600px)]:[&_th]:pl-3 [&_td]:align-middle [&_td]:text-left [&_td]:text-[12px] ",
+                                "[&_td]:py-3 [&_td]:px-4.5 [@media(width<=600px)]:[&_td]:pr-3 ",
+                                "[@media(width<=600px)]:[&_td]:pb-2.5 [@media(width<=600px)]:[&_td]:pt-2.5 ",
+                                "[@media(width<=600px)]:[&_td]:pl-3 [&_.users-actions-cell]:text-right ",
+                                "[&_.users-actions-cell]:w-13.5 [&_.users-actions-heading]:text-right ",
+                                "[&_.users-actions-heading]:w-13.5",
+                            ),
                             TableHeader {
                                 TableRow {
                                     TableHead { "Account" }
@@ -204,24 +238,24 @@ pub fn Users() -> Element {
                                 for user in filtered {
                                     TableRow { key: "{user.username}",
                                         TableCell {
-                                            div { class: "users-identity",
+                                            div { class: "users-identity flex items-center min-w-35 gap-2.5 [&&_[data-slot=avatar-fallback]_svg]:[width:15px] [&&_[data-slot=avatar-fallback]_svg]:[height:15px]",
                                                 Avatar { class: "size-8",
                                                     AvatarFallback { UserRound {} }
                                                 }
                                                 div {
-                                                    div { class: "users-name",
+                                                    div { class: "users-name flex items-center gap-2 [&_strong]:font-[550] [&_strong]:text-[13px] [&_>_span]:text-[10px] [&_>_span]:text-muted-foreground",
                                                         strong { "{user.username}" }
                                                         if session().is_some_and(|me| me.user.username == user.username) {
                                                             span { "You" }
                                                         }
                                                     }
                                                     if user.configured {
-                                                        p { class: "users-account-note",
+                                                        p { class: "users-account-note flex items-center text-muted-foreground text-[10px] mt-1 mb-0 whitespace-nowrap mx-0 gap-1 [&_svg]:w-2.5 [&_svg]:h-2.5",
                                                             Lock {}
                                                             "Managed in host config"
                                                         }
                                                     } else if user.must_change_password {
-                                                        p { class: "users-account-note",
+                                                        p { class: "users-account-note flex items-center text-muted-foreground text-[10px] mt-1 mb-0 whitespace-nowrap mx-0 gap-1 [&_svg]:w-2.5 [&_svg]:h-2.5",
                                                             KeyRound {}
                                                             "Password change required"
                                                         }
@@ -236,11 +270,11 @@ pub fn Users() -> Element {
                                         }
                                         TableCell {
                                             if user.configured {
-                                                span { class: "users-managed-access",
+                                                span { class: "users-managed-access text-[11px] text-muted-foreground",
                                                     "Enabled"
                                                 }
                                             } else {
-                                                div { class: "users-access",
+                                                div { class: "users-access flex items-center gap-2 [&_>_span]:text-[11px] [&_>_span]:text-muted-foreground",
                                                     Switch {
                                                         checked: user.enabled,
                                                         disabled: busy() || session().is_some_and(|me| me.user.username == user.username),
@@ -272,7 +306,7 @@ pub fn Users() -> Element {
                                             if user.configured {
                                                 Tooltip { class: "m-0",
                                                     span {
-                                                        class: "users-locked",
+                                                        class: "users-locked inline-flex items-center justify-center size-7 text-muted-foreground rounded-[4px] [&_svg]:size-[13px]",
                                                         tabindex: "0",
                                                         aria_label: "Managed in host configuration",
                                                         Lock {}
@@ -333,7 +367,7 @@ pub fn Users() -> Element {
                     }
                 }
             }
-            p { class: "users-permission-note",
+            p { class: "users-permission-note flex items-start text-[11px] text-muted-foreground leading-[1.7] mt-4.5 mb-0 mx-0 gap-2 [&_svg]:size-3.5 [&_svg]:shrink-[0] [&_svg]:mt-0.5",
                 Shield {}
                 "Viewer: inspect · Operator: manage connections · Admin: manage accounts, settings, and host controls"
             }
@@ -401,7 +435,7 @@ fn AccountDialog(
         Dialog {
             DialogContent {
                 initial_open: true,
-                class: "account-dialog w-[min(440px,calc(100vw-2rem))]",
+                class: "account-dialog w-[min(440px,calc(100vw-2rem))] rounded-[12px] p-6 [@media(width<=600px)]:pr-5 [@media(width<=600px)]:pb-5 [@media(width<=600px)]:pt-5 [@media(width<=600px)]:pl-5",
                 close_on_backdrop_click: !busy,
                 on_close: move |_| on_close.call(()),
                 DialogHeader {
@@ -417,7 +451,13 @@ fn AccountDialog(
                     }
                 }
                 form {
-                    class: "account-editor",
+                    class: concat!(
+                        "account-editor [&_>_.error]:mt-3.5 [&_.login-password-toggle]:top-0.5 ",
+                        "[&_.login-password_>_.icon-action]:absolute [&_.login-password_>_.icon-action]:right-[5px] ",
+                        "[&_.login-password_>_.icon-action]:top-[50%] ",
+                        "[&_.login-password_>_.icon-action]:transform-[translateY(-50%)] [&&_[data-name=Field]]:[margin-top:18px] ",
+                        "[&&_[data-name=Field]]:[gap:7px] ",
+                    ),
                     onsubmit: move |event| {
                         event.prevent_default();
                         if busy {
@@ -455,7 +495,7 @@ fn AccountDialog(
                             oninput: move |event: FormEvent| username.set(event.value()),
                         }
                         if creating {
-                            p { class: "account-field-help",
+                            p { class: "account-field-help text-muted-foreground text-[11px] leading-[1.6] m-0",
                                 "3–64 lowercase letters, numbers, dots, underscores, or hyphens."
                             }
                         }
@@ -473,10 +513,12 @@ fn AccountDialog(
                                     FormSelectOption::new("admin", "Admin"),
                                 ],
                             }
-                            p { class: "account-field-help", "{role_help(&role())}" }
+                            p { class: "account-field-help text-muted-foreground text-[11px] leading-[1.6] m-0",
+                                "{role_help(&role())}"
+                            }
                         }
                         if !creating {
-                            div { class: "account-access-field",
+                            div { class: "account-access-field flex items-center justify-between mt-5 gap-4",
                                 Label { html_for: "account-enabled", "Account enabled" }
                                 Switch {
                                     id: "account-enabled",
@@ -490,7 +532,7 @@ fn AccountDialog(
                     if creating || reset_password {
                         Field {
                             Label { html_for: "account-password", "Temporary password" }
-                            div { class: "login-password",
+                            div { class: "login-password relative [&_input]:pr-11",
                                 Input {
                                     id: "account-password",
                                     r#type: if show_password() { InputType::Text } else { InputType::Password },
@@ -516,22 +558,32 @@ fn AccountDialog(
                                     }
                                 }
                             }
-                            p { class: "account-field-help", "Use at least 12 characters." }
+                            p { class: "account-field-help text-muted-foreground text-[11px] leading-[1.6] m-0",
+                                "Use at least 12 characters."
+                            }
                         }
                     }
                     if !creating {
-                        p { class: "account-session-note",
+                        p { class: "account-session-note flex items-start text-muted-foreground text-[11px] leading-[1.6] mt-5 mb-0 mx-0 gap-[7px] [&_svg]:size-[13px] [&_svg]:mt-0.5 [&_svg]:shrink-[0]",
                             KeyRound {}
                             "Saving signs this account out and revokes its API tokens."
                         }
                     }
                     if !local_error().is_empty() {
-                        p { class: "error", role: "alert", "{local_error}" }
+                        p {
+                            class: "error text-destructive text-[14px]",
+                            role: "alert",
+                            "{local_error}"
+                        }
                     }
                     if !error.is_empty() {
-                        p { class: "error", role: "alert", "{error}" }
+                        p {
+                            class: "error text-destructive text-[14px]",
+                            role: "alert",
+                            "{error}"
+                        }
                     }
-                    div { class: "account-dialog-actions",
+                    div { class: "account-dialog-actions flex justify-end mt-6 gap-1.5",
                         IconButton {
                             label: "Cancel",
                             variant: ButtonVariant::Ghost,

@@ -103,7 +103,7 @@ pub fn ToastContainer(
     #[props(default = ToastPosition::BottomRight)] position: ToastPosition,
 ) -> Element {
     let merged_class = tw_merge!(
-        "toast__container fixed z-50",
+        "toast__container fixed z-50 [&&]:[z-index:var(--layer-toast)]",
         class.as_deref().unwrap_or("")
     );
 

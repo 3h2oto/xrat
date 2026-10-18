@@ -39,7 +39,15 @@ pub fn BulkActions(
     });
     rsx! {
         if !selected().is_empty() {
-            div { class: "data-selection-bar",
+            div {
+                class: concat!(
+                    "data-selection-bar flex items-center flex-wrap bg-accent rounded-[6px] mb-3.5 py-2 px-2.5 ",
+                    "[&&_[data-name=DropdownMenuTrigger]]:[height:30px] [&&_[data-name=DropdownMenuTrigger]]:[padding:0_8px] ",
+                    "[&&_[data-name=DropdownMenuTrigger]]:[font-size:12px] [&&_[data-name=DropdownMenuTrigger]]:[gap:6px] gap-2 ",
+                    "[&_>_span]:inline-flex [&_>_span]:items-center [&_>_span]:text-[12px] [&_>_span]:font-medium ",
+                    "[&_>_span]:mr-auto [&_>_span]:gap-1.5 [&_svg]:w-3.5 [&_svg]:h-3.5 [&_small]:basis-full ",
+                    "[&_small]:text-muted-foreground [&_small]:text-[10px] ",
+                ),
                 span {
                     ListChecks {}
                     "{selected().len()} selected"
@@ -98,7 +106,7 @@ pub fn BulkActions(
                     label: "Clear selection",
                     variant: ButtonVariant::Ghost,
                     disabled: busy(),
-                   onclick: move |_| selected.write().clear(),
+                    onclick: move |_| selected.write().clear(),
                     X {}
                 }
                 if selected().len() > 500 || matching.len() > 500 {

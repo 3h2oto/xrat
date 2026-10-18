@@ -1,3 +1,19 @@
+const SELECT_CONTENT_STYLES: &str = concat!(
+    "[&&]:invisible [&&]:transition-none [&&]:animate-none [&&]:[transform:none] [&&]:[scale:1] ",
+    "[&&]:[padding:5px] [&&]:[border-radius:8px] ",
+    "[&&]:[border-color:color-mix(in_srgb,_var(--border)_65%,_var(--panel))] ",
+    "[&&]:[box-shadow:0_6px_18px_#0003,_0_1px_3px_#0002] [&&]:[z-index:var(--layer-popup)] [&&]:fixed ",
+    "[&&]:[max-width:calc(100vw_-_16px)] [&&[data-state=open]]:visible [&&[popover]]:m-0 ",
+    "[&&[popover]]:[inset:auto] [&&::backdrop]:[background:transparent] [&&::backdrop]:pointer-events-none ",
+);
+
+const SELECT_OPTION_STYLES: &str = concat!(
+    "[&&:focus-visible]:[outline:2px_solid_var(--ring)] [&&:focus-visible]:[outline-offset:-2px] ",
+    "[&&:focus-visible]:bg-accent [&&[aria-selected=true]]:bg-accent [&&]:[min-height:30px] ",
+    "[&&]:[padding:6px_8px] [&&]:[border-radius:4px] [&&]:[font-size:12px] [&&]:[line-height:18px] ",
+    "[&&]:[gap:9px] ",
+);
+
 use dioxus::prelude::*;
 use icons::{Check, ChevronDown, ChevronUp};
 use tw_merge::tw_merge;
@@ -157,7 +173,7 @@ pub fn SelectContent(
             "data-name": "SelectContent",
             "popover": "manual",
             id: "{ctx.target_id}",
-            class: "{merged}",
+            class: "{merged} {SELECT_CONTENT_STYLES}",
             "data-target": "target__select",
             "data-state": "closed",
             "data-position": position.as_str(),
@@ -223,7 +239,7 @@ pub fn SelectOption(
     rsx! {
         li {
             "data-name": "SelectOption",
-            class: "{merged}",
+            class: "{merged} {SELECT_OPTION_STYLES}",
             role: "option",
             tabindex: "0",
             "aria-selected": if is_selected() { "true" } else { "false" },

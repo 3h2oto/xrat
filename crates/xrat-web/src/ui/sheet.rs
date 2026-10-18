@@ -111,7 +111,10 @@ pub fn SheetContent(
         div {
             "data-name": "SheetBackdrop",
             id: "{backdrop_id}",
-            class: "fixed inset-0 z-60 bg-black/50 pointer-events-none opacity-0 transition-opacity duration-300 data-[state=open]:opacity-100",
+            class: concat!(
+                "fixed inset-0 z-60 bg-black/50 pointer-events-none opacity-0 transition-opacity duration-300 ",
+                "data-[state=open]:opacity-100 [&&[data-state=closed]]:invisible [&&]:[z-index:var(--layer-backdrop)] ",
+            ),
             "data-state": "closed",
             "data-backdrop": "{backdrop_behavior}",
         }
@@ -125,7 +128,7 @@ pub fn SheetContent(
             "data-backdrop": "{backdrop_behavior}",
             "data-name": "SheetContent",
             id: "{target_id}",
-            class: "{c}",
+            class: "{c} [&&[data-state=closed]]:invisible [&&]:[z-index:var(--layer-modal)] ",
             "data-state": "closed",
             style: "pointer-events: none;",
             button {

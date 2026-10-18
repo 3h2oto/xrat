@@ -20,7 +20,9 @@ pub fn IconButton(
 ) -> Element {
     let tooltip_id = use_hook(|| crate::hooks::use_random::use_random_id_for("icon-action"));
     rsx! {
-        Tooltip { class: "icon-action", tabindex: if disabled { Some("0") } else { None },
+        Tooltip {
+            class: "icon-action inline-flex shrink-0 items-center align-middle m-0 [&_>_button]:p-0 [&_>_a]:p-0",
+            tabindex: if disabled { Some("0") } else { None },
             Button {
                 class,
                 variant,

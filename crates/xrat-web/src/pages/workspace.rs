@@ -11,7 +11,7 @@ use crate::ui::field::Field;
 use crate::ui::icon_button::IconButton;
 use crate::ui::input::{Input, InputType};
 use crate::ui::label::Label;
-use crate::ui::states::{ErrorState, LoadingState};
+use crate::ui::states::{ErrorState, LoadingLayout, LoadingState};
 use crate::ui::textarea::Textarea;
 use crate::{Session, api, ui::button::ButtonVariant};
 use dioxus::prelude::*;
@@ -43,7 +43,10 @@ pub fn Workspace(section: String) -> Element {
     let result = data.read();
     let Some(result) = result.as_ref() else {
         return rsx! {
-            LoadingState { label: "Loading workspace…" }
+            LoadingState {
+                label: "Loading workspace…",
+                layout: if matches!(section.as_str(), "Configs" | "Subscriptions") { LoadingLayout::Table } else { LoadingLayout::Logs },
+            }
         };
     };
     let overview = match result {
@@ -83,7 +86,7 @@ pub fn Workspace(section: String) -> Element {
             }
         }
         if section == "Logs" {
-            Card { class: "log-page-panel",
+            Card { class: "log-page-panel min-w-0 max-w-full rounded-[9px] shadow-none border-[color:color-mix(in_srgb,_var(--border)_50%,_var(--panel))] p-5 gap-0 mobile:pr-3.5 mobile:pb-3.5 mobile:pt-3.5 mobile:pl-3.5",
                 crate::ui::log_console::LogConsole {
                     id: "xrat-console",
                     lines: overview.events.iter().map(crate::ui::log_console::event_line).collect(),

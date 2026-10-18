@@ -100,7 +100,11 @@ pub fn DialogContent(
         div {
             "data-name": "DialogBackdrop",
             id: "{backdrop_id}",
-            class: "fixed inset-0 transition-opacity duration-200 pointer-events-none z-60 bg-black/50 data-[state=closed]:opacity-0 data-[state=open]:opacity-100",
+            class: concat!(
+                "fixed inset-0 transition-opacity duration-200 pointer-events-none z-60 bg-black/50 ",
+                "data-[state=closed]:opacity-0 data-[state=open]:opacity-100 [&&[data-state=closed]]:invisible ",
+                "[&&]:[z-index:var(--layer-backdrop)] ",
+            ),
             "data-state": "closed",
         }
         // Panel
@@ -112,7 +116,7 @@ pub fn DialogContent(
             aria_labelledby: format!("{target_id}-title"),
             "data-auto-open": initial_open.to_string(),
             "data-name": "DialogContent",
-            class: "{merged}",
+            class: "{merged} [&&[data-state=closed]]:invisible [&&]:[overflow:auto] [&&]:[z-index:var(--layer-modal)]",
             id: "{target_id}",
             "data-target": "target__dialog",
             "data-state": "closed",

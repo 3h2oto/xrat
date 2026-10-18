@@ -15,6 +15,7 @@ pub mod icon_button;
 pub mod input;
 pub mod input_group;
 pub mod label;
+pub mod loading;
 pub mod scroll_area;
 pub mod select;
 pub mod separator;

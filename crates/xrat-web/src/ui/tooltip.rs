@@ -1,3 +1,11 @@
+const TOOLTIP_CONTENT_STYLES: &str = concat!(
+    "[&&]:transition-none [&&]:animate-none [&&]:[z-index:var(--layer-tooltip)] [&&]:pointer-events-none ",
+    "[&&]:fixed [&&]:[left:0] [&&]:[top:0] [&&]:[right:auto] [&&]:[bottom:auto] [&&]:m-0 [&&]:invisible ",
+    "[&&]:[max-width:calc(100vw_-_16px)] [&&]:whitespace-normal [&&]:[overflow-wrap:anywhere] [&&[popover]]:m-0 ",
+    "[&&[popover]]:[inset:auto] [&&[popover]]:[width:max-content] [&&[popover]]:[max-width:calc(100vw_-_16px)] ",
+    "[&&[popover]]:[border:0] [&&::backdrop]:[background:transparent] [&&::backdrop]:pointer-events-none ",
+);
+
 use dioxus::prelude::*;
 use tw_merge::tw_merge;
 
@@ -21,7 +29,7 @@ pub fn Tooltip(
         class.as_deref().unwrap_or("")
     );
     rsx! {
-        div { "data-name": "Tooltip", class: "{merged}", ..attributes, {children} }
+        div { "data-name": "Tooltip", class: "{merged} [&&]:transition-none [&&]:animate-none", ..attributes, {children} }
     }
 }
 
@@ -73,7 +81,7 @@ pub fn TooltipContent(
         div {
             "data-name": "TooltipArrow",
             "data-position": "{pos_str}",
-            class: "{arrow_class}",
+            class: "{arrow_class} [&&]:hidden",
         }
         div {
             id,
@@ -81,7 +89,7 @@ pub fn TooltipContent(
             "popover": "manual",
             "data-name": "TooltipContent",
             "data-position": "{pos_str}",
-            class: "{content_class}",
+            class: "{content_class} {TOOLTIP_CONTENT_STYLES}",
             {children}
         }
     }

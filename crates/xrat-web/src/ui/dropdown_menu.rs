@@ -1,3 +1,33 @@
+const DROPDOWN_MENU_CONTENT_STYLES: &str = concat!(
+    "[&&]:invisible [&&]:transition-none [&&]:animate-none [&&]:[transform:none] [&&]:[scale:1] ",
+    "[&&]:[padding:5px] [&&]:[border-radius:8px] ",
+    "[&&]:[border-color:color-mix(in_srgb,_var(--border)_65%,_var(--panel))] ",
+    "[&&]:[box-shadow:0_6px_18px_#0003,_0_1px_3px_#0002] [&&]:[z-index:var(--layer-popup)] [&&]:fixed ",
+    "[&&]:[max-width:calc(100vw_-_16px)] [&&]:overflow-x-hidden [&&]:whitespace-normal ",
+    "[&&[data-state=open]]:visible [&&[popover]]:m-0 [&&[popover]]:[inset:auto] ",
+    "[&&::backdrop]:[background:transparent] [&&::backdrop]:pointer-events-none ",
+    "[&&_[data-name=DropdownMenuAction]]:min-w-0 [&&_[data-name=DropdownMenuAction]]:whitespace-normal ",
+    "[&&_[data-name=DropdownMenuAction]]:[overflow-wrap:anywhere] [&&_svg]:shrink-0 ",
+);
+
+const DROPDOWN_MENU_LABEL_STYLES: &str = concat!(
+    "[&&]:block [&&]:[margin:0_0_4px] [&&]:[padding:5px_8px_7px] [&&]:[font-size:11px] [&&]:[font-weight:600] ",
+    "[&&]:[color:var(--muted)] ",
+    "[&&]:[border-bottom:1px_solid_color-mix(in_srgb,_var(--border)_35%,_transparent)] ",
+);
+
+const DROPDOWN_MENU_ACTION_STYLES: &str = concat!(
+    "[&&]:[min-height:30px] [&&]:[padding:6px_8px] [&&]:[border-radius:4px] [&&]:[font-size:12px] ",
+    "[&&]:[line-height:18px] [&&]:[gap:9px] [&&_svg]:[width:15px] [&&_svg]:[height:15px] [&&_svg]:shrink-0 ",
+    "[&&_svg]:[color:var(--muted)] ",
+);
+
+const DROPDOWN_MENU_ACTION_STYLES4: &str = concat!(
+    "[&&]:[min-height:30px] [&&]:[padding:6px_8px] [&&]:[border-radius:4px] [&&]:[font-size:12px] ",
+    "[&&]:[line-height:18px] [&&]:[gap:9px] [&&_svg]:[width:15px] [&&_svg]:[height:15px] [&&_svg]:shrink-0 ",
+    "[&&_svg]:[color:var(--muted)] ",
+);
+
 use dioxus::prelude::*;
 use icons::{Check, ChevronRight};
 use tw_merge::tw_merge;
@@ -155,7 +185,7 @@ pub fn DropdownMenuContent(
             "data-name": "DropdownMenuContent",
             "popover": "manual",
             id: "{target_id}",
-            class: "{merged}",
+            class: "{merged} {DROPDOWN_MENU_CONTENT_STYLES}",
             "data-target": "target__dropdown",
             "data-state": "closed",
             "data-align": align_for_script,
@@ -176,7 +206,7 @@ pub fn DropdownMenuLabel(
         class.as_deref().unwrap_or("")
     );
     rsx! {
-        span { "data-name": "DropdownMenuLabel", class: "{merged}", {children} }
+        span { "data-name": "DropdownMenuLabel", class: "{merged} {DROPDOWN_MENU_LABEL_STYLES}", {children} }
     }
 }
 
@@ -187,7 +217,7 @@ pub fn DropdownMenuGroup(
 ) -> Element {
     let merged = tw_merge!("group", class.as_deref().unwrap_or(""));
     rsx! {
-        ul { "data-name": "DropdownMenuGroup", class: "{merged}", {children} }
+        ul { "data-name": "DropdownMenuGroup", class: "{merged} [&&]:[list-style:none] [&&]:m-0 [&&]:p-0", {children} }
     }
 }
 
@@ -264,7 +294,7 @@ pub fn DropdownMenuAction(
                 tabindex: "-1",
                 download,
                 "data-name": "DropdownMenuAction",
-                class: "{merged}",
+                class: "{merged} {DROPDOWN_MENU_ACTION_STYLES}",
                 href: "{href}",
                 "data-dropdown-close": "true",
                 {children}
@@ -282,7 +312,7 @@ pub fn DropdownMenuAction(
                     }
                 },
                 "data-name": "DropdownMenuAction",
-                class: "{merged}",
+                class: "{merged} {DROPDOWN_MENU_ACTION_STYLES4}",
                 r#type: "button",
                 "data-dropdown-close": "true",
                 {children}

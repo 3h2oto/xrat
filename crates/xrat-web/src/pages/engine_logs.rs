@@ -3,7 +3,7 @@ use crate::ui::{
     button::ButtonVariant,
     card::Card,
     log_console::{LogConsole, engine_lines},
-    states::{EmptyState, ErrorState, LoadingState},
+    states::{EmptyState, ErrorState, LoadingLayout, LoadingState},
 };
 use crate::{Session, api};
 use dioxus::prelude::*;
@@ -49,11 +49,11 @@ fn EngineOutput() -> Element {
         result
     });
     rsx! {
-        Card { class: "log-page-panel",
+        Card { class: "log-page-panel min-w-0 max-w-full rounded-[9px] shadow-none border-[color:color-mix(in_srgb,_var(--border)_50%,_var(--panel))] p-5 gap-0 mobile:pr-3.5 mobile:pb-3.5 mobile:pt-3.5 mobile:pl-3.5",
 
             match logs.read().as_ref() {
                 None => rsx! {
-                    LoadingState { label: "Loading engine output…" }
+                    LoadingState { label: "Loading engine output…", layout: LoadingLayout::Logs }
                 },
                 Some(Err(error)) => rsx! {
                     ErrorState { message: error.clone() }

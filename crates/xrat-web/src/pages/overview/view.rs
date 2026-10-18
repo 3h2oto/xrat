@@ -1,14 +1,14 @@
-use super::{cards::*, charts::*, controls::*, stats::*};
+use super::layout::ChartCard;
+use super::{cards::*, charts::*, stats::*};
 use crate::{
     Session, api,
     ui::{
         button::{Button, ButtonVariant},
-        card::Card,
-        states::LoadingState,
+        states::{LoadingLayout, LoadingState},
     },
 };
 use dioxus::prelude::*;
-use icons::{Activity, ArrowDown, Radio, RefreshCw};
+use icons::{ArrowDown, Radio, RefreshCw};
 use xrat_web::types::Overview;
 
 #[component]
@@ -69,7 +69,14 @@ pub fn OverviewPage() -> Element {
         });
         return rsx! {
             if let Some(message) = problem {
-                div { class: "dashboard-warning", role: "alert",
+                div {
+                    class: concat!(
+                        "dashboard-warning flex items-center justify-between border border-solid ",
+                        "border-[color:color-mix(in_srgb,_var(--destructive)_40%,_var(--border))] rounded-[8px] ",
+                        "bg-[color:color-mix(in_srgb,_var(--destructive)_5%,_var(--panel))] py-3 px-4 gap-4 ",
+                        "[@media(width<=600px)]:flex-wrap [&_p]:text-[12px] [&_p]:leading-[1.6] [&_p]:m-0",
+                    ),
+                    role: "alert",
                     p { "{message}" }
                     Button {
                         variant: ButtonVariant::Outline,
@@ -84,7 +91,10 @@ pub fn OverviewPage() -> Element {
                     }
                 }
             } else {
-                LoadingState { label: "Getting your dashboard ready…" }
+                LoadingState {
+                    label: "Getting your dashboard ready…",
+                    layout: LoadingLayout::Dashboard,
+                }
             }
         };
     };
@@ -92,25 +102,7 @@ pub fn OverviewPage() -> Element {
         return rsx! {};
     };
     let me = session();
-    let username = me
-        .as_ref()
-        .map(|me| me.user.username.clone())
-        .unwrap_or_default();
     let operator = me.as_ref().is_some_and(|me| me.user.role.can_operate());
-    let admin = me.as_ref().is_some_and(|me| me.user.role.is_admin());
-    let active = data
-        .active_config
-        .and_then(|id| data.configs.iter().find(|row| row.id == id));
-    let active_name = active
-        .map(|row| {
-            if row.name.is_empty() {
-                format!("Configuration #{}", row.id)
-            } else {
-                row.name.clone()
-            }
-        })
-        .unwrap_or_else(|| "No active configuration".into());
-    let ready = data.configs.iter().any(|row| row.enabled && !row.deleted);
     let traffic_message = if stale() {
         "Live data is unavailable. Previous samples are retained."
     } else if !data.running {
@@ -127,9 +119,20 @@ pub fn OverviewPage() -> Element {
     let traffic_series = traffic_series(&history().points);
     let probe_series = probe_series(&meta.probes, &meta.enabled_metrics);
     rsx! {
-        div { class: "overview-dashboard",
+        div { class: concat!(
+            "overview-dashboard grid min-w-0 tabular-nums gap-3 min-[1001px]:h700:flex-col min-[1001px]:h700:min-h-0 ",
+            "min-[1001px]:h700:flex-1 min-[1001px]:h700:flex [&&]:[--chart-0:var(--primary)] [&&]:[--chart-1:#63857b] ",
+            "[&&]:[--chart-2:#a88baf] [&&_[data-name=Card]]:min-w-0 ",
+        ),
             if stale() {
-                div { class: "dashboard-warning", role: "status",
+                div {
+                    class: concat!(
+                        "dashboard-warning flex items-center justify-between border border-solid ",
+                        "border-[color:color-mix(in_srgb,_var(--destructive)_40%,_var(--border))] rounded-[8px] ",
+                        "bg-[color:color-mix(in_srgb,_var(--destructive)_5%,_var(--panel))] py-3 px-4 gap-4 ",
+                        "[@media(width<=600px)]:flex-wrap [&_p]:text-[12px] [&_p]:leading-[1.6] [&_p]:m-0",
+                    ),
+                    role: "status",
                     p {
                         strong { "Updates paused. " }
                         {
@@ -148,92 +151,39 @@ pub fn OverviewPage() -> Element {
                     }
                 }
             }
-            Card { class: "dashboard-welcome",
-                div { class: "dashboard-welcome-top",
-                    h2 { "Hey {username}, ready for some tunneling?" }
-                    LiveClock {}
-                }
-                div { class: "dashboard-welcome-bottom",
-                    div { class: "dashboard-connection",
-                        span { class: if data.running { "connection-dot is-connected" } else { "connection-dot" } }
-                        strong {
-                            if stale() {
-                                "Status unavailable"
-                            } else if data.running {
-                                "Connected"
-                            } else {
-                                "Disconnected"
-                            }
-                        }
-                        span { "·" }
-                        super::details::ConnectionDetailsLink {
-                            data: data.clone(),
-                            stale: stale(),
-                            name: active_name,
-                        }
-                        if meta.runtime_status == "degraded" {
-                            span { class: "dashboard-degraded", "Some inbound listeners are unreachable" }
-                        }
-                    }
-                    div { class: "dashboard-quick-actions",
-                        if operator {
-                            DashboardAction {
-                                action: xrat_web::types::Action::Rotate,
-                                text: "Rotate now",
-                                disabled: !ready || stale(),
-                                reason: if !ready { "Enable a configuration to rotate." } else { "Choose the next connection." },
-                            }
-                        }
-                        super::details::RuntimeDetailsButton { data: data.clone(), stale: stale() }
-                        TunControl {
-                            enabled: meta.tun_enabled,
-                            active: meta.tun_active,
-                            available: meta.tun_available && !stale(),
-                            admin,
-                            reason: meta.tun_reason.clone(),
-                        }
-                    }
-                }
-            }
-            div { class: "dashboard-summary-grid",
-                SubscriptionCard {
+            div { class: "dashboard-summary-grid grid grid-cols-[repeat(3,_minmax(0,_1fr))] gap-3 min-[1001px]:h700:shrink-[0] [@media(width<=600px)]:grid-cols-[minmax(0,_1fr)] [@media(width>600px)_and_(width<=1000px)]:grid-cols-[repeat(2,_minmax(0,_1fr))]",
+                super::runtime_card::RuntimeCard { data: data.clone(), stale: stale() }
+                HealthCard {
+                    configs: data.configs.clone(),
                     subscriptions: data.subscriptions.clone(),
                     refreshed: meta.last_subscription_refresh,
                     operator,
                     stale: stale(),
                 }
-                HealthCard { configs: data.configs.clone() }
                 LatencyCard {
                     configs: data.configs.clone(),
                     enabled_metrics: meta.enabled_metrics.clone(),
                 }
             }
             section {
-                class: "dashboard-traffic",
+                class: "dashboard-traffic min-[1001px]:h700:flex min-[1001px]:h700:flex-col min-[1001px]:h700:min-h-0 min-[1001px]:h700:flex-1",
                 aria_label: "Live traffic and connection quality",
-                div { class: "dashboard-section-title",
-                    h2 {
-                        Activity {}
-                        "Traffic & connection quality"
-                    }
-                    span {
-                        if stale() {
-                            "Offline"
-                        } else {
-                            "Updates every 3 seconds"
-                        }
-                    }
-                }
-                div { class: "dashboard-chart-grid",
-                    Card { class: "dashboard-chart-card",
-                        div { class: "dashboard-card-heading",
+                div { class: "dashboard-chart-grid grid grid-cols-[minmax(0,_1.2fr)_minmax(0,_1fr)] gap-3 min-[1001px]:h700:min-h-0 min-[1001px]:h700:flex-1 [@media(width<=1000px)]:grid-cols-[minmax(0,_1fr)]",
+                    ChartCard {
+                        div { class: "dashboard-card-heading flex items-center justify-between flex-wrap gap-2.5 [&_>_span]:text-muted-foreground [&_>_span]:text-[10px]",
                             h3 {
                                 ArrowDown {}
                                 "Throughput"
                             }
-                            span { "Current session" }
                         }
-                        dl { class: "dashboard-traffic-metrics",
+                        dl {
+                            class: concat!(
+                                "dashboard-traffic-metrics grid grid-cols-[repeat(4,_minmax(0,_1fr))] min-h-8.5 text-center m-0 ",
+                                "gap-2 [@media(width<=600px)]:grid-cols-[repeat(2,_minmax(0,_1fr))] ",
+                                "[&_dt]:text-muted-foreground [&_dt]:text-[10px] [&_dt]:mb-[3px] [&_dd]:text-[13px] ",
+                                "[&_dd]:font-[550] [&_dd]:tracking-[-0.3px] [&_dd]:m-0 [&_>_div]:min-w-0 [&_>_div]:flex ",
+                                "[&_>_div]:flex-col [&_>_div]:items-center [&_>_div]:text-center",
+                            ),
                             div {
                                 dt { "Download" }
                                 dd {
@@ -287,20 +237,23 @@ pub fn OverviewPage() -> Element {
                             unit: "bytes",
                             empty: traffic_message,
                             chart_label: "Download and upload throughput",
-                            footer: rsx! {
-                                p { class: "dashboard-footnote", "Last 5 minutes · collected by XRAT · resets per connection" }
-                            },
+
                         }
                     }
-                    Card { class: "dashboard-chart-card",
-                        div { class: "dashboard-card-heading",
+                    ChartCard {
+                        div { class: "dashboard-card-heading flex items-center justify-between flex-wrap gap-2.5 [&_>_span]:text-muted-foreground [&_>_span]:text-[10px]",
                             h3 {
                                 Radio {}
                                 "Probe history"
                             }
-                            span { "Active configuration" }
                         }
-                        dl { class: "dashboard-probe-metrics",
+                        dl {
+                            class: concat!(
+                                "dashboard-probe-metrics grid grid-cols-[repeat(3,_minmax(0,_1fr))] min-h-8.5 content-start ",
+                                "text-center m-0 gap-2 [&_dt]:text-muted-foreground [&_dt]:text-[10px] [&_dt]:mb-[3px] ",
+                                "[&_dd]:text-[13px] [&_dd]:font-[550] [&_dd]:tracking-[-0.3px] [&_dd]:m-0 [&_>_div]:min-w-0 ",
+                                "[&_>_div]:flex [&_>_div]:flex-col [&_>_div]:items-center [&_>_div]:text-center",
+                            ),
                             for metric in &meta.enabled_metrics {
                                 div { key: "{key(*metric)}",
                                     dt { {label(*metric)} }
@@ -316,53 +269,11 @@ pub fn OverviewPage() -> Element {
                             unit: "ms",
                             empty: if !data.running { "Connect a configuration to see its probe history." } else if meta.enabled_metrics.is_empty() { "Latency tests are disabled. Enable them in Settings." } else { "No successful latency measurements yet. Run a configuration test." },
                             chart_label: "Active configuration latency history",
-                            footer: rsx! {
-                                p { class: "dashboard-footnote dashboard-chart-footer",
-                                    span { "Last 30 tests · gaps = failed / missing" }
-                                    if let Some(point) = meta.probes.last() {
-                                        span { class: "dashboard-last-tested",
-                                            "Last tested "
-                                            {display_date(&point.tested_at)}
-                                        }
-                                    }
-                                }
-                            },
+
                         }
                     }
                 }
             }
-        }
-    }
-}
-
-#[component]
-fn LiveClock() -> Element {
-    let mut tick = use_signal(|| 0_u64);
-    use_future(move || async move {
-        loop {
-            gloo_timers::future::TimeoutFuture::new(1000).await;
-            tick += 1;
-        }
-    });
-    let _ = tick();
-    let date = js_sys::Date::new_0();
-    let clock = format!(
-        "{:02}:{:02}:{:02}",
-        date.get_hours(),
-        date.get_minutes(),
-        date.get_seconds()
-    );
-    let calendar = date
-        .to_locale_date_string("en-GB", &js_sys::Object::new())
-        .as_string()
-        .unwrap_or_default();
-    rsx! {
-        div {
-            class: "dashboard-clock",
-            aria_label: "Current local time and date",
-            time { "{clock}" }
-            span { "{calendar}" }
-
         }
     }
 }
