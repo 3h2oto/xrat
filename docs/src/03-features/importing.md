@@ -174,8 +174,13 @@ Configs are linked to their subscription via `subscription_id` foreign key.
 
 Re-importing a URL-backed subscription is a reconciliation, not an additive
 import: configs the provider still returns are upserted, and configs that
-disappeared from the payload are soft-deleted (recoverable; a later re-add
-restores them). An empty payload removes nothing. See
+disappeared from a non-empty payload are automatically purged, including older
+obsolete rows for that subscription and their test/runtime history. Configs
+still active or referenced by a starting, running, or stopping runtime session
+are retained as deleted until a later refresh can safely purge them. Other
+subscriptions are unaffected. Import and cleanup run in one transaction; a
+failed config import or empty payload removes nothing. A provider re-add creates a new
+config row after the previous row has been purged. See
 [Deduplication](deduplication.md) for the dedup key used to match configs.
 
 There are two ways to refresh:

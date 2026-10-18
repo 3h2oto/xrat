@@ -17,6 +17,12 @@ pub(super) async fn verify_import_and_config_state(db: &Database) -> (ConfigId, 
         .import_nodes(&source, &[first, second])
         .await
         .expect("import should succeed");
+    assert!(
+        db.last_subscription_refresh(xrat_support::time::now_epoch_seconds() as i64)
+            .await
+            .unwrap()
+            .is_some()
+    );
     assert_eq!(summary.imported_configs, 2);
     assert_eq!(summary.total_configs, 2);
     assert_eq!(db.get_subscription_count().await.expect("count"), 1);
@@ -135,15 +141,15 @@ pub(super) async fn verify_reconcile_state(db: &Database) {
     let before_readd = db.list_configs(&all_filter).await.expect("list all");
     assert_eq!(
         before_readd.len(),
-        2,
-        "removed config is soft-deleted, not purged"
+        1,
+        "removed config is purged automatically"
     );
     assert_eq!(
         before_readd
             .iter()
             .filter(|config| config.is_deleted)
             .count(),
-        1
+        0
     );
 
     let readded = db

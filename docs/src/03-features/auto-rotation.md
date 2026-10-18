@@ -44,7 +44,8 @@ refresh_subscriptions = false
 With `refresh_subscriptions = true`, automatic (timer/health) rotation first
 re-fetches every URL-backed subscription using the same import + reconciliation
 path as a manual refresh: still-present configs are updated, and
-provider-removed configs are soft-deleted so they are excluded from candidate
+provider-removed configs are automatically purged when not in use (otherwise
+retained as deleted), so they are excluded from candidate
 selection. Non-URL sources are skipped. Refresh failures are recorded as
 separate `subscription`/`rotation` events and never abort rotation — selection
 proceeds with whatever configs are present, so the old runtime is not left
