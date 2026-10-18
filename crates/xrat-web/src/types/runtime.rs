@@ -2,6 +2,8 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct RuntimeDetails {
+    #[serde(default)]
+    pub pac_available: bool,
     pub sampled_at_ms: f64,
     pub status: String,
     pub engine: String,

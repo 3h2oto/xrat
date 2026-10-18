@@ -6,7 +6,7 @@ use crate::{
     },
     server::{ServerError, ServerResult, ServerState},
 };
-use axum::{Extension, Json, extract::State};
+use axum::{Extension, Json, extract::State, http::HeaderMap};
 use std::{
     sync::LazyLock,
     time::{Duration, SystemTime, UNIX_EPOCH},
@@ -16,6 +16,7 @@ use xrat_web::types::{RuntimeDetails, RuntimeEngine, RuntimeInbound};
 pub async fn get(
     State(state): State<ServerState>,
     Extension(_principal): Extension<Principal>,
+    headers: HeaderMap,
 ) -> ServerResult<Json<RuntimeDetails>> {
     static SLOTS: LazyLock<tokio::sync::Semaphore> =
         LazyLock::new(|| tokio::sync::Semaphore::new(2));
@@ -67,6 +68,8 @@ pub async fn get(
     let jobs = state.db.web_jobs().await?;
     let rotation = &current.app_config.runtime.rotation;
     Ok(Json(RuntimeDetails {
+        pac_available: state.pac_enabled
+            && crate::server::routes::pac::require_allowed_pac_host(&state, &headers).is_ok(),
         sampled_at_ms: SystemTime::now()
             .duration_since(UNIX_EPOCH)
             .unwrap_or_default()
