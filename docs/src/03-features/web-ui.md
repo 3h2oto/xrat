@@ -158,30 +158,7 @@ CLI/TUI/API operation but return a clear Web UI asset error. Release CI builds
 assets once and embeds them in every platform binary and the published
 application crate. Run `just web-check` for frontend checks.
 
-## Local smoke test without installation
-
-```bash
-rustup target add wasm32-unknown-unknown # once per Rust toolchain
-just web-smoke
-```
-
-The recipe builds frontend assets and the development binary, starts the WebUI
-at `http://127.0.0.1:18204`, and checks the page, administrator login, and
-session endpoint. The smoke-only login is **admin / admin**, also printed at
-startup and saved in a private `login.txt` file. Open the URL and sign in to
-explore the UI. These credentials apply only to this isolated loopback smoke
-instance.
-
-The server uses a new temporary config and database on every run; installed XRAT
-settings, subscriptions, and services are not modified. Stop it with Ctrl+C.
-Temporary data and `server.log` remain at the printed path for inspection.
-
-For a different port, use `just web-smoke 18205`. An occupied port is reported
-as an error rather than silently choosing another port. Re-run the recipe after
-UI changes to rebuild the embedded assets. Python 3 is required for the
-launcher.
-
-### Logs and job history
+## Logs and job history
 
 Jobs, XRAT logs, Engine logs, and each tool have standalone sidebar items.
 Host administration uses the shorter Host admin label in the sidebar.

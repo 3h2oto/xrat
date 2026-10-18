@@ -327,14 +327,3 @@ web-build:
 web-check:
     cargo check --locked -p xrat-web --target wasm32-unknown-unknown
     cargo clippy --locked -p xrat-web -- -D warnings
-
-# Build and launch an isolated local WebUI, verify login, and stop with Ctrl+C
-[group('web')]
-web-smoke port="18204":
-    #!/usr/bin/env bash
-    set -euo pipefail
-    if [[ ! -x target/web-tools/wasm-bindgen || ! -x target/web-tools/tailwindcss ]]; then
-        just web-tools
-    fi
-    just web-build build
-    exec python3 tools/web_smoke.py --port {{ quote(port) }}
