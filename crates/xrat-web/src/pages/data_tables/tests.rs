@@ -4,7 +4,7 @@ use xrat_web::types::{ConfigRow, ConfigTest, SubscriptionRow};
 
 #[test]
 fn view_query_round_trips_filters_sort_columns_and_pagination() {
-    let query = "q=hello+world%26x&protocol=vless&state=enabled&subscription=12&test=failed&max_delay=120&country=DE&sort=tcp&order=desc&columns=tcp,download,id&page=3&per_page=50";
+    let query = "q=hello+world%26x&protocol=vless&state=enabled&subscription=feed-ref&test=failed&max_delay=120&country=DE&sort=tcp&order=desc&columns=tcp,download&page=3&per_page=50";
     let state = TableState::parse(query, false);
     assert_eq!(state.query, "hello world&x");
     assert_eq!(state, TableState::parse(&state.query_string(false), false));
@@ -56,7 +56,7 @@ fn numeric_sort_keeps_failed_and_missing_tests_last_in_both_directions() {
     let mut state = TableState::new(false);
     state.sort = "delay".into();
     assert_eq!(
-        filtered_configs(&rows, &[], &state)
+        filtered_configs(&rows, &[], &state, None)
             .iter()
             .map(|row| row.id)
             .collect::<Vec<_>>(),
@@ -64,7 +64,7 @@ fn numeric_sort_keeps_failed_and_missing_tests_last_in_both_directions() {
     );
     state.descending = true;
     assert_eq!(
-        filtered_configs(&rows, &[], &state)
+        filtered_configs(&rows, &[], &state, None)
             .iter()
             .map(|row| row.id)
             .collect::<Vec<_>>()[..2],
@@ -84,14 +84,23 @@ fn combined_config_filters_exclude_failed_latency_and_deleted_rows() {
     }
     rows[2].deleted = true;
     let state = TableState::parse(
-        "q=node&protocol=vless&subscription=8&country=DE&state=enabled&test=passed&max_delay=100",
+        "q=node&protocol=vless&subscription=feed-ref&country=DE&state=enabled&test=passed&max_delay=100",
         false,
     );
     assert_eq!(
-        filtered_configs(&rows, &[], &state)
-            .iter()
-            .map(|row| row.id)
-            .collect::<Vec<_>>(),
+        filtered_configs(
+            &rows,
+            &[SubscriptionRow {
+                id: 8,
+                reference: "feed-ref".into(),
+                ..Default::default()
+            }],
+            &state,
+            None
+        )
+        .iter()
+        .map(|row| row.id)
+        .collect::<Vec<_>>(),
         [1]
     );
     assert_eq!(test_state(&rows[1]), "failed");
@@ -152,13 +161,59 @@ fn deleted_visibility_defaults_off_and_round_trips_in_query() {
     deleted.deleted = true;
     let rows = vec![config(1, None, None), deleted];
     let state = TableState::new(false);
-    assert_eq!(filtered_configs(&rows, &[], &state).len(), 1);
+    assert_eq!(filtered_configs(&rows, &[], &state, None).len(), 1);
     let state = TableState::parse("show_deleted=true", false);
-    assert_eq!(filtered_configs(&rows, &[], &state).len(), 2);
+    assert_eq!(filtered_configs(&rows, &[], &state, None).len(), 2);
     assert_eq!(state, TableState::parse(&state.query_string(false), false));
     assert_ne!(state.filter_key(), TableState::new(false).filter_key());
     let state = TableState::parse("state=deleted", false);
     assert!(state.show_deleted);
-    assert_eq!(filtered_configs(&rows, &[], &state)[0].id, 2);
+    assert_eq!(filtered_configs(&rows, &[], &state, None)[0].id, 2);
     assert!(!TableState::parse("show_deleted=invalid", false).show_deleted);
+}
+
+#[test]
+fn connected_config_stays_first_for_both_sort_directions_and_respects_filters() {
+    let rows = vec![
+        config(1, Some(10), Some(true)),
+        config(2, Some(90), Some(true)),
+    ];
+    let mut state = TableState::parse("sort=delay", false);
+    for descending in [false, true] {
+        state.descending = descending;
+        let filtered = filtered_configs(&rows, &[], &state, Some(2));
+        assert_eq!(
+            filtered.iter().map(|row| row.id).collect::<Vec<_>>(),
+            [2, 1]
+        );
+    }
+    state.max_delay = "20".into();
+    assert_eq!(filtered_configs(&rows, &[], &state, Some(2))[0].id, 1);
+}
+
+#[test]
+fn refs_replace_id_columns_and_subscription_filters_use_refs() {
+    let state = TableState::parse("sort=ref&columns=id,ref,tcp&subscription=feed-ref", false);
+    assert_eq!(state.sort, "ref");
+    assert_eq!(state.columns, BTreeSet::from(["tcp".into()]));
+    assert!(
+        !CONFIG_COLUMNS
+            .iter()
+            .chain(SUB_COLUMNS)
+            .any(|col| col.key == "id")
+    );
+    let mut row = config(1, None, None);
+    row.reference = "config-ref".into();
+    row.subscription_id = Some(8);
+    let subs = [SubscriptionRow {
+        id: 8,
+        reference: "feed-ref".into(),
+        ..Default::default()
+    }];
+    assert_eq!(config_value(&row, "ref", &subs).text(), "config-ref");
+    assert_eq!(subscription_value(&subs[0], "ref").text(), "feed-ref");
+    let rows = [row];
+    assert_eq!(filtered_configs(&rows, &subs, &state, None).len(), 1);
+    let legacy = TableState::parse("subscription=8", false);
+    assert!(filtered_configs(&rows, &subs, &legacy, None).is_empty());
 }

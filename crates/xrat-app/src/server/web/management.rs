@@ -75,7 +75,8 @@ pub async fn overview(
         .into_iter()
         .map(|row| SubscriptionRow {
             id: row.id.0,
-            name: row.name.unwrap_or(row.r#ref),
+            name: row.name.unwrap_or_else(|| row.r#ref.clone()),
+            reference: row.r#ref,
             source: row.source_kind,
             config_count: row.config_count,
             created_at: row.created_at,

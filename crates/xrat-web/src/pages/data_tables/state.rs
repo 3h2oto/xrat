@@ -88,10 +88,6 @@ pub const CONFIG_COLUMNS: &[Column] = &[
         key: "updated",
         label: "Updated",
     },
-    Column {
-        key: "id",
-        label: "ID",
-    },
 ];
 pub const SUB_COLUMNS: &[Column] = &[
     Column {
@@ -105,10 +101,6 @@ pub const SUB_COLUMNS: &[Column] = &[
     Column {
         key: "updated",
         label: "Updated",
-    },
-    Column {
-        key: "id",
-        label: "ID",
     },
 ];
 
@@ -168,7 +160,8 @@ impl TableState {
         let get = |key: &str| values.get(key).cloned().unwrap_or_default();
         state.query = get("q");
         let sort = get("sort");
-        if sort == "name"
+        if sort == "ref"
+            || sort == "name"
             || sort == if subscriptions { "count" } else { "state" }
             || columns.iter().any(|col| col.key == sort)
         {

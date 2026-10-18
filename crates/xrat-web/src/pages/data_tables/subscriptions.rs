@@ -67,7 +67,8 @@ pub fn SubscriptionTable(
         .map(|row| row.source.clone())
         .collect::<BTreeSet<_>>();
     let mut export = vec![
-        std::iter::once("Name".into())
+        ["Ref".into(), "Name".into()]
+            .into_iter()
             .chain(std::iter::once("Configs".into()))
             .chain(columns.iter().map(|col| col.label.into()))
             .collect::<Vec<_>>(),
@@ -77,7 +78,8 @@ pub fn SubscriptionTable(
             .iter()
             .filter(|row| selected().is_empty() || selected().contains(&row.id))
             .map(|row| {
-                std::iter::once(row.name.clone())
+                [row.reference.clone(), row.name.clone()]
+                    .into_iter()
                     .chain(std::iter::once(row.config_count.to_string()))
                     .chain(
                         columns
@@ -106,14 +108,14 @@ pub fn SubscriptionTable(
         ),
     ];
     rsx! {
-        Card { class: "data-table-panel",
-            div { class: "data-page-heading",
+        Card { class: "data-table-panel min-w-0 max-w-full rounded-[9px] shadow-none border-[color:color-mix(in_srgb,_var(--border)_50%,_var(--panel))] p-5 gap-0 narrow:pr-3.5 narrow:pb-3.5 narrow:pt-3.5 narrow:pl-3.5",
+            div { class: "data-page-heading flex items-center justify-between flex-wrap mb-5.5 gap-3.5 [&_h2]:text-[17px] [&_h2]:font-semibold [&_h2]:m-0 [&_p]:mt-[5px] [&_p]:mb-0 [&_p]:text-[12px] [&_p]:leading-[1.7] [&_p]:text-muted-foreground [&_p]:mx-0",
                 div {
                     h2 { "Subscriptions" }
                     p { "Manage your sources and the configurations they provide." }
                 }
                 if operator {
-                    div { class: "data-primary-actions",
+                    div { class: "data-primary-actions flex items-center gap-[7px] narrow:flex-wrap",
                         IconButton {
                             label: "Refresh all subscriptions",
                             variant: ButtonVariant::Outline,
@@ -136,7 +138,7 @@ pub fn SubscriptionTable(
                 }
                 if operator {
                     p {
-                        class: "import-paste-hint",
+                        class: "import-paste-hint mt-[-8px] mb-6 text-center text-muted-foreground text-[12px] mx-0 [&_kbd]:inline-block [&_kbd]:border [&_kbd]:border-solid [&_kbd]:border-border [&_kbd]:rounded-[4px] [&_kbd]:[font:inherit] [&_kbd]:text-[11px] [&_kbd]:py-0.5 [&_kbd]:px-[5px]",
                         "data-import-paste": "true",
                         "Press "
                         kbd { "⌘V" }
@@ -146,7 +148,7 @@ pub fn SubscriptionTable(
                     }
                 }
             } else {
-                div { class: "data-toolbar subscriptions-toolbar",
+                div { class: "data-toolbar subscriptions-toolbar flex items-end justify-start flex-wrap mb-3.5 gap-3 [&_>_.data-filter]:flex-[0_0_140px] [&_>_.data-view-actions]:ml-auto",
                     SearchBox { state, subscriptions: true }
                     FilterSelect {
                         label: "Source",
@@ -178,13 +180,26 @@ pub fn SubscriptionTable(
                     }
                 } else {
                     TableWrapper {
-                        class: "data-table-wrapper",
+                        class: "data-table-wrapper max-h-[min(50dvh,_36rem)] w-full min-w-0 overflow-auto overscroll-contain [scrollbar-gutter:stable] border-[color:color-mix(in_srgb,_var(--border)_40%,_transparent)]",
                         aria_label: "Subscriptions table, scroll for more rows or columns",
-                        Table { class: "data-table",
+                        Table {
+                            class: concat!(
+                                "data-table max-w-none text-[12px] [&_th]:text-left [&_th]:align-middle ",
+                                "[&_th]:whitespace-nowrap [&_th]:h-10 [&_th]:text-[11px] [&_th]:font-medium [&_th]:py-2.5 ",
+                                "[&_th]:px-3 [&_td]:text-left [&_td]:align-middle [&_td]:whitespace-nowrap [&_td]:py-2.5 ",
+                                "[&_td]:px-3 [&_.data-selection-cell]:w-8.5 [&_.data-selection-cell]:px-2.5",
+                            ),
                             TableHeader {
                                 TableRow {
                                     if operator {
-                                        TableHead { class: "data-selection-cell",
+                                        TableHead { class: concat!(
+                                            "data-selection-cell [&_input]:w-3.5 [&_input]:h-3.5 [&_input]:block ",
+                                            "[&_input]:[accent-color:var(--primary)] [&_input]:cursor-pointer ",
+                                            "[&&_input[aria-checked=mixed]]:[appearance:none] ",
+                                            "[&&_input[aria-checked=mixed]]:[border:1px_solid_var(--primary)] ",
+                                            "[&&_input[aria-checked=mixed]]:[border-radius:3px] ",
+                                            "[&&_input[aria-checked=mixed]]:[background:linear-gradient(var(--primary),_var(--primary))_center/8px_2px_no-repeat] ",
+                                        ),
                                             input {
                                                 r#type: "checkbox",
                                                 checked: all_checked,
@@ -196,6 +211,11 @@ pub fn SubscriptionTable(
                                                 },
                                             }
                                         }
+                                    }
+                                    SortHead {
+                                        column: "ref",
+                                        label: "Ref",
+                                        state,
                                     }
                                     SortHead {
                                         column: "name",
@@ -224,7 +244,14 @@ pub fn SubscriptionTable(
                                         key: "{row.id}",
                                         data_state: if selected().contains(&row.id) { "selected" } else { "" },
                                         if operator {
-                                            TableCell { class: "data-selection-cell",
+                                            TableCell { class: concat!(
+                                                "data-selection-cell [&_input]:w-3.5 [&_input]:h-3.5 [&_input]:block ",
+                                                "[&_input]:[accent-color:var(--primary)] [&_input]:cursor-pointer ",
+                                                "[&&_input[aria-checked=mixed]]:[appearance:none] ",
+                                                "[&&_input[aria-checked=mixed]]:[border:1px_solid_var(--primary)] ",
+                                                "[&&_input[aria-checked=mixed]]:[border-radius:3px] ",
+                                                "[&&_input[aria-checked=mixed]]:[background:linear-gradient(var(--primary),_var(--primary))_center/8px_2px_no-repeat] ",
+                                            ),
                                                 input {
                                                     r#type: "checkbox",
                                                     checked: selected().contains(&row.id),
@@ -243,14 +270,19 @@ pub fn SubscriptionTable(
                                             }
                                         }
                                         TableCell {
+                                            code { "{row.reference}" }
+                                        }
+                                        TableCell {
                                             a {
-                                                class: "data-row-name data-row-link",
-                                                href: format!("/ui/configs?subscription={}", row.id),
+                                                class: "data-row-name data-row-link text-[12px] font-medium min-w-40 max-w-70 overflow-hidden [text-overflow:ellipsis] block [&:hover]:underline",
+                                                href: format!("/ui/configs?subscription={}", row.reference),
                                                 "{row.name}"
                                             }
                                         }
                                         TableCell {
-                                            span { class: "data-number", "{row.config_count}" }
+                                            span { class: "data-number tabular-nums font-mono text-[11px]",
+                                                "{row.config_count}"
+                                            }
                                         }
                                         for column in &columns {
                                             TableCell { key: "{column.key}",
@@ -261,7 +293,7 @@ pub fn SubscriptionTable(
                                             }
                                         }
                                         TableCell {
-                                            div { class: "data-row-actions",
+                                            div { class: "data-row-actions flex items-center gap-[5px]",
                                                 if operator {
                                                     IconButton {
                                                         label: format!("Refresh subscription {}", row.name),
@@ -282,7 +314,7 @@ pub fn SubscriptionTable(
                                                             }
                                                         }
                                                         DropdownMenuContent {
-                                                            DropdownMenuAction { href: format!("/ui/configs?subscription={}", row.id),
+                                                            DropdownMenuAction { href: format!("/ui/configs?subscription={}", row.reference),
                                                                 "View configs"
                                                             }
                                                             DropdownMenuAction {
@@ -311,7 +343,7 @@ pub fn SubscriptionTable(
                                                     IconButton {
                                                         label: "View configurations",
                                                         variant: ButtonVariant::Ghost,
-                                                        href: format!("/ui/configs?subscription={}", row.id),
+                                                        href: format!("/ui/configs?subscription={}", row.reference),
                                                         icons::ListChecks {}
                                                     }
                                                 }
@@ -359,19 +391,21 @@ pub fn SubscriptionTable(
             if let Some(row) = renaming() {
                 Dialog {
                     DialogContent {
-                        class: "subscription-rename-dialog",
+                        class: "subscription-rename-dialog w-[min(420px,_calc(100vw_-_32px))] max-w-[calc(100vw_-_32px)] rounded-[10px] border-[color:color-mix(in_srgb,_var(--border)_55%,_var(--panel))] bg-card p-5.5",
                         initial_open: true,
                         show_close_button: false,
                         on_close: move |_| renaming.set(None),
-                        DialogHeader { class: "subscription-rename-heading",
-                            span { class: "subscription-rename-icon", Pencil {} }
+                        DialogHeader { class: "subscription-rename-heading flex-row items-start text-left gap-3 [&_h3]:mt-px [&_h3]:mb-1.5 [&_h3]:text-[17px] [&_h3]:leading-[1.4] [&_h3]:mx-0 [&_p]:text-[12px] [&_p]:leading-[1.6] [&_p]:m-0",
+                            span { class: "subscription-rename-icon grid place-items-center size-8.5 shrink-0 rounded-[8px] bg-accent text-primary [&_svg]:size-4",
+                                Pencil {}
+                            }
                             div {
                                 DialogTitle { "Rename subscription" }
                                 DialogDescription { "Give this source a name you can recognize." }
                             }
                         }
                         form {
-                            class: "subscription-rename-form",
+                            class: "subscription-rename-form grid mt-5.5 gap-4.5 [&_label]:text-[12px] [&_input]:h-8.5 [&_input]:text-[13px]",
                             onsubmit: move |event| {
                                 event.prevent_default();
                                 if *saving.peek() || name().trim().is_empty() {
@@ -405,7 +439,7 @@ pub fn SubscriptionTable(
                                     oninput: move |event: FormEvent| name.set(event.value()),
                                 }
                             }
-                            DialogFooter { class: "subscription-rename-actions",
+                            DialogFooter { class: "subscription-rename-actions flex-row justify-end pt-3.5 border-t border-solid border-t-[color:color-mix(in_srgb,_var(--border)_30%,_transparent)] gap-2",
                                 IconButton {
                                     label: "Cancel",
                                     variant: ButtonVariant::Ghost,

@@ -254,6 +254,7 @@ async fn overview_exposes_table_metadata_without_raw_credentials() {
     assert!(!row.reference.is_empty());
     assert!(row.subscription_id.is_some());
     assert_eq!(data.subscriptions[0].config_count, 2);
+    assert!(!data.subscriptions[0].reference.is_empty());
     let body = String::from_utf8(bytes.to_vec()).unwrap();
     assert!(!body.contains("11111111-1111"));
     assert!(!body.contains("raw_config"));

@@ -128,7 +128,7 @@ pub fn config_value(row: &ConfigRow, key: &str, subs: &[SubscriptionRow]) -> Cel
         "protocol" => text(Some(&row.protocol)),
         "address" => text(Some(&row.address)),
         "port" => number(Some(row.port as f64), ""),
-        "id" => number(Some(row.id as f64), ""),
+        "ref" => text(Some(&row.reference)),
         "subscription" => text(
             row.subscription_id
                 .and_then(|id| subs.iter().find(|sub| sub.id == id))
@@ -193,7 +193,7 @@ pub fn subscription_value(row: &SubscriptionRow, key: &str) -> CellValue {
         "count" => number(Some(row.config_count as f64), ""),
         "created" => text(Some(&row.created_at)),
         "updated" => text(Some(&row.updated_at)),
-        "id" => number(Some(row.id as f64), ""),
+        "ref" => text(Some(&row.reference)),
         _ => CellValue::Empty,
     }
 }
@@ -201,6 +201,7 @@ pub fn filtered_configs<'a>(
     rows: &'a [ConfigRow],
     subs: &[SubscriptionRow],
     state: &TableState,
+    active_config: Option<i64>,
 ) -> Vec<&'a ConfigRow> {
     let needle = state.query.trim().to_lowercase();
     let mut filtered = rows
@@ -211,7 +212,7 @@ pub fn filtered_configs<'a>(
                 config_name(row),
                 row.protocol,
                 row.address,
-                row.id
+                row.reference
             )
             .to_lowercase()
             .contains(&needle)
@@ -222,8 +223,9 @@ pub fn filtered_configs<'a>(
                     || if state.subscription == "none" {
                         row.subscription_id.is_none()
                     } else {
-                        row.subscription_id.map(|id| id.to_string()).as_deref()
-                            == Some(&state.subscription)
+                        row.subscription_id
+                            .and_then(|id| subs.iter().find(|sub| sub.id == id))
+                            .is_some_and(|sub| sub.reference == state.subscription)
                     })
                 && (state.test.is_empty() || test_state(row) == state.test)
                 && (state.country.is_empty() || row.country.as_deref() == Some(&state.country))
@@ -238,8 +240,12 @@ pub fn filtered_configs<'a>(
         })
         .collect::<Vec<_>>();
     filtered.sort_by(|a, b| {
-        config_value(a, &state.sort, subs)
-            .compare(&config_value(b, &state.sort, subs), state.descending)
+        (Some(b.id) == active_config)
+            .cmp(&(Some(a.id) == active_config))
+            .then_with(|| {
+                config_value(a, &state.sort, subs)
+                    .compare(&config_value(b, &state.sort, subs), state.descending)
+            })
             .then_with(|| a.id.cmp(&b.id))
     });
     filtered
@@ -252,7 +258,7 @@ pub fn filtered_subscriptions<'a>(
     let mut filtered = rows
         .iter()
         .filter(|row| {
-            format!("{} {} {}", row.name, row.source, row.id)
+            format!("{} {} {}", row.name, row.source, row.reference)
                 .to_lowercase()
                 .contains(&needle)
                 && (state.source.is_empty() || row.source == state.source)

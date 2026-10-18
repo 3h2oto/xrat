@@ -58,6 +58,7 @@ pub fn Workspace(section: String) -> Element {
         if section == "Configs" {
             super::data_tables::ConfigTable {
                 configs: overview.configs.clone(),
+                active_config: if overview.running { overview.active_config } else { None },
                 subscriptions: overview.subscriptions.clone(),
                 operator,
                 loading: manual_reload(),
