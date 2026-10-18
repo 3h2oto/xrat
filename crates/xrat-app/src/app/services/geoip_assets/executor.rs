@@ -6,11 +6,11 @@ use tempfile::NamedTempFile;
 
 use crate::app::AppError;
 
-use super::super::edition::MmdbEdition;
-use super::super::{ensure_mmdb_target_dir, mmdb_file_path};
+use super::edition::MmdbEdition;
 use super::progress::{DownloadProgressSet, create_progress_bar, ensure_non_empty_download};
 use super::request::DownloadRequest;
 use super::summary::{DownloadFailure, DownloadSummary};
+use super::{ensure_mmdb_target_dir, mmdb_file_path};
 
 pub(crate) async fn execute_downloads(request: &DownloadRequest) -> DownloadSummary {
     let mut summary = DownloadSummary::default();

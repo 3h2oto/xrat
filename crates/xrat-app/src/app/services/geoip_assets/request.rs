@@ -3,8 +3,8 @@ use std::path::PathBuf;
 use crate::app::context::AppContext;
 use crate::cli::GeoIpDownloadArgs;
 
-use super::super::edition::{MmdbEdition, SUPPORTED_EDITIONS};
-use super::super::resolve_mmdb_target_dir;
+use super::edition::{MmdbEdition, SUPPORTED_EDITIONS};
+use super::resolve_mmdb_target_dir;
 
 #[derive(Clone, Debug)]
 pub(crate) struct DownloadRequest {

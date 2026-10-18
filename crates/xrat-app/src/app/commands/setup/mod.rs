@@ -2,7 +2,7 @@
 //! (init, dependency checks, daemon, linger, completions, man pages, desktop,
 //! xratui shortcut, PATH) and supports a read-only `--check` diagnostic mode.
 
-mod cores;
+use crate::app::services::cores;
 mod desktop;
 mod report;
 mod steps;

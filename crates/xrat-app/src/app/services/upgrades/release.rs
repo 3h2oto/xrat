@@ -6,7 +6,7 @@ use xrat_support::process::Command;
 use crate::app::AppError;
 use crate::app::commands::output;
 use crate::app::commands::progress::CliProgress;
-use crate::cli::UpgradeArgs;
+use crate::app::services::upgrades::UpgradeOptions as UpgradeArgs;
 
 use super::{
     REPO, current_version, install_binary, restart_daemon_if_active, run_post_upgrade_migrations,

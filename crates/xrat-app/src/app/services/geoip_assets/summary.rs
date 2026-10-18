@@ -1,4 +1,4 @@
-use super::super::edition::MmdbEdition;
+use super::edition::MmdbEdition;
 
 #[derive(Debug, Default)]
 pub(crate) struct DownloadSummary {

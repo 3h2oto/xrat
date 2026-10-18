@@ -2,7 +2,7 @@ use std::io::IsTerminal;
 
 use indicatif::MultiProgress;
 
-use super::super::edition::MmdbEdition;
+use super::edition::MmdbEdition;
 use crate::app::commands::progress::{CliProgress, should_enable};
 
 pub(crate) struct DownloadProgressSet {

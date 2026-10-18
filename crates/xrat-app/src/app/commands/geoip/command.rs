@@ -20,11 +20,6 @@ pub(super) fn resolve_mmdb_target_dir(
         .unwrap_or_else(|| mmdb::resolve_mmdb_dir(&context.runtime_paths, &context.app_config))
 }
 
-pub(super) fn ensure_mmdb_target_dir(dir: &Path) -> crate::app::Result<()> {
-    std::fs::create_dir_all(dir)?;
-    Ok(())
-}
-
 pub(super) fn mmdb_file_path(dir: &Path, edition: edition::MmdbEdition) -> PathBuf {
     dir.join(edition.file_name())
 }

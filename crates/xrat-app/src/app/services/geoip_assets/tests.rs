@@ -2,7 +2,7 @@ use std::time::Duration;
 
 use axum::http::StatusCode;
 
-use super::super::edition::{MmdbEdition, SUPPORTED_EDITIONS};
+use super::edition::{MmdbEdition, SUPPORTED_EDITIONS};
 use super::executor::{
     DownloadOutcome, build_download_url, download_one_with_client, download_source_line,
 };
