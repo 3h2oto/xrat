@@ -10,3 +10,4 @@
 !image-bin/**
 !crates/
 !crates/**
+!Justfile

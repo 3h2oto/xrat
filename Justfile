@@ -239,3 +239,56 @@ tape tape:
 # Render every .tape in docs/src/media/tapes except base.tape.
 tapes:
     fd -e tape -E base.tape . {{tape_dir}} -x just tape {}
+
+# Fetch checksum-pinned Linux x86_64 frontend build tools
+web-tools:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    mkdir -p target/web-tools
+    if [[ "$(uname -s)-$(uname -m)" != "Linux-x86_64" ]]; then
+        command -v npx >/dev/null || { echo 'Node.js/npm is required for Tailwind on this build host' >&2; exit 1; }
+        cargo install wasm-bindgen-cli --locked --version 0.2.122 --root target/web-tools
+        cp target/web-tools/bin/wasm-bindgen target/web-tools/wasm-bindgen
+        exit 0
+    fi
+    cd target/web-tools
+    verified() { [[ -f "$1" ]] && echo "$2  $1" | sha256sum --status -c -; }
+    fetch() {
+        local url="$1" destination="$2" checksum="$3"
+        if verified "$destination" "$checksum"; then return; fi
+        curl -fL --retry 3 --continue-at - "$url" -o "$destination.part"
+        verified "$destination.part" "$checksum" || { rm -f "$destination.part"; echo "Checksum mismatch: $destination" >&2; return 1; }
+        mv "$destination.part" "$destination"
+    }
+    if [[ ! -x wasm-bindgen ]] || [[ "$(./wasm-bindgen --version 2>/dev/null)" != 'wasm-bindgen 0.2.122' ]]; then
+        fetch https://github.com/wasm-bindgen/wasm-bindgen/releases/download/0.2.122/wasm-bindgen-0.2.122-x86_64-unknown-linux-musl.tar.gz wasm-bindgen.tar.gz 122a3fe2ea9c6e3e89b50e42dd1a346e499f3f65a54aae0b4eaeb658139d1e0e
+        staging="$(mktemp -d .wasm-bindgen.XXXXXX)"
+        trap 'rm -rf "$staging"' EXIT
+        tar -xzf wasm-bindgen.tar.gz --strip-components=1 -C "$staging"
+        [[ "$("$staging/wasm-bindgen" --version)" == 'wasm-bindgen 0.2.122' ]]
+        mv "$staging/wasm-bindgen" wasm-bindgen
+    fi
+    fetch https://github.com/tailwindlabs/tailwindcss/releases/download/v4.1.18/tailwindcss-linux-x64 tailwindcss 737becf8d4ad1115ea98df69fa94026d402ca8feb91306a035b5b004167da8dd
+    chmod +x tailwindcss
+
+# Build browser assets before building the XRAT binary
+web-build:
+    cargo build --locked --release -p xrat-web --target wasm32-unknown-unknown
+    target/web-tools/wasm-bindgen target/wasm32-unknown-unknown/release/xrat-web.wasm --target web --out-name xrat_web --out-dir crates/xrat-app/web-assets
+    if test -x target/web-tools/tailwindcss; then target/web-tools/tailwindcss -i crates/xrat-web/assets/app.css -o crates/xrat-app/web-assets/app.css --minify; else npx --yes @tailwindcss/cli@4.1.18 -i crates/xrat-web/assets/app.css -o crates/xrat-app/web-assets/app.css --minify; fi
+    cp crates/xrat-web/index.html crates/xrat-web/assets/boot.js crates/xrat-web/assets/components.js crates/xrat-web/assets/xrat-logo.png crates/xrat-web/assets/favicon.ico crates/xrat-app/web-assets/
+
+# Check browser-safe contracts and the Dioxus WebAssembly target
+web-check:
+    cargo check --locked -p xrat-web --target wasm32-unknown-unknown
+    cargo clippy --locked -p xrat-web -- -D warnings
+
+# Build and launch an isolated local WebUI, verify login, and stop with Ctrl+C
+web-smoke port="18204":
+    #!/usr/bin/env bash
+    set -euo pipefail
+    if [[ ! -x target/web-tools/wasm-bindgen || ! -x target/web-tools/tailwindcss ]]; then
+        just web-tools
+    fi
+    just web-build build
+    exec python3 tools/web_smoke.py --port {{quote(port)}}
