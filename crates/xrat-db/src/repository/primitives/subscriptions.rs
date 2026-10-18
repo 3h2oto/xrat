@@ -45,3 +45,7 @@ pub async fn delete_subscription_with_configs(
 ) -> crate::Result<()> {
     subscriptions::delete_with_configs(pool, id).await
 }
+
+pub async fn last_subscription_refresh(pool: &DbPool, now: i64) -> crate::Result<Option<i64>> {
+    subscriptions::last_refresh(pool, now).await
+}

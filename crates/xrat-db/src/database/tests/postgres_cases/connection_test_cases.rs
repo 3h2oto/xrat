@@ -32,6 +32,9 @@ pub(super) async fn verify_connection_test_state(db: &Database, config_id: Confi
         .await
         .expect("latest test should load")
         .expect("latest test should exist");
+    let recent = db.recent_connection_tests(config_id, 1).await.unwrap();
+    assert_eq!(recent.len(), 1);
+    assert_eq!(recent[0].id, latest_test.id);
     assert_eq!(db.get_connection_test_count().await.expect("count"), 1);
     assert_eq!(latest_test.download_mbps, Some(42.5));
     assert_eq!(latest_test.upload_mbps, Some(11.25));

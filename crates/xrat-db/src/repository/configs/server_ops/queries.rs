@@ -54,7 +54,7 @@ pub async fn list_top_by_real_delay(
             let mut builder = QueryBuilder::<Sqlite>::new(select);
             push_api_filter(&mut builder, filter);
             builder.push(" AND ct.real_delay_ms IS NOT NULL");
-            builder.push(" ORDER BY ct.real_delay_ms ASC");
+            builder.push(" ORDER BY ct.real_delay_ms ASC, c.id ASC");
             builder.push(" LIMIT ");
             builder.push_bind(limit);
             Ok(builder
@@ -69,7 +69,7 @@ pub async fn list_top_by_real_delay(
             let mut builder = QueryBuilder::<sqlx::Postgres>::new(select);
             push_api_filter(&mut builder, filter);
             builder.push(" AND ct.real_delay_ms IS NOT NULL");
-            builder.push(" ORDER BY ct.real_delay_ms ASC");
+            builder.push(" ORDER BY ct.real_delay_ms ASC, c.id ASC");
             builder.push(" LIMIT ");
             builder.push_bind(limit);
             Ok(builder
@@ -113,7 +113,7 @@ pub async fn list_paginated_with_latest_tests(
         DbPool::Sqlite(pool) => {
             let mut builder = QueryBuilder::<Sqlite>::new(select);
             push_api_filter(&mut builder, filter);
-            builder.push(" LIMIT ");
+            builder.push(" ORDER BY c.id ASC LIMIT ");
             builder.push_bind(limit);
             builder.push(" OFFSET ");
             builder.push_bind(offset);
@@ -128,7 +128,7 @@ pub async fn list_paginated_with_latest_tests(
         DbPool::Postgres(pool) => {
             let mut builder = QueryBuilder::<sqlx::Postgres>::new(select);
             push_api_filter(&mut builder, filter);
-            builder.push(" LIMIT ");
+            builder.push(" ORDER BY c.id ASC LIMIT ");
             builder.push_bind(limit);
             builder.push(" OFFSET ");
             builder.push_bind(offset);

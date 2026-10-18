@@ -32,6 +32,21 @@ pub async fn list_by_config(
     }
 }
 
+pub async fn list_recent_by_config(
+    pool: &DbPool,
+    config_id: ConfigId,
+    limit: i64,
+) -> crate::Result<Vec<ConnectionTestRecord>> {
+    match pool {
+        DbPool::Sqlite(pool) => Ok(sqlx::query(
+            "SELECT id, run_id, config_id, icmp_ok, icmp_ms, tcp_ok, tcp_ms, real_delay_ok, real_delay_ms, download_mbps, upload_mbps, connect_ms, ttfb_ms, http_status, dial_endpoint_ip, dial_endpoint_location, dial_endpoint_country, dial_endpoint_asn, dial_endpoint_geoip_source, dial_endpoint_fronting, failure_kind, failure_reason, tested_at FROM connection_tests WHERE config_id = ?1 ORDER BY tested_at DESC, id DESC LIMIT ?2",
+        ).bind(config_id).bind(limit.clamp(1, 120)).fetch_all(pool).await?.into_iter().map(map_connection_test_row).collect()),
+        DbPool::Postgres(pool) => Ok(sqlx::query(
+            "SELECT id, run_id, config_id, icmp_ok, icmp_ms, tcp_ok, tcp_ms, real_delay_ok, real_delay_ms, download_mbps, upload_mbps, connect_ms, ttfb_ms, http_status, dial_endpoint_ip, dial_endpoint_location, dial_endpoint_country, dial_endpoint_asn, dial_endpoint_geoip_source, dial_endpoint_fronting, failure_kind, failure_reason, tested_at FROM connection_tests WHERE config_id = $1 ORDER BY tested_at DESC, id DESC LIMIT $2",
+        ).bind(config_id).bind(limit.clamp(1, 120)).fetch_all(pool).await?.into_iter().map(map_connection_test_row).collect()),
+    }
+}
+
 pub async fn get_latest_by_config(
     pool: &DbPool,
     config_id: ConfigId,

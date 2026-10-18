@@ -97,6 +97,17 @@ async fn stores_and_reads_connection_test_history() {
         .expect("latest should load")
         .expect("latest record should exist");
 
+    let recent = db.recent_connection_tests(config.id, 1).await.unwrap();
+    assert_eq!(recent.len(), 1);
+    assert_eq!(recent[0].id, latest.id);
+    assert_eq!(
+        db.recent_connection_tests(config.id, 0)
+            .await
+            .unwrap()
+            .len(),
+        1
+    );
+
     assert_eq!(db.get_connection_test_count().await.expect("count"), 2);
     assert_eq!(tests.len(), 2);
     assert_eq!(run_tests.len(), 2);
