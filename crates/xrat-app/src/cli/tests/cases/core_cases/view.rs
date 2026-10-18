@@ -72,3 +72,26 @@ fn parses_show_subscription_json_subcommand() {
         _ => panic!("expected show command"),
     }
 }
+
+#[test]
+fn parses_webui_overrides_and_headless_mode() {
+    let cli = Cli::parse_from([
+        "xrat",
+        "webui",
+        "--no-open",
+        "--host",
+        "127.0.0.1",
+        "--port",
+        "18209",
+    ]);
+    let Command::Webui(args) = cli.command else {
+        panic!("expected webui command")
+    };
+    assert!(args.no_open);
+    assert_eq!(args.serve.port, Some(18209));
+    assert_eq!(args.serve.host.as_deref(), Some("127.0.0.1"));
+    assert!(matches!(
+        Cli::parse_from(["xrat", "hash-password"]).command,
+        Command::HashPassword(_)
+    ));
+}

@@ -1,0 +1,407 @@
+use crate::app::{
+    self,
+    services::{runtime_control, testing},
+};
+use xrat_model::{ConfigId, ConfigRef};
+use xrat_web::types::Action;
+pub(crate) async fn execute(
+    context: &app::context::AppContext,
+    action: Action,
+    flag: &xrat_support::cancel::CancellationFlag,
+    job_id: &str,
+) -> app::Result<String> {
+    let mut context = context.clone();
+    super::tun_control::reload(&mut context)?;
+    let context = &context;
+    let services = context.services();
+    match action {
+        Action::Bulk { operation, ids } => {
+            if ids.is_empty()
+                || ids.len() > 500
+                || ids.iter().any(|id| *id <= 0)
+                || ids.iter().collect::<std::collections::HashSet<_>>().len() != ids.len()
+            {
+                return Err(app::AppError::InvalidArgument(
+                    "Select 1–500 unique rows.".into(),
+                ));
+            }
+            let total = ids.len();
+            let mut completed = 0;
+            let mut failed = Vec::new();
+            for id in ids {
+                if flag.is_cancelled() {
+                    break;
+                }
+                match Box::pin(execute(context, operation.action(id), flag, job_id)).await {
+                    Ok(_) => completed += 1,
+                    Err(error) => {
+                        tracing::warn!(%error, id, "bulk item failed");
+                        failed.push(id);
+                    }
+                }
+                if let Err(error) = context
+                    .db
+                    .web_job_progress(
+                        job_id,
+                        &format!(
+                            "{}: {completed} completed, {} failed of {total}",
+                            operation.label(),
+                            failed.len()
+                        ),
+                        timestamp(),
+                    )
+                    .await
+                {
+                    tracing::warn!(%error, "could not record bulk progress");
+                }
+            }
+            if !failed.is_empty() {
+                return Err(app::AppError::InvalidArgument(format!(
+                    "{completed} completed; failed IDs: {failed:?}"
+                )));
+            }
+            return Ok(format!(
+                "{}: {completed} of {total} completed",
+                operation.label()
+            ));
+        }
+        Action::Add { input } => {
+            let (source, node) = app::import::load_single_node(&input)?;
+            context.db.import_nodes(&source, &[node]).await?;
+        }
+        Action::Import { input, name } => {
+            if !input.starts_with("http://") && !input.starts_with("https://") {
+                let nodes = app::import::parse_nodes(input.as_bytes())?;
+                if nodes.is_empty() {
+                    return Err(app::AppError::NoSupportedConfig);
+                }
+                let source = xrat_db::ImportSource {
+                    kind: xrat_db::SourceKind::RawText,
+                    value: "web upload".into(),
+                    name: name.clone(),
+                };
+                app::import::persist_nodes(&context.db, source, &nodes, name.as_deref(), None)
+                    .await?;
+            } else {
+                app::import::import_subscription(
+                    &context.db,
+                    &input,
+                    name.as_deref(),
+                    &Default::default(),
+                )
+                .await?;
+            }
+        }
+        Action::Enable { id } => {
+            services
+                .lifecycle
+                .enable(&ConfigRef::from(id.to_string()))
+                .await?;
+        }
+        Action::Disable { id } => {
+            services
+                .lifecycle
+                .disable(&ConfigRef::from(id.to_string()))
+                .await?;
+        }
+        Action::Delete { id, hard } => {
+            services
+                .lifecycle
+                .delete(&ConfigRef::from(id.to_string()), hard)
+                .await?;
+        }
+        Action::Restore { id } => {
+            services
+                .lifecycle
+                .restore(&ConfigRef::from(id.to_string()))
+                .await?;
+        }
+        Action::DeleteSubscription { id } => {
+            services
+                .lifecycle
+                .delete_subscription(&id.to_string())
+                .await?;
+        }
+        Action::RenameSubscription { id, name } => {
+            services
+                .lifecycle
+                .rename_subscription(&id.to_string(), &name)
+                .await?;
+        }
+        Action::Connect { id } => {
+            runtime_control::tui_control(context)
+                .await?
+                .connect(ConfigId(id))
+                .await?;
+        }
+        Action::Disconnect => {
+            runtime_control::tui_control(context)
+                .await?
+                .disconnect()
+                .await?;
+        }
+        Action::Rotate => {
+            runtime_control::tui_control(context)
+                .await?
+                .replace(app::daemon::ipc::RotationTrigger::Manual, None)
+                .await?;
+        }
+        Action::Refresh { id } => {
+            let subscriptions = context.db.list_subscriptions().await?;
+            for source in subscriptions
+                .into_iter()
+                .filter(|source| id.is_none_or(|id| source.id.0 == id))
+            {
+                if let Some(url) = source.source_url {
+                    app::import::import_subscription(&context.db, &url, None, &source.headers)
+                        .await?;
+                }
+            }
+        }
+        Action::Upgrade { version } => {
+            let version = match version {
+                Some(version) => version,
+                None => {
+                    super::releases::ReleaseService::default()
+                        .latest_tag(120)
+                        .await?
+                }
+            };
+            let candidate = semver::Version::parse(version.trim_start_matches('v'))
+                .map_err(|_| app::AppError::InvalidArgument("invalid release version".into()))?;
+            let current = semver::Version::parse(env!("CARGO_PKG_VERSION"))
+                .map_err(|_| app::AppError::InvalidArgument("invalid current version".into()))?;
+            if candidate < current {
+                return Err(app::AppError::InvalidArgument(
+                    "browser upgrades cannot downgrade XRAT".into(),
+                ));
+            }
+            super::upgrades::run(
+                &context.runtime_paths.config_path,
+                &super::upgrades::UpgradeOptions {
+                    version: Some(version),
+                    timeout_secs: 120,
+                    no_tun_setup: true,
+                    no_restart_daemon: true,
+                    ..Default::default()
+                },
+            )
+            .await?;
+            return Ok("Release check completed. Installed updates require restarting XRAT; restore any required TUN capabilities on the host.".into());
+        }
+        Action::Rotation { enabled } => {
+            let socket = app::daemon::ipc::default_socket_path(&context.runtime_paths.runtime_dir);
+            let response = if enabled {
+                app::daemon::ipc::proxy_start_daemon(&socket).await?
+            } else {
+                app::daemon::ipc::proxy_stop_daemon(&socket).await?
+            };
+            if !response.ok {
+                return Err(app::AppError::InvalidArgument(response.message));
+            }
+            let mut editor =
+                app::config::ConfigEditSession::open(&context.runtime_paths.config_path)
+                    .map_err(app::AppError::InvalidArgument)?;
+            let setting = editor
+                .settings
+                .iter_mut()
+                .find(|s| s.path == "runtime.rotation.enabled")
+                .ok_or_else(|| {
+                    app::AppError::InvalidArgument("rotation setting not found".into())
+                })?;
+            setting.value = app::config::SettingValue::Bool(enabled);
+            editor.save().map_err(app::AppError::InvalidArgument)?;
+            return Ok(if enabled {
+                "Rotation enabled"
+            } else {
+                "Rotation disabled"
+            }
+            .into());
+        }
+        Action::GeoIpLookup { address } => {
+            let ip = xrat_support::geoip::resolve_address_ip(&address)
+                .await
+                .ok_or_else(|| {
+                    app::AppError::InvalidArgument("address could not be resolved".into())
+                })?;
+            let lookup = app::geoip_backend::build_lookup_chain(
+                &context.app_config,
+                &context.runtime_paths,
+            )?;
+            return Ok(format!(
+                "{ip}: {} / {} / {}",
+                lookup.country(ip).await?.unwrap_or_default(),
+                lookup.city(ip).await?.unwrap_or_default(),
+                lookup.asn(ip).await?.unwrap_or_default()
+            ));
+        }
+        Action::GeoIpUpdate => {
+            return super::geoip_assets::download_assets(context).await;
+        }
+        Action::Validate => {
+            let config = app::config::load(&context.runtime_paths.config_path)?;
+            let errors = app::commands::validate::validate_app_config(&config);
+            return Ok(if errors.is_empty() {
+                "Configuration is valid".into()
+            } else {
+                errors.join("\n")
+            });
+        }
+        Action::Parse { input } => {
+            let nodes = xrat_config::parse_text(&input);
+            return Ok(format!(
+                "Parsed {} configs: {}",
+                nodes.len(),
+                nodes
+                    .iter()
+                    .map(|node| node.protocol.as_str())
+                    .collect::<Vec<_>>()
+                    .join(", ")
+            ));
+        }
+        Action::Purge => {
+            return Ok(format!(
+                "Purged {} configs",
+                context.db.purge_deleted_configs().await?
+            ));
+        }
+        Action::ClearEvents => {
+            context.db.clear_events().await?;
+        }
+        Action::Tun { enabled } => {
+            let mut context = context.clone();
+            let result = super::tun_control::apply(&mut context, Some(enabled), true).await?;
+            return Ok(super::tun_control::message(&result));
+        }
+        Action::InstallEngine { engine } => {
+            let kind = match engine {
+                xrat_web::types::Engine::Xray => super::cores::CoreKind::Xray,
+                xrat_web::types::Engine::SingBox => super::cores::CoreKind::SingBox,
+                xrat_web::types::Engine::V2ray => super::cores::CoreKind::V2Ray,
+            };
+            let client = xrat_support::http::Client::builder()
+                .timeout(std::time::Duration::from_secs(60))
+                .build()?;
+            let release = super::cores::fetch_release(&client, kind, None, false)
+                .await
+                .map_err(app::AppError::InvalidArgument)?;
+            let result = super::cores::install(context, kind, &release, false)
+                .await
+                .map_err(app::AppError::InvalidArgument)?;
+            return Ok(format!("Installed {} {}", kind.name(), result.version));
+        }
+        Action::Scan {
+            ips,
+            port,
+            timeout_ms,
+        } => {
+            if ips.is_empty()
+                || ips.len() > 4096
+                || port == 0
+                || !(100..=60000).contains(&timeout_ms)
+            {
+                return Err(app::AppError::InvalidArgument(
+                    "scan requires 1-4096 IPs, a nonzero port, and timeout 100-60000 ms".into(),
+                ));
+            }
+            let ips = ips
+                .iter()
+                .map(|ip| ip.parse::<std::net::IpAddr>().map(|ip| ip.to_string()))
+                .collect::<Result<Vec<_>, _>>()
+                .map_err(|_| {
+                    app::AppError::InvalidArgument("scanner accepts IP addresses only".into())
+                })?;
+            let mut rows = Vec::new();
+            let total = ips.len();
+            for ip in ips {
+                if flag.is_cancelled() {
+                    break;
+                }
+                let result =
+                    xrat_prober::tcp_check(&ip, port, std::time::Duration::from_millis(timeout_ms))
+                        .await;
+                rows.push(xrat_db::CfScanResultUpsert {
+                    ip,
+                    latency_ms: result.latency_ms.map(i64::from),
+                    download_mbps: None,
+                    upload_mbps: None,
+                    error: result.failure_reason,
+                });
+                if let Err(error) = context
+                    .db
+                    .web_job_progress(
+                        job_id,
+                        &format!("Scanned {} of {total} addresses", rows.len()),
+                        timestamp(),
+                    )
+                    .await
+                {
+                    tracing::warn!(%error,"could not record scan progress");
+                }
+            }
+            context
+                .db
+                .web_job_progress(
+                    job_id,
+                    &format!("Scanned {} of {total} addresses", rows.len()),
+                    timestamp(),
+                )
+                .await?;
+            context.db.upsert_cf_scan_results(&rows).await?;
+            return Ok(format!("Scanned {} IP addresses", rows.len()));
+        }
+        Action::Test { id } => {
+            let ids = context
+                .db
+                .list_configs(&xrat_db::ConfigListFilter {
+                    only_enabled: id.is_none(),
+                    ..Default::default()
+                })
+                .await?
+                .into_iter()
+                .filter(|row| id.is_none_or(|id| row.id.0 == id))
+                .map(|row| row.id)
+                .collect::<Vec<_>>();
+            let (tx, mut rx) = tokio::sync::mpsc::unbounded_channel();
+            let progress_db = context.db.clone();
+            let progress_id = job_id.to_string();
+            let drain = tokio::spawn(async move {
+                while let Some(update) = rx.recv().await {
+                    let update: testing::TestProgressUpdate = update;
+                    if let Err(error) = progress_db
+                        .web_job_progress(
+                            &progress_id,
+                            &format!("Tested {} of {} configs", update.done, update.total),
+                            timestamp(),
+                        )
+                        .await
+                    {
+                        tracing::warn!(%error,"could not record test progress");
+                    }
+                }
+            });
+            let result = testing::run_bulk_for_config_ids_with_progress(
+                &testing::TestRunRequest::default(),
+                context,
+                &ids,
+                xrat_support::cancel::CancellationReceiver::from_flag(flag),
+                tx,
+            )
+            .await;
+            let _ = drain.await;
+            return result.map(|count| format!("Tested {count} configs"));
+        }
+    }
+    Ok("Completed".into())
+}
+
+fn timestamp() -> i64 {
+    std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_secs() as i64
+}
+
+#[cfg(test)]
+#[path = "web_management_tests.rs"]
+mod tests;

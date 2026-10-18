@@ -71,7 +71,7 @@ pub use rotate::{
     RotateAction, RotateArgs, RotateDisableArgs, RotateEnableArgs, RotateNowArgs, RotateStatusArgs,
 };
 pub use scan::ScanArgs;
-pub use serve::ServeArgs;
+pub use serve::{HashPasswordArgs, ServeArgs, WebUiArgs};
 pub use setup::{SetupArgs, SetupFormat};
 pub use status::StatusArgs;
 pub use test_cmd::{TestArgs, TestFormat, TestSortBy};

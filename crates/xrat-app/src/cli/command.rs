@@ -60,6 +60,10 @@ pub enum Command {
     Serve(ServeArgs),
     #[command(about = "Start the interactive terminal UI.")]
     Tui(TuiArgs),
+    #[command(about = "Start the browser management UI.")]
+    Webui(crate::cli::WebUiArgs),
+    #[command(about = "Read a password from stdin and print its Argon2id hash.")]
+    HashPassword(crate::cli::HashPasswordArgs),
     #[command(about = "Prepare and inspect system privileges for managed TUN capture.")]
     Tun(TunArgs),
     #[command(about = "Refresh stored subscriptions.")]

@@ -13,6 +13,9 @@ async fn main() {
 }
 
 async fn run(args: &cli::Cli) -> xrat::app::Result<()> {
+    if let cli::Command::HashPassword(_) = &args.command {
+        return xrat::app::commands::password_hash();
+    }
     if let cli::Command::Validate(validate_args) = &args.command {
         return xrat::app::commands::validate::run(validate_args);
     }

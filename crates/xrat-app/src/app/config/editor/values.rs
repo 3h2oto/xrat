@@ -64,7 +64,7 @@ pub(crate) fn flatten_settings(
         let default_value = defaults.get(key).unwrap_or(&serde_json::Value::Null);
         if matches!(
             path.as_str(),
-            "dns.resolvers" | "dns.rules" | "dns.outbound.rules" | "tui.themes"
+            "dns.resolvers" | "dns.rules" | "dns.outbound.rules" | "tui.themes" | "server.web"
         ) {
             continue;
         }

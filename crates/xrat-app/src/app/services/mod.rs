@@ -33,6 +33,7 @@ mod contracts;
 pub use contracts::AppServices;
 
 pub(crate) mod cores;
+pub(crate) mod web_management;
 
 pub(crate) mod upgrades;
 

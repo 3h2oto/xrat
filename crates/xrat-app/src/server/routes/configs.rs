@@ -34,10 +34,15 @@ pub async fn list_configs(
         ));
     }
 
+    let offset = (page - 1)
+        .checked_mul(per_page)
+        .and_then(|offset| i64::try_from(offset).ok())
+        .ok_or_else(|| ServerError::InvalidQuery("pagination offset is too large".into()))?;
+
     let request = ConfigListRequest {
         only_enabled: query.enabled.unwrap_or(false),
         protocol: query.protocol.clone(),
-        offset: Some(((page - 1) * per_page) as i64),
+        offset: Some(offset),
         limit: Some(per_page as i64),
         ..ConfigListRequest::default()
     };

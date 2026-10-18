@@ -5,6 +5,7 @@ edition.workspace = true
 license.workspace = true
 homepage = "https://mhyrzt.github.io/xrat/"
 description = "Application, CLI, TUI, and HTTP layers for xrat"
+include = ["src/**", "templates/**", "web-assets/**", "Cargo.toml"]
 
 [dependencies]
 xrat-config.workspace = true
@@ -58,3 +59,16 @@ arboard = "3.6.1"
 unicode-width = "0.2.2"
 zip = { version = "7.2.0", default-features = false, features = ["deflate"] }
 if-addrs = "0.15.0"
+
+argon2 = "0.5.3"
+subtle = "2.6.1"
+axum-server = { version = "0.8", features = ["tls-rustls"] }
+rust-embed = "8.7"
+mime_guess = "2.0"
+async-stream = "0.3.6"
+futures-core = "0.3"
+rustls = { version = "0.23", default-features = false, features = ["std", "aws_lc_rs", "tls12"] }
+xrat-web.workspace = true
+
+[dev-dependencies]
+tower = { version = "0.5", features = ["util"] }
