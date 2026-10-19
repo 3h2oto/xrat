@@ -16,6 +16,45 @@ fn view_query_round_trips_filters_sort_columns_and_pagination() {
     assert!(TableState::new(false).query_string(false).is_empty());
     assert!(TableState::parse("columns=", false).columns.is_empty());
 }
+
+#[test]
+fn multiselect_filters_round_trip_and_preserve_deleted_visibility() {
+    let state = TableState::parse(
+        "protocol=ss,vless&state=disabled,deleted&subscription=none,feed&test=failed,passed&country=DE,FR",
+        false,
+    );
+    assert!(state.show_deleted);
+    assert_eq!(state, TableState::parse(&state.query_string(false), false));
+    assert_eq!(state.share_filter().protocol, "ss,vless");
+    let state = TableState::parse("source=url,raw_text", true);
+    assert_eq!(state, TableState::parse(&state.query_string(true), true));
+    assert_eq!(
+        filtered_subscriptions(
+            &[
+                SubscriptionRow {
+                    id: 1,
+                    source: "url".into(),
+                    ..Default::default()
+                },
+                SubscriptionRow {
+                    id: 2,
+                    source: "raw_text".into(),
+                    ..Default::default()
+                },
+                SubscriptionRow {
+                    id: 3,
+                    source: "file".into(),
+                    ..Default::default()
+                },
+            ],
+            &state
+        )
+        .iter()
+        .map(|row| row.id)
+        .collect::<Vec<_>>(),
+        vec![1, 2]
+    );
+}
 #[test]
 fn invalid_query_values_are_bounded_and_unknown_columns_cannot_be_injected() {
     let state = TableState::parse(

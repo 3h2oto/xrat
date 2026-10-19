@@ -190,12 +190,17 @@ impl TableState {
             state.country = get("country");
             state.show_deleted = get("show_deleted") == "true";
             let status = get("state");
-            if ["enabled", "disabled", "deleted"].contains(&status.as_str()) {
-                state.show_deleted |= status == "deleted";
+            if xrat_web::configs::sharing::filter_values(&status)
+                .all(|value| ["enabled", "disabled", "deleted"].contains(&value))
+            {
+                state.show_deleted |= xrat_web::configs::sharing::filter_values(&status)
+                    .any(|value| value == "deleted");
                 state.state = status;
             }
             let test = get("test");
-            if ["passed", "failed", "untested"].contains(&test.as_str()) {
+            if xrat_web::configs::sharing::filter_values(&test)
+                .all(|value| ["passed", "failed", "untested"].contains(&value))
+            {
                 state.test = test;
             }
             let max = get("max_delay");

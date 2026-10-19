@@ -157,20 +157,36 @@ pub fn FilterSelect(
             "[&&_[data-name=SelectTrigger]]:[font-size:11px] [&&_[data-name=SelectTrigger]]:[padding-inline:8px] ",
         ),
             Label { html_for: id.clone(), "{label}" }
+            if field != "per_page" {
+                crate::ui::multi_select::MultiSelect {
+                    id,
+                    label,
+                    value,
+                    options,
+                    on_change: move |next: String| {
+                        let mut view = state.write();
+                        match field.as_str() {
+                            "protocol" => view.protocol = next,
+                            "state" => {
+                                view.show_deleted |= xrat_web::configs::sharing::filter_values(&next).any(|value| value == "deleted");
+                                view.state = next;
+                            }
+                            "subscription" => view.subscription = next,
+                            "test" => view.test = next,
+                            "country" => view.country = next,
+                            "source" => view.source = next,
+                            _ => {}
+                        }
+                        view.page = 1;
+                    },
+                }
+            } else {
             Select {
                 selected_value: value,
                 on_change: move |next: Option<String>| {
                     if let Some(next) = next {
                         let mut view = state.write();
-                        match field.as_str() {
-                            "protocol" => view.protocol = next,
-                            "state" => view.state = next,
-                            "subscription" => view.subscription = next,
-                            "test" => view.test = next,
-                            "country" => view.country = next,
-                            "source" => view.source = next,
-                            _ => view.per_page = next.parse().unwrap_or(25),
-                        };
+                        view.per_page = next.parse().unwrap_or(25);
                         view.page = 1;
                     }
                 },
@@ -184,6 +200,7 @@ pub fn FilterSelect(
                         }
                     }
                 }
+            }
             }
         }
     }

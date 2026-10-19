@@ -409,3 +409,38 @@ async fn qr_preview_reports_capacity_without_exposing_raw_configs() {
     assert!(!preview.qr_supported);
     assert!(preview.count > 30);
 }
+
+#[tokio::test]
+async fn multiselect_exports_and_subscription_links_use_identical_matching() {
+    let (router, state) = fixture().await;
+    let ids = tables::seed(&state).await;
+    state
+        .db
+        .set_config_enabled(ids[1].into(), false)
+        .await
+        .unwrap();
+    let (cookie, me) = login(&router, "admin", "correct horse battery").await;
+    let token = token(&router, &cookie, &me.csrf_token).await;
+    let filter = ConfigFilter {
+        protocol: "vless,ss".into(),
+        state: "enabled,disabled".into(),
+        test: "untested,passed".into(),
+        ..Default::default()
+    };
+    let response = request(
+        &router,
+        "/api/v1/configs/share",
+        "POST",
+        serde_json::to_value(ConfigShareRequest::Filtered { filter }).unwrap(),
+        &cookie,
+        &me.csrf_token,
+        "http://127.0.0.1:18203",
+    )
+    .await;
+    assert_eq!(response.status(), StatusCode::OK);
+    let shared: ConfigShareResponse =
+        serde_json::from_slice(&to_bytes(response.into_body(), 65536).await.unwrap()).unwrap();
+    assert_eq!(shared.count, 2);
+    let raw = decoded(&router, &format!("/b64?token={}&enabled=false&protocol=vless,ss&state=enabled,disabled&test=untested,passed", token.token)).await;
+    assert_eq!(raw, shared.raw);
+}

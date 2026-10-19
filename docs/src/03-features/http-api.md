@@ -233,6 +233,11 @@ The Configs sharing dialog generates URLs with `enabled=false` to let the
 | `show_deleted`  | Include deleted configs in filter matching          |
 | `sort`, `order` | Table sort column and `asc` or `desc`               |
 
+The `protocol`, `state`, `subscription`, `test`, and `country` filters accept
+comma-separated selections, for example `protocol=vless,ss&state=enabled,disabled`.
+Selections use OR within a parameter and AND across parameters. Existing
+single-value URLs remain valid.
+
 Filters are reevaluated on each request. Page size and visible columns do not
 limit the export. Responses use `Cache-Control: no-store`. Keep
 credential-bearing URLs private; these filters do not constrain the underlying

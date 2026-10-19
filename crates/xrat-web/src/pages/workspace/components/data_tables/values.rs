@@ -23,7 +23,7 @@ pub fn filtered_subscriptions<'a>(
             format!("{} {} {}", row.name, row.source, row.reference)
                 .to_lowercase()
                 .contains(&needle)
-                && (state.source.is_empty() || row.source == state.source)
+                && xrat_web::configs::sharing::filter_matches(&state.source, &row.source)
         })
         .collect::<Vec<_>>();
     filtered.sort_by(|a, b| {

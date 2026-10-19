@@ -181,3 +181,47 @@ fn sorting_and_invalid_filters_are_explicit() {
         assert!(filter.validate().is_err());
     }
 }
+
+#[test]
+fn multiple_values_use_or_within_filters_and_and_across_filters() {
+    let filter = ConfigFilter {
+        protocol: "ss,vless".into(),
+        state: "disabled,enabled".into(),
+        country: "DE,FR".into(),
+        test: "failed,passed".into(),
+        subscription: "none,sub-seven".into(),
+        ..Default::default()
+    };
+    assert!(filter.validate().is_ok());
+    assert_eq!(ids(filter.clone()), vec![1, 2]);
+    assert_eq!(
+        ids(ConfigFilter {
+            country: "DE".into(),
+            ..filter.clone()
+        }),
+        vec![1]
+    );
+    assert_eq!(
+        ids(ConfigFilter {
+            protocol: "trojan,ss".into(),
+            ..filter.clone()
+        }),
+        vec![2]
+    );
+    assert!(
+        ConfigFilter {
+            state: "enabled,unknown".into(),
+            ..filter.clone()
+        }
+        .validate()
+        .is_err()
+    );
+    assert!(
+        ConfigFilter {
+            test: "passed,unknown".into(),
+            ..filter
+        }
+        .validate()
+        .is_err()
+    );
+}
