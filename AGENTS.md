@@ -2,32 +2,46 @@
 
 ## Project Structure & Module Organization
 
-`src/` contains the Rust application code. Keep responsibilities separated:
+`src/` contains the thin executable/library entry points. Application and domain
+code live in workspace crates. Keep responsibilities separated:
 
-- `src/cli/` defines Clap command trees, flags, and CLI parsing tests under
-  `src/cli/tests/`.
-- `src/app/` contains app runtime bootstrap and command handlers. Keep command
-  logic under `src/app/commands/` and keep lifecycle concerns in
-  `src/app/daemon/`, `src/app/runtime_service/`, and `src/xray/process_mgmt/`.
-- `src/app/events.rs` records structured operational events. Event recording is
-  best-effort and must not make the primary operation fail.
-- `src/app/context/`, `src/app/config/`, and `src/app/paths/` contain
-  application bootstrap, path resolution, and command-specific runtime settings.
-- `src/config/` contains import, parsing, normalization, and protocol link
-  support. Keep external input parsing separate from runtime config generation.
-- `src/xray/` contains Xray parsing, generated runtime config builders, and
-  process management.
-- `src/singbox/` contains sing-box parsing/translation support.
-- `src/prober/` contains connection test runners for TCP, ICMP, download,
-  upload, and real-delay flows.
-- `src/db/` contains database wiring, schema helpers, records, and repositories,
-  split across `src/db/database/`, `src/db/record/`, and `src/db/repository/`.
-  Keep event persistence in the existing `events` database/repository modules.
-- `src/model/` contains shared domain types.
-- `src/server/` contains HTTP API routes, auth, response, and server state.
-- `src/tui/` contains terminal UI state, views, keymaps, and data adapters.
-- `src/support/` contains small shared helpers for decode, GeoIP, cancellation,
-  network, time, and URL handling.
+- `crates/xrat-app/src/cli/` defines Clap command trees, flags, and CLI parsing
+  tests under `crates/xrat-app/src/cli/tests/`.
+- `crates/xrat-app/src/app/` contains app runtime bootstrap and command
+  handlers. Keep command logic under `crates/xrat-app/src/app/commands/` and
+  keep lifecycle concerns in `crates/xrat-app/src/app/daemon/`,
+  `crates/xrat-app/src/app/runtime_service/`, and
+  `crates/xrat-engines/src/xray/process_mgmt/`.
+- `crates/xrat-app/src/app/events.rs` records structured operational events.
+  Event recording is best-effort and must not make the primary operation fail.
+- `crates/xrat-app/src/app/context/`, `crates/xrat-app/src/app/config/`, and
+  `crates/xrat-app/src/app/paths/` contain application bootstrap, path
+  resolution, and command-specific runtime settings.
+- `crates/xrat-config/src/` contains import, parsing, normalization, and
+  protocol link support. Keep external input parsing separate from runtime
+  config generation.
+- `crates/xrat-engines/src/xray/` contains Xray parsing, generated runtime
+  config builders, and process management.
+- `crates/xrat-engines/src/singbox/` contains sing-box parsing/translation
+  support.
+- `crates/xrat-prober/src/` contains connection test runners for TCP, ICMP,
+  download, upload, and real-delay flows.
+- `crates/xrat-db/src/` contains database wiring, schema helpers, records, and
+  repositories, split across `crates/xrat-db/src/database/`,
+  `crates/xrat-db/src/record/`, and `crates/xrat-db/src/repository/`. Keep event
+  persistence in the existing `events` database/repository modules.
+- `crates/xrat-model/src/` contains shared domain types.
+- `crates/xrat-app/src/server/` contains HTTP API routes, auth, response, and
+  server state.
+- `crates/xrat-app/src/tui/` contains terminal UI state, views, keymaps, and
+  data adapters.
+- `crates/xrat-support/src/` contains small shared helpers for decode, GeoIP,
+  cancellation, network, time, and URL handling.
+- `crates/xrat-web/` contains shared browser-safe API contracts and the Dioxus
+  frontend. Follow its local `AGENTS.md` for page organization and UI
+  conventions.
+- `crates/xrat-sdk/` exposes the curated public SDK; do not route internal
+  application code through it merely to share an implementation.
 - `crates/xrat-db/migrations/` holds ordered SQL migrations. The root
   `migrations` symlink supports repository commands and documentation.
 - `docs/src/` holds user-facing documentation.
@@ -107,14 +121,15 @@ Use Rust’s built-in test framework with `#[test]` and `#[tokio::test]`.
 - Keep tests close to the code they validate.
 - Keep `mod.rs` files declarative: module declarations, imports, and re-exports
   belong there; put implementation in named sibling files.
-- Move large inline test modules into a nearby `tests.rs` (typically around
-  80 lines or more). Small inline tests may stay with the implementation.
+- Move large inline test modules into a nearby `tests.rs` (typically around 80
+  lines or more). Small inline tests may stay with the implementation.
 - Prefer focused unit tests for parser/config normalization, CLI parsing, DB
   repositories, and runtime lifecycle transitions.
 - Add regression tests when fixing parsing, dedup, scanner, or runtime-session
   edge cases.
-- For CLI changes, add or update parser tests in `src/cli/tests/` when behavior
-  can be validated without starting external services.
+- For CLI changes, add or update parser tests in
+  `crates/xrat-app/src/cli/tests/` when behavior can be validated without
+  starting external services.
 - For repository changes, prefer database tests that exercise both SQLite and
   Postgres paths when the existing helpers make that practical.
 - Name tests descriptively, e.g. `parses_list_config_filters`.
@@ -140,8 +155,8 @@ matching `v*`.
 - Before preparing a release commit, run `just fmt ci`.
 - Run `just set-version <version>` to update `[workspace.package]`, internal
   dependency requirements, and `Cargo.lock` together; every crate inherits the
-  workspace version and the release workflow rejects inconsistent versions or tags
-  whose version does not match the tag without the leading `v`.
+  workspace version and the release workflow rejects inconsistent versions or
+  tags whose version does not match the tag without the leading `v`.
 - Use an annotated or signed version tag such as `v0.3.0`, matching the
   workspace version `0.3.0`.
 - Do not edit released migrations. Add a new ordered migration for database
@@ -168,13 +183,14 @@ matching `v*`.
 
 ## Architecture Notes
 
-Keep `src/main.rs` thin and route behavior through `src/cli` and `src/app`.
+Keep `src/main.rs` thin and route behavior through `crates/xrat-app/src/cli/`
+and `crates/xrat-app/src/app/`.
 
 For new CLI behavior, usually add:
 
-- a new or extended command file in `src/cli/`
-- a matching handler under `src/app/commands/`
-- repository/model updates in `src/db/` when persistence is required
+- a new or extended command file in `crates/xrat-app/src/cli/`
+- a matching handler under `crates/xrat-app/src/app/commands/`
+- repository/model updates in `crates/xrat-db/src/` when persistence is required
 - documentation under `docs/src/02-cli/` or the relevant feature page when user
   behavior changes
 - packaging or installer updates when behavior changes generated service
@@ -191,20 +207,74 @@ Design constraints from current implementation direction:
 - Keep managed runtime lifecycle behavior explicit and observable (start/status/
   stop flow, persisted runtime session state).
 - Record daemon, runtime, rotation, health, and test events through
-  `src/app/events.rs` when behavior should appear in `xrat logs`. These events
-  are diagnostic records, so failures to write them should be logged and
-  swallowed.
+  `crates/xrat-app/src/app/events.rs` when behavior should appear in
+  `xrat logs`. These events are diagnostic records, so failures to write them
+  should be logged and swallowed.
 - Keep parser and runtime-generation concerns decoupled so parse/test/scan flows
   can evolve without rewriting CLI glue.
 - Keep CLI parsing, command orchestration, persistence, and external process
   control in separate layers. Avoid command handlers that directly parse raw
   subscription formats or manually assemble database rows when reusable services
   already exist.
-- Reuse shared CLI output helpers in `src/app/commands/output.rs` and existing
-  `--format` conventions (`table`, `tsv`, `json`, plus `csv` where already used)
-  instead of adding ad hoc terminal formatting.
+- Reuse shared CLI output helpers in
+  `crates/xrat-app/src/app/commands/output.rs` and existing `--format`
+  conventions (`table`, `tsv`, `json`, plus `csv` where already used) instead of
+  adding ad hoc terminal formatting.
 - Prefer typed domain records and repository methods over passing raw JSON or
   loosely structured maps between layers.
+
+## Consistency Across CLI, TUI, and Web
+
+CLI commands, TUI actions, and Axum/Web actions are adapters to the same XRAT
+application. Equivalent operations must have the same domain behavior, even when
+their presentation, authentication, or interaction model differs.
+
+- Before changing an operation, identify its existing CLI, TUI, and HTTP entry
+  points and the shared service they use. Check callers and existing tests; do
+  not implement a second copy in the surface being edited.
+- For a new capability, assess the relevant CLI, TUI, and Web entry points.
+  Expose supported operations through the shared service and make unsupported
+  capabilities or permission restrictions explicit. Do not silently leave an
+  existing equivalent interface with different behavior.
+- Put reusable orchestration in `crates/xrat-app/src/app/services/` or the
+  existing capability module. Keep parsing/normalization in `xrat-config`,
+  engine translation in `xrat-engines`, probes in `xrat-prober`, and persistence
+  in `xrat-db`. Extend an existing typed service before adding a parallel path.
+- Adapters may parse arguments/forms, authorize requests, map typed requests and
+  results, schedule work, and format output. They must not independently own
+  import/dedup rules, config lifecycle transitions, runtime generation,
+  connection/process management, or test execution policy.
+- Preserve semantics for identifiers/references, defaults, filter matching,
+  enabled/deleted state, ordering/limits, import modes, exports, probe results,
+  runtime status, cancellation, and errors. An intentional difference must be
+  explicit in the contract, documented, and covered by a focused check.
+- Apply filters before pagination. Copy/export/subscription operations for a
+  filtered view must include all matching records and respect every filter;
+  selected-row operations use their explicit IDs. Reuse the shared predicates
+  and ordering instead of reproducing them in a route or component.
+- Runtime/daemon status comes from the shared runtime services and persisted
+  session state. Keep active connection state separate from transient table
+  selection. Do not infer success from a UI flag or a queued job.
+- Keep side effects and operational events consistent regardless of entry point.
+  Preserve transaction boundaries, cancellation, error propagation, and
+  idempotence/retry behavior when extracting or extending shared services.
+- Authorization belongs on the server as well as in UI capabilities. Shared
+  domain behavior does not grant remote clients local CLI privileges. Preserve
+  identity, role, CSRF, ownership, and credential-scope boundaries.
+- Browser-safe DTOs and pure config matching currently live in `xrat-web`'s
+  library modules and must compile without its `ui` feature. Do not put Dioxus,
+  browser APIs, database handles, or server-only secrets into that shared layer.
+  Keep public SDK compatibility in mind when changing shared domain contracts.
+
+For changes to shared behavior, test the rule at its owner and exercise the
+relevant adapters with the same fixture/expected result. Include negative and
+edge cases appropriate to the change, such as empty matches, deleted/disabled
+records, repeated requests, failed/cancelled jobs, and stale runtime state. Use
+adapter contract tests to catch request/default/result mapping drift; avoid
+copying the same domain algorithm or its entire test suite per frontend. For a
+structural move, compile all affected consumers and run existing focused tests.
+Do not claim parity from compilation alone: state which CLI/TUI/HTTP paths were
+exercised and which remain unverified.
 
 ## Agent Behavioral Guidelines
 
