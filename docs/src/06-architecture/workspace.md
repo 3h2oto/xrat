@@ -99,6 +99,27 @@ Run `just set-version 0.21.0` when preparing a release. This updates the
 workspace package version and internal dependency requirements together and
 refreshes `Cargo.lock`. CI and release validation reject mismatched versions.
 
+The release workflow downloads its built browser assets before publishing
+`xrat-app`. Those generated, ignored files are intentionally included in the
+crate. Only that crate uses Cargo's `--allow-dirty` packaging option, after
+checking that the tracked source and non-ignored working tree are clean.
+
+If crates.io publication stops after archives and images have been published,
+resume it without moving the tag or rebuilding the release:
+
+```bash
+gh workflow run release.yml --ref master \
+  -f tag=v0.31.0 \
+  -f assets_run_id=39316054908
+```
+
+Use the release's actual tag and original Release workflow run ID. The recovery
+job checks out the tag, verifies that the asset run used the same commit and
+tag, and downloads its `web-assets` artifact. It skips versions already on
+crates.io and finishes with the registry-only SDK consumer check. Manual
+dispatch runs only crate publication; it does not recreate archives, images, or
+the GitHub release.
+
 Migrations live in `crates/xrat-db/migrations/` so published database crates
 embed their own SQL files. The root `migrations` symlink preserves existing
 development commands. SQL contents and migration checksums are unchanged.
