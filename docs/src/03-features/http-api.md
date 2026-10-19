@@ -210,6 +210,34 @@ vless://uuid@example.com:443?type=ws&security=tls#My Node
 vmess://eyJhZGQiOiJlZGdlLmNvbSIsInBvcnQiOiI4NDQzIn0=#Edge Node
 ```
 
+When the Web UI is enabled, this endpoint also accepts
+`token=<Account API token>` or a subscription-only credential linked to a
+read-only Account token. Linked credentials work only on `/b64` and are revoked
+with their parent token. The token must belong to an enabled operator or
+administrator with current credentials and no required password change.
+Read-only tokens are sufficient. If both `token` and `key` are supplied, the
+token is authoritative; an invalid supplied token never falls back to legacy key
+or public access.
+
+The Configs sharing dialog generates URLs with `enabled=false` to let the
+`state` filter determine inclusion exactly. Additional query parameters are:
+
+| Parameter       | Meaning                                             |
+| --------------- | --------------------------------------------------- |
+| `q`             | Search config name, address, protocol, or reference |
+| `state`         | `all`, `enabled`, `disabled`, or `deleted`          |
+| `subscription`  | Subscription reference, or `none`                   |
+| `test`          | `passed`, `failed`, or `untested`                   |
+| `country`       | Exact country value from the table                  |
+| `max_delay`     | Maximum successful real delay in milliseconds       |
+| `show_deleted`  | Include deleted configs in filter matching          |
+| `sort`, `order` | Table sort column and `asc` or `desc`               |
+
+Filters are reevaluated on each request. Page size and visible columns do not
+limit the export. Responses use `Cache-Control: no-store`. Keep
+credential-bearing URLs private; these filters do not constrain the underlying
+token's access.
+
 ---
 
 ### GET /configs

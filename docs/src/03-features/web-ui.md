@@ -127,7 +127,8 @@ revoke access. Passwords, tokens, and credential exports are not cached.
 
 Existing `/json`, `/b64`, `/configs`, and `/proxy.pac` compatibility routes
 remain separate. The configured `server.key` only grants legacy read/export
-access; it never grants management access. `/b64` contains proxy credentials.
+access; it never grants management access. `/b64` also accepts Account API tokens
+through `?token=...` and contains proxy credentials.
 Configure a strong `server.key` before publishing these legacy endpoints. Health
 and PAC retain their existing public/helper behavior.
 
@@ -135,6 +136,46 @@ Background jobs are persisted and visible in **Jobs**. Tests and scans can be
 cancelled cooperatively. Jobs interrupted by a server restart are recorded as
 interrupted and are never automatically repeated. Progress is available at
 `/api/v1/jobs/events` through SSE, with `/api/v1/jobs` for polling clients.
+
+## Share configurations
+
+On Configs, **Share filtered · N** applies to every matching configuration
+across all pages. Choose **Copy configs**, **Show QR**, or **Subscription
+link**. The selection bar provides **Share selected · N** with copy and QR
+actions for exactly the checked configurations. These actions are available to
+operators and administrators.
+
+Copy and QR use the original configuration links separated by newlines. They are
+snapshots. QR generation happens locally; Show QR is disabled when the matching
+raw links exceed one QR code's capacity. The QR modal displays the code and its
+download control without displaying the raw configuration text. QR codes include
+the XRAT logo with high error correction. Use a subscription
+link to share a larger batch in one QR.
+
+Subscription links reapply search, protocol, state, subscription, test result,
+country, maximum delay, and deleted visibility whenever the client refreshes.
+Disabled and deleted configurations are included when they match the current
+filters. Pagination and visible columns do not affect the subscription.
+
+Choose an existing read-only Account token in the Subscription link dialog, or
+paste a legacy server key. If no read-only tokens exist, follow the Account link,
+create one, return, reload the list, and select it. The dialog creates a separate
+subscription-only credential linked to that token: existing API token secrets
+remain hash-only and are never revealed again. The link and its QR are shown
+after selection. Revoking the parent token revokes all its subscription links.
+These linked credentials cannot authenticate to the management API. Disabling an
+account or changing its credentials also invalidates its links. The account must
+still have operator or administrator access and must not require a password change.
+
+Each config row has direct Copy and QR actions on desktop, alongside Connect,
+Test, and Delete. Mobile keeps row actions in a menu. Bulk operations and selected-copy/QR actions
+are displayed directly in the selection bar, without a separate menu or clear
+button. Config export downloads
+are replaced by these sharing controls; subscription CSV downloads remain available.
+
+Anyone with the subscription URL can use its credential. Filters are not access
+restrictions: recipients can change them. Use HTTPS and redact query credentials
+in reverse-proxy access logs.
 
 ## Building
 
@@ -443,6 +484,7 @@ On mobile, the navigation bar and footer reserve their actual heights.
 
 The server and frontend share API contracts from `xrat-web::types`, defined in
 `crates/xrat-web/src/types/`. The server depends on `xrat-web` with default
-features disabled, so it builds only the shared types and Serde. The default
+features disabled, so it builds only shared contracts and filtering helpers with
+Serde. The default
 `ui` feature enables the Dioxus frontend binary; `just web-build` and
 `just web-check` keep using that feature.
