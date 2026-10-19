@@ -15,11 +15,13 @@ IDs, event handlers, and modal close notifications. Router links use plain
 anchors. Inline component scripts are replaced by `assets/components.js` to
 preserve XRAT's Content Security Policy. This external controller supplies popup
 positioning, hover/focus menus, keyboard navigation, focus restoration, modal
-isolation, and tooltip placement. Floating content uses manual native popovers
-when available to escape ancestor clipping and transformed modal coordinates
-without moving Dioxus-owned DOM nodes. Shared CSS layer tokens order page
-chrome, feedback, backdrops, and modal panels. Theme tokens use XRAT's existing
-logo palette. Icons come from Rust/UI's `icons` crate (Dioxus feature).
+isolation, and tooltip placement. The entry point loads modules under
+`assets/controllers/`; their README maps each controller to its Rust components
+and HTML attributes. Floating content uses manual native popovers when available
+to escape ancestor clipping and transformed modal coordinates without moving
+Dioxus-owned DOM nodes. Shared CSS layer tokens order page chrome, feedback,
+backdrops, and modal panels. Theme tokens use XRAT's existing logo palette.
+Icons come from Rust/UI's `icons` crate (Dioxus feature).
 
 The login page adapts the split layout and password visibility pattern from
 Rust/UI's Login02 block:
