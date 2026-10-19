@@ -55,7 +55,7 @@ pub(super) fn ShareControls(
     let label = if selected {
         format!("Share selected · {count}")
     } else {
-        format!("Share filtered · {count}")
+        count.to_string()
     };
     rsx! {
         if selected {
@@ -66,7 +66,7 @@ pub(super) fn ShareControls(
         } else {
         DropdownMenu { align: DropdownMenuAlign::End,
             DropdownMenuTrigger { as_child: true,
-                Button { variant: ButtonVariant::Outline, disabled: count == 0, icons::Share2 {} "{label}" }
+                Button { variant: ButtonVariant::Outline, aria_label: format!("Share {count} filtered configurations"), disabled: count == 0, icons::Share2 {} "{label}" }
             }
             DropdownMenuContent {
                 DropdownMenuLabel { if selected { "Checked configurations" } else { "All matches across pages" } }

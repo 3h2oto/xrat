@@ -4,6 +4,7 @@ use crate::ui::{
     button::{Button, ButtonVariant},
     card::Card,
     form_select::{FormSelect, FormSelectOption},
+    icon_button::IconButton,
     input::Input,
     label::Label,
     spinner::Spinner,
@@ -72,7 +73,7 @@ pub fn SettingsPage() -> Element {
     }
     let count: usize = groups.values().map(Vec::len).sum();
     rsx! {
-        div { class: "settings-page max-w-340 mx-auto",
+        div { class: "settings-page flex min-h-0 w-full max-w-340 flex-col mx-auto [&_>_:not(.settings-layout)]:shrink-0",
             div { class: "settings-toolbar flex items-center justify-between mb-6 gap-4 narrow:flex-wrap narrow:gap-2",
                 div {
                     class: concat!(
@@ -104,7 +105,8 @@ pub fn SettingsPage() -> Element {
                     }
                 }
                 div { class: "settings-toolbar-actions flex items-center shrink-0 gap-1.5 narrow:ml-auto",
-                    Button {
+                    IconButton {
+                        label: if loading() { "Reloading settings" } else { "Reload settings" },
                         variant: ButtonVariant::Ghost,
                         disabled: loading() || saving().is_some(),
                         onclick: move |_| {
@@ -135,9 +137,9 @@ pub fn SettingsPage() -> Element {
                         } else {
                             RefreshCw {}
                         }
-                        "Reload"
                     }
-                    Button {
+                    IconButton {
+                        label: if saving().is_some() { "Saving settings" } else { "Save settings" },
                         disabled: loading() || saving().is_some() || drafts().is_empty() || data.is_none(),
                         onclick: move |_| {
                             let Some(current) = settings.peek().clone() else {
@@ -185,10 +187,8 @@ pub fn SettingsPage() -> Element {
                         },
                         if saving().is_some() {
                             Spinner {}
-                            "Saving…"
                         } else {
                             Save {}
-                            "Save"
                         }
                     }
                 }
@@ -214,10 +214,10 @@ pub fn SettingsPage() -> Element {
             if data.is_none() && loading() {
                 super::suspend::Suspend {}
             } else if let Some(data) = data {
-                div { class: "settings-layout grid grid-cols-[minmax(0,_1fr)] items-start gap-6 [@media(width<=1050px)]:gap-5",
+                div { class: "settings-layout flex min-h-0 flex-1 flex-col gap-6 [@media(width<=1050px)]:gap-5 [&_>_nav]:shrink-0 [&_>_.settings-mobile-category]:shrink-0",
                     nav {
                         class: concat!(
-                            "settings-categories flex flex-wrap pb-4 border-b border-solid ",
+                            "settings-categories flex flex-wrap justify-center pb-4 border-b border-solid ",
                             "border-b-[color:color-mix(in_srgb,_var(--border)_30%,_transparent)] gap-[5px] ",
                             "[@media(width<=800px)]:hidden [&_button]:flex [&_button]:items-center [&_button]:border-0 ",
                             "[&_button]:rounded-[6px] [&_button]:text-muted-foreground [&_button]:bg-transparent ",
@@ -260,7 +260,7 @@ pub fn SettingsPage() -> Element {
                         }
                     }
                     section {
-                        class: "settings-content min-w-0",
+                        class: "settings-content min-h-0 min-w-0 flex-1 overflow-y-auto overscroll-contain pr-2 [scrollbar-gutter:stable]",
                         aria_label: "Settings editor",
                         div { class: "settings-category-heading mb-5 [&_h2]:text-[19px] [&_h2]:m-0 [&_p]:mt-[5px] [&_p]:mb-0 [&_p]:mx-0",
                             h2 {

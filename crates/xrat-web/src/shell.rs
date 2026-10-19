@@ -53,6 +53,8 @@ pub fn AppShell(page: Signal<String>, dark: Signal<bool>) -> Element {
             "min-[801px]:h640:[&_.data-table-wrapper]:min-h-20 ",
             "min-[801px]:h640:[&_.data-pagination]:mt-3",
         )
+    } else if title == "Settings" {
+        "settings-main flex min-h-0 flex-col overflow-hidden [&_>_header]:shrink-0 [&_>_.settings-page]:flex-1 [&_>_.settings-page]:min-h-0"
     } else if matches!(title.as_str(), "XRAT logs" | "Engine logs") {
         concat!(
             "logs-main desktop:pt-5 desktop:flex desktop:pb-3 ",
@@ -96,6 +98,7 @@ pub fn AppShell(page: Signal<String>, dark: Signal<bool>) -> Element {
                 "min-[801px]:h640:[&&:has(.tables-main)]:h-dvh min-[801px]:h640:[&&:has(.tables-main)]:min-h-0 ",
                 "min-[801px]:h640:[&&:has(.tables-main)_>_.app-footer]:shrink-0 ",
                 "[&&_>_main:has(.settings-page)]:[max-width:1448px] ",
+                "[&&_>_main.settings-main]:overflow-hidden [&&:has(.settings-main)]:h-dvh ",
             ),
                 main { class: main_class,
                     header {

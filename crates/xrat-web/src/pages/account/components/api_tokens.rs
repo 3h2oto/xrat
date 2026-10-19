@@ -270,23 +270,31 @@ pub(crate) fn ApiTokens() -> Element {
             if let Some(token) = pending() {
                 AlertDialog {
                     AlertDialogContent {
+                        class: "w-[420px] max-w-[calc(100%-2rem)] p-5",
                         initial_open: true,
                         on_close: move |_| pending.set(None),
-                        AlertDialogHeader {
-                            AlertDialogTitle { "Revoke token?" }
+                        AlertDialogHeader { class: "gap-2 pr-6",
+                            div { class: "mb-2 flex size-10 items-center justify-center rounded-full bg-destructive/10 text-destructive [&_svg]:size-5",
+                                Trash2 {}
+                            }
+                            AlertDialogTitle { "Revoke API token?" }
                             AlertDialogDescription {
-                                "Clients using “{token.name}” will lose access immediately. This cannot be undone."
+                                "Clients and subscription links using this token will stop working immediately."
                             }
                         }
-                        AlertDialogFooter {
-                            IconButton {
-                                label: "Keep token",
+                        div { class: "my-5 min-w-0 rounded-lg border bg-muted/30 px-3 py-2.5",
+                            p { class: "m-0 text-sm font-medium wrap-anywhere", "{token.name}" }
+                            p { class: "mt-1 mb-0 text-xs text-muted-foreground",
+                                if token.scope == "manage" { "Manage access" } else { "Read-only access" }
+                            }
+                        }
+                        AlertDialogFooter { class: "gap-2",
+                            Button {
                                 variant: ButtonVariant::Outline,
                                 onclick: move |_| pending.set(None),
-                                icons::X {}
+                                "Cancel"
                             }
-                            IconButton {
-                                label: "Revoke token",
+                            Button {
                                 variant: ButtonVariant::Destructive,
                                 disabled: mutating().is_some(),
                                 onclick: move |_| {
@@ -310,6 +318,7 @@ pub(crate) fn ApiTokens() -> Element {
                                     });
                                 },
                                 Trash2 {}
+                                "Revoke token"
                             }
                         }
                     }
