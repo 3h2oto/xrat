@@ -1,4 +1,4 @@
-use super::{
+use super::components::{
     charts::{ChartPoint, PlotBounds, paths},
     stats::*,
 };

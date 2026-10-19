@@ -1,3 +1,4 @@
+pub(crate) mod actions;
 mod client;
 mod host;
 mod jobs;

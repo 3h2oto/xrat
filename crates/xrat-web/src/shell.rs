@@ -5,6 +5,9 @@ use ui::sidebar::Sidebar;
 #[component]
 pub fn AppShell(page: Signal<String>, dark: Signal<bool>) -> Element {
     let Session(session) = use_context();
+    let input = use_signal(String::new);
+    let importing = use_signal(|| false);
+    use_context_provider(|| crate::components::import::ImportState { input, importing });
     let title = if session().is_some_and(|me| me.user.must_change_password) {
         "Account".to_string()
     } else {
@@ -76,6 +79,9 @@ pub fn AppShell(page: Signal<String>, dark: Signal<bool>) -> Element {
         if session().is_none() {
             pages::Login {}
         } else {
+            if session().is_some_and(|me| me.user.role.can_operate() && !me.user.must_change_password) {
+                crate::components::import::ImportController { section: page() }
+            }
             Sidebar {
                 page,
                 dark,
@@ -108,7 +114,7 @@ pub fn AppShell(page: Signal<String>, dark: Signal<bool>) -> Element {
                     } else {
                         match page().as_str() {
                             "Page not found" => rsx! {
-                                ui::states::EmptyState {
+                                crate::components::states::EmptyState {
                                     title: "Page not found",
                                     description: "Choose a page from the sidebar to continue.",
                                 }

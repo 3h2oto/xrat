@@ -1,6 +1,4 @@
 mod account;
-mod actions;
-mod data_tables;
 mod engine_logs;
 mod host;
 mod jobs;
@@ -12,7 +10,6 @@ mod users;
 mod workspace;
 
 pub use account::Account;
-pub use actions::run;
 pub use engine_logs::EngineLogs;
 pub use host::HostAdministration;
 pub use jobs::Jobs;

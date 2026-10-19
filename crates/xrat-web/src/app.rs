@@ -1,10 +1,12 @@
-use crate::ui::feedback::Feedback;
-use crate::{api, routing, shell, ui};
+mod session;
+
+pub use session::Session;
+
+use crate::{routing, ui, ui::feedback::Feedback};
 use dioxus::prelude::*;
+use session::SessionGate;
 use xrat_web::types::LoginResponse;
 
-#[derive(Clone, Copy)]
-pub struct Session(pub Signal<Option<LoginResponse>>);
 #[derive(Clone, Copy)]
 pub struct Notice(pub Signal<Option<Feedback>>);
 #[component]
@@ -24,25 +26,11 @@ pub fn App() -> Element {
         div { class: if dark() { "dark app min-h-dvh bg-background text-foreground flex mobile:flex-col [&&:has(.workspace-shell)]:h-dvh" } else { "app min-h-dvh bg-background text-foreground flex mobile:flex-col [&&:has(.workspace-shell)]:h-dvh" },
             SuspenseBoundary {
                 fallback: |_| rsx! {
-                    ui::loading::SessionSkeleton {}
+                    crate::components::loading::SessionSkeleton {}
                 },
                 SessionGate { page, dark }
             }
             ui::feedback::FeedbackView {}
         }
-    }
-}
-
-#[component]
-fn SessionGate(page: Signal<String>, dark: Signal<bool>) -> Element {
-    let Session(mut session) = use_context();
-    let _restored = use_resource(move || async move {
-        if let Ok(me) = api::get::<LoginResponse>("me").await {
-            session.set(Some(me));
-        }
-    })
-    .suspend()?;
-    rsx! {
-        shell::AppShell { page, dark }
     }
 }

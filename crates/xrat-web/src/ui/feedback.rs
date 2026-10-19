@@ -32,7 +32,7 @@ impl Feedback {
     pub fn job_started(kind: &str) -> Self {
         Self::info(format!(
             "{} started. Follow progress in Jobs.",
-            super::job_labels::job_label(kind)
+            crate::components::job_labels::job_label(kind)
         ))
     }
     pub fn info(message: impl Into<String>) -> Self {
