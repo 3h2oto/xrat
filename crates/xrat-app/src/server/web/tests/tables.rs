@@ -1,7 +1,7 @@
 use super::*;
 use xrat_web::types::{Action, BulkOperation, Overview};
 
-async fn seed(state: &ServerState) -> Vec<i64> {
+pub(super) async fn seed(state: &ServerState) -> Vec<i64> {
     let context = state.web.as_ref().unwrap().context.as_ref().unwrap();
     std::fs::create_dir_all(context.runtime_paths.config_path.parent().unwrap()).unwrap();
     std::fs::write(&context.runtime_paths.config_path, "").unwrap();

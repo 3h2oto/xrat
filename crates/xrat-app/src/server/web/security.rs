@@ -230,70 +230,93 @@ pub fn require_admin(principal: &Principal) -> ServerResult<()> {
         Err(ServerError::Forbidden)
     }
 }
+pub(crate) async fn token_principal(state: &ServerState, secret: &str) -> ServerResult<Principal> {
+    let token = state
+        .db
+        .web_token(&digest(secret))
+        .await?
+        .ok_or(ServerError::InvalidApiKey)?;
+    principal_for_token(state, token).await
+}
+
+pub(crate) async fn subscription_principal(
+    state: &ServerState,
+    secret: &str,
+) -> ServerResult<Principal> {
+    if !secret.starts_with("sub_") {
+        return token_principal(state, secret).await;
+    }
+    let token = state
+        .db
+        .web_subscription_token(&digest(secret))
+        .await?
+        .ok_or(ServerError::InvalidApiKey)?;
+    principal_for_token(state, token).await
+}
+
+async fn principal_for_token(
+    state: &ServerState,
+    token: xrat_db::WebToken,
+) -> ServerResult<Principal> {
+    let web = web(state)?;
+    let record = user(state, &token.username)
+        .await?
+        .ok_or(ServerError::InvalidApiKey)?;
+    if !record.enabled || !equal(&record.credential_version, &token.credential_version) {
+        return Err(ServerError::InvalidApiKey);
+    }
+    Ok(Principal {
+        user: public_user(&record, token.username == web.admin.username)?,
+        version: token.credential_version,
+        session_hash: None,
+        csrf_hash: None,
+        read_only_token: token.scope == "read",
+        token_hash: Some(token.token_hash),
+    })
+}
+
 pub async fn authenticate(
     State(state): State<ServerState>,
     mut request: Request,
     next: Next,
 ) -> ServerResult<Response> {
     let web = web(&state)?;
-    let (username, version, session_hash, csrf_hash, read_only_token, token_hash) =
-        if let Some(token) = request
-            .headers()
-            .get("authorization")
-            .and_then(|v| v.to_str().ok())
-            .and_then(|v| v.strip_prefix("Bearer "))
-        {
-            let hash = digest(token);
-            let token = state
-                .db
-                .web_token(&hash)
-                .await?
-                .ok_or(ServerError::InvalidApiKey)?;
-            (
-                token.username,
-                token.credential_version,
-                None,
-                None,
-                token.scope == "read",
-                Some(hash),
-            )
-        } else {
-            let token = cookie(request.headers()).ok_or(ServerError::MissingApiKey)?;
-            let hash = digest(token);
-            let session = state
-                .db
-                .web_session(&hash)
-                .await?
-                .ok_or(ServerError::InvalidApiKey)?;
-            if now() - session.created_at >= 604800 || now() - session.accessed_at >= 43200 {
-                state.db.web_delete_session(&hash).await?;
-                return Err(ServerError::InvalidApiKey);
-            }
-            if now() - session.accessed_at >= 60 {
-                state.db.web_touch_session(&hash, now()).await?;
-            }
-            (
-                session.username,
-                session.credential_version,
-                Some(hash),
-                Some(session.csrf_hash),
-                false,
-                None,
-            )
-        };
-    let record = user(&state, &username)
-        .await?
-        .ok_or(ServerError::InvalidApiKey)?;
-    if !record.enabled || !equal(&record.credential_version, &version) {
-        return Err(ServerError::InvalidApiKey);
-    }
-    let principal = Principal {
-        user: public_user(&record, username == web.admin.username)?,
-        version,
-        session_hash,
-        csrf_hash,
-        read_only_token,
-        token_hash,
+    let principal = if let Some(token) = request
+        .headers()
+        .get("authorization")
+        .and_then(|value| value.to_str().ok())
+        .and_then(|value| value.strip_prefix("Bearer "))
+    {
+        token_principal(&state, token).await?
+    } else {
+        let token = cookie(request.headers()).ok_or(ServerError::MissingApiKey)?;
+        let hash = digest(token);
+        let session = state
+            .db
+            .web_session(&hash)
+            .await?
+            .ok_or(ServerError::InvalidApiKey)?;
+        if now() - session.created_at >= 604800 || now() - session.accessed_at >= 43200 {
+            state.db.web_delete_session(&hash).await?;
+            return Err(ServerError::InvalidApiKey);
+        }
+        if now() - session.accessed_at >= 60 {
+            state.db.web_touch_session(&hash, now()).await?;
+        }
+        let record = user(&state, &session.username)
+            .await?
+            .ok_or(ServerError::InvalidApiKey)?;
+        if !record.enabled || !equal(&record.credential_version, &session.credential_version) {
+            return Err(ServerError::InvalidApiKey);
+        }
+        Principal {
+            user: public_user(&record, session.username == web.admin.username)?,
+            version: session.credential_version,
+            session_hash: Some(hash),
+            csrf_hash: Some(session.csrf_hash),
+            read_only_token: false,
+            token_hash: None,
+        }
     };
     let mutating = !matches!(
         *request.method(),

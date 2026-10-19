@@ -235,6 +235,37 @@ pub async fn create_token(
     audit(&state, &principal.user.username, "token_created").await;
     Ok(Json(CreatedToken { token }))
 }
+pub async fn subscription_token(
+    State(state): State<ServerState>,
+    Extension(principal): Extension<Principal>,
+    Path(id): Path<String>,
+) -> ServerResult<Json<CreatedToken>> {
+    require_operator(&principal)?;
+    let secret = format!("sub_{}", random_token());
+    if !state
+        .db
+        .web_save_subscription_token(
+            &digest(&secret),
+            &id,
+            &principal.user.username,
+            &principal.version,
+            now(),
+        )
+        .await?
+    {
+        return Err(bad(
+            "Choose one of your current read-only tokens. Reload the token list if it changed.",
+        ));
+    }
+    audit(
+        &state,
+        &principal.user.username,
+        "subscription_credential_created",
+    )
+    .await;
+    Ok(Json(CreatedToken { token: secret }))
+}
+
 pub async fn delete_token(
     State(state): State<ServerState>,
     Extension(principal): Extension<Principal>,

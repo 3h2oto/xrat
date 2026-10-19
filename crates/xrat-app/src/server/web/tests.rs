@@ -940,3 +940,5 @@ async fn account_edit_and_password_reset_preserve_unrelated_fields() {
 mod tables;
 
 mod dashboard;
+
+mod sharing;

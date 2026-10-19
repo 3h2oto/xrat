@@ -12,11 +12,12 @@ async fn b64_route_returns_subscription_text_payload() {
 
     let response = b64::b64(
         State(state),
-        Query(JsonQuery {
+        Query(b64::B64Query {
             key: None,
             top: None,
             enabled: None,
             protocol: None,
+            ..Default::default()
         }),
     )
     .await
@@ -45,7 +46,7 @@ async fn subscription_and_json_top_exports_select_the_same_ordered_configs() {
         crate::server::routes::json::json(State(state.clone()), Query(query()))
             .await
             .unwrap();
-    let response = b64::b64(State(state.clone()), Query(query()))
+    let response = b64::b64(State(state.clone()), Query(query().into()))
         .await
         .unwrap();
     assert_eq!(
@@ -79,11 +80,15 @@ async fn subscription_export_keeps_auth_before_top_validation() {
         protocol: None,
     };
     assert!(matches!(
-        b64::b64(State(state.clone()), Query(query(Some("wrong".into())))).await,
+        b64::b64(
+            State(state.clone()),
+            Query(query(Some("wrong".into())).into())
+        )
+        .await,
         Err(crate::server::ServerError::InvalidApiKey)
     ));
     assert!(matches!(
-        b64::b64(State(state), Query(query(Some("secret".into())))).await,
+        b64::b64(State(state), Query(query(Some("secret".into())).into())).await,
         Err(crate::server::ServerError::Application(
             crate::app::AppError::InvalidArgument(_)
         ))

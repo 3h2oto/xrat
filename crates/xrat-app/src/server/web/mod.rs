@@ -3,8 +3,9 @@ mod dashboard;
 mod host;
 mod identity;
 mod management;
+pub(crate) mod rows;
 mod runtime;
-mod security;
+pub(crate) mod security;
 mod settings;
 mod stream;
 pub(super) mod traffic;
@@ -31,9 +32,18 @@ pub fn router(state: ServerState) -> Router<ServerState> {
             get(identity::tokens).post(identity::create_token),
         )
         .route("/tokens/{id}", delete(identity::delete_token))
+        .route(
+            "/tokens/{id}/subscription",
+            post(identity::subscription_token),
+        )
         .route("/settings", get(settings::get).post(settings::save))
         .route("/settings/batch", post(settings::save_batch))
         .route("/export", get(settings::export))
+        .route("/configs/share", post(super::routes::sharing::share))
+        .route(
+            "/configs/share/preview",
+            post(super::routes::sharing::preview),
+        )
         .route("/configs/{id}/raw", get(settings::raw_config))
         .route("/overview", get(management::overview))
         .route("/overview/runtime", get(runtime::get))
