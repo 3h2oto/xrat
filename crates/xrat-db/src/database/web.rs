@@ -194,6 +194,40 @@ impl Database {
         );
         Ok(())
     }
+    pub async fn web_save_subscription_token(
+        &self,
+        hash: &str,
+        parent: &str,
+        username: &str,
+        version: &str,
+        created_at: i64,
+    ) -> crate::Result<bool> {
+        Ok(execute!(
+            self,
+            "INSERT INTO web_subscription_tokens(token_hash,parent_hash,created_at) SELECT $1,token_hash,$5 FROM web_tokens WHERE token_hash=$2 AND username=$3 AND credential_version=$4 AND scope='read'",
+            hash,
+            parent,
+            username,
+            version,
+            created_at
+        ) == 1)
+    }
+    pub async fn web_subscription_token(&self, hash: &str) -> crate::Result<Option<WebToken>> {
+        let rows: Vec<WebToken> = fetch!(
+            self,
+            "SELECT p.* FROM web_tokens p JOIN web_subscription_tokens s ON s.parent_hash=p.token_hash WHERE s.token_hash=$1 AND p.scope='read'",
+            |row| WebToken {
+                token_hash: row.get("token_hash"),
+                username: row.get("username"),
+                credential_version: row.get("credential_version"),
+                scope: row.get("scope"),
+                name: row.get("name"),
+                created_at: row.get("created_at"),
+            },
+            hash
+        );
+        Ok(rows.into_iter().next())
+    }
     pub async fn web_delete_token(&self, hash: &str, username: &str) -> crate::Result<()> {
         execute!(
             self,

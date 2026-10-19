@@ -73,9 +73,40 @@ async fn verify(db: &Database) {
     .await
     .unwrap();
     assert!(db.web_token(&token).await.unwrap().is_some());
+    let subscription = format!("subscription-{}", std::process::id());
+    assert!(
+        !db.web_save_subscription_token(&subscription, &token, "wrong-owner", "v2", 100)
+            .await
+            .unwrap()
+    );
+    assert!(
+        !db.web_save_subscription_token(&subscription, &token, &username, "old-version", 100)
+            .await
+            .unwrap()
+    );
+    assert!(
+        db.web_save_subscription_token(&subscription, &token, &username, "v2", 100)
+            .await
+            .unwrap()
+    );
+    assert_eq!(
+        db.web_subscription_token(&subscription)
+            .await
+            .unwrap()
+            .unwrap()
+            .token_hash,
+        token
+    );
+    assert!(db.web_token(&subscription).await.unwrap().is_none());
     db.web_revoke_user(&username).await.unwrap();
     assert!(db.web_session(&token).await.unwrap().is_none());
     assert!(db.web_tokens(&username).await.unwrap().is_empty());
+    assert!(
+        db.web_subscription_token(&subscription)
+            .await
+            .unwrap()
+            .is_none()
+    );
     let mut job = WebJob {
         id: token,
         username,
