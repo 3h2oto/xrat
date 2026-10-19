@@ -25,6 +25,7 @@ pub fn ConfigTable(
     on_reload: EventHandler,
     on_import: EventHandler,
     pending_delete: Signal<Option<i64>>,
+    #[props(default)] tests: Vec<xrat_web::types::ConfigTestProgress>,
 ) -> Element {
     let mut state = use_table_state(false, "/ui/configs");
     let mut selected = use_signal(BTreeSet::<i64>::new);
@@ -362,6 +363,7 @@ pub fn ConfigTable(
                                                 Cell {
                                                     value: config_value(row, column.key, &subscriptions),
                                                     date: matches!(column.key, "tested" | "updated"),
+                                                    activity: crate::components::test_progress::column_state(&tests, row.id, column.key),
                                                 }
                                             }
                                         }
@@ -388,6 +390,7 @@ pub fn ConfigTable(
                                                     deleted: row.deleted,
                                                     revision: row.updated_at.clone(),
                                                     pending_delete,
+                                                    testing: crate::components::test_progress::column_state(&tests, row.id, "test").is_some(),
                                                 }
                                             }
                                         }

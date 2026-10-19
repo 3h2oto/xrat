@@ -22,9 +22,7 @@ pub async fn events(
             interval.tick().await;
             if !valid(&state, &principal).await { break; }
             let Ok(rows) = state.db.web_jobs().await else { break; };
-            let jobs = rows.into_iter().filter(|row| principal.user.role.is_admin() || row.username == principal.user.username).map(|row| xrat_web::types::Job {
-                id:row.id, username:row.username, kind:row.kind, state:row.state, result: if principal.user.role.can_operate() { row.result } else { None }, created_at:row.created_at,
-            }).collect::<Vec<_>>();
+            let jobs = rows.into_iter().filter(|row| principal.user.role.is_admin() || row.username == principal.user.username).map(|row| super::management::job(row, principal.user.role.can_operate())).collect::<Vec<_>>();
             if let Ok(event) = Event::default().json_data(jobs) { yield Ok(event); }
         }
     };

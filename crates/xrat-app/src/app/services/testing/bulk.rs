@@ -40,6 +40,9 @@ pub(crate) async fn run_bulk_for_configs_cancellable(
         .await?;
 
     let total = configs.len();
+    for config in &configs {
+        super::activity::queued(&settings, config.id);
+    }
     let concurrency = resolve_concurrency(settings.concurrency)?;
     let progress = bulk_progress_bar(total, show_progress);
     if run_kind == "rotation" && total > 0 {

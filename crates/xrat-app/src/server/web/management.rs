@@ -92,13 +92,25 @@ pub struct OverviewQuery {
     #[serde(default)]
     dashboard: bool,
 }
-fn job(row: xrat_db::WebJob, expose_result: bool) -> Job {
+pub(super) fn job(row: xrat_db::WebJob, expose_result: bool) -> Job {
+    let progress = row
+        .result
+        .as_ref()
+        .and_then(|value| serde_json::from_str::<TestJobProgress>(value).ok());
+    let (result, tests) = if !expose_result {
+        (None, Vec::new())
+    } else if let Some(progress) = progress {
+        (Some(progress.message), progress.tests)
+    } else {
+        (row.result, Vec::new())
+    };
     Job {
         id: row.id,
         username: row.username,
         kind: row.kind,
         state: row.state,
-        result: expose_result.then_some(row.result).flatten(),
+        result,
+        tests,
         created_at: row.created_at,
     }
 }

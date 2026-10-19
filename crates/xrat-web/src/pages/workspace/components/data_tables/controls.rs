@@ -234,8 +234,15 @@ pub fn LatencyFilter(mut state: Signal<TableState>) -> Element {
     }
 }
 #[component]
-pub fn Cell(value: CellValue, #[props(default)] date: bool) -> Element {
+pub fn Cell(
+    value: CellValue,
+    #[props(default)] date: bool,
+    #[props(optional)] activity: Option<xrat_web::types::TestMetricState>,
+) -> Element {
     let tip = use_hook(|| crate::hooks::use_random::use_random_id_for("test-result"));
+    if let Some(state) = activity {
+        return rsx! { crate::components::test_progress::TestActivityIcon { state } };
+    }
     let (status, detail) = match &value {
         CellValue::Probe {
             ok: Some(false),

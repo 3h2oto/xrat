@@ -8,12 +8,28 @@ use crate::ui::card::Card;
 use crate::ui::icon_button::IconButton;
 use crate::{Session, api, ui::button::ButtonVariant};
 use dioxus::prelude::*;
-use xrat_web::types::{Action, Overview};
+use xrat_web::types::{Action, Job, Overview};
 #[component]
 pub fn Workspace(section: String) -> Element {
     let Session(session) = use_context();
     let operator = session().is_some_and(|s| s.user.role.can_operate());
     let mut tick = use_signal(|| 0);
+    let mut job_tick = use_signal(|| 0);
+    let testing_page = section == "Configs";
+    use_future(move || async move {
+        loop {
+            gloo_timers::future::TimeoutFuture::new(500).await;
+            job_tick += 1;
+        }
+    });
+    let jobs = use_resource(use_reactive!(|(testing_page,)| async move {
+        let _ = job_tick();
+        if testing_page {
+            api::get::<Vec<Job>>("jobs").await
+        } else {
+            Ok(Vec::new())
+        }
+    }));
     use_future(move || async move {
         loop {
             gloo_timers::future::TimeoutFuture::new(3000).await;
@@ -26,6 +42,42 @@ pub fn Workspace(section: String) -> Element {
         let result = api::get::<Overview>("overview").await;
         manual_reload.set(false);
         result
+    });
+    let mut completion_key = use_signal(String::new);
+    use_effect(move || {
+        let key = jobs
+            .read()
+            .as_ref()
+            .and_then(|result| result.as_ref().ok())
+            .map(|jobs| {
+                jobs.iter()
+                    .flat_map(|job| {
+                        if job.state != "running" {
+                            vec![format!("{}:{}", job.id, job.state)]
+                        } else {
+                            job.tests
+                                .iter()
+                                .filter(|row| {
+                                    row.metrics.iter().all(|metric| {
+                                        !matches!(
+                                            metric.state,
+                                            xrat_web::types::TestMetricState::Queued
+                                                | xrat_web::types::TestMetricState::Running
+                                        )
+                                    })
+                                })
+                                .map(|row| format!("{}:{}", job.id, row.config_id))
+                                .collect()
+                        }
+                    })
+                    .collect::<Vec<_>>()
+                    .join(",")
+            })
+            .unwrap_or_default();
+        if *completion_key.peek() != key {
+            data.restart();
+            completion_key.set(key);
+        }
     });
     let mut importing = use_context::<crate::components::import::ImportState>().importing;
     let mut pending_delete = use_signal(|| None::<i64>);
@@ -57,6 +109,7 @@ pub fn Workspace(section: String) -> Element {
                 },
                 on_import: move |_| importing.set(true),
                 pending_delete,
+                tests: jobs.read().as_ref().and_then(|result| result.as_ref().ok()).map(|jobs| jobs.iter().filter(|job| job.state == "running").flat_map(|job| job.tests.clone()).collect::<Vec<_>>()).unwrap_or_default(),
             }
         }
         if section == "Subscriptions" {

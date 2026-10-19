@@ -1,3 +1,5 @@
+use super::super::TestMetric;
+use super::super::activity::{measured, started};
 use super::*;
 
 pub(crate) async fn test_and_record_config(
@@ -21,6 +23,7 @@ pub(crate) async fn test_and_record_config(
         match stage {
             ConnectionTestStage::Icmp if settings.run_icmp => {
                 ran_icmp = true;
+                started(&settings, config.id, TestMetric::Icmp);
                 run_icmp_stage(
                     &config,
                     &settings,
@@ -29,12 +32,14 @@ pub(crate) async fn test_and_record_config(
                     print_progress,
                 )
                 .await?;
+                measured(&settings, config.id, TestMetric::Icmp, result.icmp_ok);
                 if !result.icmp_ok && settings.failure_policy.halts_after_failure() {
                     break;
                 }
             }
             ConnectionTestStage::Tcp if settings.run_tcp && !ran_tcp => {
                 ran_tcp = true;
+                started(&settings, config.id, TestMetric::Tcp);
                 run_tcp_gate(
                     &config,
                     &settings,
@@ -43,6 +48,7 @@ pub(crate) async fn test_and_record_config(
                     print_progress,
                 )
                 .await?;
+                measured(&settings, config.id, TestMetric::Tcp, result.tcp_ok);
                 if !result.tcp_ok && settings.failure_policy.halts_after_failure() {
                     break;
                 }
@@ -50,6 +56,7 @@ pub(crate) async fn test_and_record_config(
             ConnectionTestStage::RealDelay if settings.run_real_delay => {
                 if settings.run_tcp && !ran_tcp {
                     ran_tcp = true;
+                    started(&settings, config.id, TestMetric::Tcp);
                     run_tcp_gate(
                         &config,
                         &settings,
@@ -58,10 +65,12 @@ pub(crate) async fn test_and_record_config(
                         print_progress,
                     )
                     .await?;
+                    measured(&settings, config.id, TestMetric::Tcp, result.tcp_ok);
                 }
 
                 if result.tcp_ok || !settings.run_tcp {
                     ran_real_delay = true;
+                    started(&settings, config.id, TestMetric::RealDelay);
                     run_real_delay_stage(
                         &node,
                         &settings,
@@ -70,6 +79,12 @@ pub(crate) async fn test_and_record_config(
                         print_progress,
                     )
                     .await?;
+                    measured(
+                        &settings,
+                        config.id,
+                        TestMetric::RealDelay,
+                        result.real_delay_ok,
+                    );
                     if !result.real_delay_ok && settings.failure_policy.halts_after_failure() {
                         break;
                     }
@@ -86,6 +101,7 @@ pub(crate) async fn test_and_record_config(
             }
             ConnectionTestStage::Download if settings.run_download => {
                 ran_download = true;
+                started(&settings, config.id, TestMetric::Download);
                 run_download_stage(
                     &node,
                     &settings,
@@ -94,8 +110,15 @@ pub(crate) async fn test_and_record_config(
                     print_progress,
                 )
                 .await?;
+                measured(
+                    &settings,
+                    config.id,
+                    TestMetric::Download,
+                    result.download_ok,
+                );
                 if settings.run_upload {
                     ran_upload = true;
+                    started(&settings, config.id, TestMetric::Upload);
                     run_upload_stage(
                         &node,
                         &settings,
@@ -104,6 +127,7 @@ pub(crate) async fn test_and_record_config(
                         print_progress,
                     )
                     .await?;
+                    measured(&settings, config.id, TestMetric::Upload, result.upload_ok);
                 }
                 if !result.download_ok && settings.failure_policy.halts_after_failure() {
                     break;

@@ -9,6 +9,7 @@ pub(crate) fn ConfigActions(
     id: i64,
     deleted: bool,
     #[props(default)] revision: String,
+    #[props(default)] testing: bool,
     mut pending_delete: Signal<Option<i64>>,
 ) -> Element {
     let mut sharing = use_signal(|| None::<Mode>);
@@ -35,7 +36,7 @@ pub(crate) fn ConfigActions(
                 IconButton { label: "Copy configuration #{id}", variant: ButtonVariant::Ghost, onclick: move |_| sharing.set(Some(Mode::Copy)), Copy {} }
                 IconButton { label: qr_label, variant: ButtonVariant::Ghost, disabled: !qr_supported, onclick: move |_| sharing.set(Some(Mode::Qr)), QrCode {} }
                 if !deleted {
-                    IconButton { label: "Test configuration #{id}", variant: ButtonVariant::Ghost, onclick: move |_| run(Action::Test { id: Some(id) }), FlaskConical {} }
+                    IconButton { label: "Test configuration #{id}", variant: ButtonVariant::Ghost, disabled: testing, onclick: move |_| run(Action::Test { id: Some(id) }), FlaskConical {} }
                     IconButton { label: "Delete configuration #{id}", variant: ButtonVariant::Ghost, onclick: move |_| pending_delete.set(Some(id)), Trash2 {} }
                 }
             }
@@ -49,7 +50,7 @@ pub(crate) fn ConfigActions(
                         DropdownMenuAction { onclick: move |_| sharing.set(Some(Mode::Copy)), Copy {} "Copy config" }
                         DropdownMenuAction { disabled: !qr_supported, onclick: move |_| sharing.set(Some(Mode::Qr)), QrCode {} "Show QR" }
                         if !deleted {
-                            DropdownMenuAction { onclick: move |_| run(Action::Test { id: Some(id) }), FlaskConical {} "Test connection" }
+                            DropdownMenuAction { disabled: testing, onclick: move |_| run(Action::Test { id: Some(id) }), FlaskConical {} "Test connection" }
                             DropdownMenuSeparator {}
                             DropdownMenuAction { variant: DropdownMenuActionVariant::Destructive, onclick: move |_| pending_delete.set(Some(id)), Trash2 {} "Delete" }
                         }

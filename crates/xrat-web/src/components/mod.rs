@@ -8,3 +8,4 @@ pub mod log_console;
 pub mod qr_code;
 pub mod runtime_status;
 pub mod states;
+pub mod test_progress;

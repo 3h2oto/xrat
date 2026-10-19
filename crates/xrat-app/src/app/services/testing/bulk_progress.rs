@@ -26,6 +26,16 @@ pub(super) fn spawn_config_test(
     settings: ResolvedTestSettings,
     run_id: Option<i64>,
 ) {
-    join_set
-        .spawn(async move { test_and_record_config(db, config, settings, false, run_id).await });
+    join_set.spawn(async move {
+        let activity = settings.activity.clone();
+        let config_id = config.id;
+        let result = test_and_record_config(db, config, settings, false, run_id).await;
+        if let Some(sender) = activity {
+            let _ = sender.send(TestActivity::Finished {
+                config_id,
+                failed: result.is_err(),
+            });
+        }
+        result
+    });
 }

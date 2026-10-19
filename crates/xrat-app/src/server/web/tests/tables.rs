@@ -1,6 +1,35 @@
 use super::*;
 use xrat_web::types::{Action, BulkOperation, Overview};
 
+#[test]
+fn test_job_metadata_preserves_the_human_message_and_redacts_progress_for_viewers() {
+    let payload = xrat_web::types::TestJobProgress {
+        message: "Tested 0 of 1 configs".into(),
+        tests: vec![xrat_web::types::ConfigTestProgress {
+            config_id: 7,
+            metrics: vec![xrat_web::types::TestMetricProgress {
+                metric: xrat_web::types::TestMetric::Tcp,
+                state: xrat_web::types::TestMetricState::Running,
+            }],
+        }],
+    };
+    let row = xrat_db::WebJob {
+        id: "test-progress".into(),
+        username: "operator".into(),
+        kind: "test".into(),
+        state: "running".into(),
+        result: Some(serde_json::to_string(&payload).unwrap()),
+        created_at: 1,
+        updated_at: 1,
+    };
+    let visible = super::super::management::job(row.clone(), true);
+    assert_eq!(visible.result.as_deref(), Some("Tested 0 of 1 configs"));
+    assert_eq!(visible.tests, payload.tests);
+    let hidden = super::super::management::job(row, false);
+    assert!(hidden.result.is_none());
+    assert!(hidden.tests.is_empty());
+}
+
 pub(super) async fn seed(state: &ServerState) -> Vec<i64> {
     let context = state.web.as_ref().unwrap().context.as_ref().unwrap();
     std::fs::create_dir_all(context.runtime_paths.config_path.parent().unwrap()).unwrap();

@@ -1,3 +1,4 @@
+mod activity;
 mod bulk;
 mod bulk_progress;
 mod execution;
@@ -26,9 +27,11 @@ use xrat_prober::{
 };
 use xrat_support::geoip;
 
+pub(crate) use activity::{TestActivity, TestActivitySender, TestMetric};
 pub(crate) use bulk::{run_bulk_for_configs, run_bulk_for_configs_cancellable};
 pub(crate) use execution::test_and_record_config;
 pub(crate) use output_types::*;
+pub(crate) use progress::run_bulk_for_config_ids_with_activity;
 pub use progress::{TestProgressUpdate, run_bulk_for_config_ids_with_progress};
 pub use request::TestRunRequest;
 pub(crate) use settings::*;

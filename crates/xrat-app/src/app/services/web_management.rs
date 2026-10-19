@@ -4,6 +4,7 @@ use crate::app::{
 };
 use xrat_model::{ConfigId, ConfigRef};
 use xrat_web::types::Action;
+mod test_progress;
 pub(crate) async fn execute(
     context: &app::context::AppContext,
     action: Action,
@@ -24,6 +25,10 @@ pub(crate) async fn execute(
                 return Err(app::AppError::InvalidArgument(
                     "Select 1–500 unique rows.".into(),
                 ));
+            }
+            if operation == xrat_web::types::BulkOperation::Test {
+                let ids = ids.into_iter().map(ConfigId).collect::<Vec<_>>();
+                return test_progress::run(context, &ids, flag, job_id).await;
             }
             let total = ids.len();
             let mut completed = 0;
@@ -362,34 +367,7 @@ pub(crate) async fn execute(
                 .filter(|row| id.is_none_or(|id| row.id.0 == id))
                 .map(|row| row.id)
                 .collect::<Vec<_>>();
-            let (tx, mut rx) = tokio::sync::mpsc::unbounded_channel();
-            let progress_db = context.db.clone();
-            let progress_id = job_id.to_string();
-            let drain = tokio::spawn(async move {
-                while let Some(update) = rx.recv().await {
-                    let update: testing::TestProgressUpdate = update;
-                    if let Err(error) = progress_db
-                        .web_job_progress(
-                            &progress_id,
-                            &format!("Tested {} of {} configs", update.done, update.total),
-                            timestamp(),
-                        )
-                        .await
-                    {
-                        tracing::warn!(%error,"could not record test progress");
-                    }
-                }
-            });
-            let result = testing::run_bulk_for_config_ids_with_progress(
-                &testing::TestRunRequest::default(),
-                context,
-                &ids,
-                xrat_support::cancel::CancellationReceiver::from_flag(flag),
-                tx,
-            )
-            .await;
-            let _ = drain.await;
-            return result.map(|count| format!("Tested {count} configs"));
+            return test_progress::run(context, &ids, flag, job_id).await;
         }
     }
     Ok("Completed".into())
