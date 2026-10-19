@@ -4,6 +4,7 @@ mod controls;
 mod share_token;
 pub(super) mod sharing;
 mod state;
+mod subscription_actions;
 mod subscriptions;
 mod values;
 

@@ -411,6 +411,128 @@ async fn qr_preview_reports_capacity_without_exposing_raw_configs() {
 }
 
 #[tokio::test]
+async fn subscription_source_sharing_is_on_demand_and_requires_operator_access() {
+    let (router, state) = fixture().await;
+    tables::seed(&state).await;
+    let nodes = xrat_config::parse_text(
+        "vless://33333333-3333-3333-3333-333333333333@source.example:443#Source",
+    );
+    let source_url = "https://source.example/subscription?token=dummy-private-token";
+    state
+        .db
+        .import_nodes(
+            &xrat_db::ImportSource {
+                kind: xrat_db::SourceKind::Url,
+                value: source_url.into(),
+                name: Some("URL source".into()),
+            },
+            &nodes,
+        )
+        .await
+        .unwrap();
+    let subs = state.db.list_subscriptions().await.unwrap();
+    let url_sub = subs.iter().find(|row| row.source_kind == "url").unwrap();
+    let text_sub = subs
+        .iter()
+        .find(|row| row.source_kind == "raw_text")
+        .unwrap();
+    let path = format!("/api/v1/subscriptions/{}/source", url_sub.id.0);
+    assert_eq!(
+        request(&router, &path, "GET", serde_json::Value::Null, "", "", "")
+            .await
+            .status(),
+        StatusCode::UNAUTHORIZED
+    );
+    let (cookie, _) = login(&router, "admin", "correct horse battery").await;
+    let response = request(
+        &router,
+        &path,
+        "GET",
+        serde_json::Value::Null,
+        &cookie,
+        "",
+        "",
+    )
+    .await;
+    assert_eq!(response.status(), StatusCode::OK);
+    let source: xrat_web::types::SubscriptionSource =
+        serde_json::from_slice(&to_bytes(response.into_body(), 65536).await.unwrap()).unwrap();
+    assert_eq!(source.url, source_url);
+    let preview = request(
+        &router,
+        &format!("{path}/preview"),
+        "GET",
+        serde_json::Value::Null,
+        &cookie,
+        "",
+        "",
+    )
+    .await;
+    let preview = to_bytes(preview.into_body(), 65536).await.unwrap();
+    assert!(
+        serde_json::from_slice::<xrat_web::types::SubscriptionSourcePreview>(&preview)
+            .unwrap()
+            .qr_supported
+    );
+    assert!(!String::from_utf8_lossy(&preview).contains("dummy-private-token"));
+    assert_eq!(
+        request(
+            &router,
+            &format!("/api/v1/subscriptions/{}/source", text_sub.id.0),
+            "GET",
+            serde_json::Value::Null,
+            &cookie,
+            "",
+            ""
+        )
+        .await
+        .status(),
+        StatusCode::BAD_REQUEST
+    );
+    let overview = request(
+        &router,
+        "/api/v1/overview",
+        "GET",
+        serde_json::Value::Null,
+        &cookie,
+        "",
+        "",
+    )
+    .await;
+    assert!(
+        !String::from_utf8_lossy(&to_bytes(overview.into_body(), 1_048_576).await.unwrap())
+            .contains("dummy-private-token")
+    );
+    state
+        .db
+        .web_save_user(&xrat_db::WebUser {
+            username: "source-viewer".into(),
+            role: "viewer".into(),
+            password_hash: hash_password("viewer password long").unwrap(),
+            credential_version: "v1".into(),
+            enabled: true,
+            must_change_password: false,
+        })
+        .await
+        .unwrap();
+    let (viewer, _) = login(&router, "source-viewer", "viewer password long").await;
+    assert_eq!(
+        request(
+            &router,
+            &path,
+            "GET",
+            serde_json::Value::Null,
+            &viewer,
+            "",
+            ""
+        )
+        .await
+        .status(),
+        StatusCode::FORBIDDEN
+    );
+}
+
+#[tokio::test]
 async fn multiselect_exports_and_subscription_links_use_identical_matching() {
     let (router, state) = fixture().await;
     let ids = tables::seed(&state).await;

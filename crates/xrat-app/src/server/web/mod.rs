@@ -8,6 +8,7 @@ mod runtime;
 pub(crate) mod security;
 mod settings;
 mod stream;
+mod subscriptions;
 pub(super) mod traffic;
 mod version;
 
@@ -45,6 +46,11 @@ pub fn router(state: ServerState) -> Router<ServerState> {
             post(super::routes::sharing::preview),
         )
         .route("/configs/{id}/raw", get(settings::raw_config))
+        .route("/subscriptions/{id}/source", get(subscriptions::source))
+        .route(
+            "/subscriptions/{id}/source/preview",
+            get(subscriptions::preview),
+        )
         .route("/overview", get(management::overview))
         .route("/overview/runtime", get(runtime::get))
         .route("/logs/engine", get(management::engine_logs))

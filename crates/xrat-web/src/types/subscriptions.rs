@@ -11,3 +11,13 @@ pub struct SubscriptionRow {
     pub created_at: String,
     pub updated_at: String,
 }
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub struct SubscriptionSource {
+    pub url: String,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub struct SubscriptionSourcePreview {
+    pub qr_supported: bool,
+}

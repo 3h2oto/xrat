@@ -3,12 +3,12 @@ use crate::api::actions::run;
 use crate::components::states::EmptyState;
 use crate::ui::icon_button::IconButton;
 use crate::ui::{
-    button::ButtonVariant, card::Card, dialog::*, dropdown_menu::*, input::Input, label::Label,
-    spinner::Spinner, table::*,
+    button::ButtonVariant, card::Card, dialog::*, input::Input, label::Label, spinner::Spinner,
+    table::*,
 };
 use crate::{Notice, Session, api};
 use dioxus::prelude::*;
-use icons::{EllipsisVertical, Pencil, RefreshCw, Trash2};
+use icons::{Pencil, RefreshCw, Trash2};
 use std::collections::BTreeSet;
 use xrat_web::types::{Action, BulkOperation, Job, SubscriptionRow};
 
@@ -295,49 +295,13 @@ pub fn SubscriptionTable(
                                         TableCell {
                                             div { class: "data-row-actions flex items-center gap-[5px]",
                                                 if operator {
-                                                    IconButton {
-                                                        label: format!("Refresh subscription {}", row.name),
-                                                        variant: ButtonVariant::Ghost,
-                                                        disabled: row.source != "url",
-                                                        onclick: {
-                                                            let id = row.id;
-                                                            move |_| run(Action::Refresh { id: Some(id) })
+                                                    super::subscription_actions::SubscriptionActions {
+                                                        row: row.clone(),
+                                                        deleting,
+                                                        on_rename: move |row: SubscriptionRow| {
+                                                            name.set(row.name.clone());
+                                                            renaming.set(Some(row));
                                                         },
-                                                        RefreshCw {}
-                                                    }
-                                                    DropdownMenu { align: DropdownMenuAlign::End,
-                                                        DropdownMenuTrigger { as_child: true,
-                                                            IconButton {
-                                                                label: format!("Actions for subscription {}", row.name),
-                                                                variant: ButtonVariant::Ghost,
-                                                                EllipsisVertical {}
-                                                            }
-                                                        }
-                                                        DropdownMenuContent {
-                                                            DropdownMenuAction { href: format!("/ui/configs?subscription={}", row.reference),
-                                                                "View configs"
-                                                            }
-                                                            DropdownMenuAction {
-                                                                onclick: {
-                                                                    let row = row.clone();
-                                                                    move |_| {
-                                                                        name.set(row.name.clone());
-                                                                        renaming.set(Some(row.clone()));
-                                                                    }
-                                                                },
-                                                                Pencil {}
-                                                                "Rename"
-                                                            }
-                                                            DropdownMenuAction {
-                                                                variant: DropdownMenuActionVariant::Destructive,
-                                                                onclick: {
-                                                                    let id = row.id;
-                                                                    move |_| deleting.set(Some(id))
-                                                                },
-                                                                Trash2 {}
-                                                                "Delete"
-                                                            }
-                                                        }
                                                     }
                                                 } else {
                                                     IconButton {
