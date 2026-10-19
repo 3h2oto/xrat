@@ -26,7 +26,10 @@ pub async fn proxy_pac(
     Ok(response)
 }
 
-fn require_allowed_pac_host(state: &ServerState, headers: &HeaderMap) -> ServerResult<()> {
+pub(crate) fn require_allowed_pac_host(
+    state: &ServerState,
+    headers: &HeaderMap,
+) -> ServerResult<()> {
     let Some(host) = headers
         .get(header::HOST)
         .and_then(|value| value.to_str().ok())

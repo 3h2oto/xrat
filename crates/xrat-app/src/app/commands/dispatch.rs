@@ -25,6 +25,8 @@ pub async fn run(context: &AppContext, command: &Command) -> crate::app::Result<
         Command::Rotate(args) => rotate::run(context, args).await,
         Command::Proxy(args) => proxy::run(context, args).await,
         Command::Serve(args) => serve::run(context, args).await,
+        Command::Webui(args) => serve::webui(context, args).await,
+        Command::HashPassword(_) => serve::password_hash(),
         Command::Tui(args) => tui::run(context, args).await,
         Command::Tun(args) => tun::run(context, args).await,
         Command::Update(args) => update::run(context, args).await,

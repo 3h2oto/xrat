@@ -17,7 +17,49 @@ pub async fn run_bulk_for_config_ids_with_progress(
     cancel_rx: xrat_support::cancel::CancellationReceiver,
     progress_tx: tokio::sync::mpsc::UnboundedSender<TestProgressUpdate>,
 ) -> crate::app::Result<usize> {
-    let settings = resolve_test_settings(request, &context.app_config, &context.runtime_paths)?;
+    run_with_activity(
+        request,
+        context,
+        config_ids,
+        cancel_rx,
+        progress_tx,
+        None,
+        "tui",
+    )
+    .await
+}
+
+pub(crate) async fn run_bulk_for_config_ids_with_activity(
+    request: &TestRunRequest,
+    context: &AppContext,
+    config_ids: &[ConfigId],
+    cancel_rx: xrat_support::cancel::CancellationReceiver,
+    progress_tx: tokio::sync::mpsc::UnboundedSender<TestProgressUpdate>,
+    activity_tx: super::TestActivitySender,
+) -> crate::app::Result<usize> {
+    run_with_activity(
+        request,
+        context,
+        config_ids,
+        cancel_rx,
+        progress_tx,
+        Some(activity_tx),
+        "web",
+    )
+    .await
+}
+
+async fn run_with_activity(
+    request: &TestRunRequest,
+    context: &AppContext,
+    config_ids: &[ConfigId],
+    cancel_rx: xrat_support::cancel::CancellationReceiver,
+    progress_tx: tokio::sync::mpsc::UnboundedSender<TestProgressUpdate>,
+    activity: Option<super::TestActivitySender>,
+    run_kind: &str,
+) -> crate::app::Result<usize> {
+    let mut settings = resolve_test_settings(request, &context.app_config, &context.runtime_paths)?;
+    settings.activity = activity;
     let mut configs = Vec::with_capacity(config_ids.len());
 
     for config_id in config_ids {
@@ -34,7 +76,7 @@ pub async fn run_bulk_for_config_ids_with_progress(
         context,
         settings,
         configs,
-        "tui",
+        run_kind,
         false,
         Some(cancel_rx),
         Some(progress_tx),

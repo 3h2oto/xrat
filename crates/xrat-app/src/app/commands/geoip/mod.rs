@@ -5,8 +5,8 @@ use crate::app::paths::mmdb;
 use crate::cli::{GeoIpAction, GeoIpArgs};
 
 mod backend;
-mod download;
-mod edition;
+use crate::app::services::geoip_assets as download;
+use crate::app::services::geoip_assets::edition;
 mod lookup;
 mod path;
 mod status;

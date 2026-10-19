@@ -21,7 +21,7 @@ pub async fn load_nodes_async(input: &str) -> crate::app::Result<(ImportSource, 
     Ok((source, parse_nodes(&input_data)?))
 }
 
-fn parse_nodes(input_data: &[u8]) -> crate::app::Result<Vec<Node>> {
+pub(crate) fn parse_nodes(input_data: &[u8]) -> crate::app::Result<Vec<Node>> {
     let config_text = decode_or_raw_text(input_data)?;
     reject_raw_json_config(&config_text)?;
     Ok(parse_text(&config_text))

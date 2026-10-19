@@ -93,6 +93,7 @@ pub(crate) fn resolve_test_settings(
     }
 
     Ok(ResolvedTestSettings {
+        activity: None,
         stage_order: app_config.testing.order.clone(),
         failure_policy: app_config.testing.failure_policy,
         real_delay_url: request

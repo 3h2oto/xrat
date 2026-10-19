@@ -19,3 +19,5 @@ use test_support::test_database_path;
 
 #[cfg(test)]
 mod tests;
+
+pub(crate) mod web;

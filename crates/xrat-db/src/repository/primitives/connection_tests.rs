@@ -49,3 +49,11 @@ pub async fn list_connection_tests_by_run(
 ) -> crate::Result<Vec<ConnectionTestRecord>> {
     connection_tests::list_by_run(pool, run_id).await
 }
+
+pub async fn recent_connection_tests(
+    pool: &DbPool,
+    config_id: ConfigId,
+    limit: i64,
+) -> crate::Result<Vec<ConnectionTestRecord>> {
+    connection_tests::list_recent_by_config(pool, config_id, limit).await
+}

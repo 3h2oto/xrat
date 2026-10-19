@@ -436,3 +436,16 @@ pub async fn list(pool: &DbPool) -> crate::Result<Vec<SubscriptionRecord>> {
             .collect(),
     }
 }
+
+pub async fn last_refresh(pool: &DbPool, now: i64) -> crate::Result<Option<i64>> {
+    const SQL: &str = "SELECT last_refreshed_at FROM subscriptions WHERE source_kind = 'url' AND last_refreshed_at IS NOT NULL";
+    let values: Vec<String> = match pool {
+        DbPool::Sqlite(pool) => sqlx::query_scalar(SQL).fetch_all(pool).await?,
+        DbPool::Postgres(pool) => sqlx::query_scalar(SQL).fetch_all(pool).await?,
+    };
+    Ok(values
+        .into_iter()
+        .filter_map(|value| value.parse::<i64>().ok())
+        .filter(|value| *value > 0 && *value <= now)
+        .max())
+}

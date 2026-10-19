@@ -90,15 +90,13 @@ pub async fn run(context: &AppContext, args: &DaemonArgs) -> crate::app::Result<
 
             let http_handle = if context.app_config.server.enabled {
                 let server_settings = context.app_config.server.clone();
-                let routing_settings = context.app_config.routing.clone();
-                let db = context.db.clone();
+                let http_context = context.clone();
                 let (shutdown_tx, shutdown_rx) = tokio::sync::oneshot::channel();
                 let handle = tokio::spawn(async move {
-                    if let Err(err) = crate::server::serve_with_shutdown(
-                        db,
+                    if let Err(err) = crate::server::serve_context(
+                        &http_context,
                         &server_settings,
-                        &routing_settings,
-                        shutdown_rx,
+                        Some(shutdown_rx),
                     )
                     .await
                     {

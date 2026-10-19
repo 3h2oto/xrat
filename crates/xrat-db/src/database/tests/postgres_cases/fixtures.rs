@@ -3,6 +3,7 @@ use super::*;
 pub(in super::super) async fn verify_database_backend(db: &Database) {
     let (first_id, second_id) = config_cases::verify_import_and_config_state(db).await;
     config_cases::verify_reconcile_state(db).await;
+    super::super::import_cases::verify_refresh_purge(db).await;
     connection_test_cases::verify_connection_test_state(db, second_id).await;
     runtime_session_cases::verify_runtime_session_state(db, second_id).await;
     super::super::import_cases::verify_subscription_headers(db).await;

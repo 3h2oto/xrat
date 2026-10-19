@@ -2,6 +2,10 @@ use super::super::Database;
 use super::super::types::*;
 
 impl Database {
+    pub async fn last_subscription_refresh(&self, now: i64) -> crate::Result<Option<i64>> {
+        repository::last_subscription_refresh(&self.pool, now).await
+    }
+
     pub async fn import_nodes(
         &self,
         source: &ImportSource,

@@ -5,6 +5,8 @@ use xrat_model::{Node, Protocol, SubscriptionId};
 mod config_state;
 mod import_subscription;
 mod reconcile;
+mod reconcile_purge;
+pub(super) use reconcile_purge::verify_refresh_purge;
 mod refresh_due;
 mod refs;
 mod upsert;

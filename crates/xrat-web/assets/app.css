@@ -1,0 +1,210 @@
+@import "tailwindcss" source(none);
+@source "../src";
+@custom-variant dark (&:where(.dark, .dark *));
+@custom-variant mobile {
+  @media (max-width: 700px) {
+    @slot;
+  }
+}
+@custom-variant narrow {
+  @media (max-width: 520px) {
+    @slot;
+  }
+}
+@custom-variant desktop {
+  @media (min-width: 701px) {
+    @slot;
+  }
+}
+@custom-variant h700 {
+  @media (min-height: 700px) {
+    @slot;
+  }
+}
+@custom-variant h640 {
+  @media (min-height: 640px) {
+    @slot;
+  }
+}
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--accent);
+  --color-secondary-foreground: var(--foreground);
+  --color-muted: var(--accent);
+  --color-muted-foreground: var(--muted);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--foreground);
+  --color-card: var(--panel);
+  --color-card-foreground: var(--foreground);
+  --color-popover: var(--panel);
+  --color-popover-foreground: var(--foreground);
+  --color-border: var(--border);
+  --color-input: var(--border);
+  --color-ring: var(--ring);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--primary-foreground);
+  --color-sidenav: var(--panel);
+  --color-sidenav-foreground: var(--foreground);
+  --color-sidenav-accent: var(--accent);
+  --color-sidenav-accent-foreground: var(--foreground);
+  --color-sidenav-border: var(--border);
+  --color-sidenav-ring: var(--ring);
+  --color-success: var(--primary);
+  --color-success-foreground: var(--primary-foreground);
+  --color-warning: var(--accent);
+  --color-warning-foreground: var(--foreground);
+  --color-info: var(--panel);
+  --color-info-foreground: var(--foreground);
+}
+:root {
+  --background: #f7f2e8;
+  --foreground: #302016;
+  --primary: #99541a;
+  --primary-foreground: #fffaf1;
+  --accent: #eddfc9;
+  --muted: #735b48;
+  --border: #9b8269;
+  --panel: #fffbf3;
+  --ring: #99541a;
+  --destructive: #a53a29;
+  --login-art: #ead8b8;
+  color-scheme: light;
+}
+.dark {
+  --background: #1c1511;
+  --foreground: #f5e8d2;
+  --primary: #e9ad55;
+  --primary-foreground: #24170e;
+  --accent: #392a1e;
+  --muted: #c2a98c;
+  --border: #927a62;
+  --panel: #261c15;
+  --ring: #e9ad55;
+  --destructive: #f39b86;
+  --login-art: #302219;
+  color-scheme: dark;
+}
+@layer base {
+  * {
+    border-color: var(--border);
+  }
+}
+
+@layer base {
+  body {
+    font-family: ui-sans-serif, system-ui, sans-serif;
+  }
+  button {
+    cursor: pointer;
+  }
+  :is(button, a, input, select, textarea):focus-visible {
+    outline: 3px solid var(--ring);
+    outline-offset: 3px;
+  }
+  main {
+    @apply flex-1 min-w-0 py-[38px] px-11 max-w-440 mx-auto max-[1100px]:py-7 max-[1100px]:px-6 mobile:py-6 mobile:px-4;
+  }
+  header {
+    @apply flex items-center justify-between mb-9 gap-5 mobile:items-start mobile:gap-2.5 mobile:mb-6.5;
+  }
+  h1 {
+    @apply text-[32px] font-semibold leading-[1.2] tracking-[-1px] m-0 mobile:text-[26px];
+  }
+  h2 {
+    @apply text-[21px] font-semibold tracking-[-0.4px] mt-0 mx-0 mb-2;
+  }
+  form > button {
+    @apply mt-6;
+  }
+  time {
+    color: var(--muted);
+    font-family: ui-monospace, monospace;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  * {
+    transition: none !important;
+    animation: none !important;
+  }
+}
+[role="tooltip"] {
+  border-radius: 6px;
+}
+[role="menuitem"]:focus-visible {
+  background: var(--accent);
+  outline: 2px solid var(--ring);
+  outline-offset: -2px;
+}
+:root {
+  --layer-footer: 10;
+  --layer-sidebar: 20;
+  --layer-popup: 40;
+  --layer-tooltip: 50;
+  --layer-toast: 60;
+  --layer-backdrop: 80;
+  --layer-modal: 90;
+}
+@keyframes toast-enter {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+@keyframes toast-exit {
+  from {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  to {
+    opacity: 0;
+    transform: translateY(5px);
+  }
+}
+.dark .overview-dashboard {
+  --chart-1: #89b5a6;
+  --chart-2: #c5a8ca;
+}
+
+* {
+  scrollbar-width: thin;
+  scrollbar-color: color-mix(in srgb, var(--muted) 40%, transparent) transparent;
+}
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: color-mix(in srgb, var(--muted) 40%, transparent);
+  border: 2px solid transparent;
+  background-clip: padding-box;
+  border-radius: 8px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background-color: var(--muted);
+}
+::-webkit-scrollbar-corner {
+  background: transparent;
+}
+.workspace-shell
+  > main:has(.host-page, .users-page, .tool-page, .self-account-page) {
+  max-width: 1368px;
+}
+
+@keyframes skeleton-shimmer {
+  from {
+    background-position: 100% 0;
+  }
+  to {
+    background-position: -100% 0;
+  }
+}

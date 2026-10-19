@@ -45,7 +45,7 @@ pub use proxy::{
 };
 pub use routing::{RouteList, RoutingSettings};
 pub use secret::{SecretError, SecretString};
-pub use server::ServerSettings;
+pub use server::{ServerSettings, WebSettings, WebTransport};
 pub use subscriptions::SubscriptionSettings;
 pub use testing::{
     ConnectionTestStage, DownloadTestSettings, GeoIpBackend, GeoIpCacheSettings,

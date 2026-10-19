@@ -22,3 +22,6 @@ docs/css/
 docs/theme/
 
 # docs/src/media/ is tracked (xrat-icon.png is a symlink to ../media/icons/xrat-icon-1024x1024.png)
+
+/crates/xrat-app/web-assets/*
+!/crates/xrat-app/web-assets/.gitkeep

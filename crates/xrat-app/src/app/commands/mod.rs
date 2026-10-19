@@ -39,3 +39,5 @@ use crate::cli::Command;
 
 mod dispatch;
 pub use dispatch::run;
+
+pub use serve::password_hash;

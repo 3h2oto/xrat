@@ -7,7 +7,10 @@ pub fn require_api_key(state: &ServerState, provided: Option<&str>) -> ServerRes
     let Some(provided) = provided else {
         return Err(ServerError::MissingApiKey);
     };
-    if provided != expected {
+    if !bool::from(subtle::ConstantTimeEq::ct_eq(
+        provided.as_bytes(),
+        expected.as_bytes(),
+    )) {
         return Err(ServerError::InvalidApiKey);
     }
 

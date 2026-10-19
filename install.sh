@@ -172,8 +172,13 @@ build_from_source() {
         exit 1
     fi
 
+    if [[ -f "$repo_dir/crates/xrat-web/Cargo.toml" ]]; then
+        require_cmd just
+        require_cmd rustup
+        (cd "$repo_dir" && rustup target add wasm32-unknown-unknown && just web-tools web-build)
+    fi
     step "Chewing through Rust crates in ${repo_dir} (o_o)"
-    (cd "$repo_dir" && cargo build --release)
+    (cd "$repo_dir" && cargo build --release --locked)
 
     cp "$repo_dir/target/release/xrat" "${WORK_DIR}/xrat"
 }

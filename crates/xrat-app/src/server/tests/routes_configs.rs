@@ -268,3 +268,22 @@ async fn config_detail_returns_null_latest_test_when_no_test_exists() {
     assert!(detail.latest_test.is_none());
     assert_eq!(detail.r#ref, config.r#ref);
 }
+
+#[tokio::test]
+async fn configs_route_rejects_overflowing_offset() {
+    let state = populated_state(None).await;
+    for page in [u64::MAX, (i64::MAX as u64 / 50) + 2] {
+        let result = configs::list_configs(
+            State(state.clone()),
+            Query(ConfigsQuery {
+                key: None,
+                page: Some(page),
+                per_page: Some(50),
+                enabled: None,
+                protocol: None,
+            }),
+        )
+        .await;
+        assert!(matches!(result, Err(ServerError::InvalidQuery(_))));
+    }
+}

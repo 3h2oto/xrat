@@ -3,6 +3,15 @@
 ARG XRAY_TAG=latest
 ARG SINGBOX_TAG=latest
 
+FROM --platform=$BUILDPLATFORM rust:1 AS web-builder
+WORKDIR /app
+RUN rustup target add wasm32-unknown-unknown \
+    && cargo install just --locked --version 1.46.0
+COPY Cargo.toml Cargo.lock Justfile ./
+COPY crates ./crates
+COPY src ./src
+RUN just web-tools web-build
+
 FROM rust:1-alpine AS builder
 
 ARG TARGETARCH
@@ -14,6 +23,7 @@ COPY Cargo.toml Cargo.lock ./
 COPY crates ./crates
 COPY packaging ./packaging
 COPY src ./src
+COPY --from=web-builder /app/crates/xrat-app/web-assets ./crates/xrat-app/web-assets
 
 RUN --mount=type=cache,target=/usr/local/cargo/registry,sharing=locked \
     --mount=type=cache,target=/app/target,id=xrat-target-${TARGETARCH},sharing=locked \

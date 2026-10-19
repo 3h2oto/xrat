@@ -6,6 +6,7 @@ use xrat_db::Database;
 #[derive(Clone)]
 pub struct ServerState {
     pub db: Database,
+    pub web: Option<std::sync::Arc<super::web::WebState>>,
     pub services: AppServices,
     pub api_key: Option<String>,
     pub pac_enabled: bool,
@@ -25,7 +26,15 @@ impl ServerState {
             .map(|secret| secret.resolve())
             .transpose()?;
         let services = crate::app::services::AppServices::from_database(db.clone());
+        let web = settings
+            .web
+            .enabled
+            .then(|| super::web::WebState::new(settings))
+            .transpose()
+            .map_err(crate::app::AppError::InvalidArgument)?
+            .map(std::sync::Arc::new);
         Ok(Self {
+            web,
             db,
             services,
             api_key,
@@ -39,6 +48,7 @@ impl ServerState {
     #[cfg(test)]
     pub fn for_test(db: Database, api_key: Option<String>) -> Self {
         Self {
+            web: None,
             services: crate::app::services::AppServices::from_database(db.clone()),
             db,
             api_key,

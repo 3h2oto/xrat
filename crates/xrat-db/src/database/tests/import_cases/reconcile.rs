@@ -7,7 +7,7 @@ fn node_at(name: &str, address: &str) -> Node {
 }
 
 #[tokio::test]
-async fn refresh_soft_deletes_provider_removed_configs() {
+async fn refresh_purges_provider_removed_configs() {
     let db_path = test_database_path("xrat-reconcile");
     let db = Database::connect_sqlite(&db_path)
         .await
@@ -61,7 +61,7 @@ async fn refresh_soft_deletes_provider_removed_configs() {
         })
         .await
         .expect("list all");
-    assert_eq!(all.len(), 2, "removed config is soft-deleted, not purged");
+    assert_eq!(all.len(), 1, "removed config is purged automatically");
 
     db.delete_config(active[0].id)
         .await
@@ -101,7 +101,7 @@ async fn refresh_restores_returning_config() {
         .await
         .expect("refresh dropping b");
 
-    // Provider brings "b" back: the upsert clears its soft-delete flag.
+    // A returning provider config is imported again after its old row was purged.
     let restored = db
         .import_nodes(
             &source,

@@ -15,3 +15,5 @@ pub use record::{
     NewEvent, RefMatch, RuntimeSessionInsert, RuntimeSessionRecord, RuntimeSessionStatus,
     SourceKind, SubscriptionRecord, node_from_record,
 };
+
+pub use database::web::{WebJob, WebSession, WebToken, WebUser};

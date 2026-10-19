@@ -2,6 +2,14 @@ use super::Database;
 use super::types::*;
 
 impl Database {
+    pub async fn recent_connection_tests(
+        &self,
+        config_id: ConfigId,
+        limit: i64,
+    ) -> crate::Result<Vec<ConnectionTestRecord>> {
+        repository::recent_connection_tests(&self.pool, config_id, limit).await
+    }
+
     pub async fn upsert_cf_scan_results(
         &self,
         results: &[CfScanResultUpsert],

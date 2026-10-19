@@ -19,7 +19,7 @@ pub use configs::{
 pub use connection_tests::{
     get_connection_test_count, get_latest_connection_test, get_latest_connection_test_run,
     insert_connection_test, insert_connection_test_run, list_connection_tests,
-    list_connection_tests_by_run,
+    list_connection_tests_by_run, recent_connection_tests,
 };
 pub use events::{clear_events, events_after, list_events, record_event};
 pub use geoip_cache::{get_fresh_geoip_cache, upsert_geoip_cache};
@@ -31,6 +31,6 @@ pub use runtime_sessions::{
 };
 pub use subscriptions::{
     delete_subscription_with_configs, get_subscription_by_id, get_subscription_count,
-    list_refreshable_due_subscriptions, list_subscriptions, resolve_subscription_ref_prefix,
-    set_subscription_name,
+    last_subscription_refresh, list_refreshable_due_subscriptions, list_subscriptions,
+    resolve_subscription_ref_prefix, set_subscription_name,
 };
