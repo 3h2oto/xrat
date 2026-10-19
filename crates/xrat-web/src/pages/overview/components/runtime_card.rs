@@ -153,7 +153,9 @@ pub fn RuntimeCard(data: Overview, stale: bool) -> Element {
                                     span { "{inbound.name}" }
                                     div { class: "flex min-w-0 items-center gap-2",
                                         super::listener::ListenerLink { inbound: inbound.clone() }
-                                        HealthStatus { available: inbound.reachable, label: format!("{} listener", inbound.name), stale }
+                                        if inbound.reachable != Some(true) {
+                                            HealthStatus { available: inbound.reachable, label: format!("{} listener", inbound.name), stale }
+                                        }
                                     }
                                 }
                             }
