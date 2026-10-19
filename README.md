@@ -18,7 +18,7 @@
 
 Import your subscriptions, find a working proxy, and keep it running from the
 terminal. XRAT brings testing, connection management, and troubleshooting into
-one Rust CLI and TUI, with saved results you can return to later.
+one Rust CLI, TUI, and Web UI, with saved results you can return to later.
 
 - **Choose with measurements.** Test a whole subscription concurrently, sort by
   real HTTP latency through each proxy, and see which configs failed and why.
@@ -42,6 +42,7 @@ For detailed setup, command references, and SDK documentation, visit
 
 - [Installation](#installation)
 - [Quickstart](#quickstart)
+- [Web UI](#web-ui)
 - [CLI workflows](#cli-workflows)
 - [System traffic with TUN](#system-traffic-with-tun)
 - [A few more useful commands](#-a-few-more-useful-commands)
@@ -140,6 +141,67 @@ terminal with the [shell helper below](#use-your-proxy-in-the-terminal), or open
 xrat status       # check the connection
 xrat disconnect   # stop it when finished
 ```
+
+## Web UI
+
+Manage the same XRAT instance from your browser. The dashboard brings together
+runtime status, configuration health, live traffic, and latency history. Built
+with **Dioxus** and adapted **Rust/UI** components; see the
+[UI attribution](crates/xrat-web/THIRD_PARTY.md).
+
+The HTTP server and Web UI are **disabled by default**. To enable them, generate
+an administrator password hash with `xrat hash-password` (it reads the password
+from standard input; use at least 12 characters). Add or update these sections
+in `~/.config/xrat/config.toml`, replacing the placeholder with the generated
+Argon2id hash, not the plain password:
+
+```toml
+[server]
+enabled = true
+host = "127.0.0.1"
+port = 18203
+
+[server.web]
+enabled = true
+admin_username = "admin"
+admin_password_hash = 'PASTE_ARGON2ID_HASH_HERE'
+transport = "local_http"
+```
+
+Start the daemon with `xrat daemon start`, or apply the configuration to an
+already running daemon with `xrat daemon restart`. Open <http://127.0.0.1:18203>
+and sign in with your configured username and password.
+
+Alternatively, run `xrat webui` to start a foreground server and open the
+browser when the daemon is not hosting it. Use `xrat webui --no-open` on a
+headless host. See the [Web UI guide](docs/src/03-features/web-ui.md) for HTTPS,
+environment-backed password hashes, and additional user accounts.
+
+![XRAT Web UI Overview in light mode, showing a connected runtime, configuration health, latency measurements, live throughput, and probe history](docs/src/media/screenshots/web-overview.webp)
+
+<details>
+<summary>Browse, filter, test, and share configurations</summary>
+
+Filter across subscriptions, compare saved measurements, and connect or share
+configs directly from the table. The active connection has a highlighted row.
+
+![XRAT configuration table in dark mode, filtered to passing tests and sorted by real delay, with TCP and ICMP measurements and direct action buttons](docs/src/media/screenshots/web-configs.webp)
+
+</details>
+
+<details>
+<summary>Configure XRAT from the browser</summary>
+
+Search settings or browse by category, review changes, and save them together.
+The toolbar and categories stay visible while the settings editor scrolls.
+
+![XRAT Settings in dark mode, with searchable categories, runtime options, and compact reload and save controls](docs/src/media/screenshots/web-settings.webp)
+
+</details>
+
+Screenshots were captured from a local instance. Account and configuration
+identifiers and addresses are anonymized; measurements are from the running
+instance.
 
 ## CLI workflows
 
