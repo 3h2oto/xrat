@@ -137,11 +137,17 @@ cancelled cooperatively. Jobs interrupted by a server restart are recorded as
 interrupted and are never automatically repeated. Progress is available at
 `/api/v1/jobs/events` through SSE, with `/api/v1/jobs` for polling clients.
 
+Config test cells follow the shared runner's actual stage progress: queued
+stages show a clock, running stages a spinner, and completed/failed/skipped stages
+use distinct icons. Completed configurations reload their measured values.
+Disabled test stages are not shown as running. Job completion or cancellation
+clears active indicators.
+
 ## Share configurations
 
-On Configs, **Share filtered · N** applies to every matching configuration
+On Configs, the share icon and matching count apply to every matching configuration
 across all pages. Choose **Copy configs**, **Show QR**, or **Subscription
-link**. The selection bar provides **Share selected · N** with copy and QR
+link**. The selection bar provides icon-only Copy and QR
 actions for exactly the checked configurations. These actions are available to
 operators and administrators.
 
@@ -172,6 +178,12 @@ Test, and Delete. Mobile keeps row actions in a menu. Bulk operations and select
 are displayed directly in the selection bar, without a separate menu or clear
 button. Config export downloads
 are replaced by these sharing controls; subscription CSV downloads remain available.
+
+Subscriptions show View configs, Refresh, Copy URL, QR, Rename, and Delete as
+direct row actions. Copy and QR share only that subscription's original source
+URL. File and pasted-text sources have no URL to share; oversized source URLs
+also disable QR. Source URLs are fetched on demand and never included in Overview
+metadata. QR codes are generated locally.
 
 Anyone with the subscription URL can use its credential. Filters are not access
 restrictions: recipients can change them. Use HTTPS and redact query credentials
@@ -261,6 +273,9 @@ Local form drafts and temporary unlock grants are not stored in the URL.
 
 ### Editing settings
 
+The Settings toolbar and category controls stay visible while the selected
+category's editor scrolls independently, including search results.
+
 Settings are grouped into categories across the top, with a category selector on
 small screens. Search matches setting labels and configuration keys across all
 categories. Related settings are grouped into sections with switches for
@@ -334,7 +349,9 @@ Missing/failed measurements sort after available numeric measurements.
 Search and filters apply to the full loaded dataset before pagination. Configs
 can be filtered by protocol, enabled/disabled/deleted state, subscription, test
 outcome, country, and maximum real delay. Subscriptions can be filtered by source
-type. Choose 25, 50, or 100 rows per page; Reset restores the default view. Click
+type. Categorical filters support multiple selections: values within a filter
+are combined with OR, while different filters are combined with AND. Lists
+with more than eight choices include search. Choose 25, 50, or 100 rows per page; Reset restores the default view. Click
 a subscription name to open Configs filtered to that source.
 
 Filters, sorting, visible columns, page, and page size are stored in the URL.
@@ -348,13 +365,12 @@ For example:
 Changes replace the current browser-history entry, so typing does not add a new
 history entry for each character. Refreshing or opening a shared link restores
 the view; browser Back/Forward restores the table state of that history entry.
-CSV exports all matching rows using the visible columns, or selected matching
-rows when a selection is active. It exports table metadata; the existing per-row
-config Export action remains the way to download a configuration link.
+Subscription CSV exports matching rows using the visible columns, or selected
+matching rows when a selection is active. Config sharing uses Copy, QR, and
+subscription links instead of export downloads.
 
 Operators can select individual rows or the current page. Selection survives
-page and sort changes and clears when filters change. Select all matching
-selects the filtered result, up to 500 rows. Bulk actions use a snapshot of
+page and sort changes and clears when filters change. Bulk actions use a snapshot of
 eligible selected IDs: enable, disable, test, soft-delete, or restore configs;
 refresh URL subscriptions or delete subscriptions. Deleted configs are eligible
 for Restore, and subscriptions that are not URLs are ineligible for Refresh.
