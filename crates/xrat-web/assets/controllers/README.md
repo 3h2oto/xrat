@@ -1,9 +1,11 @@
 # Browser controllers
 
 `boot.js` loads `components.js`, which imports these native ES modules once,
-before starting Dioxus. No bundler or inline scripts are needed.
-`just web-build` copies this directory into the assets embedded and served by
-Axum.
+before starting Dioxus. `boot.js` also imports `pwa.js` to register the service
+worker on secure origins. The worker caches only the public offline document;
+API requests, subscription URLs, and app bundles remain network-only. No bundler
+or inline scripts are needed. `just web-build` copies this directory into the
+assets embedded and served by Axum.
 
 Paths below are relative to `crates/xrat-web/src/`. A component opts into a
 controller by rendering the listed attributes. Composing one of these primitives
