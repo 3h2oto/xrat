@@ -208,3 +208,8 @@
     background-position: -100% 0;
   }
 }
+
+.import-dropzone[data-dragging="true"] {
+  border-color: var(--primary);
+  background: var(--accent);
+}
