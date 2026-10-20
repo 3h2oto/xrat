@@ -57,13 +57,12 @@ fn detail_lines<'a>(
     let content_width = area.width.saturating_sub(2 + RIGHT_PAD) as usize;
     match config {
         Some(config) => {
-            let mut lines = vec![
-                Line::styled(
-                    format!("{} {}", config.display_ref(), config.display_name()),
-                    theme::accent_style().add_modifier(Modifier::BOLD),
-                ),
-                Line::raw(""),
-            ];
+            let mut lines = vec![Line::styled(
+                format!("{} {}", config.display_ref(), config.display_name()),
+                theme::accent_style().add_modifier(Modifier::BOLD),
+            )];
+
+            push_section(&mut lines, "Connection");
             push_detail(
                 &mut lines,
                 "ID",
@@ -94,6 +93,15 @@ fn detail_lines<'a>(
                 LABEL_WIDTH,
                 content_width,
             );
+
+            let has_metrics = metric_columns.icmp
+                || metric_columns.tcp
+                || metric_columns.real_delay
+                || metric_columns.download
+                || metric_columns.upload;
+            if has_metrics {
+                push_section(&mut lines, "Metrics");
+            }
             if metric_columns.icmp {
                 push_styled_detail(
                     &mut lines,
@@ -184,10 +192,45 @@ fn detail_lines<'a>(
                     content_width,
                 );
             }
+
+            push_section(&mut lines, "Routing & Geo");
+            if metric_columns.country {
+                push_detail(
+                    &mut lines,
+                    "Country",
+                    config.country_label(),
+                    LABEL_WIDTH,
+                    content_width,
+                );
+                push_detail(
+                    &mut lines,
+                    "City",
+                    config.location_label(),
+                    LABEL_WIDTH,
+                    content_width,
+                );
+                push_detail(
+                    &mut lines,
+                    "ASN",
+                    config.asn_label(),
+                    LABEL_WIDTH,
+                    content_width,
+                );
+            }
             push_detail(
                 &mut lines,
                 "Subscription",
                 source_label,
+                LABEL_WIDTH,
+                content_width,
+            );
+
+            push_section(&mut lines, "Status");
+            push_styled_detail(
+                &mut lines,
+                "Active",
+                yes_no(config.is_active),
+                theme::available_style(config.is_active),
                 LABEL_WIDTH,
                 content_width,
             );
@@ -196,14 +239,6 @@ fn detail_lines<'a>(
                 "Enabled",
                 yes_no(config.is_enabled),
                 theme::available_style(config.is_enabled),
-                LABEL_WIDTH,
-                content_width,
-            );
-            push_styled_detail(
-                &mut lines,
-                "Active",
-                yes_no(config.is_active),
-                theme::available_style(config.is_active),
                 LABEL_WIDTH,
                 content_width,
             );
@@ -219,7 +254,6 @@ fn detail_lines<'a>(
                 LABEL_WIDTH,
                 content_width,
             );
-            lines.push(Line::raw(""));
             push_styled_detail(
                 &mut lines,
                 "Failure",
@@ -244,6 +278,14 @@ fn detail_lines<'a>(
             Line::raw("or add one with `xrat add <config-uri>`."),
         ],
     }
+}
+
+fn push_section(lines: &mut Vec<Line<'_>>, title: &str) {
+    lines.push(Line::raw(""));
+    lines.push(Line::styled(
+        format!("── {title} ──"),
+        theme::muted_style().add_modifier(Modifier::BOLD),
+    ));
 }
 
 fn yes_no(value: bool) -> &'static str {
