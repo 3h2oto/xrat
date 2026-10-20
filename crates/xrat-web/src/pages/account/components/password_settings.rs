@@ -1,7 +1,7 @@
 use super::*;
 
 #[component]
-pub(crate) fn PasswordSettings(configured: bool, required: bool, show_signout: bool) -> Element {
+pub(crate) fn PasswordSettings(configured: bool, required: bool) -> Element {
     let Session(mut session) = use_context();
     let Notice(mut notice) = use_context();
     let mut current = use_signal(String::new);
@@ -33,9 +33,6 @@ pub(crate) fn PasswordSettings(configured: bool, required: bool, show_signout: b
                     } else {
                         "Keep your account secure with a password you don’t use elsewhere."
                     }
-                }
-                if show_signout {
-                    div { class: "self-account-signout flex justify-start mt-5", SignOutButton {} }
                 }
             }
             Card {

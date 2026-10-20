@@ -25,14 +25,17 @@ pub(crate) fn AccountSummary(user: User) -> Element {
                 h2 { "{user.username}" }
                 p { "{role}" }
             }
-            span { class: "self-account-source inline-flex items-center ml-auto text-[11px] text-muted-foreground gap-1.5 narrow:basis-full narrow:ml-15 [&_svg]:w-[13px] [&_svg]:h-[13px]",
-                if user.configured {
-                    Lock {}
-                    "Managed on host"
-                } else {
-                    Shield {}
-                    "Local account"
+            div { class: "ml-auto flex flex-col items-end gap-3 narrow:basis-full narrow:ml-15 narrow:items-start",
+                span { class: "self-account-source inline-flex items-center text-[11px] text-muted-foreground gap-1.5 [&_svg]:w-[13px] [&_svg]:h-[13px]",
+                    if user.configured {
+                        Lock {}
+                        "Managed on host"
+                    } else {
+                        Shield {}
+                        "Local account"
+                    }
                 }
+                SignOutButton {}
             }
         }
     }
