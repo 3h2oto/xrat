@@ -44,14 +44,12 @@ pub fn LatencyBarChart(configs: Vec<ConfigRow>, metrics: Vec<LatencyMetric>) -> 
         });
     rsx! {
         div {
-            class: "dashboard-plot dashboard-latency-chart relative min-w-0 flex flex-col flex-1 min-h-45 [&_>_svg]:w-full [&_>_svg]:h-0 [&_>_svg]:overflow-visible [&_>_svg]:block [&_>_svg]:min-h-40 [&_>_svg]:flex-1",
+            class: "dashboard-plot dashboard-latency-chart relative min-w-0 flex flex-col flex-1 min-h-45",
             "data-name": "BarChart",
             "data-chart-values": serde_json::to_string(&values).unwrap_or_default(),
             "data-chart-labels": serde_json::to_string(&labels).unwrap_or_default(),
-            svg {
-                role: "img",
-                "aria-label": "Average successful latency by enabled test type",
-                view_box: format!("0 0 {} {}", bounds.width, bounds.height),
+            div {
+                class: "relative min-w-0 h-0 min-h-40 flex-1",
                 onresize: move |event: ResizeEvent| {
                     if let Ok(size) = event.get_content_box_size() {
                         let next = PlotBounds {
@@ -63,74 +61,80 @@ pub fn LatencyBarChart(configs: Vec<ConfigRow>, metrics: Vec<LatencyMetric>) -> 
                         }
                     }
                 },
-                for fraction in [0.0, 0.5, 1.0] {
-                    g {
-                        line {
-                            x1: "48",
-                            x2: format!("{}", bounds.right()),
-                            y1: format!("{}", bounds.y(maximum * fraction, maximum)),
-                            y2: format!("{}", bounds.y(maximum * fraction, maximum)),
-                            class: "chart-grid-line stroke-[color-mix(in_srgb,_var(--border)_22%,_transparent)] [stroke-dasharray:3_5]",
-                        }
-                        text {
-                            x: "42",
-                            y: format!("{}", bounds.y(maximum * fraction, maximum) + 4.0),
-                            text_anchor: "end",
-                            class: "chart-axis-text fill-[var(--muted)] text-[11px] [font-family:inherit]",
-                            {format!("{:.0} ms", maximum * fraction)}
-                        }
-                    }
-                }
-                for (index, (metric, result)) in bars.iter().enumerate() {
-                    g {
-                        key: "{key(*metric)}",
-                        tabindex: if index == 0 { "0" } else { "-1" },
-                        class: format!(
-                            "chart-sample latency-column {} [&:focus]:[outline:none] [&:hover_.chart-crosshair]:opacity-60 [&:focus_.chart-crosshair]:opacity-60 [&:hover_.latency-column-bar]:opacity-100 [&:focus_.latency-column-bar]:opacity-100 text-[color:var(--series-color)]",
-                            CHART_TONES[METRICS.iter().position(|candidate| candidate == metric).unwrap_or(0)],
-                        ),
-                        role: "img",
-                        "aria-label": format!(
-                            "{}: {}, {} successful samples",
-                            label(*metric),
-                            milliseconds(result.average),
-                            result.samples,
-                        ),
-                        onmouseenter: move |_| focused.set(Some(index)),
-                        onmouseleave: move |_| focused.set(None),
-                        onfocus: move |_| focused.set(Some(index)),
-                        onblur: move |_| focused.set(None),
-                        onclick: move |_| focused.set(Some(index)),
-                        rect {
-                            x: format!("{}", 48.0 + width * index as f64 + width * 0.1),
-                            y: "0",
-                            width: format!("{}", width * 0.8),
-                            height: format!("{}", bounds.height),
-                            fill: "transparent",
-                        }
-                        if let Some(value) = result.average {
-                            rect {
-                                x: format!("{}", 48.0 + width * index as f64 + width * 0.26),
-                                y: format!("{}", bounds.y(value, maximum)),
-                                width: format!("{}", width * 0.48),
-                                height: format!("{}", (bounds.bottom() - bounds.y(value, maximum)).max(0.0)),
-                                rx: "4",
-                                class: "latency-column-bar fill-current opacity-85",
+                svg {
+                    class: "absolute inset-0 block size-full overflow-visible",
+                    role: "img",
+                    "aria-label": "Average successful latency by enabled test type",
+                    view_box: format!("0 0 {} {}", bounds.width, bounds.height),
+                    for fraction in [0.0, 0.5, 1.0] {
+                        g {
+                            line {
+                                x1: "48",
+                                x2: format!("{}", bounds.right()),
+                                y1: format!("{}", bounds.y(maximum * fraction, maximum)),
+                                y2: format!("{}", bounds.y(maximum * fraction, maximum)),
+                                class: "chart-grid-line stroke-[color-mix(in_srgb,_var(--border)_22%,_transparent)] [stroke-dasharray:3_5]",
+                            }
+                            text {
+                                x: "42",
+                                y: format!("{}", bounds.y(maximum * fraction, maximum) + 4.0),
+                                text_anchor: "end",
+                                class: "chart-axis-text fill-[var(--muted)] text-[11px] [font-family:inherit]",
+                                {format!("{:.0} ms", maximum * fraction)}
                             }
                         }
-                        text {
-                            x: format!("{}", 48.0 + width * (index as f64 + 0.5)),
-                            y: format!("{}", bounds.y(result.average.unwrap_or_default(), maximum) - 7.0),
-                            text_anchor: "middle",
-                            class: "latency-column-value text-[10px] fill-[var(--foreground)]",
-                            {milliseconds(result.average)}
-                        }
-                        text {
-                            x: format!("{}", 48.0 + width * (index as f64 + 0.5)),
-                            y: format!("{}", bounds.height - 5.0),
-                            text_anchor: "middle",
-                            class: "chart-axis-text fill-[var(--muted)] text-[11px] [font-family:inherit]",
-                            {label(*metric)}
+                    }
+                    for (index, (metric, result)) in bars.iter().enumerate() {
+                        g {
+                            key: "{key(*metric)}",
+                            tabindex: if index == 0 { "0" } else { "-1" },
+                            class: format!(
+                                "chart-sample latency-column {} [&:focus]:[outline:none] [&:hover_.chart-crosshair]:opacity-60 [&:focus_.chart-crosshair]:opacity-60 [&:hover_.latency-column-bar]:opacity-100 [&:focus_.latency-column-bar]:opacity-100 text-[color:var(--series-color)]",
+                                CHART_TONES[METRICS.iter().position(|candidate| candidate == metric).unwrap_or(0)],
+                            ),
+                            role: "img",
+                            "aria-label": format!(
+                                "{}: {}, {} successful samples",
+                                label(*metric),
+                                milliseconds(result.average),
+                                result.samples,
+                            ),
+                            onmouseenter: move |_| focused.set(Some(index)),
+                            onmouseleave: move |_| focused.set(None),
+                            onfocus: move |_| focused.set(Some(index)),
+                            onblur: move |_| focused.set(None),
+                            onclick: move |_| focused.set(Some(index)),
+                            rect {
+                                x: format!("{}", 48.0 + width * index as f64 + width * 0.1),
+                                y: "0",
+                                width: format!("{}", width * 0.8),
+                                height: format!("{}", bounds.height),
+                                fill: "transparent",
+                            }
+                            if let Some(value) = result.average {
+                                rect {
+                                    x: format!("{}", 48.0 + width * index as f64 + width * 0.26),
+                                    y: format!("{}", bounds.y(value, maximum)),
+                                    width: format!("{}", width * 0.48),
+                                    height: format!("{}", (bounds.bottom() - bounds.y(value, maximum)).max(0.0)),
+                                    rx: "4",
+                                    class: "latency-column-bar fill-current opacity-85",
+                                }
+                            }
+                            text {
+                                x: format!("{}", 48.0 + width * (index as f64 + 0.5)),
+                                y: format!("{}", bounds.y(result.average.unwrap_or_default(), maximum) - 7.0),
+                                text_anchor: "middle",
+                                class: "latency-column-value text-[10px] fill-[var(--foreground)]",
+                                {milliseconds(result.average)}
+                            }
+                            text {
+                                x: format!("{}", 48.0 + width * (index as f64 + 0.5)),
+                                y: format!("{}", bounds.height - 5.0),
+                                text_anchor: "middle",
+                                class: "chart-axis-text fill-[var(--muted)] text-[11px] [font-family:inherit]",
+                                {label(*metric)}
+                            }
                         }
                     }
                 }

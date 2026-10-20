@@ -218,16 +218,12 @@ pub fn PlotChart(
                 "dashboard-plot relative min-w-0 min-[1001px]:h700:flex-col ",
                 "min-[1001px]:h700:min-h-0 ",
                 "min-[1001px]:h700:flex-1 ",
-                "min-[1001px]:h700:flex [&_>_svg]:w-full ",
-                "[&_>_svg]:h-[clamp(160px,_22dvh,_260px)] [&_>_svg]:overflow-visible [&_>_svg]:block ",
-                "min-[1001px]:h700:[&_>_svg]:min-h-30 ",
-                "min-[1001px]:h700:[&_>_svg]:flex-1 ",
-                "min-[1001px]:h700:[&_>_svg]:h-0",
+                "min-[1001px]:h700:flex",
             ),
             "data-name": if area { "AreaChart" } else { "LineChart" },
             if present {
-                svg {
-                    view_box: format!("0 0 {} {}", bounds.width, bounds.height),
+                div {
+                    class: "relative min-w-0 h-[clamp(160px,_22dvh,_260px)] min-[1001px]:h700:min-h-30 min-[1001px]:h700:flex-1 min-[1001px]:h700:h-0",
                     onresize: move |event: ResizeEvent| {
                         if let Ok(size) = event.get_content_box_size() {
                             let next = PlotBounds {
@@ -239,98 +235,102 @@ pub fn PlotChart(
                             }
                         }
                     },
-                    role: "img",
-                    "aria-label": chart_label,
-                    onmouseleave: move |_| hovered.set(None),
-                    for fraction in [0.0, 0.5, 1.0] {
-                        g {
-                            line {
-                                x1: "64",
-                                x2: format!("{}", bounds.right()),
-                                y1: format!("{}", bounds.y(maximum * fraction, maximum)),
-                                y2: format!("{}", bounds.y(maximum * fraction, maximum)),
-                                class: "chart-grid-line stroke-[color-mix(in_srgb,_var(--border)_22%,_transparent)] [stroke-dasharray:3_5]",
-                            }
-                            text {
-                                x: "58",
-                                y: format!("{}", bounds.y(maximum * fraction, maximum) + 4.0),
-                                text_anchor: "end",
-                                class: "chart-axis-text fill-[var(--muted)] text-[11px] [font-family:inherit]",
-                                {value_label(maximum * fraction, &unit)}
+                    svg {
+                        class: "absolute inset-0 block size-full overflow-visible",
+                        view_box: format!("0 0 {} {}", bounds.width, bounds.height),
+                        role: "img",
+                        "aria-label": chart_label,
+                        onmouseleave: move |_| hovered.set(None),
+                        for fraction in [0.0, 0.5, 1.0] {
+                            g {
+                                line {
+                                    x1: "64",
+                                    x2: format!("{}", bounds.right()),
+                                    y1: format!("{}", bounds.y(maximum * fraction, maximum)),
+                                    y2: format!("{}", bounds.y(maximum * fraction, maximum)),
+                                    class: "chart-grid-line stroke-[color-mix(in_srgb,_var(--border)_22%,_transparent)] [stroke-dasharray:3_5]",
+                                }
+                                text {
+                                    x: "58",
+                                    y: format!("{}", bounds.y(maximum * fraction, maximum) + 4.0),
+                                    text_anchor: "end",
+                                    class: "chart-axis-text fill-[var(--muted)] text-[11px] [font-family:inherit]",
+                                    {value_label(maximum * fraction, &unit)}
+                                }
                             }
                         }
-                    }
-                    for series in &series {
-                        g {
-                            key: "{series.name}",
-                            class: format!("chart-series {}", CHART_TONES[series.tone]),
-                            if area {
-                                for path in paths(&series.points, min, span, maximum, true, bounds, !area) {
+                        for series in &series {
+                            g {
+                                key: "{series.name}",
+                                class: format!("chart-series {}", CHART_TONES[series.tone]),
+                                if area {
+                                    for path in paths(&series.points, min, span, maximum, true, bounds, !area) {
+                                        path {
+                                            d: path,
+                                            class: "chart-area fill-[var(--series-color)] opacity-10",
+                                        }
+                                    }
+                                }
+                                for path in paths(&series.points, min, span, maximum, false, bounds, !area) {
                                     path {
                                         d: path,
-                                        class: "chart-area fill-[var(--series-color)] opacity-10",
+                                        class: "chart-line stroke-[var(--series-color)] stroke-[2] [stroke-linejoin:round] [stroke-linecap:round] [vector-effect:non-scaling-stroke]",
+                                        fill: "none",
                                     }
                                 }
-                            }
-                            for path in paths(&series.points, min, span, maximum, false, bounds, !area) {
-                                path {
-                                    d: path,
-                                    class: "chart-line stroke-[var(--series-color)] stroke-[2] [stroke-linejoin:round] [stroke-linecap:round] [vector-effect:non-scaling-stroke]",
-                                    fill: "none",
-                                }
-                            }
-                            for point in &series.points {
-                                if let Some(value) = point.y {
-                                    circle {
-                                        cx: format!("{}", bounds.x(point.x, min, span)),
-                                        cy: format!("{}", bounds.y(value, maximum)),
-                                        r: if series.points.len() == 1 { "3" } else { "1.6" },
-                                        class: "chart-dot fill-[var(--series-color)]",
+                                for point in &series.points {
+                                    if let Some(value) = point.y {
+                                        circle {
+                                            cx: format!("{}", bounds.x(point.x, min, span)),
+                                            cy: format!("{}", bounds.y(value, maximum)),
+                                            r: if series.points.len() == 1 { "3" } else { "1.6" },
+                                            class: "chart-dot fill-[var(--series-color)]",
+                                        }
                                     }
                                 }
                             }
                         }
-                    }
-                    for (index, point) in points.iter().enumerate() {
-                        g {
-                            key: "{point.id}",
-                            tabindex: if index + 1 == points.len() { "0" } else { "-1" },
-                            role: "img",
-                            "aria-label": descriptions[index].clone(),
-                            class: "chart-sample [&:focus]:[outline:none] [&:hover_.chart-crosshair]:opacity-60 [&:focus_.chart-crosshair]:opacity-60",
-                            onmouseenter: move |_| hovered.set(Some(index)),
-                            onclick: move |_| hovered.set(Some(index)),
-                            onfocus: move |_| hovered.set(Some(index)),
-                            onblur: move |_| hovered.set(None),
-                            rect {
-                                x: format!("{}", bounds.x(point.x, min, span) - 3.0),
-                                y: "12",
-                                width: "6",
-                                height: format!("{}", bounds.bottom() - 12.0),
-                                fill: "transparent",
-                            }
-                            line {
-                                x1: format!("{}", bounds.x(point.x, min, span)),
-                                x2: format!("{}", bounds.x(point.x, min, span)),
-                                y1: "12",
-                                y2: format!("{}", bounds.bottom()),
-                                class: "chart-crosshair stroke-[var(--muted)] [stroke-dasharray:2_3] opacity-0 pointer-events-none",
+                        for (index, point) in points.iter().enumerate() {
+                            g {
+                                key: "{point.id}",
+                                tabindex: if index + 1 == points.len() { "0" } else { "-1" },
+                                role: "img",
+                                "aria-label": descriptions[index].clone(),
+                                class: "chart-sample [&:focus]:[outline:none] [&:hover_.chart-crosshair]:opacity-60 [&:focus_.chart-crosshair]:opacity-60",
+                                onmouseenter: move |_| hovered.set(Some(index)),
+                                onclick: move |_| hovered.set(Some(index)),
+                                onfocus: move |_| hovered.set(Some(index)),
+                                onblur: move |_| hovered.set(None),
+                                rect {
+                                    x: format!("{}", bounds.x(point.x, min, span) - 3.0),
+                                    y: "12",
+                                    width: "6",
+                                    height: format!("{}", bounds.bottom() - 12.0),
+                                    fill: "transparent",
+                                }
+                                line {
+                                    x1: format!("{}", bounds.x(point.x, min, span)),
+                                    x2: format!("{}", bounds.x(point.x, min, span)),
+                                    y1: "12",
+                                    y2: format!("{}", bounds.bottom()),
+                                    class: "chart-crosshair stroke-[var(--muted)] [stroke-dasharray:2_3] opacity-0 pointer-events-none",
+                                }
                             }
                         }
-                    }
-                    text {
-                        x: "64",
-                        y: format!("{}", bounds.height - 5.0),
-                        class: "chart-axis-text fill-[var(--muted)] text-[11px] [font-family:inherit]",
-                        {time_label(min)}
-                    }
-                    if max > min {
                         text {
-                            x: format!("{}", bounds.right()),
+                            x: "64",
                             y: format!("{}", bounds.height - 5.0),
-                            text_anchor: "end",
                             class: "chart-axis-text fill-[var(--muted)] text-[11px] [font-family:inherit]",
-                            {time_label(max)}
+                            {time_label(min)}
+                        }
+                        if max > min {
+                            text {
+                                x: format!("{}", bounds.right()),
+                                y: format!("{}", bounds.height - 5.0),
+                                text_anchor: "end",
+                                class: "chart-axis-text fill-[var(--muted)] text-[11px] [font-family:inherit]",
+                                {time_label(max)}
+                            }
                         }
                     }
                 }
