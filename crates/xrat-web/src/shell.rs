@@ -77,6 +77,19 @@ pub fn AppShell(page: Signal<String>, dark: Signal<bool>) -> Element {
     } else {
         ""
     };
+    let heading = rsx! {
+        header {
+            div {
+                h1 { class: "page-title flex items-center gap-3 [&_>_svg]:size-6 [&_>_svg]:shrink-[0] [&_>_svg]:text-primary",
+                    ui::navigation::PageIcon { title: title.clone() }
+                    span { "{title}" }
+                }
+                p { class: "page-caption mt-2 mr-0 mb-0 ml-9 max-w-[65ch] text-muted-foreground text-[13px] leading-[1.6]",
+                    {ui::navigation::page_caption(&title)}
+                }
+            }
+        }
+    };
     rsx! {
         if session().is_none() {
             pages::Login {}
@@ -101,16 +114,8 @@ pub fn AppShell(page: Signal<String>, dark: Signal<bool>) -> Element {
                 "[&&_>_main.settings-main]:overflow-hidden [&&:has(.settings-main)]:h-dvh ",
             ),
                 main { class: main_class,
-                    header {
-                        div {
-                            h1 { class: "page-title flex items-center gap-3 [&_>_svg]:size-6 [&_>_svg]:shrink-[0] [&_>_svg]:text-primary",
-                                ui::navigation::PageIcon { title: title.clone() }
-                                span { "{title}" }
-                            }
-                            p { class: "page-caption mt-2 mr-0 mb-0 ml-9 max-w-[65ch] text-muted-foreground text-[13px] leading-[1.6]",
-                                {ui::navigation::page_caption(&title)}
-                            }
-                        }
+                    if title != "Settings" || session().is_some_and(|s| s.user.must_change_password) {
+                        {heading.clone()}
                     }
                     if session().is_some_and(|s| s.user.must_change_password) {
                         pages::Account {}
@@ -132,7 +137,7 @@ pub fn AppShell(page: Signal<String>, dark: Signal<bool>) -> Element {
                                 pages::Users {}
                             },
                             "Settings" => rsx! {
-                                pages::SettingsPage {}
+                                pages::SettingsPage { heading: heading.clone() }
                             },
                             "Tools" | "TCP scanner" | "Parse configs" | "GeoIP lookup" => rsx! {
                                 pages::Tools { section: page() }
