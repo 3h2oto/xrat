@@ -87,6 +87,33 @@ xrat setup
 
 Launch the TUI with `xratui` (or `xrat tui`).
 
+### Windows (experimental)
+
+Windows is not part of the published release artifacts yet. A Windows build can
+be produced from source:
+
+```powershell
+git clone https://github.com/mhyrzt/xrat.git
+cd xrat
+cargo build --release --locked --target x86_64-pc-windows-msvc
+.\target\x86_64-pc-windows-msvc\release\xrat.exe init
+.\target\x86_64-pc-windows-msvc\release\xrat.exe install xray
+.\target\x86_64-pc-windows-msvc\release\xrat.exe install sing-box
+.\target\x86_64-pc-windows-msvc\release\xrat.exe webui
+```
+
+The Web UI is then served on <http://127.0.0.1:18203>. Use the `127.0.0.1`
+address: the server rejects requests whose `Origin` header uses `localhost`.
+
+Known limitations on Windows:
+
+- The daemon supervisor speaks a Unix-domain socket, so `xrat daemon`,
+  `xrat status`, `xrat rotate` and the other daemon-backed commands are
+  unavailable. The CLI and the Web UI work without the daemon.
+- Managed TUN capture is Linux-only.
+- The system proxy is not configured automatically; point the application or
+  the OS at the local SOCKS/HTTP inbound (ports `18200`/`18201`).
+
 XRAT manages external proxy engines: Xray is the default, V2Ray is an
 alternative, and sing-box supports all imported protocols. Setup can install
 managed copies of the cores; they do not need to be installed beforehand.

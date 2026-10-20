@@ -1,0 +1,62 @@
+name: Windows build
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - feature/windows-support
+
+jobs:
+  web-assets:
+    name: Build browser assets
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32-unknown-unknown
+      - uses: Swatinem/rust-cache@v2
+      - uses: taiki-e/install-action@v2
+        with:
+          tool: just
+      - run: just web-tools web-build
+      - uses: actions/upload-artifact@v4
+        with:
+          name: web-assets
+          path: crates/xrat-app/web-assets/
+
+  build:
+    name: Build x86_64-pc-windows-msvc
+    runs-on: windows-latest
+    needs: [web-assets]
+    steps:
+      - uses: actions/checkout@v5
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: x86_64-pc-windows-msvc
+      - uses: Swatinem/rust-cache@v2
+        with:
+          key: x86_64-pc-windows-msvc
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: web-assets
+          path: crates/xrat-app/web-assets/
+
+      - name: Build
+        run: cargo build --release --locked --target x86_64-pc-windows-msvc
+
+      - name: Package binary
+        shell: pwsh
+        run: |
+          $version = "${{ github.ref_name }}"
+          New-Item -ItemType Directory -Force -Path stage | Out-Null
+          Copy-Item "target/x86_64-pc-windows-msvc/release/xrat.exe" stage/
+          Copy-Item LICENSE, README.md stage/
+          Compress-Archive -Path stage/* -DestinationPath "xrat-$version-x86_64-pc-windows-msvc.zip"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: xrat-x86_64-pc-windows-msvc
+          path: xrat-*.zip
+          if-no-files-found: error

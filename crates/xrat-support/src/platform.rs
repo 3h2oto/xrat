@@ -73,7 +73,17 @@ fn parent_process_id() -> u32 {
 
 #[cfg(windows)]
 fn parent_process_id() -> u32 {
-    std::os::windows::process::parent_id()
+    // std::os::windows::process::parent_id() does not exist on stable Rust
+    // (it is not part of the stable std API), so the parent pid is resolved
+    // through sysinfo, which is already a dependency of this crate.
+    let pid = sysinfo::Pid::from_u32(std::process::id());
+    let mut system = sysinfo::System::new();
+    system.refresh_processes(sysinfo::ProcessesToUpdate::Some(&[pid]), false);
+    system
+        .process(pid)
+        .and_then(|process| process.parent())
+        .map(|parent| parent.as_u32())
+        .unwrap_or(0)
 }
 
 /// Resolve a binary name against `$PATH`, returning the first existing match.
@@ -227,7 +237,10 @@ pub fn home_dir() -> Option<PathBuf> {
 }
 
 pub fn home_dir_with_env(env: &dyn crate::env::EnvVars) -> Option<PathBuf> {
-    env.get_os(("HOME").as_ref()).map(PathBuf::from)
+    env.get_os(("HOME").as_ref())
+        .map(PathBuf::from)
+        // Windows has no HOME by default; USERPROFILE is its equivalent.
+        .or_else(|| env.get_os(("USERPROFILE").as_ref()).map(PathBuf::from))
 }
 
 /// `$XDG_DATA_HOME`, falling back to `$HOME/.local/share`.
