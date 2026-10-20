@@ -35,7 +35,6 @@ pub(crate) fn ApiTokens() -> Element {
                 }
                 p { "Connect scripts and other clients to XRAT with scoped access." }
                 p { "Tokens inherit your role and are revoked when your password or account changes." }
-                div { class: "self-account-signout flex justify-start mt-5", SignOutButton {} }
             }
             Card {
                 class: concat!(
@@ -333,6 +332,15 @@ mod tests {
     use super::*;
     use xrat_web::types::Role;
 
+    #[component]
+    fn SummaryWithContext(user: User) -> Element {
+        let session = use_signal(|| None);
+        let notice = use_signal(|| None);
+        use_context_provider(|| Session(session));
+        use_context_provider(|| Notice(notice));
+        rsx! { AccountSummary { user } }
+    }
+
     #[test]
     fn account_summary_renders_role_names_as_text() {
         for (role, expected) in [
@@ -347,7 +355,8 @@ mod tests {
                 must_change_password: false,
                 configured: false,
             };
-            let mut dom = VirtualDom::new_with_props(AccountSummary, AccountSummaryProps { user });
+            let mut dom =
+                VirtualDom::new_with_props(SummaryWithContext, SummaryWithContextProps { user });
             let mutations = dom.rebuild_to_vec();
             assert!(mutations.edits.iter().any(|edit| matches!(edit, dioxus::core::Mutation::CreateTextNode { value, .. } if value == expected)));
         }

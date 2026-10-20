@@ -13,7 +13,6 @@ pub fn Account() -> Element {
             PasswordSettings {
                 configured: me.user.configured,
                 required: me.user.must_change_password,
-                show_signout: !show_tokens,
             }
             if show_tokens {
                 ApiTokens {}

@@ -6608,7 +6608,7 @@ dependencies = [
 
 [[package]]
 name = "xrat"
-version = "0.31.1"
+version = "0.31.2"
 dependencies = [
  "clap",
  "rustls",
@@ -6629,7 +6629,7 @@ dependencies = [
 
 [[package]]
 name = "xrat-app"
-version = "0.31.1"
+version = "0.31.2"
 dependencies = [
  "arboard",
  "argon2",
@@ -6688,7 +6688,7 @@ dependencies = [
 
 [[package]]
 name = "xrat-config"
-version = "0.31.1"
+version = "0.31.2"
 dependencies = [
  "base64",
  "percent-encoding",
@@ -6704,7 +6704,7 @@ dependencies = [
 
 [[package]]
 name = "xrat-db"
-version = "0.31.1"
+version = "0.31.2"
 dependencies = [
  "serde_json",
  "sqlx",
@@ -6719,7 +6719,7 @@ dependencies = [
 
 [[package]]
 name = "xrat-engines"
-version = "0.31.1"
+version = "0.31.2"
 dependencies = [
  "async-trait",
  "base64",
@@ -6741,7 +6741,7 @@ dependencies = [
 
 [[package]]
 name = "xrat-model"
-version = "0.31.1"
+version = "0.31.2"
 dependencies = [
  "serde",
  "serde_json",
@@ -6750,7 +6750,7 @@ dependencies = [
 
 [[package]]
 name = "xrat-prober"
-version = "0.31.1"
+version = "0.31.2"
 dependencies = [
  "async-trait",
  "axum 0.8.9",
@@ -6762,7 +6762,7 @@ dependencies = [
 
 [[package]]
 name = "xrat-sdk"
-version = "0.31.1"
+version = "0.31.2"
 dependencies = [
  "serde_json",
  "tempfile",
@@ -6776,7 +6776,7 @@ dependencies = [
 
 [[package]]
 name = "xrat-support"
-version = "0.31.1"
+version = "0.31.2"
 dependencies = [
  "async-trait",
  "axum 0.8.9",
@@ -6797,7 +6797,7 @@ dependencies = [
 
 [[package]]
 name = "xrat-web"
-version = "0.31.1"
+version = "0.31.2"
 dependencies = [
  "base64",
  "dioxus",
