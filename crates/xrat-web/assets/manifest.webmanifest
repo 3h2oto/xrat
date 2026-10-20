@@ -1,0 +1,25 @@
+{
+  "id": "/",
+  "name": "XRAT WebUI \u2014 Connection control",
+  "short_name": "XRAT WebUI",
+  "description": "Manage your XRAT connections, configurations, and subscriptions.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#261c15",
+  "theme_color": "#261c15",
+  "icons": [
+    {
+      "src": "/icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}

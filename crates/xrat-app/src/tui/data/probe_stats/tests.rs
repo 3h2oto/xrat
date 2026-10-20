@@ -79,3 +79,24 @@ fn series_are_chronological_and_totals_tracked() {
     assert_eq!(history.last_tested.as_deref(), Some("2026-06-11T00:00:03"));
     assert_eq!(history.real_delay_points, vec![(0.0, 30.0), (2.0, 50.0)]);
 }
+
+#[test]
+fn every_probe_series_skips_missing_runs_without_zero_fill() {
+    let mut records = (1..=5)
+        .rev()
+        .map(|id| record(id, None, None))
+        .collect::<Vec<_>>();
+    for index in [0, 4] {
+        records[index].tcp_ms = Some(20 + index as i64);
+        records[index].icmp_ms = Some(30 + index as i64);
+        records[index].real_delay_ms = Some(40 + index as i64);
+    }
+    records[2].tcp_ms = Some(-1);
+    records[2].icmp_ms = Some(-1);
+    records[2].real_delay_ms = Some(-1);
+    let history = TuiProbeHistory::from_records(&records);
+    assert_eq!(history.run_count, 5);
+    assert_eq!(history.tcp_points, [(0.0, 24.0), (4.0, 20.0)]);
+    assert_eq!(history.icmp_points, [(0.0, 34.0), (4.0, 30.0)]);
+    assert_eq!(history.real_delay_points, [(0.0, 44.0), (4.0, 40.0)]);
+}

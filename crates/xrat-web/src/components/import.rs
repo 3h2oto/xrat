@@ -5,7 +5,7 @@ use crate::ui::dialog::{
 };
 use crate::ui::field::Field;
 use crate::ui::icon_button::IconButton;
-use crate::ui::input::{Input, InputType};
+use crate::ui::input::Input;
 use crate::ui::label::Label;
 use crate::ui::textarea::Textarea;
 use dioxus::prelude::*;
@@ -22,6 +22,31 @@ pub fn ImportController(section: String) -> Element {
     let mut input = state.input;
     let mut importing = state.importing;
     let mut name = use_signal(String::new);
+    let mut dragging = use_signal(|| false);
+    let mut file_name = use_signal(String::new);
+    let mut file_error = use_signal(String::new);
+    let mut reading = use_signal(|| false);
+    let mut load_files = move |files: Vec<dioxus::html::FileData>| {
+        if files.len() != 1 {
+            file_error.set("Choose one text file at a time.".into());
+            return;
+        }
+        let file = files.into_iter().next().unwrap();
+        reading.set(true);
+        file_error.set(String::new());
+        spawn(async move {
+            match file.read_string().await {
+                Ok(text) => {
+                    input.set(text);
+                    file_name.set(file.name());
+                }
+                Err(_) => file_error.set(
+                    "Could not read this file. Choose a text file or paste its contents.".into(),
+                ),
+            }
+            reading.set(false);
+        });
+    };
     crate::hooks::use_import_paste::use_import_paste(input, importing);
     rsx! {
         span { hidden: true, "data-import-paste": "true" }
@@ -30,8 +55,8 @@ pub fn ImportController(section: String) -> Element {
                 DialogContent {
                     initial_open: true,
                     on_close: move |_: MouseEvent| importing.set(false),
-                    class: "w-[min(36rem,calc(100%-2rem))]",
-                    DialogHeader {
+                    class: "import-dialog w-[min(36rem,calc(100%-2rem))] flex flex-col gap-5 mobile:p-5",
+                    DialogHeader { class: "text-left pr-5",
                         DialogTitle {
                             if section == "Subscriptions" {
                                 "Add subscription"
@@ -43,7 +68,7 @@ pub fn ImportController(section: String) -> Element {
                             if section == "Subscriptions" {
                                 "Paste a subscription URL or load its contents from a text file."
                             } else {
-                                "Paste a subscription URL or configuration links. Local file paths are not accepted."
+                                "Paste configuration links or a subscription URL, or import a text file."
                             }
                         }
                     }
@@ -55,21 +80,39 @@ pub fn ImportController(section: String) -> Element {
                             oninput: move |e: FormEvent| name.set(e.value()),
                         }
                     }
-                    Field {
-                        Label { html_for: "import-file", "Or load a local text file" }
-                        Input {
+                    div {
+                        class: "import-dropzone relative rounded-xl border border-dashed bg-card p-5 text-center transition-colors",
+                        "data-dragging": dragging().to_string(),
+                        ondragover: move |event: DragEvent| {
+                            event.prevent_default();
+                            event.data_transfer().set_drop_effect("copy");
+                            dragging.set(true);
+                        },
+                        ondragleave: move |_| dragging.set(false),
+                        ondrop: move |event: DragEvent| {
+                            event.prevent_default();
+                            dragging.set(false);
+                            load_files(event.data_transfer().files());
+                        },
+                        icons::Upload { class: "size-6 text-primary mx-auto mb-2" }
+                        label { class: "block font-medium text-sm", r#for: "import-file", "Drop a text file or browse" }
+                        p { class: "text-xs text-muted-foreground mt-1", "Your file is read locally before importing." }
+                        input {
                             id: "import-file",
-                            r#type: InputType::File,
-                            onchange: move |event: FormEvent| {
-                                if let Some(file) = event.files().into_iter().next() {
-                                    spawn(async move {
-                                        if let Ok(text) = file.read_string().await {
-                                            input.set(text);
-                                        }
-                                    });
-                                }
-                            },
+                            r#type: "file",
+                            class: "absolute inset-0 w-full h-full opacity-0 cursor-pointer focus-visible:outline-offset-2",
+                            aria_label: "Choose configuration text file",
+                            disabled: reading(),
+                            onchange: move |event: FormEvent| load_files(event.files()),
                         }
+                    }
+                    if reading() {
+                        p { role: "status", class: "text-xs text-muted-foreground", "Reading file…" }
+                    } else if !file_name().is_empty() {
+                        p { role: "status", class: "text-xs text-muted-foreground break-all", "Loaded {file_name()}" }
+                    }
+                    if !file_error().is_empty() {
+                        p { role: "alert", class: "text-sm text-destructive", "{file_error}" }
                     }
                     Field {
                         Label { html_for: "import-input",
@@ -82,11 +125,12 @@ pub fn ImportController(section: String) -> Element {
                         Textarea {
                             id: "import-input",
                             rows: 7,
+                            class: "min-h-36 max-h-64 font-mono text-xs resize-y",
                             value: input(),
                             oninput: move |e: FormEvent| input.set(e.value()),
                         }
                     }
-                    DialogFooter {
+                    DialogFooter { class: "flex-row justify-end border-t pt-4 gap-2",
                         IconButton {
                             label: "Cancel",
                             variant: ButtonVariant::Outline,
@@ -95,7 +139,7 @@ pub fn ImportController(section: String) -> Element {
                         }
                         IconButton {
                             label: if section == "Subscriptions" { "Add subscription" } else { "Import configurations" },
-                            disabled: input().trim().is_empty(),
+                            disabled: reading() || input().trim().is_empty(),
                             onclick: move |_| {
                                 run(Action::Import {
                                     input: input(),

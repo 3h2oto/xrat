@@ -459,7 +459,10 @@ a page refresh. Changing the runtime connection or restarting the WebUI server
 starts fresh. Traffic statistics must be enabled. Missing samples and long gaps
 break the graph; counter resets establish a new baseline without a spike.
 The line chart shows the active configuration's latest 30 persisted tests with
-separate enabled latency series. Failed or absent measurements leave gaps.
+separate enabled latency series. Each series connects its available measurements
+across failed or absent results; missing measurements are never plotted as zero
+and remain unavailable in sample readouts. The TUI probe graph follows the same
+rule.
 Hover/tap a sample for details; focus a chart and use Left/Right or Home/End to
 inspect samples with the keyboard.
 

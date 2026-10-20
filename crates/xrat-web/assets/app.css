@@ -208,3 +208,13 @@
     background-position: -100% 0;
   }
 }
+
+.mobile-navigation-sheet {
+  padding-top: max(0.75rem, env(safe-area-inset-top));
+  padding-bottom: max(0.75rem, env(safe-area-inset-bottom));
+  padding-left: max(0.75rem, env(safe-area-inset-left));
+}
+.import-dropzone[data-dragging="true"] {
+  border-color: var(--primary);
+  background: var(--accent);
+}

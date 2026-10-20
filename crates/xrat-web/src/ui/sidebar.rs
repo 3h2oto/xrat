@@ -167,11 +167,11 @@ pub fn Sidebar(
                 }
                 SheetContent {
                     direction: SheetDirection::Left,
-                    class: "w-[min(20rem,90vw)] p-3",
+                    class: "mobile-navigation-sheet w-[min(20rem,90vw)] p-3 h-dvh overflow-hidden flex flex-col",
                     SheetHeader { class: "sr-only",
                         SheetTitle { "Workspace navigation" }
                     }
-                    div { class: "mobile-sidebar-body min-h-[calc(100dvh_-_48px)] flex flex-col [&_.sidebar-header]:flex-row [&_.sidebar-header]:pr-8 [&_.sidebar-navigation]:flex [&_.sidebar-footer]:block",
+                    div { class: "mobile-sidebar-body flex-1 min-h-0 flex flex-col [&_.sidebar-header]:flex-row [&_.sidebar-header]:pr-8 [&_.sidebar-navigation]:flex [&_.sidebar-footer]:block",
                         SidebarBody {
                             page,
                             dark,
@@ -306,7 +306,7 @@ fn SidebarBody(
                     "data-sheet-navigation": mobile.to_string(),
                     Button {
                         variant: ButtonVariant::Ghost,
-                        class: "sidebar-account flex items-center flex-1 min-w-0 border-0 rounded-[6px] bg-transparent text-foreground text-left h-auto p-1.5 gap-2.5 [&:hover]:bg-accent",
+                        class: "sidebar-account flex items-center justify-start flex-1 min-w-0 border-0 rounded-[6px] bg-transparent text-foreground text-left h-auto p-1.5 gap-2.5 [&:hover]:bg-accent",
                         aria_label: "Open Account",
                         onclick: move |_| page.set("Account".into()),
                         Avatar {

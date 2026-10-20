@@ -177,6 +177,12 @@ browser when the daemon is not hosting it. Use `xrat webui --no-open` on a
 headless host. See the [Web UI guide](docs/src/03-features/web-ui.md) for HTTPS,
 environment-backed password hashes, and additional user accounts.
 
+The Web UI can also be installed from your browser's **Install app** or **Add to
+Home Screen** menu. Use HTTPS when accessing another host; HTTP works for
+installation on localhost. The installed app still requires a running XRAT
+server. Configurations, credentials, and API responses are never cached for
+offline use.
+
 ![XRAT Web UI Overview in light mode, showing a connected runtime, configuration health, latency measurements, live throughput, and probe history](docs/src/media/screenshots/web-overview.webp)
 
 <details>

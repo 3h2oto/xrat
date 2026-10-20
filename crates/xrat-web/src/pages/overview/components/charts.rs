@@ -98,6 +98,7 @@ pub fn paths(
     maximum: f64,
     area: bool,
     bounds: PlotBounds,
+    connect_missing: bool,
 ) -> Vec<String> {
     let mut paths = Vec::new();
     let mut path = String::new();
@@ -127,7 +128,7 @@ pub fn paths(
                 path.push_str(&format!(" L{x:.2},{y:.2}"));
             }
             last = x;
-        } else {
+        } else if !connect_missing {
             finish(&mut paths, &mut path, first, last);
         }
     }
@@ -264,14 +265,14 @@ pub fn PlotChart(
                             key: "{series.name}",
                             class: format!("chart-series {}", CHART_TONES[series.tone]),
                             if area {
-                                for path in paths(&series.points, min, span, maximum, true, bounds) {
+                                for path in paths(&series.points, min, span, maximum, true, bounds, !area) {
                                     path {
                                         d: path,
                                         class: "chart-area fill-[var(--series-color)] opacity-10",
                                     }
                                 }
                             }
-                            for path in paths(&series.points, min, span, maximum, false, bounds) {
+                            for path in paths(&series.points, min, span, maximum, false, bounds, !area) {
                                 path {
                                     d: path,
                                     class: "chart-line stroke-[var(--series-color)] stroke-[2] [stroke-linejoin:round] [stroke-linecap:round] [vector-effect:non-scaling-stroke]",
