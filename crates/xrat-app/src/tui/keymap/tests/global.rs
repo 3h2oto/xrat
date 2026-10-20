@@ -346,7 +346,7 @@ fn maps_navigation_and_help_keys() {
     );
     assert_eq!(
         act(
-            key(KeyCode::Char('S')),
+            key(KeyCode::Char('s')),
             TuiView::Configs,
             false,
             false,
@@ -354,6 +354,17 @@ fn maps_navigation_and_help_keys() {
             false
         ),
         TuiAction::CycleSort
+    );
+    assert_eq!(
+        act(
+            key(KeyCode::Char('S')),
+            TuiView::Configs,
+            false,
+            false,
+            false,
+            false
+        ),
+        TuiAction::CycleSortReverse
     );
 }
 

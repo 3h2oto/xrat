@@ -10,6 +10,9 @@ pub fn action_for_search_key(key: KeyEvent) -> TuiAction {
         KeyCode::Char('u') if key.modifiers.contains(KeyModifiers::CONTROL) => {
             TuiAction::ClearSearch
         }
+        KeyCode::Char('w') if key.modifiers.contains(KeyModifiers::CONTROL) => {
+            TuiAction::SearchDeleteWord
+        }
         KeyCode::Char(ch) => TuiAction::SearchInput(ch),
         _ => TuiAction::None,
     }

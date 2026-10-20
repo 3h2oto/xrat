@@ -19,6 +19,23 @@ impl TuiApp {
         self.config_list.focused = 0;
     }
 
+    pub(crate) fn delete_search_word(&mut self) {
+        if !self.config_list.editing_search {
+            return;
+        }
+
+        while self.config_list.search_query.ends_with(' ') {
+            self.config_list.search_query.pop();
+        }
+        while let Some(ch) = self.config_list.search_query.chars().next_back() {
+            if ch == ' ' {
+                break;
+            }
+            self.config_list.search_query.pop();
+        }
+        self.config_list.focused = 0;
+    }
+
     pub(crate) fn close_search(&mut self) {
         self.config_list.editing_search = false;
     }

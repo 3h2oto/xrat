@@ -16,6 +16,15 @@ impl TuiApp {
         self.config_list.focused = 0;
     }
 
+    pub(crate) fn cycle_config_sort_reverse(&mut self) {
+        if self.active_view != TuiView::Configs || self.config_list.editing_search {
+            return;
+        }
+
+        self.config_list.sort = self.config_list.sort.prev();
+        self.config_list.focused = 0;
+    }
+
     pub(crate) fn cycle_config_filter(&mut self) {
         if self.active_view != TuiView::Configs || self.config_list.editing_search {
             return;

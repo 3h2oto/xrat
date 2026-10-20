@@ -107,6 +107,9 @@ impl TuiApp {
             self.needs_full_clear = true;
         } else if self.config_list.editing_search {
             self.close_search();
+        } else if !self.config_list.search_query.is_empty() {
+            self.clear_search();
+            self.needs_full_clear = true;
         } else {
             if self.show_help {
                 self.needs_full_clear = true;
