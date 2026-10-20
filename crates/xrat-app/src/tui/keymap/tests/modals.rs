@@ -62,8 +62,24 @@ fn settings_modal_has_isolated_browse_and_edit_keys() {
         TuiAction::SettingsFocusFields
     );
     assert_eq!(
+        settings_act(key(KeyCode::Char('l')), SettingsMode::Browse),
+        TuiAction::SettingsFocusFields
+    );
+    assert_eq!(
         settings_act(key(KeyCode::Left), SettingsMode::Browse),
         TuiAction::SettingsFocusSections
+    );
+    assert_eq!(
+        settings_act(key(KeyCode::Char('h')), SettingsMode::Browse),
+        TuiAction::SettingsFocusSections
+    );
+    assert_eq!(
+        settings_act(key(KeyCode::Char('[')), SettingsMode::Browse),
+        TuiAction::SettingsCycle(-1)
+    );
+    assert_eq!(
+        settings_act(key(KeyCode::Char(']')), SettingsMode::Browse),
+        TuiAction::SettingsCycle(1)
     );
 }
 
