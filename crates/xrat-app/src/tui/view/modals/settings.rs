@@ -18,6 +18,7 @@ pub fn render_settings_modal(frame: &mut Frame<'_>, area: Rect, app: &TuiApp) {
         .title(Line::styled(title, theme::accent_style().bold()))
         .title_bottom(footer)
         .borders(Borders::ALL)
+        .border_type(theme::border_type())
         .border_style(theme::muted_style())
         .padding(Padding::horizontal(1));
     let inner = outer.inner(modal_area);

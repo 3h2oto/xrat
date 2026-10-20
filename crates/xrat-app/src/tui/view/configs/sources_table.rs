@@ -87,6 +87,7 @@ pub fn render(frame: &mut Frame<'_>, area: Rect, app: &TuiApp, focused: bool) {
         Block::default()
             .title(tab_title(app))
             .borders(Borders::ALL)
+            .border_type(theme::border_type())
             .border_style(theme::border_style(focused)),
     )
     .column_spacing(1);

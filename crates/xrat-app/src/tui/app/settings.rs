@@ -293,6 +293,7 @@ impl TuiApp {
             if let Ok(palette) = modal.session.tui.resolve(&modal.session.tui.theme) {
                 crate::tui::theme::set_palette(palette);
             }
+            crate::tui::theme::set_border_type(modal.session.tui.border_style.to_border_type());
             self.settings_modal = None;
             self.needs_full_clear = true;
         } else {
@@ -302,21 +303,19 @@ impl TuiApp {
 }
 
 fn sync_live_theme_preview(modal: &SettingsModalState) {
-    if modal
-        .selected_setting_index()
-        .is_none_or(|index| modal.session.settings[index].path != "tui.theme")
-    {
-        return;
-    }
-    if let Some(setting) = modal
-        .session
-        .settings
-        .iter()
-        .find(|s| s.path == "tui.theme")
-        && let SettingValue::Text(ref name) = setting.value
-        && let Ok(theme) = crate::app::config::ThemeName::parse(name)
-        && let Ok(palette) = modal.session.tui.resolve(&theme)
-    {
-        crate::tui::theme::set_palette(palette);
+    if let Some(index) = modal.selected_setting_index() {
+        let setting = &modal.session.settings[index];
+        if setting.path == "tui.theme"
+            && let SettingValue::Text(ref name) = setting.value
+            && let Ok(theme) = crate::app::config::ThemeName::parse(name)
+            && let Ok(palette) = modal.session.tui.resolve(&theme)
+        {
+            crate::tui::theme::set_palette(palette);
+        } else if setting.path == "tui.border_style"
+            && let SettingValue::Text(ref style) = setting.value
+            && let Ok(border_style) = crate::app::config::TuiBorderStyle::parse(style)
+        {
+            crate::tui::theme::set_border_type(border_style.to_border_type());
+        }
     }
 }

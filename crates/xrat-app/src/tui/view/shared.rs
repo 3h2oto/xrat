@@ -99,6 +99,7 @@ pub fn render_scroll_panel(
     let block = Block::default()
         .title(style.title)
         .borders(Borders::ALL)
+        .border_type(theme::border_type())
         .border_style(theme::border_style(style.focused))
         .padding(Padding::new(0, style.right_pad, 0, 0));
 

@@ -9,6 +9,7 @@ pub async fn run(context: &AppContext) -> crate::app::Result<()> {
             .resolve(&context.app_config.tui.theme)
             .map_err(crate::app::AppError::InvalidArgument)?,
     );
+    crate::tui::theme::set_border_type(context.app_config.tui.border_style.to_border_type());
     let mut terminal = TerminalSession::enter()?;
     let data = TuiData::load(&context, false).await?;
     let mut app = TuiApp::with_data(data);

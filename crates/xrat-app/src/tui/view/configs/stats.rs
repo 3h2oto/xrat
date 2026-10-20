@@ -31,6 +31,7 @@ pub fn render(
     let block = Block::default()
         .title(title)
         .borders(Borders::ALL)
+        .border_type(theme::border_type())
         .border_style(theme::border_style(focused));
     let inner = block.inner(area);
     crate::tui::theme::clear(frame, area);

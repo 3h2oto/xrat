@@ -44,6 +44,10 @@ pub fn render(frame: &mut Frame<'_>, area: Rect, app: &TuiApp) {
         Span::raw(app.visible_configs().len().to_string()),
     ]);
 
-    let block = Block::default().title(" Filter ").borders(Borders::ALL);
+    let block = Block::default()
+        .title(" Filter ")
+        .borders(Borders::ALL)
+        .border_type(theme::border_type())
+        .border_style(theme::border_style(app.config_list.editing_search));
     frame.render_widget(Paragraph::new(Line::from(spans)).block(block), area);
 }
