@@ -1,7 +1,7 @@
 {
   "id": "/",
-  "name": "XRAT \u2014 Connection control",
-  "short_name": "XRAT",
+  "name": "XRAT WebUI \u2014 Connection control",
+  "short_name": "XRAT WebUI",
   "description": "Manage your XRAT connections, configurations, and subscriptions.",
   "start_url": "/",
   "scope": "/",
