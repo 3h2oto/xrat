@@ -1,54 +1,35 @@
-## xrat v0.31.0
+## xrat v0.31.1
 
-Manage XRAT from the browser with a new Dioxus Web UI and Rust/UI components,
-sharing the same configurations, database, and managed runtime as the CLI and
-TUI.
+Install the Web UI as an app, import text files by drag and drop, and read
+continuous probe-history lines across missing measurements.
 
 ### Web UI
 
-- View runtime status, configuration health, live throughput, and probe history
-  in Overview.
-- Browse configurations and subscriptions with searchable multi-select filters,
-  sorting, pagination, and direct row/bulk actions. Config test columns show
-  actual queued and running stages, then return to saved measurements.
-- Share checked or filtered configurations through clipboard and locally
-  generated QR codes. Create dynamic `/b64` subscription links that follow
-  filters exactly and accept `token=` or the legacy `key=` parameter.
-  Subscription rows can copy or display a QR for their original source URL.
-- Inspect XRAT and engine logs, background jobs, settings, accounts, users, and
-  maintenance tools. Responsive layouts, light/dark themes, and page-specific
-  loading skeletons are included.
-- Add persistent administrator/operator/viewer accounts, scoped API tokens,
-  revocable subscription-only credentials, CSRF/origin checks, and
-  password-confirmed host operations. Support local HTTP and HTTPS through a
-  reverse proxy or direct TLS.
-- Embed browser assets in native release archives, Docker images, and published
-  crates; the running UI does not depend on a public CSS/JavaScript CDN.
+- Add an installable **XRAT WebUI** with a manifest, application icons, and an
+  offline connection page. Only the public offline document is cached;
+  configurations, credentials, API responses, and app bundles remain
+  network-only.
+- Improve the import dialog with a text-file dropzone, file picker, read status,
+  and file-read errors. Loaded content remains editable and requires explicit
+  import confirmation.
+- Fix mobile sidebar height and safe-area padding, and left-align the account
+  footer while preserving the collapsed icon rail.
+- Connect valid probe-history points across missing or invalid measurements.
+  Missing samples remain unavailable in readouts and are never plotted as zero.
+  Traffic charts continue to show gaps when samples are unavailable.
 
-### Shared behavior and fixes
+### TUI and release fixes
 
-- Reuse engine installation, GeoIP, upgrade, and test-runner services across
-  entrypoints.
-- Remove obsolete subscription configs and their test/stopped-session history
-  after non-empty refreshes. Configurations referenced by active or
-  transitioning runtime sessions are retained until a later refresh.
-- Add README screenshots and setup instructions, Web UI documentation, and
-  browser-controller ownership guidance.
+- Skip invalid negative latency values in TUI probe graphs while connecting
+  available TCP, ICMP, and real-delay measurements across missing runs.
+- Fix crates.io publication of embedded Web UI assets and add a validated
+  recovery path for partially published releases.
 
 ### Upgrade notes
 
-- The HTTP server and Web UI are **disabled by default**. Configure `[server]`
-  and `[server.web]`, including an administrator username and Argon2id password
-  hash, before enabling the daemon-hosted UI. There is no default password. See
-  the
-  [Web UI guide](https://github.com/mhyrzt/xrat/blob/v0.31.0/docs/src/03-features/web-ui.md).
-- New SQLite/PostgreSQL migrations **0025** and **0026** add Web identity,
-  session/token, job, and subscription-credential storage. Back up your database
-  before upgrading.
-- Anyone holding a subscription URL can use its credential; URL filters are not
-  access restrictions. Use HTTPS for remote access.
-- This release adds the `xrat webui` and `xrat hash-password` commands and the
-  `server.web` configuration section. Existing CLI/TUI entrypoints remain
-  available.
+- Browser installation requires HTTPS for remote hosts; localhost also supports
+  installation over HTTP. The installed app still needs a reachable XRAT server.
+- This release adds no database migrations or configuration changes. The HTTP
+  server and Web UI remain disabled by default.
 
-**Full Changelog**: https://github.com/mhyrzt/xrat/compare/v0.30.3...v0.31.0
+**Full Changelog**: https://github.com/mhyrzt/xrat/compare/v0.31.0...v0.31.1
