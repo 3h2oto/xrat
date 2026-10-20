@@ -20,6 +20,25 @@ pub fn render_key_bar(frame: &mut Frame<'_>, area: Rect, app: &TuiApp) {
         ));
     }
 
+    brand.push(Span::raw("  "));
+    if app.data.runtime.pid_running && app.data.runtime.status == "connected" {
+        let active = app
+            .data
+            .runtime
+            .active_config
+            .as_deref()
+            .unwrap_or("active");
+        brand.push(Span::styled("● ", theme::success_style().bold()));
+        brand.push(Span::styled(active.to_string(), theme::success_style()));
+    } else if app.runtime_activity_in_flight() {
+        brand.push(Span::styled(
+            format!("{} connecting", app.spinner_frame()),
+            theme::warning_style().bold(),
+        ));
+    } else {
+        brand.push(Span::styled("○ idle", theme::muted_style()));
+    }
+
     let actions = [
         Span::styled("Keybindings: ", theme::muted_style()),
         Span::styled("?", theme::accent_style().bold()),
@@ -31,9 +50,17 @@ pub fn render_key_bar(frame: &mut Frame<'_>, area: Rect, app: &TuiApp) {
     let total = area.width as usize;
     let brand_width: usize = brand.iter().map(Span::width).sum();
     let actions_width: usize = actions.iter().map(Span::width).sum();
+
+    let (center, center_width) =
+        if brand_width + actions_width + center_width + theme::EDGE_MARGIN <= total {
+            (center, center_width)
+        } else {
+            (Vec::new(), 0)
+        };
+
     let remaining = total
         .saturating_sub(brand_width + actions_width + center_width + theme::EDGE_MARGIN)
-        .max(3);
+        .max(1);
     let left_gap = remaining / 2;
     let right_gap = remaining - left_gap;
 
@@ -48,7 +75,7 @@ pub fn render_key_bar(frame: &mut Frame<'_>, area: Rect, app: &TuiApp) {
 
 /// Center segment of the key bar. Priority: an inline destructive confirm
 /// (single-row or bulk — there are no confirm modals), then an armed chord
-/// hint.
+/// hint, then transient messages, then contextual shortcuts.
 fn center_spans(app: &TuiApp) -> Vec<Span<'static>> {
     if let Some(confirm) = &app.confirm {
         return confirm_prompt(confirm.prompt.clone());
@@ -68,7 +95,64 @@ fn center_spans(app: &TuiApp) -> Vec<Span<'static>> {
         };
         return vec![Span::styled(message.text.clone(), style)];
     }
-    Vec::new()
+    contextual_hints(app)
+}
+
+fn contextual_hints(app: &TuiApp) -> Vec<Span<'static>> {
+    let hints: &[(&str, &str)] = match app.active_view {
+        crate::tui::app::TuiView::Configs => match app.focused_panel {
+            crate::tui::app::TuiPanel::Table => &[
+                ("↵", "connect"),
+                ("t", "test"),
+                ("/", "search"),
+                ("s", "sort"),
+                ("y", "QR"),
+                ("c", "copy"),
+                ("d", "del"),
+                ("⇥", "panes"),
+            ],
+            crate::tui::app::TuiPanel::Detail => &[
+                ("j/k", "scroll"),
+                ("y", "QR"),
+                ("c", "copy"),
+                ("e/x", "toggle"),
+                ("⇥", "panes"),
+            ],
+            crate::tui::app::TuiPanel::Log => &[
+                ("[/]", "tabs"),
+                ("C", "clear"),
+                ("j/k", "scroll"),
+                ("⇥", "panes"),
+            ],
+            crate::tui::app::TuiPanel::Runtime => &[
+                ("K", "stop"),
+                ("R", "restart"),
+                ("U", "TUN"),
+                ("G", "split"),
+                ("⇥", "panes"),
+            ],
+        },
+        crate::tui::app::TuiView::Sources => &[
+            ("↵", "view"),
+            ("r", "refresh"),
+            ("u", "update all"),
+            ("n", "rename"),
+            ("d", "del"),
+            ("y", "QR"),
+            ("c", "copy"),
+            ("⇥", "panes"),
+        ],
+    };
+
+    let mut spans = Vec::with_capacity(hints.len() * 3);
+    for (index, (key, label)) in hints.iter().enumerate() {
+        if index > 0 {
+            spans.push(Span::styled(" · ", theme::muted_style()));
+        }
+        spans.push(Span::styled(*key, theme::accent_style().bold()));
+        spans.push(Span::styled(format!(" {label}"), theme::muted_style()));
+    }
+    spans
 }
 
 /// `<prompt>  y / n` with the prompt in danger red and the keys colour-coded.
