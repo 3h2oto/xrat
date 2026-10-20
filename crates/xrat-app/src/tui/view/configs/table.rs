@@ -2,7 +2,10 @@ use ratatui::Frame;
 use ratatui::layout::{Constraint, Rect};
 use ratatui::style::Modifier;
 use ratatui::text::{Line, Span};
-use ratatui::widgets::{Block, Borders, Cell, Row, Table, TableState};
+use ratatui::widgets::{
+    Block, Borders, Cell, HighlightSpacing, Paragraph, Row, Scrollbar, ScrollbarOrientation,
+    ScrollbarState, Table, TableState,
+};
 
 use crate::tui::app::TuiApp;
 use crate::tui::theme;
@@ -92,23 +95,23 @@ pub fn render(frame: &mut Frame<'_>, area: Rect, app: &TuiApp, focused: bool) {
             Cell::from(truncate_name(config.display_name())).style(name_style),
             Cell::from(config.protocol.clone()).style(proto_style),
             Cell::from(config.address_label().to_string()),
-            Cell::from(config.port_label()).style(theme::muted_style()),
+            Cell::from(Line::from(config.port_label()).right_aligned()).style(theme::muted_style()),
             Cell::from(config.network_label()).style(theme::muted_style()),
         ];
         if metric_columns.icmp {
             let label = test_metric_label(app, config, || config.icmp_label());
             let style = theme::latency_text_style(&label);
-            cells.push(Cell::from(label).style(style));
+            cells.push(Cell::from(Line::from(label).right_aligned()).style(style));
         }
         if metric_columns.tcp {
             let label = test_metric_label(app, config, || config.tcp_label());
             let style = theme::latency_text_style(&label);
-            cells.push(Cell::from(label).style(style));
+            cells.push(Cell::from(Line::from(label).right_aligned()).style(style));
         }
         if metric_columns.real_delay {
             let label = test_metric_label(app, config, || config.delay_label());
             let style = theme::latency_text_style(&label);
-            cells.push(Cell::from(label).style(style));
+            cells.push(Cell::from(Line::from(label).right_aligned()).style(style));
         }
         if metric_columns.download {
             let label = test_metric_label(app, config, || config.download_label());
@@ -117,7 +120,7 @@ pub fn render(frame: &mut Frame<'_>, area: Rect, app: &TuiApp, focused: bool) {
             } else {
                 theme::series_style("download")
             };
-            cells.push(Cell::from(label).style(style));
+            cells.push(Cell::from(Line::from(label).right_aligned()).style(style));
         }
         if metric_columns.upload {
             let label = test_metric_label(app, config, || config.upload_label());
@@ -126,7 +129,7 @@ pub fn render(frame: &mut Frame<'_>, area: Rect, app: &TuiApp, focused: bool) {
             } else {
                 theme::series_style("upload")
             };
-            cells.push(Cell::from(label).style(style));
+            cells.push(Cell::from(Line::from(label).right_aligned()).style(style));
         }
         if metric_columns.country {
             cells.push(Cell::from(config.country_label().to_string()));
@@ -162,19 +165,48 @@ pub fn render(frame: &mut Frame<'_>, area: Rect, app: &TuiApp, focused: bool) {
         constraints.push(Constraint::Length(10));
     }
 
+    let block = Block::default()
+        .title(tab_title(app))
+        .borders(Borders::ALL)
+        .border_style(border_style(focused));
+
+    crate::tui::theme::clear(frame, area);
+
+    if visible.is_empty() {
+        let msg = if app.data.total_configs == 0 {
+            "No configs imported. Press 'i' to import a subscription or config link."
+        } else {
+            "No configs match current filter/search. Press Esc to reset search, or 'F' to cycle filter."
+        };
+        let empty_p = Paragraph::new(Line::styled(msg, theme::muted_style())).block(block);
+        frame.render_widget(empty_p, area);
+        return;
+    }
+
     let table = Table::new(rows, constraints)
         .header(header)
-        .block(
-            Block::default()
-                .title(tab_title(app))
-                .borders(Borders::ALL)
-                .border_style(border_style(focused)),
-        )
+        .highlight_symbol("▶ ")
+        .highlight_spacing(HighlightSpacing::Always)
+        .block(block)
         .column_spacing(1);
 
     let mut state = TableState::default().with_selected(Some(app.config_list.focused));
-    crate::tui::theme::clear(frame, area);
     frame.render_stateful_widget(table, area, &mut state);
+
+    let viewport = area.height.saturating_sub(3) as usize;
+    if visible.len() > viewport {
+        let mut scrollbar_state = ScrollbarState::new(visible.len())
+            .viewport_content_length(viewport)
+            .position(app.config_list.focused);
+        frame.render_stateful_widget(
+            Scrollbar::new(ScrollbarOrientation::VerticalRight)
+                .style(theme::muted_style())
+                .begin_symbol(None)
+                .end_symbol(None),
+            area,
+            &mut scrollbar_state,
+        );
+    }
 }
 
 fn border_style(focused: bool) -> ratatui::style::Style {
