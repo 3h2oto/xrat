@@ -16,7 +16,7 @@ use std::collections::BTreeMap;
 use xrat_web::types::{Setting, SettingChange, Settings, SettingsBatchUpdate};
 
 #[component]
-pub fn SettingsPage(heading: Element) -> Element {
+pub fn SettingsPage() -> Element {
     let mut settings = use_signal(|| None::<Settings>);
     let mut loading = use_signal(|| true);
     let mut load_error = use_signal(String::new);
@@ -74,8 +74,7 @@ pub fn SettingsPage(heading: Element) -> Element {
     let count: usize = groups.values().map(Vec::len).sum();
     rsx! {
         div { class: "settings-page flex min-h-0 w-full max-w-340 flex-col mx-auto [&_>_:not(.settings-layout)]:shrink-0",
-            div { class: "settings-toolbar grid grid-cols-[minmax(0,1fr)_minmax(12rem,27rem)_auto] items-center mb-6 gap-4 [&_>_header]:m-0 [@media(width<=1050px)]:grid-cols-[minmax(0,1fr)_auto] [@media(width<=1050px)]:[&_>_header]:col-span-2",
-                {heading}
+            div { class: "settings-toolbar flex items-center justify-between mb-6 gap-4 narrow:flex-wrap narrow:gap-2",
                 div {
                     class: concat!(
                         "settings-search min-w-0 flex items-center relative w-[min(100%,_430px)] [&_>_svg]:absolute ",
