@@ -92,13 +92,13 @@ impl TuiProbeHistory {
         let mut failure_secs_ago = Vec::new();
         for (index, record) in window.iter().rev().enumerate() {
             let x = index as f64;
-            if let Some(ms) = record.icmp_ms {
+            if let Some(ms) = record.icmp_ms.filter(|value| *value >= 0) {
                 icmp_points.push((x, ms as f64));
             }
-            if let Some(ms) = record.tcp_ms {
+            if let Some(ms) = record.tcp_ms.filter(|value| *value >= 0) {
                 tcp_points.push((x, ms as f64));
             }
-            if let Some(ms) = record.real_delay_ms {
+            if let Some(ms) = record.real_delay_ms.filter(|value| *value >= 0) {
                 real_delay_points.push((x, ms as f64));
             }
             if record.failure_kind.is_some()

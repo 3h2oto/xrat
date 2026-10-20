@@ -171,15 +171,15 @@ fn chart_paths_preserve_missing_measurements_and_finite_geometry() {
         width: 480.0,
         height: 196.0,
     };
-    let line = paths(&points, 0.0, 3.0, 100.0, false, bounds);
+    let line = paths(&points, 0.0, 3.0, 100.0, false, bounds, false);
     assert_eq!(line.len(), 2);
     assert!(line.iter().all(|path| !path.contains('L')));
-    let area = paths(&points, 0.0, 3.0, 100.0, true, bounds);
+    let area = paths(&points, 0.0, 3.0, 100.0, true, bounds, false);
     assert!(
         area.iter()
             .all(|path| path.ends_with('Z') && !path.contains("NaN"))
     );
-    assert!(paths(&[], 0.0, 0.0, 0.0, true, bounds).is_empty());
+    assert!(paths(&[], 0.0, 0.0, 0.0, true, bounds, false).is_empty());
     assert_eq!(bytes(0.0), "0 B");
     assert_eq!(bytes(1024.0), "1.0 KiB");
     assert_eq!(bytes(f64::NAN), "—");
@@ -262,4 +262,45 @@ fn refresh_restores_server_history_immediately_and_preserves_gaps() {
     data.stats_enabled = false;
     history.restore(&data, true);
     assert!(history.points.is_empty());
+}
+
+#[test]
+fn probe_lines_connect_available_values_without_replacing_missing_samples() {
+    let points = [
+        None,
+        Some(30.0),
+        None,
+        Some(-1.0),
+        Some(f64::NAN),
+        Some(60.0),
+        None,
+    ]
+    .into_iter()
+    .enumerate()
+    .map(|(index, y)| ChartPoint {
+        id: index as i64,
+        x: index as f64,
+        y,
+    })
+    .collect::<Vec<_>>();
+    let bounds = PlotBounds {
+        width: 480.0,
+        height: 196.0,
+    };
+    let connected = paths(&points, 0.0, 6.0, 100.0, false, bounds, true);
+    assert_eq!(
+        connected,
+        [format!(
+            "M{:.2},{:.2} L{:.2},{:.2}",
+            bounds.x(1.0, 0.0, 6.0),
+            bounds.y(30.0, 100.0),
+            bounds.x(5.0, 0.0, 6.0),
+            bounds.y(60.0, 100.0)
+        )]
+    );
+    assert!(points[2].y.is_none());
+    assert!(paths(&points[..1], 0.0, 6.0, 100.0, false, bounds, true).is_empty());
+    let traffic = paths(&points, 0.0, 6.0, 100.0, false, bounds, false);
+    assert_eq!(traffic.len(), 2);
+    assert!(traffic.iter().all(|segment| !segment.contains('L')));
 }
