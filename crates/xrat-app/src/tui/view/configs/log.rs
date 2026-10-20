@@ -417,7 +417,7 @@ fn log_header(tab: TuiLogTab) -> Option<Line<'static>> {
 fn log_title(tab: TuiLogTab, engine_label: Option<String>) -> Line<'static> {
     let mut spans = vec![
         Span::raw(" "),
-        Span::styled("2:", theme::accent_style().add_modifier(Modifier::BOLD)),
+        Span::styled("3:", theme::accent_style().add_modifier(Modifier::BOLD)),
         Span::raw("  "),
     ];
     for (index, (log_tab, label)) in [
