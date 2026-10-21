@@ -2,6 +2,7 @@ mod dispatch;
 mod overview;
 mod runtime_lifecycle;
 mod runtime_status_connect;
+mod telemetry;
 
 pub(super) use dispatch::{
     handle_daemon_shutdown, handle_proxy_start, handle_proxy_status, handle_proxy_stop,
@@ -10,3 +11,4 @@ pub(super) use dispatch::{
 };
 
 pub(super) use overview::handle_runtime_overview;
+pub(super) use telemetry::{handle_runtime_dashboard, handle_runtime_traffic};

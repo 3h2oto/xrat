@@ -150,7 +150,7 @@ async fn dashboard_probe_window_is_bounded_and_hides_failed_or_negative_measurem
         .unwrap();
     snapshot.pid_running = true;
     snapshot.active_config = Some(config);
-    let meta = super::super::dashboard::load(&state.db, context, &snapshot)
+    let meta = super::super::dashboard::load(context, &snapshot)
         .await
         .unwrap();
     assert_eq!(meta.probes.len(), 30);

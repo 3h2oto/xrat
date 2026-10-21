@@ -144,6 +144,15 @@ rotation state, and read-only test-stage policy. The operator supplies no paths
 or runtime overrides. UI adapters can consume this snapshot without opening
 protected runtime files or creating a second process owner.
 
+Traffic and dashboard metadata have separate typed supervisor reads with no
+caller-supplied paths or engine API addresses. Shared application services own
+engine sampling and dashboard projection; local Web adapters use those same
+services. Traffic collection reads current owner settings, limits engine API
+sampling to 500 ms, and discards samples if the latest runtime session changes.
+Dashboard metadata reads owner test/stats/TUN policy, a bounded recent probe
+window, and actual subscription refresh timestamps. Frontend traffic history
+remains local to its collector. Machine frontend routing remains outstanding.
+
 Machine diagnostics use a shared bounded reader also used by dashboard logs.
 Typed requests select persisted events or one of the fixed daemon/Xray/sing-box
 feeds; callers cannot supply a path. CLI `logs` supports app-event JSON/TSV,

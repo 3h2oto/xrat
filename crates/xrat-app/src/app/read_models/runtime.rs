@@ -1,6 +1,12 @@
 use crate::app::daemon::ipc::TunStatePayload;
 use crate::app::runtime_service::RuntimeStatusSnapshot;
 
+#[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
+pub struct TrafficSnapshot {
+    pub session_id: Option<i64>,
+    pub traffic: Option<xrat_web::types::Traffic>,
+}
+
 #[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
 pub struct RuntimeOverview {
     pub runtime: RuntimeStatusSnapshot,

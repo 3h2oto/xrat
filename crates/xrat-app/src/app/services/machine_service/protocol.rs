@@ -27,6 +27,8 @@ pub enum GatewayRequestKind {
         request: super::ProbeRequest,
     },
     Overview {},
+    Traffic {},
+    Dashboard {},
     Ping {},
     Status {},
     Connect {
@@ -51,6 +53,8 @@ pub enum GatewayPayload {
     Diagnostics(crate::app::services::diagnostics::DiagnosticsPayload),
     Probes(Option<super::ProbeSnapshot>),
     Overview(Box<crate::app::read_models::RuntimeOverview>),
+    Traffic(crate::app::read_models::TrafficSnapshot),
+    Dashboard(xrat_web::types::DashboardData),
     Ping(PingPayload),
     Status(RuntimeStatusPayload),
     Connect(RuntimeConnectPayload),

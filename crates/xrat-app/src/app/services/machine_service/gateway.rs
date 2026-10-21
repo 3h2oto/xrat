@@ -114,6 +114,22 @@ impl MachineGateway {
                     .map_err(AppError::InvalidArgument)?;
                     completed(GatewayPayload::Overview(overview))
                 }
+                GatewayRequestKind::Traffic {} => {
+                    let snapshot = ipc::transport::roundtrip(supervisor, |respond_to| {
+                        SupervisorEvent::RuntimeTraffic { respond_to }
+                    })
+                    .await?
+                    .map_err(AppError::InvalidArgument)?;
+                    completed(GatewayPayload::Traffic(snapshot))
+                }
+                GatewayRequestKind::Dashboard {} => {
+                    let snapshot = ipc::transport::roundtrip(supervisor, |respond_to| {
+                        SupervisorEvent::RuntimeDashboard { respond_to }
+                    })
+                    .await?
+                    .map_err(AppError::InvalidArgument)?;
+                    completed(GatewayPayload::Dashboard(snapshot))
+                }
                 GatewayRequestKind::Ping {} => map(
                     ping_response_via_supervisor(supervisor).await?,
                     GatewayPayload::Ping,

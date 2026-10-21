@@ -457,3 +457,6 @@ async fn probe_job_authorization_precedes_scheduling_and_cancellation() {
     assert!(receiver.try_recv().is_err());
     gateway.shutdown().await.unwrap();
 }
+
+#[path = "tests/telemetry.rs"]
+mod telemetry;

@@ -59,7 +59,7 @@ pub async fn overview(
         current.app_config = app::config::load(&context.runtime_paths.config_path)?;
     }
     let dashboard = if query.dashboard {
-        Some(super::dashboard::load(&state.db, &current, &snapshot).await?)
+        Some(super::dashboard::load(&current, &snapshot).await?)
     } else {
         None
     };

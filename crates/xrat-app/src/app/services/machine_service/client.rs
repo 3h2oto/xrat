@@ -125,6 +125,20 @@ impl MachineClient {
         }
     }
 
+    pub async fn traffic(&self) -> Result<crate::app::read_models::TrafficSnapshot> {
+        match self.call(GatewayRequestKind::Traffic {}).await? {
+            GatewayPayload::Traffic(snapshot) => Ok(snapshot),
+            _ => Err(unexpected()),
+        }
+    }
+
+    pub async fn dashboard(&self) -> Result<xrat_web::types::DashboardData> {
+        match self.call(GatewayRequestKind::Dashboard {}).await? {
+            GatewayPayload::Dashboard(snapshot) => Ok(snapshot),
+            _ => Err(unexpected()),
+        }
+    }
+
     pub async fn diagnostics(
         &self,
         request: crate::app::services::diagnostics::DiagnosticsRequest,

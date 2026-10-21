@@ -12,6 +12,8 @@ pub(crate) mod release_notes;
 pub mod releases;
 pub mod rotation;
 pub mod runtime_control;
+pub(crate) mod runtime_dashboard;
+pub(crate) mod runtime_traffic;
 pub mod runtime_transitions;
 pub mod runtime_tuning;
 pub mod split_tunnel;
