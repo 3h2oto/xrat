@@ -12,6 +12,23 @@ use windows_sys::Win32::System::Pipes::{GetNamedPipeClientProcessId, GetNamedPip
 pub(super) fn listener(endpoint: &std::path::Path, first: bool) -> io::Result<NamedPipeServer> {
     let owner = xrat_support::windows::current_user_sid()?;
     let descriptor = xrat_support::windows::SecurityDescriptor::for_owner(&owner)?;
+    listener_with_descriptor(endpoint, first, descriptor)
+}
+
+pub(crate) fn listener_for_owner(
+    endpoint: &std::path::Path,
+    first: bool,
+    owner: &str,
+) -> io::Result<NamedPipeServer> {
+    let descriptor = xrat_support::windows::SecurityDescriptor::for_machine_operator(owner)?;
+    listener_with_descriptor(endpoint, first, descriptor)
+}
+
+fn listener_with_descriptor(
+    endpoint: &std::path::Path,
+    first: bool,
+    descriptor: xrat_support::windows::SecurityDescriptor,
+) -> io::Result<NamedPipeServer> {
     let attributes = descriptor.attributes();
     unsafe {
         ServerOptions::new()
@@ -26,7 +43,7 @@ pub(super) fn listener(endpoint: &std::path::Path, first: bool) -> io::Result<Na
     }
 }
 
-pub(super) fn connect(endpoint: &std::path::Path) -> io::Result<NamedPipeClient> {
+pub(crate) fn connect(endpoint: &std::path::Path) -> io::Result<NamedPipeClient> {
     let name = endpoint
         .as_os_str()
         .encode_wide()

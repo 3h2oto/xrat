@@ -3,7 +3,7 @@ use tokio::io::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt};
 
 const MAX_MESSAGE_BYTES: usize = 8 * 1024 * 1024;
 
-pub(super) async fn read(stream: &mut (impl AsyncRead + Unpin)) -> io::Result<Vec<u8>> {
+pub(crate) async fn read(stream: &mut (impl AsyncRead + Unpin)) -> io::Result<Vec<u8>> {
     let size = stream.read_u32_le().await? as usize;
     if size == 0 || size > MAX_MESSAGE_BYTES {
         return Err(io::Error::new(
@@ -16,7 +16,7 @@ pub(super) async fn read(stream: &mut (impl AsyncRead + Unpin)) -> io::Result<Ve
     Ok(bytes)
 }
 
-pub(super) async fn write(stream: &mut (impl AsyncWrite + Unpin), bytes: &[u8]) -> io::Result<()> {
+pub(crate) async fn write(stream: &mut (impl AsyncWrite + Unpin), bytes: &[u8]) -> io::Result<()> {
     if bytes.is_empty() || bytes.len() > MAX_MESSAGE_BYTES {
         return Err(io::Error::new(
             io::ErrorKind::InvalidData,

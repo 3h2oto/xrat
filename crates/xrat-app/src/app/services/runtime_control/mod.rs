@@ -2,6 +2,10 @@ mod control;
 mod daemon;
 mod factory;
 mod local;
+#[cfg(windows)]
+mod machine;
+#[cfg(windows)]
+pub use machine::MachineRuntimeControl;
 
 pub use control::{RuntimeConnectOutcome, RuntimeControl, RuntimeReplaceOutcome};
 pub use daemon::DaemonRuntimeControl;

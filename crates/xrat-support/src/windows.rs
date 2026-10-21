@@ -13,6 +13,9 @@ use windows_sys::Win32::System::Threading::{
     GetCurrentProcess, OpenProcess, OpenProcessToken, PROCESS_QUERY_LIMITED_INFORMATION,
 };
 
+mod protected_directory;
+pub use protected_directory::{ProtectedDirectory, program_data};
+
 pub fn current_user_sid() -> io::Result<String> {
     unsafe { user_sid(GetCurrentProcess()) }
 }
@@ -32,23 +35,19 @@ unsafe fn user_sid(process: HANDLE) -> io::Result<String> {
         return Err(io::Error::last_os_error());
     }
     let token = unsafe { OwnedHandle::from_raw_handle(token) };
+    token_user_sid(token.as_raw_handle())
+}
+
+fn token_user_sid(token: HANDLE) -> io::Result<String> {
     let mut required = 0;
-    unsafe {
-        GetTokenInformation(
-            token.as_raw_handle(),
-            TokenUser,
-            ptr::null_mut(),
-            0,
-            &mut required,
-        )
-    };
+    unsafe { GetTokenInformation(token, TokenUser, ptr::null_mut(), 0, &mut required) };
     if required == 0 || required > 1024 * 1024 {
         return Err(io::Error::last_os_error());
     }
     let mut buffer = vec![0usize; (required as usize).div_ceil(size_of::<usize>())];
     if unsafe {
         GetTokenInformation(
-            token.as_raw_handle(),
+            token,
             TokenUser,
             buffer.as_mut_ptr().cast(),
             required,
@@ -59,8 +58,12 @@ unsafe fn user_sid(process: HANDLE) -> io::Result<String> {
         return Err(io::Error::last_os_error());
     }
     let user = unsafe { &*buffer.as_ptr().cast::<TOKEN_USER>() };
+    sid_string(user.User.Sid)
+}
+
+fn sid_string(value: windows_sys::Win32::Security::PSID) -> io::Result<String> {
     let mut sid = ptr::null_mut();
-    if unsafe { ConvertSidToStringSidW(user.User.Sid, &mut sid) } == 0 {
+    if unsafe { ConvertSidToStringSidW(value, &mut sid) } == 0 {
         return Err(io::Error::last_os_error());
     }
     let mut length = 0;
@@ -89,6 +92,17 @@ impl SecurityDescriptor {
         }
         // Clients get read/write-data rights, without FILE_CREATE_PIPE_INSTANCE.
         let sddl = format!("D:P(A;;GA;;;SY)(A;;GA;;;BA)(A;;0x0012019b;;;{owner_sid})");
+        Self::from_sddl(&sddl)
+    }
+
+    pub fn for_machine_operator(owner_sid: &str) -> io::Result<Self> {
+        Self::for_owner(owner_sid)?;
+        Self::from_sddl(&format!(
+            "O:SYG:SYD:P(A;;GA;;;SY)(A;;GA;;;BA)(A;;0x0012019b;;;{owner_sid})"
+        ))
+    }
+
+    fn from_sddl(sddl: &str) -> io::Result<Self> {
         let wide = sddl.encode_utf16().chain(Some(0)).collect::<Vec<_>>();
         let mut descriptor = ptr::null_mut();
         if unsafe {
@@ -112,6 +126,62 @@ impl SecurityDescriptor {
             bInheritHandle: 0,
         }
     }
+}
+
+pub fn require_system_owner(handle: &impl AsRawHandle) -> io::Result<()> {
+    use windows_sys::Win32::Security::Authorization::{GetSecurityInfo, SE_FILE_OBJECT};
+    use windows_sys::Win32::Security::OWNER_SECURITY_INFORMATION;
+    let mut owner = ptr::null_mut();
+    let mut descriptor = ptr::null_mut();
+    let result = unsafe {
+        GetSecurityInfo(
+            handle.as_raw_handle(),
+            SE_FILE_OBJECT,
+            OWNER_SECURITY_INFORMATION,
+            &mut owner,
+            ptr::null_mut(),
+            ptr::null_mut(),
+            ptr::null_mut(),
+            &mut descriptor,
+        )
+    };
+    if result != 0 {
+        return Err(io::Error::from_raw_os_error(result as i32));
+    }
+    let _descriptor = SecurityDescriptor(descriptor);
+    if owner.is_null() || sid_string(owner)? != "S-1-5-18" {
+        return Err(io::Error::new(
+            io::ErrorKind::PermissionDenied,
+            "machine gateway pipe is not owned by SYSTEM",
+        ));
+    }
+    Ok(())
+}
+
+pub fn named_pipe_client_sid(pipe: &impl AsRawHandle) -> io::Result<String> {
+    use windows_sys::Win32::Security::RevertToSelf;
+    use windows_sys::Win32::System::Pipes::ImpersonateNamedPipeClient;
+    use windows_sys::Win32::System::Threading::{GetCurrentThread, OpenThreadToken};
+
+    struct Revert;
+    impl Drop for Revert {
+        fn drop(&mut self) {
+            if unsafe { RevertToSelf() } == 0 {
+                std::process::abort();
+            }
+        }
+    }
+
+    if unsafe { ImpersonateNamedPipeClient(pipe.as_raw_handle()) } == 0 {
+        return Err(io::Error::last_os_error());
+    }
+    let _revert = Revert;
+    let mut token = ptr::null_mut();
+    if unsafe { OpenThreadToken(GetCurrentThread(), TOKEN_QUERY, 1, &mut token) } == 0 {
+        return Err(io::Error::last_os_error());
+    }
+    let token = unsafe { OwnedHandle::from_raw_handle(token) };
+    token_user_sid(token.as_raw_handle())
 }
 
 impl Drop for SecurityDescriptor {

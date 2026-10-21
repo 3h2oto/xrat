@@ -55,6 +55,60 @@ separate evidence. This branch is not a release or proof of full support.
 
 ## Remaining implementation and evidence
 
+### Protected machine profile and local gateway foundation
+
+`app::services::machine_service` provides the service-host foundation. It is not
+yet wired to SCM or selected by ordinary CLI/TUI startup. User-local daemon
+behavior remains separate. The machine profile uses the Windows ProgramData
+known folder (`XRAT-Service`), without consulting `XRAT_PATH`, CLI path
+overrides, or the interactive user's home directory. Configuration, SQLite data,
+runtime state, logs, GeoIP data, and engine binaries belong to this protected
+profile. Configuration and engine binaries must be provisioned by an
+administrator; there is no automatic copy of a user-controlled profile into the
+service.
+
+Profile creation assigns an Administrators owner and a protected inheritable
+DACL granting access only to SYSTEM and Administrators. Existing roots with a
+different owner or ACL, and directory reparse points, are rejected rather than
+repaired or adopted. Directory handles prevent replacement while the profile is
+in use. Reprovisioning preserves configuration and the recorded operator SID;
+changing the installing user requires a separate administrator workflow.
+
+The machine gateway has a distinct versioned named-pipe endpoint. Only its
+recorded operator can dispatch requests; Administrators pipe access does not
+implicitly authorize another user's requests. The service host must run as
+LocalSystem. Clients verify SYSTEM ownership of the connected pipe, and the
+server identifies the token of the last received message, reverts the thread
+identity, then dispatches. Framing, timeouts, connection limits, and shutdown
+cleanup reuse the existing daemon conventions.
+
+Supported requests are ping, runtime status/connect/disconnect/manual replace,
+rotation start/status/stop, and a typed TUN enable/disable request. TUN support
+remains subject to existing platform capability checks. TUN requests always use
+the protected service config path. Unknown fields, client paths, executable
+commands, SQL, root engine JSON, and caller-supplied automatic rotation triggers
+are rejected. Requests use the shared supervisor handlers, including their
+existing state transitions and operational events. `MachineRuntimeControl`
+implements the shared runtime adapter without local fallback.
+
+Config/subscription management, imports/exports, settings edits, desktop proxy,
+and service lifecycle operations are not exposed by this gateway. CLI/TUI
+machine-profile discovery, protected catalog access, and SCM hosting still need
+integration before ordinary users can select this service. Existing HTTP
+authentication and role checks are unchanged; the local operator gateway is not
+an HTTP authorization bypass.
+
+Local contract tests cover schema rejection, unauthorized callers, protocol
+versions, identifier validation, service-owned TUN paths, supervisor errors,
+idempotent disconnect results, and unavailable supervisors. Ignored native
+checks cover protected directory ownership, ordinary-user denial, reparse-point
+rejection, and registration/config preservation. These are wired into the
+Windows workflow but require native results before acceptance. Actual
+LocalSystem-to-ordinary-user gateway exchange remains a service-host acceptance
+gate; cross-compilation alone does not establish it.
+
+### Service lifecycle and acceptance
+
 Complete the protected machine profile and typed application gateway before
 enabling privileged service installation. Add SCM startup/shutdown/recovery,
 service-aware upgrades, and normal-user CLI/TUI service access. Complete the

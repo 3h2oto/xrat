@@ -109,6 +109,12 @@ jobs:
       - name: Test native desktop proxy restoration
         run: cargo test --locked -p xrat-app --lib --target ${{ matrix.target }} native_wininet_restores_owned_settings_and_preserves_conflicts -- --ignored
 
+      - name: Test protected machine profile
+        run: |
+          cargo test --locked -p xrat-support --lib --target ${{ matrix.target }} native_machine_directory -- --ignored --test-threads=1
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          cargo test --locked -p xrat-app --lib --target ${{ matrix.target }} native_machine_profile -- --ignored --test-threads=1
+
       - name: Test real proxy engines and cancellation
         env:
           XRAT_WINDOWS_ENGINE_RECEIPT: ${{ runner.temp }}/xrat-engines/receipts.json

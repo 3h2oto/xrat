@@ -99,6 +99,10 @@ async fn owner_without_admin_group_can_exchange_data_but_cannot_create_pipe_inst
         let mut request = [0; 7];
         server.read_exact(&mut request).await.unwrap();
         assert_eq!(&request, b"request");
+        assert_eq!(
+            xrat_support::windows::named_pipe_client_sid(&server).unwrap(),
+            xrat_support::windows::current_user_sid().unwrap()
+        );
         server.write_all(b"response").await.unwrap();
         let mut response = [0; 8];
         client.read_exact(&mut response).await.unwrap();

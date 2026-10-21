@@ -5,7 +5,7 @@ mod client;
 mod handler;
 mod responses;
 #[cfg(any(unix, windows))]
-mod transport;
+pub(crate) mod transport;
 mod types;
 
 pub use client::{
@@ -32,9 +32,9 @@ pub use requests::daemon_unreachable;
 pub use requests::default_socket_path;
 
 #[cfg(any(windows, test))]
-mod frame;
+pub(crate) mod frame;
 #[cfg(windows)]
-mod windows;
+pub(crate) mod windows;
 
 #[cfg(all(test, windows))]
 mod windows_tests;
