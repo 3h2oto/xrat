@@ -218,89 +218,109 @@ pub(crate) fn extract_archive(
     bytes: &[u8],
     destination: &Path,
 ) -> Result<(), String> {
+    extract_archive_for(kind, bytes, destination, cfg!(windows))
+}
+
+pub(crate) fn extract_archive_for(
+    kind: CoreKind,
+    bytes: &[u8],
+    destination: &Path,
+    windows: bool,
+) -> Result<(), String> {
+    let wanted = binary_file_name_for(kind, windows);
     match kind {
-        CoreKind::Xray | CoreKind::V2Ray => extract_zip(kind, bytes, destination),
-        // Upstream ships the Windows sing-box build as a .zip archive.
-        CoreKind::SingBox if cfg!(windows) => extract_zip(kind, bytes, destination),
-        CoreKind::SingBox => extract_sing_box(bytes, destination),
+        CoreKind::Xray | CoreKind::V2Ray => extract_zip_named(kind, bytes, destination, &wanted),
+        CoreKind::SingBox if windows => extract_zip_named(kind, bytes, destination, &wanted),
+        CoreKind::SingBox => extract_sing_box_named(bytes, destination, &wanted),
     }
 }
 
-pub(crate) fn extract_zip(kind: CoreKind, bytes: &[u8], destination: &Path) -> Result<(), String> {
+pub(crate) fn extract_zip_named(
+    kind: CoreKind,
+    bytes: &[u8],
+    destination: &Path,
+    wanted: &str,
+) -> Result<(), String> {
     let mut archive = zip::ZipArchive::new(Cursor::new(bytes))
         .map_err(|error| format!("invalid zip archive: {error}"))?;
 
-    // Windows archives ship the executable as "<name>.exe"; Unix ones use the
-    // bare name. Entries may sit inside a versioned folder, so match on the
-    // file name rather than the full archive path.
-    let mut candidates = vec![binary_file_name(kind)];
-    let bare = kind.name().to_string();
-    if !candidates.contains(&bare) {
-        candidates.push(bare);
-    }
-
-    let mut extracted = None;
+    // Entries may sit inside a versioned folder, so match on the file name
+    // rather than the full archive path.
+    let bare = kind.name();
+    let mut exact = None;
+    let mut fallback = None;
     for index in 0..archive.len() {
+        let source = archive
+            .by_index(index)
+            .map_err(|error| format!("could not read archive entry: {error}"))?;
+        if !source.is_file() {
+            continue;
+        }
+        let file_name = source.name().rsplit(['/', '\\']).next().unwrap_or_default();
+        if file_name == wanted {
+            exact = Some(index);
+            break;
+        }
+        if fallback.is_none() && file_name == bare {
+            fallback = Some(index);
+        }
+    }
+    let index = exact.or(fallback).ok_or_else(|| {
+        format!("archive is missing {wanted}: specified file not found in archive")
+    })?;
+    {
         let mut source = archive
             .by_index(index)
             .map_err(|error| format!("could not read archive entry: {error}"))?;
-        let entry_name = source.name().to_string();
-        let file_name = entry_name
-            .rsplit(['/', '\\'])
-            .next()
-            .unwrap_or_default()
-            .to_string();
-        if !candidates.iter().any(|candidate| candidate == &file_name) {
-            continue;
-        }
-        let mut target = fs::File::create(destination.join(&file_name))
-            .map_err(|error| format!("could not create {file_name}: {error}"))?;
+        let mut target = fs::File::create(destination.join(wanted))
+            .map_err(|error| format!("could not create {wanted}: {error}"))?;
         std::io::copy(&mut source, &mut target)
-            .map_err(|error| format!("could not extract {file_name}: {error}"))?;
+            .map_err(|error| format!("could not extract {wanted}: {error}"))?;
         target.flush().map_err(|error| error.to_string())?;
-        extracted = Some(file_name);
-        break;
     }
-    let extracted = extracted.ok_or_else(|| {
-        format!(
-            "archive is missing {}: specified file not found in archive",
-            kind.name()
-        )
-    })?;
 
     // geoip.dat / geosite.dat are optional: not every upstream release ships
     // them, and the runtime fetches them separately when they are missing.
     for name in ["geoip.dat", "geosite.dat"] {
+        let mut found = None;
         for index in 0..archive.len() {
+            let source = archive
+                .by_index(index)
+                .map_err(|error| format!("could not read archive entry: {error}"))?;
+            if !source.is_file() {
+                continue;
+            }
+            let file_name = source.name().rsplit(['/', '\\']).next().unwrap_or_default();
+            if file_name == name {
+                found = Some(index);
+                break;
+            }
+        }
+        let Some(index) = found else {
+            continue;
+        };
+        {
             let mut source = archive
                 .by_index(index)
                 .map_err(|error| format!("could not read archive entry: {error}"))?;
-            let file_name = source
-                .name()
-                .rsplit(['/', '\\'])
-                .next()
-                .unwrap_or_default()
-                .to_string();
-            if file_name != name {
-                continue;
-            }
             let mut target = fs::File::create(destination.join(name))
                 .map_err(|error| format!("could not create {name}: {error}"))?;
             std::io::copy(&mut source, &mut target)
                 .map_err(|error| format!("could not extract {name}: {error}"))?;
             target.flush().map_err(|error| error.to_string())?;
-            break;
         }
     }
 
-    let _ = extracted;
     Ok(())
 }
 
-pub(crate) fn extract_sing_box(bytes: &[u8], destination: &Path) -> Result<(), String> {
+pub(crate) fn extract_sing_box_named(
+    bytes: &[u8],
+    destination: &Path,
+    wanted: &str,
+) -> Result<(), String> {
     let decoder = GzDecoder::new(Cursor::new(bytes));
     let mut archive = tar::Archive::new(decoder);
-    let wanted = binary_file_name(CoreKind::SingBox);
     for entry in archive
         .entries()
         .map_err(|error| format!("invalid tar archive: {error}"))?
@@ -310,10 +330,10 @@ pub(crate) fn extract_sing_box(bytes: &[u8], destination: &Path) -> Result<(), S
             continue;
         }
         let path = entry.path().map_err(|error| error.to_string())?;
-        if path.file_name().and_then(|name| name.to_str()) != Some(wanted.as_str()) {
+        if path.file_name().and_then(|name| name.to_str()) != Some(wanted) {
             continue;
         }
-        let mut target = fs::File::create(destination.join(&wanted))
+        let mut target = fs::File::create(destination.join(wanted))
             .map_err(|error| format!("could not create {wanted}: {error}"))?;
         std::io::copy(&mut entry, &mut target)
             .map_err(|error| format!("could not extract {wanted}: {error}"))?;
@@ -336,15 +356,20 @@ pub(crate) fn set_executable(path: &Path) -> Result<(), String> {
 
 #[cfg(not(unix))]
 pub(crate) fn set_executable(_path: &Path) -> Result<(), String> {
-    // Windows has no executable bit: the file association with the `.exe`
-    // suffix is what makes the binary runnable.
     Ok(())
 }
 
 /// On-disk file name of a core binary. Windows executables carry the `.exe`
 /// suffix, and the upstream archives ship them under that name too.
 pub(crate) fn binary_file_name(kind: CoreKind) -> String {
-    if cfg!(windows) {
+    binary_file_name_for(kind, cfg!(windows))
+}
+
+/// On-disk file name of a core binary for the given platform. Windows
+/// executables carry the `.exe` suffix, and the upstream archives ship them
+/// under that name too.
+pub(crate) fn binary_file_name_for(kind: CoreKind, windows: bool) -> String {
+    if windows {
         format!("{}.exe", kind.name())
     } else {
         kind.name().to_string()

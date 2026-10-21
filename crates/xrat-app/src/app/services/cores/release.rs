@@ -207,7 +207,6 @@ pub(crate) fn asset_name_for(
                     ));
                 }
             };
-            // Upstream ships Windows builds as .zip, Unix builds as .tar.gz.
             let extension = if os == "windows" { "zip" } else { "tar.gz" };
             Ok(format!("sing-box-{version}-{os}-{arch}.{extension}"))
         }
