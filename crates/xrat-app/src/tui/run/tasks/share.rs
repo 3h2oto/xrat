@@ -11,6 +11,12 @@ pub async fn open_qr_for_config(
 ) {
     match context.db.get_config_by_id(config_id).await {
         Ok(Some(record)) => {
+            if record.raw_config.trim().is_empty() {
+                let error = "config has no link to show QR".to_string();
+                app.push_log(format!("ERR {error}"));
+                app.set_chrome_message(error, true);
+                return;
+            }
             app.qr_modal = Some(QrModalState::new(
                 QrKind::Config,
                 config_name,
@@ -30,6 +36,12 @@ pub async fn copy_config_uri(
 ) {
     match context.db.get_config_by_id(config_id).await {
         Ok(Some(record)) => {
+            if record.raw_config.trim().is_empty() {
+                let error = "config has no link to copy".to_string();
+                app.push_log(format!("ERR {error}"));
+                app.set_chrome_message(error, true);
+                return;
+            }
             let config_ref = record.r#ref;
             set_clipboard(
                 app,
@@ -46,11 +58,23 @@ pub async fn copy_config_uri(
 }
 
 pub fn open_qr_for_source(app: &mut TuiApp, source_name: String, source_url: String) {
+    if source_url.trim().is_empty() {
+        let error = format!("subscription \"{source_name}\" has no URL to show QR");
+        app.push_log(format!("ERR {error}"));
+        app.set_chrome_message(error, true);
+        return;
+    }
     app.qr_modal = Some(QrModalState::new(QrKind::Source, source_name, source_url));
     app.needs_full_clear = true;
 }
 
 pub fn copy_source_uri(app: &mut TuiApp, source_name: String, source_url: String) {
+    if source_url.trim().is_empty() {
+        let error = format!("subscription \"{source_name}\" has no URL to copy");
+        app.push_log(format!("ERR {error}"));
+        app.set_chrome_message(error, true);
+        return;
+    }
     set_clipboard(
         app,
         source_url,
@@ -180,6 +204,29 @@ mod tests {
             app.chrome_message.as_ref().map(|message| message.is_error),
             Some(true)
         );
+    }
+
+    #[test]
+    fn copy_source_uri_rejects_empty_url() {
+        let mut app = TuiApp::default();
+        super::copy_source_uri(&mut app, "MySub".to_string(), "   ".to_string());
+        assert_eq!(
+            app.chrome_message.as_ref().map(|m| m.text.as_str()),
+            Some("subscription \"MySub\" has no URL to copy")
+        );
+        assert_eq!(app.chrome_message.as_ref().map(|m| m.is_error), Some(true));
+    }
+
+    #[test]
+    fn open_qr_for_source_rejects_empty_url() {
+        let mut app = TuiApp::default();
+        super::open_qr_for_source(&mut app, "MySub".to_string(), String::new());
+        assert_eq!(
+            app.chrome_message.as_ref().map(|m| m.text.as_str()),
+            Some("subscription \"MySub\" has no URL to show QR")
+        );
+        assert_eq!(app.chrome_message.as_ref().map(|m| m.is_error), Some(true));
+        assert!(app.qr_modal.is_none());
     }
 }
 
