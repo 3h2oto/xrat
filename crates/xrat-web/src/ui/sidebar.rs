@@ -135,7 +135,7 @@ pub fn Sidebar(
                     "mobile:[&_strong]:text-[13px] mobile:[&_strong]:font-semibold",
                 ),
                 img {
-                    src: "/xrat-logo.png",
+                    src: "/media/xrat-logo.png",
                     alt: "XRAT",
                     width: "28",
                     height: "28",
@@ -212,7 +212,7 @@ fn SidebarBody(
                             }
                         },
                         img {
-                            src: "/xrat-logo.png",
+                            src: "/media/xrat-logo.png",
                             alt: "XRAT",
                             width: "36",
                             height: "36",
@@ -227,7 +227,7 @@ fn SidebarBody(
             } else {
                 div { class: "sidebar-brand flex items-center min-w-0 flex-1 no-underline text-foreground gap-2.5 [&_img]:object-contain [&_img]:shrink-[0]",
                     img {
-                        src: "/xrat-logo.png",
+                        src: "/media/xrat-logo.png",
                         alt: "XRAT",
                         width: "36",
                         height: "36",

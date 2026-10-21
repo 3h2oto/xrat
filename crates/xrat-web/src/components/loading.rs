@@ -68,7 +68,7 @@ pub fn SessionSkeleton() -> Element {
                 class: "session-skeleton-sidebar flex flex-col items-center py-5 px-3 gap-5 mobile:hidden [&_img]:mb-3",
                 aria_hidden: "true",
                 img {
-                    src: "/xrat-logo.png",
+                    src: "/media/xrat-logo.png",
                     alt: "",
                     width: "32",
                     height: "32",

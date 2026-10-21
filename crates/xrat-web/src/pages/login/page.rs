@@ -23,7 +23,7 @@ pub fn Login() -> Element {
                     href: "/",
                     aria_label: "XRAT home",
                     img {
-                        src: "/xrat-logo.png",
+                        src: "/media/xrat-logo.png",
                         alt: "",
                         width: "32",
                         height: "32",
@@ -119,7 +119,7 @@ pub fn Login() -> Element {
             }
             div { class: "login-art flex items-center justify-center bg-[color:var(--login-art)] border-l border-solid border-l-border p-16 [@media(width<=1023px)]:hidden [&_img]:w-[min(100%,_512px)] [&_img]:h-auto [&_img]:object-contain",
                 img {
-                    src: "/xrat-logo.png",
+                    src: "/media/xrat-logo.png",
                     alt: "XRAT mascot",
                     width: "512",
                     height: "512",

@@ -320,9 +320,10 @@ web-build:
     cargo build --locked --release -p xrat-web --target wasm32-unknown-unknown
     target/web-tools/wasm-bindgen target/wasm32-unknown-unknown/release/xrat-web.wasm --target web --out-name xrat_web --out-dir crates/xrat-app/web-assets
     if test -x target/web-tools/tailwindcss; then target/web-tools/tailwindcss -i crates/xrat-web/assets/app.css -o crates/xrat-app/web-assets/app.css --minify; else npx --yes @tailwindcss/cli@4.1.18 -i crates/xrat-web/assets/app.css -o crates/xrat-app/web-assets/app.css --minify; fi
-    cp crates/xrat-web/index.html crates/xrat-web/assets/xrat-logo.png crates/xrat-web/assets/favicon.ico crates/xrat-web/assets/manifest.webmanifest crates/xrat-web/assets/sw.js crates/xrat-web/assets/offline.html crates/xrat-app/web-assets/
-    rm -rf crates/xrat-app/web-assets/controllers crates/xrat-app/web-assets/components.js crates/xrat-app/web-assets/pwa.js crates/xrat-app/web-assets/boot.js
+    cp crates/xrat-web/index.html crates/xrat-web/assets/favicon.ico crates/xrat-web/assets/manifest.webmanifest crates/xrat-web/assets/sw.js crates/xrat-web/assets/offline.html crates/xrat-app/web-assets/
+    rm -rf crates/xrat-app/web-assets/controllers crates/xrat-app/web-assets/components.js crates/xrat-app/web-assets/pwa.js crates/xrat-app/web-assets/boot.js crates/xrat-app/web-assets/xrat-logo.png
     cp -R crates/xrat-web/assets/icons crates/xrat-app/web-assets/
+    cp -R crates/xrat-web/public/. crates/xrat-app/web-assets/
 
 # Check browser-safe contracts and the Dioxus WebAssembly target
 [group('web')]
