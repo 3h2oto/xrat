@@ -3,8 +3,15 @@ name: Windows build
 on:
   workflow_dispatch:
   push:
-    branches:
-      - feature/windows-support
+    branches: [master]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   web-assets:
@@ -26,17 +33,32 @@ jobs:
           path: crates/xrat-app/web-assets/
 
   build:
-    name: Build x86_64-pc-windows-msvc
-    runs-on: windows-latest
+    name: Build ${{ matrix.target }}
+    runs-on: ${{ matrix.os }}
     needs: [web-assets]
+    # The ARM64 leg is experimental. A failure there (a dependency without
+    # Windows support, a broken toolchain) must not fail the workflow and
+    # block the pull request, while the x86_64 leg stays mandatory.
+    # `fail-fast: false` keeps one leg from cancelling the other.
+    continue-on-error: ${{ matrix.experimental }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - target: x86_64-pc-windows-msvc
+            os: windows-latest
+            experimental: false
+          - target: aarch64-pc-windows-msvc
+            os: windows-11-arm
+            experimental: true
     steps:
       - uses: actions/checkout@v5
       - uses: dtolnay/rust-toolchain@stable
         with:
-          targets: x86_64-pc-windows-msvc
+          targets: ${{ matrix.target }}
       - uses: Swatinem/rust-cache@v2
         with:
-          key: x86_64-pc-windows-msvc
+          key: ${{ matrix.target }}
 
       - uses: actions/download-artifact@v4
         with:
@@ -44,20 +66,68 @@ jobs:
           path: crates/xrat-app/web-assets/
 
       - name: Build
-        run: cargo build --release --locked --target x86_64-pc-windows-msvc
+        run: cargo build --release --locked --target ${{ matrix.target }}
+
+      # The Linux runners compile the Windows code paths out, so the Windows
+      # fixtures are exercised here for the first time. The Dioxus frontend
+      # targets wasm32 and is not part of a Windows test run.
+      - name: Install release tooling
+        uses: taiki-e/install-action@v2
+        with:
+          tool: just
+      # The Justfile drives its recipes through bash, and the version recipe
+      # rewrites manifests with perl. Both ship with the Windows image.
+      - name: Add a POSIX shell to PATH
+        shell: pwsh
+        run: |
+          $bash = "C:\Program Files\Git\bin"
+          if (Test-Path $bash) { $bash | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append }
+          $perl = (Get-Command perl -ErrorAction SilentlyContinue).Source
+          if (-not $perl) { throw "perl is required by the release tooling tests" }
+          Split-Path $perl | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+      - name: Test
+        run: cargo test --locked --workspace --exclude xrat-web --target ${{ matrix.target }}
+
+      # Both runners are native, so the produced binary can be executed here.
+      # The Web UI bundle is embedded at compile time; a binary without it
+      # answers every asset request with HTTP 503.
+      - name: Smoke check
+        shell: pwsh
+        env:
+          XRAT_TARGET: ${{ matrix.target }}
+        run: |
+          $exe = "target/$env:XRAT_TARGET/release/xrat.exe"
+          & $exe --version
+          if ($LASTEXITCODE -ne 0) { throw "xrat --version exited with $LASTEXITCODE" }
+          $strings = [System.Text.Encoding]::ASCII.GetString([System.IO.File]::ReadAllBytes($exe))
+          if (-not $strings.Contains("xrat_web_bg.wasm")) {
+            throw "Web UI bundle is not embedded in $exe"
+          }
 
       - name: Package binary
         shell: pwsh
+        env:
+          XRAT_TARGET: ${{ matrix.target }}
+          XRAT_REF_NAME: ${{ github.ref_name }}
         run: |
-          $version = (Select-String -Path Cargo.toml -Pattern '^\s*version\s*=\s*"([^"]+)"' | Select-Object -First 1).Matches.Groups[1].Value
-          if (-not $version) { $version = "${{ github.ref_name }}" -replace '[^A-Za-z0-9._-]', '_' }
+          $target = $env:XRAT_TARGET
+          $match = Select-String -Path Cargo.toml -Pattern '^\s*version\s*=\s*"([^"]+)"' | Select-Object -First 1
+          $cargo = if ($match) { $match.Matches[0].Groups[1].Value } else { "" }
+          # Release archives are named after the release tag (v<version>).
+          # Branch and pull-request builds fall back to the workspace version
+          # so the archive keeps the published release naming contract.
+          $version = $env:XRAT_REF_NAME
+          if ($version -notmatch '^v\d+\.\d+\.\d+') {
+            $version = if ($cargo) { "v$cargo" } else { "v0.0.0" }
+          }
+          $version = $version -replace '[^A-Za-z0-9._-]', '_'
           New-Item -ItemType Directory -Force -Path stage | Out-Null
-          Copy-Item "target/x86_64-pc-windows-msvc/release/xrat.exe" stage/
+          Copy-Item "target/$target/release/xrat.exe" stage/
           Copy-Item LICENSE, README.md stage/
-          Compress-Archive -Path stage/* -DestinationPath "xrat-$version-x86_64-pc-windows-msvc.zip"
+          Compress-Archive -Path stage/* -DestinationPath "xrat-$version-$target.zip"
 
       - uses: actions/upload-artifact@v4
         with:
-          name: xrat-x86_64-pc-windows-msvc
+          name: xrat-${{ matrix.target }}
           path: xrat-*.zip
           if-no-files-found: error
