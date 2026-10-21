@@ -158,6 +158,39 @@ fn custom_palette_is_used_in_settings_modal() {
     theme::set_active(TuiTheme::Default);
 }
 
+#[test]
+fn key_bar_connection_pill_shows_running_config_connecting_and_idle() {
+    let _guard = theme::TEST_THEME_LOCK.lock().unwrap();
+    let mut app = app();
+    let mut terminal = Terminal::new(TestBackend::new(120, 30)).unwrap();
+
+    // 1. Idle state
+    app.data.runtime.pid_running = false;
+    app.data.runtime.status = "stopped".to_string();
+    terminal
+        .draw(|frame| crate::tui::view::render(frame, &app))
+        .unwrap();
+    let _ = find_cell(terminal.backend().buffer(), "○ idle");
+
+    // 2. Running state (connected)
+    app.data.runtime.pid_running = true;
+    app.data.runtime.status = "running".to_string();
+    app.data.runtime.active_config = Some("#1 MyServer".to_string());
+    terminal
+        .draw(|frame| crate::tui::view::render(frame, &app))
+        .unwrap();
+    let _ = find_cell(terminal.backend().buffer(), "● ");
+    let _ = find_cell(terminal.backend().buffer(), "#1 MyServer");
+
+    // 3. In-flight connecting state
+    app.data.runtime.pid_running = false;
+    app.data.runtime.status = "starting".to_string();
+    terminal
+        .draw(|frame| crate::tui::view::render(frame, &app))
+        .unwrap();
+    let _ = find_cell(terminal.backend().buffer(), "connecting");
+}
+
 fn snapshot(buffer: &Buffer, name: &str) {
     let Ok(directory) = std::env::var("XRAT_THEME_SNAPSHOT_DIR") else {
         return;

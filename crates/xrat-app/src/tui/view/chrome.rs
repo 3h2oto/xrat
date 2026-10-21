@@ -21,15 +21,31 @@ pub fn render_key_bar(frame: &mut Frame<'_>, area: Rect, app: &TuiApp) {
     }
 
     brand.push(Span::raw("  "));
-    if app.data.runtime.pid_running && app.data.runtime.status == "connected" {
+    if app.data.runtime.pid_running
+        && (app.data.runtime.status == "running"
+            || app.data.runtime.status == "connected"
+            || app.data.runtime.status == "degraded")
+    {
         let active = app
             .data
             .runtime
             .active_config
             .as_deref()
-            .unwrap_or("active");
-        brand.push(Span::styled("● ", theme::success_style().bold()));
-        brand.push(Span::styled(active.to_string(), theme::success_style()));
+            .or(app.data.runtime.session_config.as_deref())
+            .unwrap_or("connected");
+        let active_display = if active.chars().count() > 24 {
+            let truncated: String = active.chars().take(23).collect();
+            format!("{truncated}…")
+        } else {
+            active.to_string()
+        };
+        let dot_style = if app.data.runtime.status == "degraded" {
+            theme::warning_style().bold()
+        } else {
+            theme::success_style().bold()
+        };
+        brand.push(Span::styled("● ", dot_style));
+        brand.push(Span::styled(active_display, theme::success_style()));
     } else if app.runtime_activity_in_flight() {
         brand.push(Span::styled(
             format!("{} connecting", app.spinner_frame()),
