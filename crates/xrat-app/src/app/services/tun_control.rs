@@ -1,6 +1,8 @@
 use crate::app::config::{ConfigEditSession, SettingValue, TunSettings, TunSplitMode};
 use crate::app::context::AppContext;
-use crate::app::daemon::ipc::{self, TunStatePayload};
+#[cfg(unix)]
+use crate::app::daemon::ipc;
+use crate::app::daemon::ipc::TunStatePayload;
 use crate::app::runtime_service::RuntimeService;
 use crate::app::{AppError, Result};
 

@@ -4,6 +4,7 @@ use std::path::Path;
 use tokio::net::UnixListener;
 use tokio::sync::mpsc;
 
+#[cfg(unix)]
 use crate::app::daemon::ipc::daemon_unreachable;
 use crate::app::daemon::supervisor::SupervisorEvent;
 

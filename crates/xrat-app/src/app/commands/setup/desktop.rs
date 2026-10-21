@@ -207,6 +207,7 @@ fn select_terminal() -> Option<&'static str> {
     select_terminal_with_env(&xrat_support::env::SystemEnvVars)
 }
 
+#[cfg(target_os = "linux")]
 fn select_terminal_with_env(env: &dyn xrat_support::env::EnvVars) -> Option<&'static str> {
     use xrat_support::platform;
     let wayland = env

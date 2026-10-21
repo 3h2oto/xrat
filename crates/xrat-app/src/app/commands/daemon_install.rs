@@ -1,13 +1,31 @@
+#[cfg(any(
+    target_os = "linux",
+    target_os = "macos",
+    target_os = "freebsd",
+    target_os = "openbsd"
+))]
 use std::path::{Path, PathBuf};
 
 use crate::app::AppError;
 use crate::app::context::AppContext;
 use crate::cli::{DaemonInstallArgs, DaemonUninstallArgs};
 
+#[cfg(any(
+    target_os = "linux",
+    target_os = "macos",
+    target_os = "freebsd",
+    target_os = "openbsd"
+))]
 fn resolve_exe() -> PathBuf {
     std::env::current_exe().unwrap_or_else(|_| PathBuf::from("/usr/local/bin/xrat"))
 }
 
+#[cfg(any(
+    target_os = "linux",
+    target_os = "macos",
+    target_os = "freebsd",
+    target_os = "openbsd"
+))]
 fn render_service(template: &str, exe: &Path, xrat_path: &str) -> String {
     template
         .replace("{{EXE}}", &exe.display().to_string())

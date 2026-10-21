@@ -4,6 +4,9 @@ use std::path::{Path, PathBuf};
 mod client;
 mod handler;
 mod responses;
+// The supervisor transport helpers only back the Unix-domain socket server,
+// which has no Windows counterpart yet.
+#[cfg(unix)]
 mod transport;
 mod types;
 
