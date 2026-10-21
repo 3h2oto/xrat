@@ -9,7 +9,7 @@ use windows_sys::Win32::Security::{
 };
 use windows_sys::Win32::System::Threading::{GetCurrentProcess, OpenProcessToken};
 
-struct Impersonation;
+pub(crate) struct Impersonation(std::marker::PhantomData<std::rc::Rc<()>>);
 impl Drop for Impersonation {
     fn drop(&mut self) {
         assert_ne!(
@@ -70,6 +70,14 @@ fn restricted_token() -> io::Result<OwnedHandle> {
     Ok(unsafe { OwnedHandle::from_raw_handle(restricted) })
 }
 
+pub(crate) fn impersonate_owner_without_admin() -> io::Result<Impersonation> {
+    let token = restricted_token()?;
+    if unsafe { ImpersonateLoggedOnUser(token.as_raw_handle()) } == 0 {
+        return Err(io::Error::last_os_error());
+    }
+    Ok(Impersonation(std::marker::PhantomData))
+}
+
 #[tokio::test]
 async fn owner_without_admin_group_can_exchange_data_but_cannot_create_pipe_instances() {
     use tokio::io::{AsyncReadExt, AsyncWriteExt};
@@ -83,9 +91,7 @@ async fn owner_without_admin_group_can_exchange_data_but_cannot_create_pipe_inst
         std::process::id()
     ));
     let mut server = listener(&endpoint, true).unwrap();
-    let token = restricted_token().unwrap();
-    assert_ne!(unsafe { ImpersonateLoggedOnUser(token.as_raw_handle()) }, 0);
-    let impersonation = Impersonation;
+    let impersonation = impersonate_owner_without_admin().unwrap();
     let broad = tokio::net::windows::named_pipe::ClientOptions::new().open(&endpoint);
     assert!(
         broad.is_err(),

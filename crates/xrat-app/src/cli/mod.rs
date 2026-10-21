@@ -66,7 +66,7 @@ pub use proxy::{
     ProxyShellProtocol, ProxyShellStatusArgs, ProxyShellToggleArgs,
 };
 pub use purge::PurgeArgs;
-pub use root::Cli;
+pub use root::{Cli, ExecutionProfile};
 pub use rotate::{
     RotateAction, RotateArgs, RotateDisableArgs, RotateEnableArgs, RotateNowArgs, RotateStatusArgs,
 };

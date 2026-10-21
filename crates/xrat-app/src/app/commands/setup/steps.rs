@@ -71,12 +71,38 @@ pub fn daemon_unit_path() -> Option<PathBuf> {
 }
 
 fn daemon_installed() -> bool {
+    #[cfg(windows)]
+    {
+        crate::app::services::machine_service::scm::status()
+            .ok()
+            .flatten()
+            .is_some()
+    }
+    #[cfg(not(windows))]
     daemon_unit_path()
         .map(|path| path.exists())
         .unwrap_or(false)
 }
 
 pub fn probe_daemon() -> StepOutcome {
+    #[cfg(windows)]
+    {
+        use crate::app::services::machine_service::scm;
+        match scm::status() {
+            Ok(Some(status)) => StepOutcome::new(STEP_DAEMON, StepStatus::AlreadyDone, false)
+                .with_detail(format!(
+                    "Windows machine service installed; SCM state {}",
+                    status.dwCurrentState
+                )),
+            Ok(None) => StepOutcome::new(STEP_DAEMON, StepStatus::Missing, false).with_detail(
+                "optional Windows machine service not installed; installation requires elevation"
+                    .into(),
+            ),
+            Err(error) => StepOutcome::new(STEP_DAEMON, StepStatus::Failed, false)
+                .with_detail(format!("cannot inspect Windows service: {error}")),
+        }
+    }
+    #[cfg(not(windows))]
     if daemon_installed() {
         StepOutcome::new(STEP_DAEMON, StepStatus::AlreadyDone, false)
     } else {
@@ -88,6 +114,8 @@ pub fn probe_daemon() -> StepOutcome {
 pub fn apply_daemon(context: &AppContext) -> StepOutcome {
     let existed = daemon_installed();
     let args = DaemonInstallArgs {
+        #[cfg(windows)]
+        operator_sid: None,
         start: true,
         dry_run: false,
         with_api: false,

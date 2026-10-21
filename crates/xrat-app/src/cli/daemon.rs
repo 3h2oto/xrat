@@ -13,15 +13,21 @@ pub enum DaemonAction {
     Start(DaemonStartArgs),
     #[command(hide = true, about = "Internal: run the daemon IPC server loop.")]
     RunServer(DaemonServeArgs),
+    #[cfg(windows)]
+    #[command(
+        hide = true,
+        about = "Internal: run the Windows SCM service entrypoint."
+    )]
+    RunService,
     #[command(about = "Show daemon IPC reachability and protocol information.")]
     Status(DaemonStatusArgs),
     #[command(about = "Request daemon shutdown via local IPC.")]
     Stop(DaemonStopArgs),
     #[command(about = "Restart the daemon, reloading config.toml and the runtime session.")]
     Restart(DaemonRestartArgs),
-    #[command(about = "Install xrat-daemon.service as a systemd user service.")]
+    #[command(about = "Install the platform's XRAT daemon service.")]
     Install(DaemonInstallArgs),
-    #[command(about = "Remove the installed xrat-daemon.service systemd user service.")]
+    #[command(about = "Remove the installed XRAT daemon service, preserving its data.")]
     Uninstall(DaemonUninstallArgs),
 }
 
@@ -42,6 +48,10 @@ pub struct DaemonRestartArgs {}
 
 #[derive(Debug, Args)]
 pub struct DaemonInstallArgs {
+    /// Windows operator SID when installing using a different administrator account.
+    #[cfg(windows)]
+    #[arg(long)]
+    pub operator_sid: Option<String>,
     /// Start the daemon immediately after enabling.
     #[arg(long)]
     pub start: bool,

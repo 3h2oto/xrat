@@ -58,6 +58,20 @@ fn process_cmd_args(pid: i64) -> Option<Vec<String>> {
 }
 
 fn process_exec_matches_runtime_engine(context: &AppContext, session_id: i64, pid: i64) -> bool {
+    #[cfg(windows)]
+    let Ok(current_sid) = xrat_support::windows::current_user_sid() else {
+        return false;
+    };
+    #[cfg(windows)]
+    if current_sid == "S-1-5-18"
+        && u32::try_from(pid)
+            .ok()
+            .and_then(|pid| xrat_support::windows::process_user_sid(pid).ok())
+            .as_deref()
+            != Some("S-1-5-18")
+    {
+        return false;
+    }
     let Some(process_exe) = process_exe_path(pid) else {
         return false;
     };
@@ -73,6 +87,13 @@ fn process_exec_matches_runtime_engine(context: &AppContext, session_id: i64, pi
             _ => &context.runtime_paths.xray_path,
         }
     };
+    #[cfg(windows)]
+    if current_sid == "S-1-5-18" {
+        return std::fs::canonicalize(&process_exe)
+            .ok()
+            .zip(std::fs::canonicalize(expected).ok())
+            .is_some_and(|(actual, expected)| actual == expected);
+    }
     process_exe
         .file_name()
         .map(|name| name == expected.file_name().unwrap_or_default())
@@ -98,6 +119,12 @@ fn cmdline_contains_session_config(
         .runtime_dir
         .join(format!("session-{session_id}.{suffix}"));
     let expected = expected.to_string_lossy();
+    #[cfg(windows)]
+    {
+        args.windows(2)
+            .any(|pair| pair[0] == "-c" && pair[1] == expected)
+    }
+    #[cfg(not(windows))]
     args.iter().any(|arg| arg.contains(expected.as_ref()))
 }
 

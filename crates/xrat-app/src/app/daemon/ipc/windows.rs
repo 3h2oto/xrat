@@ -95,4 +95,4 @@ fn verify_user(pid: u32) -> io::Result<()> {
 
 #[cfg(test)]
 #[path = "windows_security_tests.rs"]
-mod tests;
+pub(crate) mod tests;

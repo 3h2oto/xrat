@@ -116,7 +116,9 @@ impl MachineProfile {
             v2ray_path: root.join("cores/v2ray.exe"),
             sing_box_path: root.join("cores/sing-box.exe"),
         };
-        AppContext::from_parts(paths, crate::app::config::load(&self.config_path())?).await
+        let config = crate::app::config::load(&self.config_path())?;
+        super::lifecycle::validate_config(&config)?;
+        AppContext::from_parts(paths, config).await
     }
 }
 

@@ -23,14 +23,21 @@ use super::SecurityDescriptor;
 const DIRECTORY_SECURITY: &str = "O:BAG:BAD:P(A;OICI;FA;;;SY)(A;OICI;FA;;;BA)";
 
 pub fn program_data() -> io::Result<PathBuf> {
+    known_folder(&windows_sys::Win32::UI::Shell::FOLDERID_ProgramData)
+}
+
+pub fn program_files() -> io::Result<PathBuf> {
+    known_folder(&windows_sys::Win32::UI::Shell::FOLDERID_ProgramFiles)
+}
+
+fn known_folder(folder: &windows_sys::core::GUID) -> io::Result<PathBuf> {
     use windows_sys::Win32::System::Com::CoTaskMemFree;
-    use windows_sys::Win32::UI::Shell::{FOLDERID_ProgramData, SHGetKnownFolderPath};
+    use windows_sys::Win32::UI::Shell::SHGetKnownFolderPath;
     let mut value = ptr::null_mut();
-    let result =
-        unsafe { SHGetKnownFolderPath(&FOLDERID_ProgramData, 0, ptr::null_mut(), &mut value) };
+    let result = unsafe { SHGetKnownFolderPath(folder, 0, ptr::null_mut(), &mut value) };
     if result < 0 {
         return Err(io::Error::other(format!(
-            "ProgramData lookup failed: {result:#x}"
+            "Windows known-folder lookup failed: {result:#x}"
         )));
     }
     let mut length = 0;

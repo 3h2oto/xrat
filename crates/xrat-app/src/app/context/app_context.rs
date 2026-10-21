@@ -13,6 +13,11 @@ pub struct AppContext {
 impl AppContext {
     /// Build from parsed CLI arguments, resolving paths from disk.
     pub async fn build(args: &cli::Cli) -> crate::app::Result<Self> {
+        if args.profile == cli::ExecutionProfile::Machine {
+            return Err(crate::app::AppError::InvalidArgument(
+                "machine profile operations require the service gateway; refusing user-profile bootstrap".into(),
+            ));
+        }
         let (runtime_paths, app_config) = paths::resolve_runtime(args)?;
         build_app_context(runtime_paths, app_config).await
     }

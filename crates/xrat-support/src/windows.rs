@@ -14,7 +14,7 @@ use windows_sys::Win32::System::Threading::{
 };
 
 mod protected_directory;
-pub use protected_directory::{ProtectedDirectory, program_data};
+pub use protected_directory::{ProtectedDirectory, program_data, program_files};
 
 pub fn current_user_sid() -> io::Result<String> {
     unsafe { user_sid(GetCurrentProcess()) }

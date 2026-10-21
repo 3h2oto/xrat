@@ -57,15 +57,15 @@ separate evidence. This branch is not a release or proof of full support.
 
 ### Protected machine profile and local gateway foundation
 
-`app::services::machine_service` provides the service-host foundation. It is not
-yet wired to SCM or selected by ordinary CLI/TUI startup. User-local daemon
-behavior remains separate. The machine profile uses the Windows ProgramData
-known folder (`XRAT-Service`), without consulting `XRAT_PATH`, CLI path
-overrides, or the interactive user's home directory. Configuration, SQLite data,
-runtime state, logs, GeoIP data, and engine binaries belong to this protected
-profile. Configuration and engine binaries must be provisioned by an
-administrator; there is no automatic copy of a user-controlled profile into the
-service.
+`app::services::machine_service` provides SCM hosting and the gateway
+foundation. Routine application operations are not yet selected by ordinary
+CLI/TUI startup. User-local daemon behavior remains separate. The machine
+profile uses the Windows ProgramData known folder (`XRAT-Service`), without
+consulting `XRAT_PATH`, CLI path overrides, or the interactive user's home
+directory. Configuration, SQLite data, runtime state, logs, GeoIP data, and
+engine binaries belong to this protected profile. Configuration and engine
+binaries must be provisioned by an administrator; there is no automatic copy of
+a user-controlled profile into the service.
 
 Profile creation assigns an Administrators owner and a protected inheritable
 DACL granting access only to SYSTEM and Administrators. Existing roots with a
@@ -93,10 +93,10 @@ implements the shared runtime adapter without local fallback.
 
 Config/subscription management, imports/exports, settings edits, desktop proxy,
 and service lifecycle operations are not exposed by this gateway. CLI/TUI
-machine-profile discovery, protected catalog access, and SCM hosting still need
-integration before ordinary users can select this service. Existing HTTP
-authentication and role checks are unchanged; the local operator gateway is not
-an HTTP authorization bypass.
+machine-profile discovery and protected catalog access still need integration
+before ordinary users can select this service. Existing HTTP authentication and
+role checks are unchanged; the local operator gateway is not an HTTP
+authorization bypass.
 
 Local contract tests cover schema rejection, unauthorized callers, protocol
 versions, identifier validation, service-owned TUN paths, supervisor errors,
@@ -109,11 +109,49 @@ gate; cross-compilation alone does not establish it.
 
 ### Service lifecycle and acceptance
 
-Complete the protected machine profile and typed application gateway before
-enabling privileged service installation. Add SCM startup/shutdown/recovery,
-service-aware upgrades, and normal-user CLI/TUI service access. Complete the
-Windows TUN privilege, driver, interface identity, route/DNS ownership, live
-replacement, and crash recovery adapters before removing Windows TUN rejection.
+Windows `daemon install` provisions an administrator-owned executable in the
+Program Files known folder (`XRAT-Service/xrat.exe`) and registers the
+`xrat-daemon` LocalSystem service. Installation/removal requires an elevated
+shell. When installing using another administrator account, supply the intended
+operator's SID with `--operator-sid`; otherwise the current account is
+registered. Reinstall preserves registration/configuration and refuses a
+different operator or executable. Uninstall preserves the profile and
+executable.
+
+The global `--profile user|machine` defaults to `user`. Machine mode currently
+supports `daemon install/start/stop/restart/status/uninstall`. For example,
+`xrat --profile machine daemon restart` controls SCM, while ordinary
+`xrat daemon restart` retains the separate user-daemon behavior. Machine mode
+rejects CLI database/config/engine path overrides and never bootstraps a user
+profile. Other application operations in machine mode currently report an
+explicit unsupported error. The TUI selector and application gateway adapters
+remain outstanding. `--with-api` and `--tun` service-install flags are
+explicitly rejected until their respective integrations are implemented.
+
+The service has an actual SCM dispatcher/control handler, pending checkpoints,
+bounded transitions, and bounded restart recovery. Its registered operator may
+start/stop/query it without permission to reconfigure it or rewrite its ACL.
+Startup validates persisted process identity, reconciles stale state,
+disconnects, and waits for explicit connection/rotation requests. HTTP and
+automatic subscription fetching are disabled in the privileged host. Gateway
+readiness precedes SCM RUNNING; shutdown closes the gateway, drains the
+supervisor's shutdown operation, and attempts final cleanup even after task
+failure. Fatal host failures also emit best-effort Windows Application event-log
+records.
+
+An ignored native test exercises real service registration, SYSTEM gateway
+exchange under a restricted operator token, SCM control without administrator
+membership, permission denial for service reconfiguration/ACL changes, dry-run,
+reinstall, operator mismatch, and uninstall preservation. It requires an
+isolated elevated Windows host with no existing XRAT service/profile and a built
+native binary in `XRAT_WINDOWS_SERVICE_BINARY`. Run
+`cargo test --locked -p xrat-app native_machine_service_lifecycle_and_restricted_operator -- --ignored --test-threads=1`.
+These tests have not established native service or reboot acceptance yet.
+
+Complete service-aware upgrades and normal-user CLI/TUI/Web application access.
+Complete the Windows TUN privilege, driver, interface identity, route/DNS
+ownership, live replacement, and crash recovery adapters before removing Windows
+TUN rejection.
 
 Standard GitHub runners provide native x64 and ARM64 build/test environments.
 Use those first, including service, driver, and network tests where supported.

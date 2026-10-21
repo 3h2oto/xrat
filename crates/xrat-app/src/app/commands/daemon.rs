@@ -10,6 +10,12 @@ pub async fn run(context: &AppContext, args: &DaemonArgs) -> crate::app::Result<
     let socket_path = ipc::default_socket_path(&context.runtime_paths.runtime_dir);
 
     match &args.action {
+        #[cfg(windows)]
+        DaemonAction::RunService => {
+            return Err(crate::app::AppError::InvalidArgument(
+                "SCM entrypoint must run before application bootstrap".into(),
+            ));
+        }
         DaemonAction::Start(_) => {
             if ipc::ping_daemon(&socket_path).await.is_ok() {
                 println!(

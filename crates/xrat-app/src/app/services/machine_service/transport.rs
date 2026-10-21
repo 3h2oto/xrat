@@ -15,9 +15,21 @@ pub async fn serve(
     supervisor: mpsc::Sender<SupervisorEvent>,
     shutdown: xrat_support::cancel::CancellationReceiver,
 ) -> Result<()> {
+    serve_with_ready(profile, supervisor, shutdown, None).await
+}
+
+pub(super) async fn serve_with_ready(
+    profile: MachineProfile,
+    supervisor: mpsc::Sender<SupervisorEvent>,
+    shutdown: xrat_support::cancel::CancellationReceiver,
+    ready: Option<tokio::sync::oneshot::Sender<()>>,
+) -> Result<()> {
     let gateway = Arc::new(MachineGateway::new(&profile, supervisor)?);
     let endpoint = std::path::Path::new(ENDPOINT);
     let mut listener = ipc::windows::listener_for_owner(endpoint, true, profile.operator_sid())?;
+    if let Some(ready) = ready {
+        let _ = ready.send(());
+    }
     let capacity = Arc::new(Semaphore::new(64));
     let mut connections = tokio::task::JoinSet::new();
     loop {
