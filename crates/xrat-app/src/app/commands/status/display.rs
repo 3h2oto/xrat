@@ -15,7 +15,15 @@ pub(super) async fn print_daemon_status(
         crate::app::AppError::InvalidArgument("daemon status response missing payload".to_string())
     })?;
     let active_config_ref = config_ref(context, payload.active_config_id).await?;
+    print_payload(payload, active_config_ref, as_json, "daemon")
+}
 
+pub(crate) fn print_payload(
+    payload: RuntimeStatusPayload,
+    active_config_ref: Option<String>,
+    as_json: bool,
+    mode: &str,
+) -> crate::app::Result<()> {
     if as_json {
         println!(
             "{}",
@@ -39,7 +47,7 @@ pub(super) async fn print_daemon_status(
         output::format_kv(
             Some("Runtime"),
             &[
-                ("mode", "daemon".to_string()),
+                ("mode", mode.to_string()),
                 ("status", payload.runtime_status),
                 (
                     "owned",
@@ -104,9 +112,5 @@ async fn config_ref(
     let Some(config_id) = config_id else {
         return Ok(None);
     };
-    Ok(context
-        .db
-        .get_config_by_id(config_id)
-        .await?
-        .map(|config| config.r#ref))
+    context.services().configs.reference(config_id).await
 }

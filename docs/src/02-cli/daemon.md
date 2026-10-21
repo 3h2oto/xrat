@@ -231,6 +231,57 @@ User config, database, logs, and all application state are **preserved**.
 
 ---
 
+## Windows machine service
+
+Windows service installation requires an elevated terminal:
+
+```powershell
+xrat daemon install --dry-run --start
+xrat daemon install --start
+```
+
+The service runs as LocalSystem from a protected Program Files directory and
+stores its configuration, SQLite catalog, runtime files, and engine binaries
+under the ProgramData known folder, in `XRAT-Service`. The installing user is
+registered as its operator. When elevating with a different administrator account,
+pass `--operator-sid <SID>` for the intended operator.
+
+The registered operator can use these commands from an ordinary terminal:
+
+```powershell
+xrat --profile machine daemon status
+xrat --profile machine daemon start
+xrat --profile machine import https://example.com/subscription
+xrat --profile machine list configs
+xrat --profile machine connect <config-ref>
+xrat --profile machine status --json
+xrat --profile machine disconnect
+xrat --profile machine daemon stop
+```
+
+`--profile user` is the default. Machine commands use the service gateway and
+never open a user catalog or fall back when the service is unavailable. Path and
+database overrides are rejected. Supported catalog commands currently include
+`add`, `import`, `list`, `show`, `enable`, `disable`, `delete`, and `restore`.
+The machine TUI, HTTP host, driver provisioning, and coordinated service upgrade
+are still under implementation. Windows `daemon install --with-api` and `--tun`
+currently return an explicit unsupported-operation error.
+
+Import files and subscription URLs are read by the invoking user. The service
+receives bounded link bodies and source metadata, then uses the shared parsing
+and catalog lifecycle services. Root engine JSON and structured engine extension
+parameters require administrator provisioning; the gateway rejects them. Routine
+requests cannot supply executable paths, SQL, service configuration, or driver
+sources. Listing pagination preserves shared filters and ordering, and exports
+include the complete filtered selection.
+
+After service startup, crash recovery, or restart, the service reconciles and
+cleans stale runtime ownership and remains disconnected with rotation disabled.
+Connect explicitly to resume. Uninstall requires elevation and preserves the
+protected profile and installed executable. Source and local tests do not yet
+establish native Windows runtime acceptance.
+
+
 ## IPC Protocol
 
 The daemon uses JSON over Unix domain socket with protocol version 1.

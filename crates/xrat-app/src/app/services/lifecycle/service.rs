@@ -8,7 +8,8 @@ use xrat_model::{ConfigId, ConfigRef, SubscriptionId};
 use crate::app::services::configs::DatabaseConfigRepository;
 
 /// Outcome of an enable or disable request.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "snake_case")]
 pub enum ToggleOutcome {
     Changed,
     AlreadyEnabled,
@@ -17,7 +18,8 @@ pub enum ToggleOutcome {
 }
 
 /// Outcome of a delete request.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "snake_case")]
 pub enum DeleteOutcome {
     SoftDeleted,
     HardDeleted,
@@ -25,7 +27,8 @@ pub enum DeleteOutcome {
 }
 
 /// Outcome of a restore request.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "snake_case")]
 pub enum RestoreOutcome {
     Restored,
     NotDeleted,

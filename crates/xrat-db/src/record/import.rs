@@ -1,6 +1,7 @@
 use std::collections::BTreeMap;
 
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "snake_case")]
 pub enum SourceKind {
     Url,
     File,
@@ -17,14 +18,15 @@ impl SourceKind {
     }
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct ImportSource {
     pub kind: SourceKind,
     pub value: String,
     pub name: Option<String>,
 }
 
-#[derive(Debug, Default, PartialEq, Eq)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct ImportSummary {
     pub subscription_id: xrat_model::SubscriptionId,
     pub imported_configs: usize,
@@ -40,7 +42,7 @@ pub struct RefreshableSubscription {
     pub headers: BTreeMap<String, String>,
 }
 
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct SubscriptionRecord {
     pub id: xrat_model::SubscriptionId,
     pub r#ref: String,

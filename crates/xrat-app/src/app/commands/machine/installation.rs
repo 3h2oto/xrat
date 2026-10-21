@@ -3,7 +3,7 @@ use std::io;
 use std::path::Path;
 use xrat_support::windows::ProtectedDirectory;
 
-use super::{MachineProfile, scm};
+use crate::app::services::machine_service::{self, MachineProfile, scm};
 use crate::app::{AppError, Result};
 use crate::cli::{DaemonInstallArgs, DaemonUninstallArgs};
 
@@ -16,7 +16,7 @@ fn install_inner(args: &DaemonInstallArgs, quiet: bool) -> Result<()> {
         Some(sid) => sid.clone(),
         None => xrat_support::windows::current_user_sid()?,
     };
-    super::validate_operator(&operator)?;
+    machine_service::validate_operator(&operator)?;
     if args.with_api || args.tun {
         return Err(AppError::InvalidArgument("Windows --with-api and --tun integration is not yet available; install the service without these flags".into()));
     }

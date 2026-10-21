@@ -12,14 +12,23 @@ pub async fn import_subscription(
     name: Option<&str>,
     headers: &BTreeMap<String, String>,
 ) -> crate::app::Result<ImportSummary> {
+    let (source, bytes) = super::load_subscription_input(input, headers).await?;
+    let nodes = super::parse_nodes(&bytes)?;
+    let stored_headers = matches!(source.kind, xrat_db::SourceKind::Url).then_some(headers);
+    super::persist_nodes(database, source, &nodes, name, stored_headers).await
+}
+
+pub(crate) async fn load_subscription_input(
+    input: &str,
+    headers: &BTreeMap<String, String>,
+) -> crate::app::Result<(xrat_db::ImportSource, Vec<u8>)> {
     if !looks_like_url(input) {
         if !headers.is_empty() {
             return Err(AppError::InvalidArgument(
                 "--header requires a subscription URL".into(),
             ));
         }
-        let (source, nodes) = super::load_nodes_async(input).await?;
-        return super::persist_nodes(database, source, &nodes, name, None).await;
+        return crate::app::input::source::read_input_async(input).await;
     }
 
     let request_headers = parse_request_headers(headers)?;
@@ -30,12 +39,12 @@ pub async fn import_subscription(
             .redirect(RedirectPolicy::SameOrigin)
             .build()?
     };
-    let (source, bytes) = read_input_async_with_headers(input, &client, request_headers).await?;
-    let nodes = super::parse_nodes(&bytes)?;
-    super::persist_nodes(database, source, &nodes, name, Some(headers)).await
+    read_input_async_with_headers(input, &client, request_headers).await
 }
 
-fn parse_request_headers(headers: &BTreeMap<String, String>) -> crate::app::Result<HeaderMap> {
+pub(crate) fn parse_request_headers(
+    headers: &BTreeMap<String, String>,
+) -> crate::app::Result<HeaderMap> {
     let mut request_headers = HeaderMap::new();
     for (name, value) in headers {
         let name = HeaderName::from_bytes(name.as_bytes())

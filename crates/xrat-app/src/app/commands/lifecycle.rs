@@ -172,15 +172,23 @@ async fn show_config(context: &AppContext, args: &ShowConfigArgs) -> crate::app:
         .config(&xrat_model::ConfigRef::from(args.id.as_str()))
         .await?;
 
-    if args.json {
-        let subscription_ref = match config.subscription_id {
-            Some(subscription_id) => context
-                .db
-                .get_subscription_by_id(subscription_id)
-                .await?
-                .map(|subscription| subscription.r#ref),
-            None => None,
-        };
+    let subscription_ref = match config.subscription_id {
+        Some(subscription_id) => context
+            .db
+            .get_subscription_by_id(subscription_id)
+            .await?
+            .map(|subscription| subscription.r#ref),
+        None => None,
+    };
+    print_config(config, subscription_ref, args.json)
+}
+
+pub(super) fn print_config(
+    config: xrat_db::ConfigRecord,
+    subscription_ref: Option<String>,
+    json: bool,
+) -> crate::app::Result<()> {
+    if json {
         println!(
             "{}",
             serde_json::to_string_pretty(&serde_json::json!({
@@ -211,15 +219,7 @@ async fn show_config(context: &AppContext, args: &ShowConfigArgs) -> crate::app:
         return Ok(());
     }
 
-    let subscription_ref = match config.subscription_id {
-        Some(subscription_id) => context
-            .db
-            .get_subscription_by_id(subscription_id)
-            .await?
-            .map(|subscription| subscription.r#ref)
-            .unwrap_or_else(|| "-".to_string()),
-        None => "-".to_string(),
-    };
+    let subscription_ref = subscription_ref.unwrap_or_else(|| "-".into());
 
     println!(
         "{}",
@@ -256,7 +256,14 @@ async fn show_subscription(
 ) -> crate::app::Result<()> {
     let subscription = context.services().lifecycle.subscription(&args.id).await?;
 
-    if args.json {
+    print_subscription(subscription, args.json)
+}
+
+pub(super) fn print_subscription(
+    subscription: xrat_db::SubscriptionRecord,
+    json: bool,
+) -> crate::app::Result<()> {
+    if json {
         println!(
             "{}",
             serde_json::to_string_pretty(&subscription_json(&subscription))?

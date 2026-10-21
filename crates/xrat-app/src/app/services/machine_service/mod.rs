@@ -1,5 +1,17 @@
+mod catalog;
 mod gateway;
 mod protocol;
+#[cfg(any(windows, test))]
+mod response;
+#[cfg(windows)]
+pub(crate) use response::encode_response;
+#[cfg(any(windows, test))]
+mod client;
+pub use catalog::{CatalogPayload, CatalogRequest};
+#[cfg(any(windows, test))]
+pub use client::MachineClient;
+#[cfg(test)]
+pub(crate) use client::Transport;
 
 pub use gateway::MachineGateway;
 pub use protocol::{GATEWAY_VERSION, GatewayPayload, GatewayRequest, GatewayRequestKind};
@@ -14,12 +26,8 @@ pub use profile::MachineProfile;
 pub use transport::{request, serve};
 
 #[cfg(windows)]
-pub mod commands;
-#[cfg(windows)]
 mod host;
 mod identity;
-#[cfg(windows)]
-pub mod installation;
 #[cfg(any(windows, test))]
 mod lifecycle;
 #[cfg(windows)]
@@ -27,7 +35,7 @@ pub mod scm;
 #[cfg(windows)]
 pub use host::run_service;
 #[cfg(any(windows, test))]
-use identity::validate_operator;
+pub(crate) use identity::validate_operator;
 pub use identity::{ENDPOINT, SYSTEM_SID};
 
 #[cfg(all(test, windows))]

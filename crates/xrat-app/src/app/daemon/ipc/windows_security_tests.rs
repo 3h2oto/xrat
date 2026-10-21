@@ -1,13 +1,11 @@
 use super::*;
-use std::os::windows::io::{AsRawHandle, FromRawHandle, OwnedHandle};
-use std::ptr;
-
+use std::os::windows::io::AsRawHandle;
 use windows_sys::Win32::Security::{
-    CreateRestrictedToken, CreateWellKnownSid, DISABLE_MAX_PRIVILEGE, ImpersonateLoggedOnUser,
-    RevertToSelf, SECURITY_MAX_SID_SIZE, SID_AND_ATTRIBUTES, TOKEN_DUPLICATE, TOKEN_QUERY,
-    WinBuiltinAdministratorsSid,
+    ImpersonateLoggedOnUser, RevertToSelf, WinLowLabelSid, WinMediumLabelSid,
 };
-use windows_sys::Win32::System::Threading::{GetCurrentProcess, OpenProcessToken};
+
+#[path = "windows_test_token.rs"]
+mod token;
 
 pub(crate) struct Impersonation(std::marker::PhantomData<std::rc::Rc<()>>);
 impl Drop for Impersonation {
@@ -20,58 +18,8 @@ impl Drop for Impersonation {
     }
 }
 
-fn restricted_token() -> io::Result<OwnedHandle> {
-    let mut token = ptr::null_mut();
-    if unsafe {
-        OpenProcessToken(
-            GetCurrentProcess(),
-            TOKEN_DUPLICATE | TOKEN_QUERY,
-            &mut token,
-        )
-    } == 0
-    {
-        return Err(io::Error::last_os_error());
-    }
-    let token = unsafe { OwnedHandle::from_raw_handle(token) };
-    let mut sid_size = SECURITY_MAX_SID_SIZE;
-    let mut sid = vec![0usize; (sid_size as usize).div_ceil(size_of::<usize>())];
-    if unsafe {
-        CreateWellKnownSid(
-            WinBuiltinAdministratorsSid,
-            ptr::null_mut(),
-            sid.as_mut_ptr().cast(),
-            &mut sid_size,
-        )
-    } == 0
-    {
-        return Err(io::Error::last_os_error());
-    }
-    let disabled = SID_AND_ATTRIBUTES {
-        Sid: sid.as_mut_ptr().cast(),
-        Attributes: 0,
-    };
-    let mut restricted = ptr::null_mut();
-    if unsafe {
-        CreateRestrictedToken(
-            token.as_raw_handle(),
-            DISABLE_MAX_PRIVILEGE,
-            1,
-            &disabled,
-            0,
-            ptr::null(),
-            0,
-            ptr::null(),
-            &mut restricted,
-        )
-    } == 0
-    {
-        return Err(io::Error::last_os_error());
-    }
-    Ok(unsafe { OwnedHandle::from_raw_handle(restricted) })
-}
-
 pub(crate) fn impersonate_owner_without_admin() -> io::Result<Impersonation> {
-    let token = restricted_token()?;
+    let token = token::restricted_token(WinMediumLabelSid)?;
     if unsafe { ImpersonateLoggedOnUser(token.as_raw_handle()) } == 0 {
         return Err(io::Error::last_os_error());
     }
@@ -116,4 +64,28 @@ async fn owner_without_admin_group_can_exchange_data_but_cannot_create_pipe_inst
     })
     .await
     .expect("ordinary owner data exchange timed out");
+}
+
+#[tokio::test]
+async fn low_integrity_owner_cannot_write_to_the_medium_integrity_pipe() {
+    let endpoint = std::path::PathBuf::from(format!(
+        r"\\.\pipe\xrat-low-owner-{}-{}",
+        std::process::id(),
+        std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap()
+            .as_nanos()
+    ));
+    let _server = listener(&endpoint, true).unwrap();
+    let token = token::restricted_token(WinLowLabelSid).unwrap();
+    assert_ne!(unsafe { ImpersonateLoggedOnUser(token.as_raw_handle()) }, 0);
+    let guard = Impersonation(std::marker::PhantomData);
+    let denied = connect(&endpoint).err();
+    drop(guard);
+    assert_eq!(
+        denied
+            .expect("low integrity client must be denied")
+            .raw_os_error(),
+        Some(5)
+    );
 }

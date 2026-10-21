@@ -10,8 +10,11 @@ pub async fn run(context: &AppContext, args: &DisconnectArgs) -> crate::app::Res
     let result = control.disconnect().await;
     progress.finish_and_clear();
     let stopped_session = result?;
+    print_outcome(stopped_session, args.json)
+}
 
-    if args.json {
+pub(super) fn print_outcome(stopped_session: bool, json: bool) -> crate::app::Result<()> {
+    if json {
         println!(
             "{}",
             serde_json::to_string_pretty(&serde_json::json!({

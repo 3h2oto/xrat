@@ -174,6 +174,7 @@ async fn host() -> Result<()> {
     let (ready_tx, ready_rx) = tokio::sync::oneshot::channel();
     tasks.spawn(super::transport::serve_with_ready(
         profile,
+        context.clone(),
         sender.clone(),
         CancellationReceiver::from_flag(&cancel),
         Some(ready_tx),

@@ -524,11 +524,7 @@ async fn config_ref(
     let Some(config_id) = config_id else {
         return Ok(None);
     };
-    Ok(context
-        .db
-        .get_config_by_id(config_id)
-        .await?
-        .map(|config| config.r#ref))
+    context.services().configs.reference(config_id).await
 }
 
 /// Translate internal scheduler sentinel values into human-readable status text.

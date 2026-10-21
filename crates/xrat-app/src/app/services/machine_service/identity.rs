@@ -2,7 +2,7 @@ pub const SYSTEM_SID: &str = "S-1-5-18";
 pub const ENDPOINT: &str = r"\\.\pipe\xrat-machine-v1";
 
 #[cfg(any(windows, test))]
-pub(super) fn validate_operator(sid: &str) -> crate::app::Result<()> {
+pub(crate) fn validate_operator(sid: &str) -> crate::app::Result<()> {
     let components = sid.strip_prefix("S-1-").and_then(|rest| {
         rest.split('-')
             .map(str::parse::<u64>)

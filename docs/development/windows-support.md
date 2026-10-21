@@ -58,8 +58,9 @@ separate evidence. This branch is not a release or proof of full support.
 ### Protected machine profile and local gateway foundation
 
 `app::services::machine_service` provides SCM hosting and the gateway
-foundation. Routine application operations are not yet selected by ordinary
-CLI/TUI startup. User-local daemon behavior remains separate. The machine
+foundation. CLI machine catalog and runtime commands select this gateway before
+user bootstrap; TUI and HTTP selection remain outstanding. User-local daemon
+behavior remains separate. The machine
 profile uses the Windows ProgramData known folder (`XRAT-Service`), without
 consulting `XRAT_PATH`, CLI path overrides, or the interactive user's home
 directory. Configuration, SQLite data, runtime state, logs, GeoIP data, and
@@ -91,12 +92,20 @@ are rejected. Requests use the shared supervisor handlers, including their
 existing state transitions and operational events. `MachineRuntimeControl`
 implements the shared runtime adapter without local fallback.
 
-Config/subscription management, imports/exports, settings edits, desktop proxy,
-and service lifecycle operations are not exposed by this gateway. CLI/TUI
-machine-profile discovery and protected catalog access still need integration
-before ordinary users can select this service. Existing HTTP authentication and
-role checks are unchanged; the local operator gateway is not an HTTP
-authorization bypass.
+The typed catalog gateway uses shared config read/lifecycle and import services.
+The CLI supports machine-profile add/import/list/show, enable/disable,
+delete/restore, connect/disconnect, and runtime status. Files and URLs are read
+by the ordinary client; source labels are metadata, never privileged input
+locations. Every body in a multipart import is parsed and checked before any
+write. Structured engine extensions are rejected for routine imports.
+
+Wire pages are bounded; the client aggregates filtered selections and exports
+without losing ordering, filters, or top-N semantics. Oversized read pages are
+retried at smaller sizes. A mutation is never replayed after an oversized reply
+or transport failure. Settings edits, core/driver installation, and privileged
+filesystem operations are absent from the operator gateway. Service lifecycle
+uses SCM permissions. TUI and HTTP application integration remain outstanding;
+existing HTTP authentication/roles are unchanged.
 
 Local contract tests cover schema rejection, unauthorized callers, protocol
 versions, identifier validation, service-owned TUN paths, supervisor errors,
@@ -123,9 +132,10 @@ supports `daemon install/start/stop/restart/status/uninstall`. For example,
 `xrat --profile machine daemon restart` controls SCM, while ordinary
 `xrat daemon restart` retains the separate user-daemon behavior. Machine mode
 rejects CLI database/config/engine path overrides and never bootstraps a user
-profile. Other application operations in machine mode currently report an
-explicit unsupported error. The TUI selector and application gateway adapters
-remain outstanding. `--with-api` and `--tun` service-install flags are
+profile. The catalog and runtime commands listed above use typed adapters and
+the same CLI presenters as user mode. Other operations report an explicit
+unsupported error. The TUI selector and HTTP application adapters remain
+outstanding. `--with-api` and `--tun` service-install flags are
 explicitly rejected until their respective integrations are implemented.
 
 The service has an actual SCM dispatcher/control handler, pending checkpoints,
@@ -163,8 +173,10 @@ These proxy fixtures do not exercise TUN capture or privileged network cleanup.
 
 The isolated WinINET acceptance step changes runner settings temporarily and
 checks manual/PAC transitions, restoration, and preservation of external changes.
-The ordinary-owner pipe test disables the token's Administrators group to check
-client read/write access without granting pipe-instance creation. Generated shell
+The ordinary-owner pipe test disables the token's Administrators group and sets
+medium integrity to check client read/write access without granting pipe-instance
+creation. Pipes have an explicit medium mandatory label; a low-integrity owner
+test verifies write denial. Generated shell
 scripts are executed in Windows PowerShell 5.1 and PowerShell 7 where available.
 
 Acceptance harnesses are Rust integration tests. `tests/windows_installer.rs`

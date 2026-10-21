@@ -1,7 +1,7 @@
 use std::io;
 use tokio::io::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt};
 
-const MAX_MESSAGE_BYTES: usize = 8 * 1024 * 1024;
+pub(crate) const MAX_MESSAGE_BYTES: usize = 8 * 1024 * 1024;
 
 pub(crate) async fn read(stream: &mut (impl AsyncRead + Unpin)) -> io::Result<Vec<u8>> {
     let size = stream.read_u32_le().await? as usize;

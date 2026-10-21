@@ -12,7 +12,8 @@ use super::repository::DatabaseConfigRepository;
 ///
 /// Adapters translate their own input (CLI args, HTTP query params, TUI state)
 /// into this struct so filter defaults and pagination rules live in one place.
-#[derive(Clone, Debug, Default)]
+#[derive(Clone, Debug, Default, serde::Serialize, serde::Deserialize)]
+#[serde(default, deny_unknown_fields)]
 pub struct ConfigListRequest {
     pub only_enabled: bool,
     pub only_active: bool,
@@ -52,7 +53,7 @@ pub fn validate_top(top: u32) -> Result<u32> {
 }
 
 /// Result of a config list query.
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
 pub struct ConfigListResult {
     pub total: i64,
     pub items: Vec<ConfigDetail>,
@@ -129,6 +130,14 @@ impl ConfigService {
             .await?
             .as_ref()
             .map(ConfigDetail::from_joined))
+    }
+
+    pub async fn reference(&self, id: ConfigId) -> Result<Option<String>> {
+        Ok(self
+            .repository
+            .get_config_by_id(id)
+            .await?
+            .map(|record| record.r#ref))
     }
 
     /// Resolve a numeric id or ref prefix into a config id.

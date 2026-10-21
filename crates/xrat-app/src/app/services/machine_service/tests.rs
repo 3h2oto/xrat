@@ -5,13 +5,18 @@ use xrat_model::ConfigId;
 
 const OPERATOR: &str = "S-1-5-21-1-2-3-1001";
 
-fn fixture() -> (MachineGateway, mpsc::Receiver<SupervisorEvent>) {
+async fn fixture() -> (MachineGateway, mpsc::Receiver<SupervisorEvent>) {
     let (supervisor, receiver) = mpsc::channel(4);
     (
         MachineGateway {
             operator_sid: OPERATOR.into(),
             config_path: "protected/config.toml".into(),
             supervisor,
+            catalog: super::super::catalog::MachineCatalog::new(
+                crate::app::tests::TestAppBuilder::new("machine-gateway")
+                    .build()
+                    .await,
+            ),
         },
         receiver,
     )
@@ -66,7 +71,7 @@ fn wire_schema_rejects_paths_commands_sql_json_and_extra_fields() {
 
 #[tokio::test]
 async fn rejects_other_users_versions_and_ids_before_supervisor_dispatch() {
-    let (gateway, mut receiver) = fixture();
+    let (gateway, mut receiver) = fixture().await;
     for peer in ["S-1-5-21-1-2-3-1002", "S-1-5-18", "S-1-5-32-544", ""] {
         assert!(
             gateway
@@ -107,7 +112,7 @@ async fn rejects_other_users_versions_and_ids_before_supervisor_dispatch() {
 
 #[tokio::test]
 async fn connect_and_repeated_disconnect_preserve_supervisor_results() {
-    let (gateway, mut receiver) = fixture();
+    let (gateway, mut receiver) = fixture().await;
     let worker = tokio::spawn(async move {
         let Some(SupervisorEvent::RuntimeConnect {
             config_id,
@@ -160,7 +165,7 @@ async fn connect_and_repeated_disconnect_preserve_supervisor_results() {
 
 #[tokio::test]
 async fn tun_uses_only_service_owned_path_and_replace_is_manual() {
-    let (gateway, mut receiver) = fixture();
+    let (gateway, mut receiver) = fixture().await;
     let worker = tokio::spawn(async move {
         let Some(SupervisorEvent::RuntimeTun {
             enabled,
@@ -209,7 +214,7 @@ async fn tun_uses_only_service_owned_path_and_replace_is_manual() {
 
 #[tokio::test]
 async fn closed_supervisor_does_not_fall_back_to_local_execution() {
-    let (gateway, receiver) = fixture();
+    let (gateway, receiver) = fixture().await;
     drop(receiver);
     assert!(
         gateway
@@ -217,4 +222,55 @@ async fn closed_supervisor_does_not_fall_back_to_local_execution() {
             .await
             .is_err()
     );
+}
+
+#[tokio::test]
+async fn unauthorized_catalog_mutations_leave_the_shared_catalog_unchanged() {
+    use super::super::catalog::{CatalogPayload, CatalogRequest};
+    use std::collections::BTreeMap;
+    use xrat_db::{ImportSource, SourceKind};
+    let (gateway, mut receiver) = fixture().await;
+    let mutation = || {
+        request(GatewayRequestKind::Catalog {
+            request: CatalogRequest::Import {
+                contents: vec!["vless://id@one.example:443#first".into()],
+                source: ImportSource {
+                    kind: SourceKind::RawText,
+                    value: "fixture".into(),
+                    name: None,
+                },
+                name: None,
+                headers: BTreeMap::new(),
+            },
+        })
+    };
+    assert!(
+        gateway
+            .dispatch("S-1-5-21-1-2-3-1002", mutation())
+            .await
+            .is_err()
+    );
+    let mut wrong_version = mutation();
+    wrong_version.protocol_version += 1;
+    assert!(gateway.dispatch(OPERATOR, wrong_version).await.is_err());
+    let response = gateway
+        .dispatch(
+            OPERATOR,
+            request(GatewayRequestKind::Catalog {
+                request: CatalogRequest::Subscriptions {
+                    offset: 0,
+                    limit: 1,
+                },
+            }),
+        )
+        .await
+        .unwrap();
+    let Some(GatewayPayload::Catalog(CatalogPayload::Subscriptions { total, items })) =
+        response.payload
+    else {
+        panic!("expected subscriptions");
+    };
+    assert_eq!(total, 0);
+    assert!(items.is_empty());
+    assert!(receiver.try_recv().is_err());
 }

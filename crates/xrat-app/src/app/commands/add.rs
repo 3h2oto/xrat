@@ -13,6 +13,21 @@ pub async fn run(context: &AppContext, input: &str) -> crate::app::Result<()> {
     progress.finish_and_clear();
     let (source, summary) = result?;
 
+    print_summary(
+        source.kind.as_str(),
+        summary.total_configs,
+        &context.runtime_paths.database_label,
+        &context.runtime_paths.config_path.display().to_string(),
+    );
+    Ok(())
+}
+
+pub(super) fn print_summary(
+    source_kind: &str,
+    total_configs: i64,
+    database_label: &str,
+    config_path: &str,
+) {
     println!(
         "{}",
         output::success("Added 1 config.", output::color_enabled())
@@ -22,17 +37,12 @@ pub async fn run(context: &AppContext, input: &str) -> crate::app::Result<()> {
         output::format_kv(
             None,
             &[
-                ("database", context.runtime_paths.database_label.clone()),
-                (
-                    "config",
-                    context.runtime_paths.config_path.display().to_string()
-                ),
-                ("source", source.kind.as_str().to_string()),
-                ("total configs", summary.total_configs.to_string()),
+                ("database", database_label.to_string()),
+                ("config", config_path.to_string()),
+                ("source", source_kind.to_string()),
+                ("total configs", total_configs.to_string()),
             ],
             output::color_enabled(),
         )
     );
-
-    Ok(())
 }

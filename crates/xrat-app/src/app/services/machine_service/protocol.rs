@@ -17,6 +17,7 @@ pub struct GatewayRequest {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(tag = "type", rename_all = "snake_case", deny_unknown_fields)]
 pub enum GatewayRequestKind {
+    Catalog { request: super::CatalogRequest },
     Ping {},
     Status {},
     Connect { config_id: ConfigId },
@@ -31,6 +32,7 @@ pub enum GatewayRequestKind {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(tag = "type", content = "value", rename_all = "snake_case")]
 pub enum GatewayPayload {
+    Catalog(super::CatalogPayload),
     Ping(PingPayload),
     Status(RuntimeStatusPayload),
     Connect(RuntimeConnectPayload),

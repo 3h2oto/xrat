@@ -91,14 +91,15 @@ impl SecurityDescriptor {
             ));
         }
         // Clients get read/write-data rights, without FILE_CREATE_PIPE_INSTANCE.
-        let sddl = format!("D:P(A;;GA;;;SY)(A;;GA;;;BA)(A;;0x0012019b;;;{owner_sid})");
+        let sddl =
+            format!("D:P(A;;GA;;;SY)(A;;GA;;;BA)(A;;0x0012019b;;;{owner_sid})S:(ML;;NW;;;ME)");
         Self::from_sddl(&sddl)
     }
 
     pub fn for_machine_operator(owner_sid: &str) -> io::Result<Self> {
         Self::for_owner(owner_sid)?;
         Self::from_sddl(&format!(
-            "O:SYG:SYD:P(A;;GA;;;SY)(A;;GA;;;BA)(A;;0x0012019b;;;{owner_sid})"
+            "O:SYG:SYD:P(A;;GA;;;SY)(A;;GA;;;BA)(A;;0x0012019b;;;{owner_sid})S:(ML;;NW;;;ME)"
         ))
     }
 

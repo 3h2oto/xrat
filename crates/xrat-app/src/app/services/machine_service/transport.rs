@@ -12,19 +12,21 @@ use crate::app::{AppError, Result};
 
 pub async fn serve(
     profile: MachineProfile,
+    context: crate::app::context::AppContext,
     supervisor: mpsc::Sender<SupervisorEvent>,
     shutdown: xrat_support::cancel::CancellationReceiver,
 ) -> Result<()> {
-    serve_with_ready(profile, supervisor, shutdown, None).await
+    serve_with_ready(profile, context, supervisor, shutdown, None).await
 }
 
 pub(super) async fn serve_with_ready(
     profile: MachineProfile,
+    context: crate::app::context::AppContext,
     supervisor: mpsc::Sender<SupervisorEvent>,
     shutdown: xrat_support::cancel::CancellationReceiver,
     ready: Option<tokio::sync::oneshot::Sender<()>>,
 ) -> Result<()> {
-    let gateway = Arc::new(MachineGateway::new(&profile, supervisor)?);
+    let gateway = Arc::new(MachineGateway::new(&profile, supervisor, context)?);
     let endpoint = std::path::Path::new(ENDPOINT);
     let mut listener = ipc::windows::listener_for_owner(endpoint, true, profile.operator_sid())?;
     if let Some(ready) = ready {
@@ -76,7 +78,7 @@ async fn handle(mut stream: NamedPipeServer, gateway: Arc<MachineGateway>) -> Re
         message: error.to_string(),
         payload: None,
     });
-    ipc::frame::write(&mut stream, &serde_json::to_vec(&response)?).await?;
+    ipc::frame::write(&mut stream, &super::encode_response(response)?).await?;
     let _ = stream.read_u8().await?;
     Ok(())
 }

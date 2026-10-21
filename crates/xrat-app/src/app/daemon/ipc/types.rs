@@ -50,6 +50,7 @@ pub enum DaemonResponseCode {
     NotFound,
     InvalidState,
     InternalError,
+    MessageTooLarge,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

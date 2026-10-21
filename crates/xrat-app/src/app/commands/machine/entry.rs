@@ -1,17 +1,18 @@
-use super::{installation, scm};
+use super::installation;
 use crate::app::commands::output;
+use crate::app::services::machine_service::{self, MachineClient, scm};
 use crate::app::{AppError, Result};
 use crate::cli::{Command, DaemonAction};
 use windows_sys::Win32::System::Services::*;
 
 pub async fn run(command: &Command) -> Result<()> {
     let Command::Daemon(daemon) = command else {
-        return Err(AppError::InvalidArgument("this operation is not yet available through the machine service; the user profile was not opened".into()));
+        return super::catalog::run(&MachineClient::new(), command).await;
     };
     match &daemon.action {
         DaemonAction::Install(args) => return installation::install(args, false),
         DaemonAction::Uninstall(args) => return installation::uninstall(args),
-        DaemonAction::RunService => return super::run_service(),
+        DaemonAction::RunService => return machine_service::run_service(),
         DaemonAction::RunServer(_) => {
             return Err(AppError::InvalidArgument(
                 "machine service must run through SCM; use --profile machine daemon start".into(),

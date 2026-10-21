@@ -930,12 +930,12 @@ pub fn install(
     args: &DaemonInstallArgs,
     quiet: bool,
 ) -> crate::app::Result<()> {
-    crate::app::services::machine_service::installation::install(args, quiet)
+    super::machine::install(args, quiet)
 }
 
 #[cfg(windows)]
 pub fn uninstall(_context: &AppContext, args: &DaemonUninstallArgs) -> crate::app::Result<()> {
-    crate::app::services::machine_service::installation::uninstall(args)
+    super::machine::uninstall(args)
 }
 
 #[cfg(all(test, target_os = "linux"))]

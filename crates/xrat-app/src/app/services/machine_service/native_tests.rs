@@ -101,6 +101,37 @@ async fn native_machine_service_lifecycle_and_restricted_operator() {
     );
     ping().await;
     success(&binary, &["--profile", "machine", "daemon", "status"]);
+    success(
+        &binary,
+        &[
+            "--profile",
+            "machine",
+            "add",
+            "vless://id@native.example:443#native",
+        ],
+    );
+    let listed = command(
+        &binary,
+        &[
+            "--profile",
+            "machine",
+            "list",
+            "configs",
+            "--format",
+            "json",
+        ],
+    );
+    assert!(listed.status.success());
+    assert!(String::from_utf8_lossy(&listed.stdout).contains("native.example"));
+    success(&binary, &["--profile", "machine", "disable", "1"]);
+    success(&binary, &["--profile", "machine", "enable", "1"]);
+    success(
+        &binary,
+        &["--profile", "machine", "show", "config", "1", "--json"],
+    );
+    success(&binary, &["--profile", "machine", "delete", "config", "1"]);
+    success(&binary, &["--profile", "machine", "restore", "1"]);
+
     success(&binary, &["--profile", "machine", "daemon", "restart"]);
     ping().await;
     let config_path = guard.profile.join("config.toml");

@@ -9,13 +9,28 @@ pub struct MachineGateway {
     operator_sid: String,
     config_path: PathBuf,
     supervisor: mpsc::Sender<SupervisorEvent>,
+    catalog: super::catalog::MachineCatalog,
 }
 
 impl MachineGateway {
+    #[cfg(test)]
+    pub(crate) fn for_test(
+        context: crate::app::context::AppContext,
+        operator_sid: &str,
+        supervisor: mpsc::Sender<SupervisorEvent>,
+    ) -> Self {
+        Self {
+            operator_sid: operator_sid.into(),
+            config_path: context.runtime_paths.config_path.clone(),
+            supervisor,
+            catalog: super::catalog::MachineCatalog::new(context),
+        }
+    }
     #[cfg(windows)]
     pub fn new(
         profile: &super::MachineProfile,
         supervisor: mpsc::Sender<SupervisorEvent>,
+        context: crate::app::context::AppContext,
     ) -> Result<Self> {
         if xrat_support::windows::current_user_sid()? != super::SYSTEM_SID {
             return Err(AppError::InvalidArgument(
@@ -26,6 +41,7 @@ impl MachineGateway {
             operator_sid: profile.operator_sid().to_owned(),
             config_path: profile.config_path(),
             supervisor,
+            catalog: super::catalog::MachineCatalog::new(context),
         })
     }
 
@@ -46,11 +62,26 @@ impl MachineGateway {
                 "unsupported machine gateway protocol version".into(),
             ));
         }
+        if let GatewayRequestKind::Catalog { request } = request.request {
+            let payload = self.catalog.dispatch(request).await?;
+            return Ok(ipc::DaemonResponse {
+                protocol_version: GATEWAY_VERSION,
+                ok: true,
+                code: ipc::DaemonResponseCode::Ok,
+                message: "machine catalog operation completed".into(),
+                payload: Some(GatewayPayload::Catalog(payload)),
+            });
+        }
         #[cfg(any(unix, windows))]
         {
             use ipc::transport::*;
             let supervisor = self.supervisor.clone();
             Ok(match request.request {
+                GatewayRequestKind::Catalog { .. } => {
+                    return Err(AppError::InvalidArgument(
+                        "catalog dispatch invariant failed".into(),
+                    ));
+                }
                 GatewayRequestKind::Ping {} => map(
                     ping_response_via_supervisor(supervisor).await?,
                     GatewayPayload::Ping,

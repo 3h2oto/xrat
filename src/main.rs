@@ -25,7 +25,7 @@ async fn run(args: &cli::Cli) -> xrat::app::Result<()> {
             ));
         }
         #[cfg(windows)]
-        return xrat::app::services::machine_service::commands::run(&args.command).await;
+        return commands::machine::run(&args.command).await;
         #[cfg(not(windows))]
         return Err(xrat::app::AppError::UnsupportedPlatform(
             "machine profile requires Windows".into(),
@@ -33,10 +33,10 @@ async fn run(args: &cli::Cli) -> xrat::app::Result<()> {
     }
     #[cfg(windows)]
     if let cli::Command::Daemon(daemon) = &args.command {
-        use xrat::app::services::machine_service::installation;
+        use xrat::app::commands::machine;
         match &daemon.action {
-            cli::DaemonAction::Install(install) => return installation::install(install, false),
-            cli::DaemonAction::Uninstall(uninstall) => return installation::uninstall(uninstall),
+            cli::DaemonAction::Install(install) => return machine::install(install, false),
+            cli::DaemonAction::Uninstall(uninstall) => return machine::uninstall(uninstall),
             _ => {}
         }
     }
