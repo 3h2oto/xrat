@@ -46,8 +46,13 @@ try {
     & $tailwind -i crates/xrat-web/assets/app.css -o crates/xrat-app/web-assets/app.css --minify
     if ($LASTEXITCODE -ne 0) { throw 'Failed to build browser styles.' }
     Copy-Item crates/xrat-web/index.html crates/xrat-app/web-assets/
-    foreach ($asset in @('boot.js', 'components.js', 'xrat-logo.png', 'favicon.ico', 'manifest.webmanifest', 'pwa.js', 'sw.js', 'offline.html', 'controllers', 'icons')) {
+    foreach ($asset in @('favicon.ico', 'manifest.webmanifest', 'sw.js', 'offline.html', 'icons')) {
         Copy-Item "crates/xrat-web/assets/$asset" crates/xrat-app/web-assets/ -Recurse -Force
     }
+    foreach ($asset in @('controllers', 'components.js', 'pwa.js', 'boot.js', 'xrat-logo.png')) {
+        $staleAsset = "crates/xrat-app/web-assets/$asset"
+        if (Test-Path -LiteralPath $staleAsset) { Remove-Item -LiteralPath $staleAsset -Recurse -Force }
+    }
+    Copy-Item crates/xrat-web/public/* crates/xrat-app/web-assets/ -Recurse -Force
 }
 finally { Pop-Location }

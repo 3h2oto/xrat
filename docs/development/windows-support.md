@@ -47,7 +47,9 @@ separate evidence. This branch is not a release or proof of full support.
   seconds and inspect `xrat upgrade --status` afterward. Running daemon/service
   coordination still needs implementation; the current staging path refuses a
   reachable daemon instead of replacing its executable.
-- Windows source installation and CI share the browser-asset build script.
+- Windows source installation and CI share the browser-asset build script. Its
+  bundle follows `just web-build`, including `public/` assets and removal of
+  obsolete JavaScript bootstrap/controller files from reused output directories.
   Installer replacement stages on the destination filesystem and preserves an
   existing executable when replacement cannot proceed.
 

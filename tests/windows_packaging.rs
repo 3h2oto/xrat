@@ -64,11 +64,13 @@ public_url = "http://localhost:{port}"
         html.contains("id=\"main\""),
         "packaged HTML missing root element"
     );
+    assert!(html.contains("import init from \"/xrat_web.js\""));
     for (asset, mime) in [
-        ("boot.js", "javascript"),
         ("xrat_web.js", "javascript"),
         ("xrat_web_bg.wasm", "application/wasm"),
         ("app.css", "text/css"),
+        ("sw.js", "javascript"),
+        ("media/xrat-logo.png", "image/png"),
     ] {
         let response = client
             .get(format!("{base}/{asset}"))
