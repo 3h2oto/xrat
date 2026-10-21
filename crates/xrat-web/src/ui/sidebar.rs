@@ -196,6 +196,7 @@ fn SidebarBody(
     #[props(default)] mobile: bool,
     #[props(optional)] on_expand: Option<EventHandler<MouseEvent>>,
 ) -> Element {
+    super::sheet::use_sheet_navigation(page, mobile);
     rsx! {
         SidenavHeader { class: "sidebar-header flex items-center pt-1 pb-4 px-0.5 gap-2 mobile:pr-0 mobile:pb-0 mobile:pt-0 mobile:pl-0",
             if compact {
@@ -260,7 +261,6 @@ fn SidebarBody(
                 "[&&_[data-name=SidenavGroupLabel]]:[width:auto] [&&_[data-name=SidenavGroupLabel]]:[max-width:100%] ",
             ),
             aria_label: "Main navigation",
-            "data-sheet-navigation": mobile.to_string(),
             SidenavContent { class: "gap-4",
                 SidenavGroup { class: "p-0",
                     SidenavGroupLabel { class: "sidebar-group-label mt-2.5 mb-1.5 text-muted-foreground text-[11px] font-semibold mx-2.5",
@@ -303,7 +303,6 @@ fn SidebarBody(
             div { class: "sidebar-account-row flex items-center gap-1",
                 div {
                     class: "sidebar-account-link flex-1 min-w-0 [&_>_.sidebar-account]:w-full",
-                    "data-sheet-navigation": mobile.to_string(),
                     Button {
                         variant: ButtonVariant::Ghost,
                         class: "sidebar-account flex items-center justify-start flex-1 min-w-0 border-0 rounded-[6px] bg-transparent text-foreground text-left h-auto p-1.5 gap-2.5 [&:hover]:bg-accent",

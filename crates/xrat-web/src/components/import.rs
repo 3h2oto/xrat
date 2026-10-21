@@ -49,12 +49,11 @@ pub fn ImportController(section: String) -> Element {
     };
     crate::hooks::use_import_paste::use_import_paste(input, importing);
     rsx! {
-        span { hidden: true, "data-import-paste": "true" }
         if importing() {
             Dialog {
                 DialogContent {
                     initial_open: true,
-                    on_close: move |_: MouseEvent| importing.set(false),
+                    on_close: move |_| importing.set(false),
                     class: "import-dialog w-[min(36rem,calc(100%-2rem))] flex flex-col gap-5 mobile:p-5",
                     DialogHeader { class: "text-left pr-5",
                         DialogTitle {

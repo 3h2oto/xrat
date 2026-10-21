@@ -14,6 +14,7 @@ pub mod form_select;
 pub mod icon_button;
 pub mod input;
 pub mod input_group;
+pub(crate) mod interaction;
 pub mod label;
 pub mod multi_select;
 pub mod scroll_area;

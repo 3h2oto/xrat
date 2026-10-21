@@ -11,6 +11,7 @@ use xrat_web::types::LoginResponse;
 pub struct Notice(pub Signal<Option<Feedback>>);
 #[component]
 pub fn App() -> Element {
+    ui::interaction::use_interactions();
     let session = use_signal(|| None::<LoginResponse>);
     let notice = use_signal(|| None::<Feedback>);
     use_context_provider(|| Session(session));
