@@ -11,7 +11,7 @@ use crate::tui::view::shared::{PanelStyle, render_scroll_panel};
 const EVENT_TIME_WIDTH: usize = 19;
 const EVENT_LEVEL_WIDTH: usize = 5;
 const EVENT_SOURCE_WIDTH: usize = 12;
-const EVENT_KIND_WIDTH: usize = 32;
+const EVENT_KIND_WIDTH: usize = 16;
 const COLUMN_GAP: usize = 2;
 
 const EVENT_PREFIX_WIDTH: usize = EVENT_TIME_WIDTH
@@ -24,7 +24,7 @@ const EVENT_PREFIX_WIDTH: usize = EVENT_TIME_WIDTH
     + COLUMN_GAP;
 
 const API_METHOD_WIDTH: usize = 7;
-const API_PATH_WIDTH: usize = 24;
+const API_PATH_WIDTH: usize = 20;
 const API_CODE_WIDTH: usize = 4;
 const API_PREFIX_WIDTH: usize = EVENT_TIME_WIDTH
     + COLUMN_GAP
@@ -46,6 +46,9 @@ const PROXY_PREFIX_WIDTH: usize = PROXY_TIME_WIDTH
     + COLUMN_GAP
     + PROXY_SOURCE_WIDTH
     + COLUMN_GAP;
+
+const MIN_INLINE_MESSAGE_WIDTH: usize = 16;
+const SUBROW_INDENT: usize = 2;
 
 pub fn render(frame: &mut Frame<'_>, area: Rect, app: &TuiApp, focused: bool) {
     if app.active_log_tab == TuiLogTab::Stats {
@@ -78,7 +81,7 @@ pub fn render(frame: &mut Frame<'_>, area: Rect, app: &TuiApp, focused: bool) {
             focused,
             right_pad: 0,
             wrap_trim: false,
-            header: log_header(app.active_log_tab),
+            header: log_header(app.active_log_tab, content_width),
         },
     );
     app.panel_viewport.log.set(viewport);
@@ -297,23 +300,61 @@ fn visible_proxy_rows(app: &TuiApp) -> &[crate::tui::data::TuiProxyLogRow] {
 
 fn push_wrapped_row<'a>(
     lines: &mut Vec<Line<'a>>,
-    prefix: Vec<Span<'a>>,
+    mut prefix: Vec<Span<'a>>,
     prefix_width: usize,
     message: &str,
     content_width: usize,
 ) {
-    let avail = content_width.saturating_sub(prefix_width).max(1);
-    let chunks = wrap_message(message, avail);
+    let clean_message = message.trim();
+    let has_meaningful_message = !clean_message.is_empty() && clean_message != "-";
 
-    let mut first = prefix;
-    first.push(Span::styled(chunks[0].clone(), theme::chrome_style()));
-    lines.push(Line::from(first));
+    let inline_avail = content_width.saturating_sub(prefix_width);
+    if inline_avail >= MIN_INLINE_MESSAGE_WIDTH {
+        let chunks = if has_meaningful_message {
+            wrap_message(clean_message, inline_avail)
+        } else if clean_message == "-" {
+            vec!["-".to_string()]
+        } else {
+            Vec::new()
+        };
 
-    for chunk in &chunks[1..] {
-        lines.push(Line::from(vec![
-            Span::raw(" ".repeat(prefix_width)),
-            Span::styled(chunk.clone(), theme::chrome_style()),
-        ]));
+        if chunks.is_empty() {
+            if let Some(Span { content, .. }) = prefix.last()
+                && content.trim().is_empty()
+            {
+                prefix.pop();
+            }
+            lines.push(Line::from(prefix));
+        } else {
+            let mut first = prefix;
+            first.push(Span::styled(chunks[0].clone(), theme::chrome_style()));
+            lines.push(Line::from(first));
+
+            for chunk in &chunks[1..] {
+                lines.push(Line::from(vec![
+                    Span::raw(" ".repeat(prefix_width)),
+                    Span::styled(chunk.clone(), theme::chrome_style()),
+                ]));
+            }
+        }
+    } else {
+        if let Some(Span { content, .. }) = prefix.last()
+            && content.trim().is_empty()
+        {
+            prefix.pop();
+        }
+        lines.push(Line::from(prefix));
+
+        if has_meaningful_message {
+            let subrow_avail = content_width.saturating_sub(SUBROW_INDENT).max(1);
+            let chunks = wrap_message(clean_message, subrow_avail);
+            for chunk in chunks {
+                lines.push(Line::from(vec![
+                    Span::raw(" ".repeat(SUBROW_INDENT)),
+                    Span::styled(chunk, theme::chrome_style()),
+                ]));
+            }
+        }
     }
 }
 
@@ -394,21 +435,49 @@ fn proxy_severity_style(row: &crate::tui::data::TuiProxyLogRow) -> ratatui::styl
 }
 
 /// Column header pinned above the scrolling body for the tabular tabs. The
-/// stats tab has no columns, so it returns `None`.
-fn log_header(tab: TuiLogTab) -> Option<Line<'static>> {
+/// stats tab has no columns, so it returns `None`. When width is constrained,
+/// the header omits the MESSAGE column to match subrow formatting.
+fn log_header(tab: TuiLogTab, content_width: usize) -> Option<Line<'static>> {
     let text = match tab {
-        TuiLogTab::XratEvents => format!(
-            "{:<EVENT_TIME_WIDTH$}  {:<EVENT_LEVEL_WIDTH$}  {:<EVENT_SOURCE_WIDTH$}  {:<EVENT_KIND_WIDTH$}  {}",
-            "TIME", "LEVEL", "SOURCE", "KIND", "MESSAGE"
-        ),
-        TuiLogTab::ProxyEngine => format!(
-            "{:<PROXY_TIME_WIDTH$}  {:<PROXY_LEVEL_WIDTH$}  {:<PROXY_SOURCE_WIDTH$}  {}",
-            "TIME", "LEVEL", "SOURCE", "MESSAGE"
-        ),
-        TuiLogTab::Api => format!(
-            "{:<EVENT_TIME_WIDTH$}  {:<EVENT_LEVEL_WIDTH$}  {:<API_METHOD_WIDTH$}  {:<API_PATH_WIDTH$}  {:<API_CODE_WIDTH$}  {}",
-            "TIME", "LEVEL", "METHOD", "PATH", "CODE", "MESSAGE"
-        ),
+        TuiLogTab::XratEvents => {
+            if content_width.saturating_sub(EVENT_PREFIX_WIDTH) >= MIN_INLINE_MESSAGE_WIDTH {
+                format!(
+                    "{:<EVENT_TIME_WIDTH$}  {:<EVENT_LEVEL_WIDTH$}  {:<EVENT_SOURCE_WIDTH$}  {:<EVENT_KIND_WIDTH$}  {}",
+                    "TIME", "LEVEL", "SOURCE", "KIND", "MESSAGE"
+                )
+            } else {
+                format!(
+                    "{:<EVENT_TIME_WIDTH$}  {:<EVENT_LEVEL_WIDTH$}  {:<EVENT_SOURCE_WIDTH$}  {}",
+                    "TIME", "LEVEL", "SOURCE", "KIND"
+                )
+            }
+        }
+        TuiLogTab::ProxyEngine => {
+            if content_width.saturating_sub(PROXY_PREFIX_WIDTH) >= MIN_INLINE_MESSAGE_WIDTH {
+                format!(
+                    "{:<PROXY_TIME_WIDTH$}  {:<PROXY_LEVEL_WIDTH$}  {:<PROXY_SOURCE_WIDTH$}  {}",
+                    "TIME", "LEVEL", "SOURCE", "MESSAGE"
+                )
+            } else {
+                format!(
+                    "{:<PROXY_TIME_WIDTH$}  {:<PROXY_LEVEL_WIDTH$}  {}",
+                    "TIME", "LEVEL", "SOURCE"
+                )
+            }
+        }
+        TuiLogTab::Api => {
+            if content_width.saturating_sub(API_PREFIX_WIDTH) >= MIN_INLINE_MESSAGE_WIDTH {
+                format!(
+                    "{:<EVENT_TIME_WIDTH$}  {:<EVENT_LEVEL_WIDTH$}  {:<API_METHOD_WIDTH$}  {:<API_PATH_WIDTH$}  {:<API_CODE_WIDTH$}  {}",
+                    "TIME", "LEVEL", "METHOD", "PATH", "CODE", "MESSAGE"
+                )
+            } else {
+                format!(
+                    "{:<EVENT_TIME_WIDTH$}  {:<EVENT_LEVEL_WIDTH$}  {:<API_METHOD_WIDTH$}  {:<API_PATH_WIDTH$}  {}",
+                    "TIME", "LEVEL", "METHOD", "PATH", "CODE"
+                )
+            }
+        }
         TuiLogTab::Stats => return None,
     };
     Some(Line::styled(text, theme::muted_style()))
@@ -503,7 +572,12 @@ fn truncate(value: &str, width: usize) -> String {
 
 #[cfg(test)]
 mod tests {
-    use super::{hard_break, wrap_message};
+    use super::{
+        API_PREFIX_WIDTH, EVENT_PREFIX_WIDTH, MIN_INLINE_MESSAGE_WIDTH, PROXY_PREFIX_WIDTH,
+        hard_break, log_header, push_wrapped_row, wrap_message,
+    };
+    use crate::tui::app::TuiLogTab;
+    use ratatui::text::Span;
     use unicode_width::UnicodeWidthStr;
 
     #[test]
@@ -537,5 +611,107 @@ mod tests {
     #[test]
     fn wrap_zero_width_returns_message_unchanged() {
         assert_eq!(wrap_message("anything", 0), vec!["anything".to_string()]);
+    }
+
+    #[test]
+    fn push_wrapped_row_inline_when_width_is_sufficient() {
+        let mut lines = Vec::new();
+        let prefix = vec![Span::raw("PREFIX: "), Span::raw("  ")];
+        let prefix_width = 10;
+        let content_width = prefix_width + MIN_INLINE_MESSAGE_WIDTH + 10;
+
+        push_wrapped_row(
+            &mut lines,
+            prefix,
+            prefix_width,
+            "Tested 8 configs",
+            content_width,
+        );
+
+        assert_eq!(lines.len(), 1);
+        let rendered = lines[0].to_string();
+        assert!(rendered.starts_with("PREFIX: "));
+        assert!(rendered.contains("Tested 8 configs"));
+    }
+
+    #[test]
+    fn push_wrapped_row_subrow_when_width_is_narrow() {
+        let mut lines = Vec::new();
+        let prefix = vec![Span::raw("PREFIX: "), Span::raw("  ")];
+        let prefix_width = 50;
+        let content_width = 55; // remaining space is 5, less than MIN_INLINE_MESSAGE_WIDTH (16)
+
+        push_wrapped_row(
+            &mut lines,
+            prefix,
+            prefix_width,
+            "Tested 8 configs (7 passed, 1 failed)",
+            content_width,
+        );
+
+        assert_eq!(lines.len(), 2);
+        assert_eq!(lines[0].to_string(), "PREFIX: ");
+        assert_eq!(
+            lines[1].to_string(),
+            "  Tested 8 configs (7 passed, 1 failed)"
+        );
+    }
+
+    #[test]
+    fn push_wrapped_row_omits_subrow_when_message_is_empty_or_dash_in_narrow_mode() {
+        let mut lines = Vec::new();
+        let prefix = vec![Span::raw("PREFIX: "), Span::raw("  ")];
+        push_wrapped_row(&mut lines, prefix.clone(), 50, "-", 55);
+        assert_eq!(lines.len(), 1);
+        assert_eq!(lines[0].to_string(), "PREFIX: ");
+
+        let mut lines = Vec::new();
+        push_wrapped_row(&mut lines, prefix, 50, "   ", 55);
+        assert_eq!(lines.len(), 1);
+        assert_eq!(lines[0].to_string(), "PREFIX: ");
+    }
+
+    #[test]
+    fn log_header_adapts_to_content_width() {
+        // Wide: includes MESSAGE
+        let wide_events = log_header(
+            TuiLogTab::XratEvents,
+            EVENT_PREFIX_WIDTH + MIN_INLINE_MESSAGE_WIDTH + 5,
+        )
+        .unwrap()
+        .to_string();
+        assert!(wide_events.contains("MESSAGE"));
+        assert!(wide_events.contains("KIND"));
+
+        // Narrow: omits MESSAGE
+        let narrow_events = log_header(TuiLogTab::XratEvents, 50).unwrap().to_string();
+        assert!(!narrow_events.contains("MESSAGE"));
+        assert!(narrow_events.contains("KIND"));
+
+        // ProxyEngine
+        let wide_proxy = log_header(
+            TuiLogTab::ProxyEngine,
+            PROXY_PREFIX_WIDTH + MIN_INLINE_MESSAGE_WIDTH + 5,
+        )
+        .unwrap()
+        .to_string();
+        assert!(wide_proxy.contains("MESSAGE"));
+
+        let narrow_proxy = log_header(TuiLogTab::ProxyEngine, 50).unwrap().to_string();
+        assert!(!narrow_proxy.contains("MESSAGE"));
+        assert!(narrow_proxy.contains("SOURCE"));
+
+        // API
+        let wide_api = log_header(
+            TuiLogTab::Api,
+            API_PREFIX_WIDTH + MIN_INLINE_MESSAGE_WIDTH + 5,
+        )
+        .unwrap()
+        .to_string();
+        assert!(wide_api.contains("MESSAGE"));
+
+        let narrow_api = log_header(TuiLogTab::Api, 50).unwrap().to_string();
+        assert!(!narrow_api.contains("MESSAGE"));
+        assert!(narrow_api.contains("CODE"));
     }
 }
