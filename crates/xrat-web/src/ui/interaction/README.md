@@ -16,7 +16,7 @@ floating content uses native manual popovers when supported.
 Components render `data-state`, `inert`, and pointer state from their open
 signals. Browser helpers set measured geometry and native popover state. There
 are no document-wide mutation observers, attribute-trigger dispatchers, inline
-scripts or synthetic close-button bridges. Unmount cleanup dismisses active
+evaluation or synthetic close-button bridges. Unmount cleanup dismisses active
 controls and restores modal isolation. `on_close` callbacks carry `()` for all
 dismissal paths, including keyboard dismissal.
 
@@ -35,9 +35,11 @@ Application browser interactions live with their owners:
 - `ui/toast.rs`: delegates notification requests to the existing Rust feedback
   state instead of evaluating JavaScript or creating dummy DOM buttons.
 
-`just web-build` removes obsolete packaged controller assets. Bootstrap and the
-offline-only service worker remain separate from UI interactions. Preserve CSP
-and keep browser dependencies behind the `ui` feature.
+`just web-build` removes obsolete packaged controller assets. The bootstrap
+lives in `index.html`, authorized by its exact SHA-256 CSP hash in the server
+headers. Update that hash when changing the inline module, including its
+whitespace. The offline-only service worker remains in `assets/sw.js`. Keep
+browser dependencies behind the `ui` feature.
 
 `app/pwa.rs` registers the worker from Rust on supported secure origins after
 page load, including when WASM starts after the load event. Its pending load
