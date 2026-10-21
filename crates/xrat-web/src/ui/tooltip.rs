@@ -6,8 +6,12 @@ const TOOLTIP_CONTENT_STYLES: &str = concat!(
     "[&&[popover]]:[border:0] [&&::backdrop]:[background:transparent] [&&::backdrop]:pointer-events-none ",
 );
 
+use super::interaction::{Floating, Interactions, Placement, Side, use_floating};
 use dioxus::prelude::*;
 use tw_merge::tw_merge;
+
+#[derive(Clone)]
+struct TooltipContext(Floating);
 
 #[derive(Default, Clone, PartialEq, Eq)]
 pub enum TooltipPosition {
@@ -24,12 +28,30 @@ pub fn Tooltip(
     #[props(extends = GlobalAttributes)] attributes: Vec<Attribute>,
     children: Element,
 ) -> Element {
+    let floating = use_floating(Placement::Tooltip(Side::Top));
+    let interactions = use_context::<Interactions>();
+    provide_context(TooltipContext(floating.clone()));
+    let mounted = floating.clone();
     let merged = tw_merge!(
         "inline-block relative mx-0 whitespace-nowrap transition-all duration-300 ease-in-out group/tooltip my-[5px]",
         class.as_deref().unwrap_or("")
     );
     rsx! {
-        div { "data-name": "Tooltip", class: "{merged} [&&]:transition-none [&&]:animate-none", ..attributes, {children} }
+        div { "data-name": "Tooltip", class: "{merged} [&&]:transition-none [&&]:animate-none",
+            onmounted: move |event| mounted.mount_trigger(event, false),
+            onmouseenter: {
+                let floating = floating.clone(); let interactions = interactions.clone();
+                move |_| interactions.open_tooltip(floating.clone())
+            },
+            onfocusin: {
+                let floating = floating.clone(); let interactions = interactions.clone();
+                move |_| interactions.open_tooltip(floating.clone())
+            },
+            onmouseleave: move |_| {
+                if !floating.focus_within() { interactions.close_floating(&floating, false); }
+            },
+            ..attributes, {children}
+        }
     }
 }
 
@@ -40,6 +62,19 @@ pub fn TooltipContent(
     #[props(into, optional)] id: Option<String>,
     children: Element,
 ) -> Element {
+    let TooltipContext(floating) = use_context();
+    let mounted = floating.clone();
+    let open = floating.open;
+    floating.set_placement(Placement::Tooltip(match position {
+        TooltipPosition::Top => Side::Top,
+        TooltipPosition::Bottom => Side::Bottom,
+        TooltipPosition::Left => Side::Left,
+        TooltipPosition::Right => Side::Right,
+    }));
+    use_effect(move || {
+        let _ = open();
+        floating.sync();
+    });
     const SHARED: &str = "absolute opacity-0 transition-all duration-300 ease-in-out pointer-events-none group-hover/tooltip:opacity-100 group-hover/tooltip:pointer-events-auto group-focus-within/tooltip:opacity-100 group-focus-within/tooltip:pointer-events-auto z-[1000000]";
 
     let (pos_class, arrow_pos_class, pos_str) = match position {
@@ -88,6 +123,7 @@ pub fn TooltipContent(
             role: "tooltip",
             "popover": "manual",
             "data-name": "TooltipContent",
+            onmounted: move |event| mounted.mount_content(event),
             "data-position": "{pos_str}",
             class: "{content_class} {TOOLTIP_CONTENT_STYLES}",
             {children}
@@ -95,8 +131,7 @@ pub fn TooltipContent(
     }
 }
 
-/// `TooltipProvider` is no longer needed — tooltips work with pure CSS via Tailwind's group-hover.
-/// Kept for backwards compatibility but renders nothing.
+/// Kept for compatibility; interaction state is provided at the app root.
 #[component]
 pub fn TooltipProvider() -> Element {
     rsx! {}

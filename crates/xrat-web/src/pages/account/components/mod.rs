@@ -17,9 +17,7 @@ use crate::ui::{
 };
 use crate::{Notice, Session, api};
 use dioxus::prelude::*;
-use icons::{
-    Copy, Eye, EyeOff, KeyRound, Lock, LogOut, Plus, RefreshCw, Shield, Trash2, UserRound,
-};
+use icons::{Eye, EyeOff, KeyRound, Lock, LogOut, Plus, RefreshCw, Shield, Trash2, UserRound};
 use xrat_web::types::{CreatedToken, PasswordRequest, TokenInfo, TokenRequest, TokenScope, User};
 
 mod sign_out_button;

@@ -65,6 +65,7 @@ pub fn LatencyBarChart(configs: Vec<ConfigRow>, metrics: Vec<LatencyMetric>) -> 
                     class: "absolute inset-0 block size-full overflow-visible",
                     role: "img",
                     "aria-label": "Average successful latency by enabled test type",
+                    onkeydown: super::chart_navigation::navigate_samples,
                     view_box: format!("0 0 {} {}", bounds.width, bounds.height),
                     for fraction in [0.0, 0.5, 1.0] {
                         g {

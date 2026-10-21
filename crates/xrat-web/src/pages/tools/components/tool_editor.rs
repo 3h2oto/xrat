@@ -2,6 +2,7 @@ use super::*;
 
 #[component]
 pub(crate) fn ToolEditor(section: String) -> Element {
+    let copy_feedback = crate::components::clipboard::use_copy_feedback();
     let Session(session) = use_context();
     let Notice(mut notice) = use_context();
     let mut input = use_signal(String::new);
@@ -269,9 +270,12 @@ pub(crate) fn ToolEditor(section: String) -> Element {
                                     "border-transparent py-0 px-[0.6rem] gap-[0.4rem] [&_svg]:size-4 [&:hover]:text-foreground ",
                                     "[&:hover]:bg-accent [&:disabled]:opacity-40 [&:disabled]:cursor-default",
                                 ),
-                                "data-copy-textarea": result_id.clone(),
+                                onclick: {
+                                    let result_id = result_id.clone();
+                                    move |event| copy_feedback.copy_target(&result_id, event)
+                                },
                                 Copy {}
-                                span { "Copy" }
+                                span { {copy_feedback.label("Copy")} }
                             }
                         }
                     }

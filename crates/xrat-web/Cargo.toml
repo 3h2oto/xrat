@@ -21,7 +21,7 @@ serde_json = { version = "1", optional = true }
 serde_urlencoded = { version = "0.7", optional = true }
 gloo-net = { version = "0.6", optional = true }
 gloo-timers = { version = "0.3", features = ["futures"], optional = true }
-web-sys = { version = "0.3", features = ["Window", "Storage", "HtmlElement", "Document", "EventSource", "MessageEvent", "CustomEvent", "Event", "History", "Location", "EventTarget", "Navigator", "Clipboard"], optional = true }
+web-sys = { version = "0.3", features = ["Window", "Storage", "HtmlElement", "Document", "EventSource", "MessageEvent", "Event", "History", "Location", "EventTarget", "Navigator", "Clipboard", "ClipboardEvent", "DataTransfer", "KeyboardEvent", "Element", "NodeList", "SvgElement", "HtmlDocument", "HtmlTextAreaElement", "Selection", "Range", "MouseEvent", "FocusOptions", "DomRect", "DomRectList", "CssStyleDeclaration", "HtmlCollection", "ScrollIntoViewOptions", "ScrollLogicalPosition", "ServiceWorkerContainer", "AddEventListenerOptions", "console"], optional = true }
 wasm-bindgen = { version = "=0.2.122", optional = true }
 icons = { version = "=0.19.0", default-features = false, features = ["dioxus"], optional = true }
 strum = { version = "0.28", features = ["derive"], optional = true }

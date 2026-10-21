@@ -131,7 +131,6 @@ pub fn ConfigTable(
                 if operator {
                     p {
                         class: "import-paste-hint mt-[-8px] mb-6 text-center text-muted-foreground text-[12px] mx-0 [&_kbd]:inline-block [&_kbd]:border [&_kbd]:border-solid [&_kbd]:border-border [&_kbd]:rounded-[4px] [&_kbd]:[font:inherit] [&_kbd]:text-[11px] [&_kbd]:py-0.5 [&_kbd]:px-[5px]",
-                        "data-import-paste": "true",
                         "Press "
                         kbd { "⌘V" }
                         " / "

@@ -54,7 +54,7 @@ async fn web_headers(
         ("x-frame-options", "DENY"),
         (
             "content-security-policy",
-            "default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'",
+            "default-src 'self'; script-src 'self' 'wasm-unsafe-eval' 'sha256-pTs8XU8t4UQbuv6Ly0IJtzFW9IQzRKWA/LBCdbqpT34='; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'",
         ),
     ] {
         headers.insert(

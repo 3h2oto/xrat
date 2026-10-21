@@ -31,27 +31,15 @@ pub enum ToastDirection {
 }
 
 pub fn show_toast(variant: ToastType, title: impl Into<String>) {
-    let variant = variant.to_string();
-    let title = title.into();
-    let title = serde_json::to_string(&title).unwrap_or_else(|_| "\"Notification\"".to_owned());
-    let js = format!(
-        r#"(() => {{
-            const body = document.body;
-            if (!body) return;
-            const trigger = document.createElement("button");
-            trigger.type = "button";
-            trigger.dataset.name = "ToastTrigger";
-            trigger.dataset.variant = {variant:?};
-            trigger.dataset.toastTitle = {title};
-            trigger.dataset.toastDescription = "";
-            body.appendChild(trigger);
-            trigger.click();
-            trigger.remove();
-        }})()"#
-    );
-    spawn(async move {
-        dioxus::document::eval(&js).await.ok();
-    });
+    let Some(crate::Notice(mut notice)) = try_consume_context() else {
+        return;
+    };
+    let feedback = match variant {
+        ToastType::Success => super::feedback::Feedback::success(title),
+        ToastType::Error => super::feedback::Feedback::error(title),
+        _ => super::feedback::Feedback::info(title),
+    };
+    notice.set(Some(feedback));
 }
 
 #[component]
@@ -91,6 +79,7 @@ pub fn ToastTrigger(
             "data-toast-description": "{description}",
             "data-toast-position": position,
             r#type: "button",
+            onclick: move |_| show_toast(variant, if description.is_empty() { title.clone() } else { format!("{title}: {description}") }),
             {children}
         }
     }

@@ -942,3 +942,5 @@ mod tables;
 mod dashboard;
 
 mod sharing;
+
+mod bootstrap;

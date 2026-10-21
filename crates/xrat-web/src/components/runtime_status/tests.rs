@@ -14,6 +14,7 @@ fn daemon_distinguishes_stopped_unknown_and_stale_states() {
     ] {
         let mut dom =
             VirtualDom::new_with_props(DaemonStatus, DaemonStatusProps { running, stale });
+        dom.provide_root_context(crate::ui::interaction::Interactions::default());
         assert_label(&dom.rebuild_to_vec(), expected);
     }
 }
@@ -35,6 +36,7 @@ fn jobs_keep_both_counts_and_identify_idle_and_stale_activity() {
                 stale,
             },
         );
+        dom.provide_root_context(crate::ui::interaction::Interactions::default());
         assert_label(&dom.rebuild_to_vec(), expected);
     }
 }

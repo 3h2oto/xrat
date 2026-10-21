@@ -240,6 +240,7 @@ pub fn PlotChart(
                         view_box: format!("0 0 {} {}", bounds.width, bounds.height),
                         role: "img",
                         "aria-label": chart_label,
+                        onkeydown: super::chart_navigation::navigate_samples,
                         onmouseleave: move |_| hovered.set(None),
                         for fraction in [0.0, 0.5, 1.0] {
                             g {

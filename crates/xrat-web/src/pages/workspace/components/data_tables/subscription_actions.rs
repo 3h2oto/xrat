@@ -2,11 +2,7 @@ use crate::Notice;
 use crate::api::{self, actions::run};
 use crate::components::{clipboard, qr_code::QrCodeImage, states::ErrorState};
 use crate::ui::{
-    button::{Button, ButtonVariant},
-    dialog::*,
-    icon_button::IconButton,
-    spinner::Spinner,
-    textarea::Textarea,
+    button::ButtonVariant, dialog::*, icon_button::IconButton, spinner::Spinner, textarea::Textarea,
 };
 use dioxus::prelude::*;
 use icons::{Copy, ListChecks, Pencil, QrCode, RefreshCw, Trash2};
@@ -59,6 +55,7 @@ pub(super) fn SubscriptionActions(
 #[component]
 fn SourceModal(id: i64, mode: SourceMode, on_close: EventHandler) -> Element {
     let Notice(mut notice) = use_context();
+    let mut needs_manual_copy = use_signal(|| false);
     let text_id = use_hook(|| crate::hooks::use_random::use_random_id_for("subscription-source"));
     let source = use_resource(move || async move {
         let source = api::get::<SubscriptionSource>(&format!("subscriptions/{id}/source")).await?;
@@ -68,11 +65,20 @@ fn SourceModal(id: i64, mode: SourceMode, on_close: EventHandler) -> Element {
                     notice.set(Some(crate::Feedback::success("Subscription URL copied.")));
                     on_close.call(());
                 }
-                Err(message) => notice.set(Some(crate::Feedback::error(message))),
+                Err(message) => {
+                    notice.set(Some(crate::Feedback::error(message)));
+                    needs_manual_copy.set(true);
+                }
             }
         }
         Ok::<_, String>(source)
     });
+    if mode == SourceMode::Copy
+        && !needs_manual_copy()
+        && !source.read().as_ref().is_some_and(Result::is_err)
+    {
+        return rsx! {};
+    }
     rsx! {
         Dialog {
             DialogContent { initial_open: true, class: "w-[min(420px,calc(100%-2rem))] rounded-xl p-5", on_close: move |_| on_close.call(()),
@@ -86,13 +92,48 @@ fn SourceModal(id: i64, mode: SourceMode, on_close: EventHandler) -> Element {
                         } else {
                             label { class: "sr-only", r#for: text_id.clone(), "Subscription source URL" }
                             Textarea { id: text_id.clone(), value: source.url.clone(), readonly: true, rows: 3, class: "font-mono text-xs break-all" }
-                            Button { class: "mt-3", "data-copy-textarea": text_id.clone(), Copy {} span { "Copy subscription URL" } }
+                            clipboard::CopyButton { class: "mt-3", target_id: text_id.clone(), label: "Copy subscription URL" }
                         }
                     },
                     Some(Err(message)) => rsx! { ErrorState { message: message.clone() } },
                     None => rsx! { div { role: "status", class: "flex justify-center py-10", Spinner {} } },
                 }
             }
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn copy_view() -> Element {
+        source_view(SourceMode::Copy)
+    }
+
+    fn qr_view() -> Element {
+        source_view(SourceMode::Qr)
+    }
+
+    fn source_view(mode: SourceMode) -> Element {
+        let notice = use_signal(|| None);
+        use_context_provider(|| Notice(notice));
+        rsx! { SourceModal { id: 1, mode, on_close: |_| {} } }
+    }
+
+    #[test]
+    fn copy_waits_without_rendering_a_modal_while_qr_opens_immediately() {
+        for (view, visible) in [(copy_view as fn() -> Element, false), (qr_view, true)] {
+            let mut dom = VirtualDom::new(view);
+            dom.provide_root_context(crate::ui::interaction::Interactions::default());
+            let mutations = dom.rebuild_to_vec();
+            assert_eq!(
+                mutations
+                    .edits
+                    .iter()
+                    .any(|edit| matches!(edit, dioxus::core::Mutation::LoadTemplate { .. })),
+                visible
+            );
         }
     }
 }

@@ -143,7 +143,7 @@ pub fn Workspace(section: String) -> Element {
             AlertDialog {
                 AlertDialogContent {
                     initial_open: true,
-                    on_close: move |_: MouseEvent| pending_delete.set(None),
+                    on_close: move |_| pending_delete.set(None),
                     class: "w-[min(32rem,calc(100%-2rem))]",
                     AlertDialogHeader {
                         AlertDialogTitle { "Delete configuration #{id}?" }
