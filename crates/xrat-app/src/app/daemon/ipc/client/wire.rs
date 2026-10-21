@@ -16,10 +16,9 @@ pub(super) async fn send(endpoint: &Path, encoded: &[u8]) -> crate::app::Result<
 #[cfg(windows)]
 pub(super) async fn send(endpoint: &Path, encoded: &[u8]) -> crate::app::Result<Vec<u8>> {
     use tokio::io::AsyncWriteExt;
-    use tokio::net::windows::named_pipe::ClientOptions;
     let exchange = async {
         let mut stream = loop {
-            match ClientOptions::new().open(endpoint) {
+            match super::super::windows::connect(endpoint) {
                 Ok(stream) => break stream,
                 Err(error) if error.raw_os_error() == Some(231) => {
                     tokio::time::sleep(std::time::Duration::from_millis(20)).await;

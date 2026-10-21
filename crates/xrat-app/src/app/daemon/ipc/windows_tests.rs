@@ -1,7 +1,25 @@
 use super::*;
 use crate::app::daemon::supervisor::{DaemonShutdownResult, SupervisorEvent};
 use tokio::io::AsyncWriteExt;
-use tokio::net::windows::named_pipe::ClientOptions;
+
+async fn connect(endpoint: &std::path::Path) -> tokio::net::windows::named_pipe::NamedPipeClient {
+    tokio::time::timeout(std::time::Duration::from_secs(5), async {
+        loop {
+            match windows::connect(endpoint) {
+                Ok(pipe) => return pipe,
+                Err(error)
+                    if error.kind() == std::io::ErrorKind::NotFound
+                        || error.raw_os_error() == Some(231) =>
+                {
+                    tokio::time::sleep(std::time::Duration::from_millis(10)).await;
+                }
+                Err(error) => panic!("pipe connection failed: {error}"),
+            }
+        }
+    })
+    .await
+    .expect("pipe connection timed out")
+}
 
 fn endpoint() -> PathBuf {
     default_socket_path(&std::env::temp_dir().join(uuid::Uuid::new_v4().to_string()))
@@ -94,12 +112,7 @@ async fn mismatched_protocol_and_malformed_frames_do_not_poison_the_listener() {
     let (supervisor, _receiver) = tokio::sync::mpsc::channel(8);
     let server_endpoint = endpoint.clone();
     let server = tokio::spawn(async move { serve_ping(&server_endpoint, supervisor).await });
-    let mut pipe = loop {
-        if let Ok(pipe) = ClientOptions::new().open(&endpoint) {
-            break pipe;
-        }
-        tokio::time::sleep(std::time::Duration::from_millis(10)).await;
-    };
+    let mut pipe = connect(&endpoint).await;
     let request = DaemonRequest {
         protocol_version: PROTOCOL_VERSION + 1,
         request: DaemonRequestKind::DaemonPing,
@@ -113,9 +126,23 @@ async fn mismatched_protocol_and_malformed_frames_do_not_poison_the_listener() {
     assert!(!response.ok);
     assert!(response.message.contains("unsupported protocol"));
     drop(pipe);
-    let mut invalid = ClientOptions::new().open(&endpoint).unwrap();
+    let mut invalid = connect(&endpoint).await;
     invalid.write_all(&u32::MAX.to_le_bytes()).await.unwrap();
     drop(invalid);
+    let mut recovered = connect(&endpoint).await;
+    frame::write(&mut recovered, &serde_json::to_vec(&request).unwrap())
+        .await
+        .unwrap();
+    let response = tokio::time::timeout(
+        std::time::Duration::from_secs(5),
+        frame::read(&mut recovered),
+    )
+    .await
+    .unwrap()
+    .unwrap();
+    let response: DaemonResponse<()> = serde_json::from_slice(&response).unwrap();
+    assert!(!response.ok);
+    recovered.write_all(&[0]).await.unwrap();
     server.abort();
     let _ = server.await;
 }

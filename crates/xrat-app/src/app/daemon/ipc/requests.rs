@@ -16,7 +16,7 @@ pub fn default_socket_path(runtime_dir: &Path) -> PathBuf {
             .to_lowercase();
         let owner = xrat_support::windows::current_user_sid().unwrap_or_default();
         let digest = sha2::Sha256::digest(format!("{owner}:{identity}"));
-        return PathBuf::from(format!(r"\\.\pipe\xrat-{:x}", digest));
+        PathBuf::from(format!(r"\\.\pipe\xrat-{:x}", digest))
     }
     #[cfg(not(windows))]
     runtime_dir.join("daemon.sock")
