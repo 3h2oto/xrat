@@ -209,6 +209,19 @@ pub fn apply_linger() -> StepOutcome {
 // completions
 // ---------------------------------------------------------------------------
 
+#[cfg(windows)]
+fn completion_targets() -> Vec<(clap_complete::Shell, PathBuf)> {
+    platform::xdg_data_home()
+        .map(|data| {
+            vec![(
+                clap_complete::Shell::PowerShell,
+                data.join("xrat/completions/xrat.ps1"),
+            )]
+        })
+        .unwrap_or_default()
+}
+
+#[cfg(not(windows))]
 fn completion_targets() -> Vec<(clap_complete::Shell, PathBuf)> {
     use clap_complete::Shell;
     let mut targets = Vec::new();
@@ -282,6 +295,9 @@ pub fn apply_completions() -> StepOutcome {
 // ---------------------------------------------------------------------------
 
 fn man_dir() -> Option<PathBuf> {
+    if cfg!(windows) {
+        return None;
+    }
     platform::xdg_data_home().map(|data| data.join("man").join("man1"))
 }
 
@@ -413,11 +429,21 @@ pub fn probe_path() -> StepOutcome {
             StepOutcome::new(STEP_PATH, StepStatus::Done, false)
                 .with_detail(dir.display().to_string())
         }
-        Some(dir) => StepOutcome::new(STEP_PATH, StepStatus::Missing, false).with_detail(format!(
-            "{} is not in PATH; add: export PATH=\"{}:$PATH\"",
-            dir.display(),
-            dir.display()
-        )),
+        Some(dir) => {
+            let guidance = if cfg!(windows) {
+                format!(
+                    "{} is not in PATH; add it to your user Path in Windows Environment Variables, then restart your terminal",
+                    dir.display()
+                )
+            } else {
+                format!(
+                    "{} is not in PATH; add: export PATH=\"{}:$PATH\"",
+                    dir.display(),
+                    dir.display()
+                )
+            };
+            StepOutcome::new(STEP_PATH, StepStatus::Missing, false).with_detail(guidance)
+        }
         None => StepOutcome::new(STEP_PATH, StepStatus::Skipped, false)
             .with_detail("could not resolve executable directory".to_string()),
     }

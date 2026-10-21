@@ -116,6 +116,7 @@ pub enum ProxyShellKind {
     Bash,
     Zsh,
     Fish,
+    Powershell,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, ValueEnum)]

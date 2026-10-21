@@ -7,6 +7,8 @@ use super::{
     ActiveEndpoints, http_proxy_url, loopback_host, resolve_active_endpoints, socks_proxy_url,
 };
 
+mod powershell;
+
 pub(super) async fn run(context: &AppContext, action: &ProxyShellAction) -> crate::app::Result<()> {
     match action {
         ProxyShellAction::Enable(args) => {
@@ -61,6 +63,9 @@ fn usage_hint(kind: ProxyShellKind, verb: &str) -> String {
             format!("# apply: eval \"$(xrat proxy shell {verb})\"\n")
         }
         ProxyShellKind::Fish => format!("# apply: xrat proxy shell {verb} | source\n"),
+        ProxyShellKind::Powershell => format!(
+            "# apply: xrat proxy shell {verb} --shell powershell | Out-String | Invoke-Expression\n"
+        ),
     }
 }
 
@@ -174,6 +179,9 @@ const ALL_VARS: [&str; 6] = [
 ];
 
 fn enable_script(kind: ProxyShellKind, http_proxy: &str, all_proxy: &str) -> String {
+    if kind == ProxyShellKind::Powershell {
+        return powershell::enable(http_proxy, all_proxy);
+    }
     let value_for = |name: &str| -> &str {
         if name == "all_proxy" {
             all_proxy
@@ -187,6 +195,7 @@ fn enable_script(kind: ProxyShellKind, http_proxy: &str, all_proxy: &str) -> Str
         let value = value_for(name);
         let upper = name.to_uppercase();
         match kind {
+            ProxyShellKind::Powershell => unreachable!(),
             ProxyShellKind::Bash | ProxyShellKind::Zsh => {
                 out.push_str(&format!("export {name}=\"{value}\"\n"));
                 out.push_str(&format!("export {upper}=\"{value}\"\n"));
@@ -201,10 +210,14 @@ fn enable_script(kind: ProxyShellKind, http_proxy: &str, all_proxy: &str) -> Str
 }
 
 fn disable_script(kind: ProxyShellKind) -> String {
+    if kind == ProxyShellKind::Powershell {
+        return powershell::restore();
+    }
     let mut out = String::new();
     for name in VARS {
         let upper = name.to_uppercase();
         match kind {
+            ProxyShellKind::Powershell => unreachable!(),
             ProxyShellKind::Bash | ProxyShellKind::Zsh => {
                 out.push_str(&format!("unset {name}\n"));
                 out.push_str(&format!("unset {upper}\n"));
@@ -219,11 +232,15 @@ fn disable_script(kind: ProxyShellKind) -> String {
 }
 
 fn capture_script(kind: ProxyShellKind) -> String {
+    if kind == ProxyShellKind::Powershell {
+        return powershell::capture();
+    }
     let mut out = String::new();
     for name in ALL_VARS {
         let old_name = old_var_name(name);
         let had_name = had_var_name(name);
         match kind {
+            ProxyShellKind::Powershell => unreachable!(),
             ProxyShellKind::Bash | ProxyShellKind::Zsh => {
                 out.push_str(&format!("if [ \"${{{name}+x}}\" ]; then\n"));
                 out.push_str(&format!("  export {old_name}=\"${name}\"\n"));
@@ -248,11 +265,15 @@ fn capture_script(kind: ProxyShellKind) -> String {
 }
 
 fn restore_script(kind: ProxyShellKind) -> String {
+    if kind == ProxyShellKind::Powershell {
+        return powershell::restore();
+    }
     let mut out = String::new();
     for name in ALL_VARS {
         let old_name = old_var_name(name);
         let had_name = had_var_name(name);
         match kind {
+            ProxyShellKind::Powershell => unreachable!(),
             ProxyShellKind::Bash | ProxyShellKind::Zsh => {
                 out.push_str(&format!("if [ \"${{{had_name}:-0}}\" = \"1\" ]; then\n"));
                 out.push_str(&format!("  export {name}=\"${old_name}\"\n"));
@@ -294,6 +315,7 @@ fn detect_shell(override_kind: Option<ProxyShellKind>) -> ProxyShellKind {
         xrat_support::platform::Shell::Bash => ProxyShellKind::Bash,
         xrat_support::platform::Shell::Zsh => ProxyShellKind::Zsh,
         xrat_support::platform::Shell::Fish => ProxyShellKind::Fish,
+        xrat_support::platform::Shell::Powershell => ProxyShellKind::Powershell,
     }
 }
 

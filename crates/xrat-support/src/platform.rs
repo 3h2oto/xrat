@@ -10,6 +10,7 @@ pub enum Shell {
     Bash,
     Zsh,
     Fish,
+    Powershell,
 }
 
 impl Shell {
@@ -19,6 +20,7 @@ impl Shell {
             Shell::Bash => "bash",
             Shell::Zsh => "zsh",
             Shell::Fish => "fish",
+            Shell::Powershell => "powershell",
         }
     }
 }
@@ -26,9 +28,11 @@ impl Shell {
 /// Map a shell binary name or path to a [`Shell`]. Handles full paths and a
 /// trailing `.exe`.
 pub fn shell_from_name(name: &str) -> Option<Shell> {
-    let base = name.rsplit('/').next().unwrap_or(name).trim();
+    let name = name.to_ascii_lowercase();
+    let base = name.rsplit(['/', '\\']).next().unwrap_or(&name).trim();
     let base = base.strip_suffix(".exe").unwrap_or(base);
     match base {
+        "pwsh" | "powershell" => Some(Shell::Powershell),
         b if b.contains("fish") => Some(Shell::Fish),
         b if b.contains("zsh") => Some(Shell::Zsh),
         b if b.contains("bash") => Some(Shell::Bash),
@@ -54,7 +58,11 @@ pub fn detect_shell_with_env(env: &dyn crate::env::EnvVars) -> Shell {
     if let Some(kind) = parent_process_name().as_deref().and_then(shell_from_name) {
         return kind;
     }
-    Shell::Bash
+    if cfg!(windows) {
+        Shell::Powershell
+    } else {
+        Shell::Bash
+    }
 }
 
 fn parent_process_name() -> Option<String> {
@@ -64,6 +72,23 @@ fn parent_process_name() -> Option<String> {
     system
         .process(ppid)
         .map(|process| process.name().to_string_lossy().to_string())
+}
+
+#[cfg(test)]
+mod windows_shell_tests {
+    use super::*;
+
+    #[test]
+    fn detects_both_native_powershell_generations() {
+        for name in [
+            "powershell.exe",
+            "pwsh.exe",
+            r"C:\Program Files\PowerShell\7\PWSH.EXE",
+            r"C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe",
+        ] {
+            assert_eq!(shell_from_name(name), Some(Shell::Powershell));
+        }
+    }
 }
 
 #[cfg(unix)]
