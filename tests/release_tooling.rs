@@ -1,6 +1,8 @@
 use std::{fs, path::Path, process::Command};
 use toml_edit::DocumentMut;
 
+const INSTALL_SCRIPT: &str = include_str!("../install.ps1");
+
 fn versions_match(content: &str) -> bool {
     let manifest: DocumentMut = content.parse().unwrap();
     let current = manifest["workspace"]["package"]["version"]
@@ -67,4 +69,60 @@ fn version_recipe_updates_versions_and_preserves_unrelated_content() {
     assert!(versions_match(&content));
     assert!(!run("invalid").status.success());
     assert_eq!(fs::read_to_string(manifest).unwrap(), content);
+}
+#[test]
+fn install_script_exists() {
+    let script = Path::new(env!("CARGO_MANIFEST_DIR")).join("install.ps1");
+    assert!(
+        script.is_file(),
+        "install.ps1 is missing from the repository root"
+    );
+}
+#[test]
+fn install_script_declares_windows_targets() {
+    assert!(
+        INSTALL_SCRIPT.contains("x86_64-pc-windows-msvc"),
+        "install.ps1 must install the x86_64 Windows artifact"
+    );
+    assert!(
+        INSTALL_SCRIPT.contains("aarch64-pc-windows-msvc"),
+        "install.ps1 must install the ARM64 Windows artifact"
+    );
+}
+#[test]
+fn install_script_verifies_checksums() {
+    assert!(
+        INSTALL_SCRIPT.contains("SHASUMS256.txt"),
+        "install.ps1 must verify downloads against the release checksums"
+    );
+    assert!(
+        INSTALL_SCRIPT.contains("Get-FileHash"),
+        "install.ps1 must hash the downloaded archive"
+    );
+    assert!(
+        INSTALL_SCRIPT.contains("SHA256"),
+        "install.ps1 must use SHA-256 checksums"
+    );
+}
+#[test]
+fn install_script_rejects_32bit_windows() {
+    assert!(
+        INSTALL_SCRIPT.contains("PROCESSOR_ARCHITEW6432"),
+        "install.ps1 must read the WOW64 architecture variable"
+    );
+    assert!(
+        INSTALL_SCRIPT.contains("PROCESSOR_ARCHITECTURE"),
+        "install.ps1 must read the processor architecture variable"
+    );
+}
+#[test]
+fn install_script_downloads_the_zip_asset() {
+    assert!(
+        INSTALL_SCRIPT.contains("releases/download"),
+        "install.ps1 must download from the GitHub release assets"
+    );
+    assert!(
+        INSTALL_SCRIPT.contains("xrat-${tag}-${target}.zip"),
+        "install.ps1 must build the release archive name from tag and target"
+    );
 }
