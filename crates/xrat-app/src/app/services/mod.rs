@@ -1,6 +1,8 @@
 pub mod clipboard;
 mod configs;
 pub mod dashboard;
+#[cfg(any(windows, test))]
+pub(crate) mod desktop_proxy;
 pub mod engine_probe;
 mod lifecycle;
 pub mod proxy_pac;

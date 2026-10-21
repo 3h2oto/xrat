@@ -2,9 +2,12 @@
 use xrat_support::process::Command;
 
 use crate::app::AppError;
+
+#[cfg(windows)]
+mod windows;
 #[cfg(any(target_os = "linux", target_os = "macos"))]
 use crate::app::commands::output;
-#[cfg(any(target_os = "linux", target_os = "macos", test))]
+#[cfg(any(target_os = "linux", target_os = "macos", windows, test))]
 use crate::app::config::ServerSettings;
 use crate::app::context::AppContext;
 use crate::cli::ProxyDesktopAction;
@@ -28,7 +31,11 @@ pub(super) async fn run(
     {
         run_macos(context, action).await
     }
-    #[cfg(not(any(target_os = "linux", target_os = "macos")))]
+    #[cfg(windows)]
+    {
+        windows::run(context, action).await
+    }
+    #[cfg(not(any(target_os = "linux", target_os = "macos", windows)))]
     {
         let _ = (context, action);
         Err(AppError::UnsupportedPlatform(
@@ -115,12 +122,12 @@ async fn run_linux(context: &AppContext, action: &ProxyDesktopAction) -> crate::
     }
 }
 
-#[cfg(any(target_os = "linux", target_os = "macos"))]
+#[cfg(any(target_os = "linux", target_os = "macos", windows))]
 fn pac_url(context: &AppContext) -> crate::app::Result<String> {
     pac_url_from_server(&context.app_config.server)
 }
 
-#[cfg(any(target_os = "linux", target_os = "macos", test))]
+#[cfg(any(target_os = "linux", target_os = "macos", windows, test))]
 fn pac_url_from_server(server: &ServerSettings) -> crate::app::Result<String> {
     if !server.enabled {
         return Err(AppError::InvalidArgument(
