@@ -100,6 +100,7 @@ pub(crate) fn ShareModal(
     let mut mode = use_signal(|| mode);
     let mut secret = use_signal(String::new);
     let mut legacy = use_signal(|| false);
+    let mut needs_manual_copy = use_signal(|| false);
     let text_id = use_hook(|| crate::hooks::use_random::use_random_id_for("share-text"));
     let request = snapshot.clone();
     let mut raw = use_resource(move || {
@@ -122,7 +123,10 @@ pub(crate) fn ShareModal(
                         ))));
                         on_close.call(());
                     }
-                    Err(message) => notice.set(Some(crate::Feedback::error(message))),
+                    Err(message) => {
+                        notice.set(Some(crate::Feedback::error(message)));
+                        needs_manual_copy.set(true);
+                    }
                 }
             }
             Ok::<_, String>(Some(response))
@@ -141,6 +145,10 @@ pub(crate) fn ShareModal(
         String::new()
     };
     let result = raw.read().clone();
+    if mode() == Mode::Copy && !needs_manual_copy() && !result.as_ref().is_some_and(Result::is_err)
+    {
+        return rsx! {};
+    }
     rsx! {
         Dialog {
             DialogContent { initial_open: true, class: "w-[min(480px,calc(100%-2rem))] rounded-xl p-5", on_close: move |_| on_close.call(()),
@@ -259,6 +267,46 @@ fn filter_summary(filter: &ConfigFilter) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    fn copy_view() -> Element {
+        sharing_view(Mode::Copy)
+    }
+
+    fn qr_view() -> Element {
+        sharing_view(Mode::Qr)
+    }
+
+    fn sharing_view(mode: Mode) -> Element {
+        let session = use_signal(|| None);
+        let notice = use_signal(|| None);
+        use_context_provider(|| Session(session));
+        use_context_provider(|| Notice(notice));
+        rsx! {
+            ShareModal {
+                request: ConfigShareRequest::Selected { ids: vec![1] },
+                count: 1,
+                mode,
+                on_close: |_| {},
+            }
+        }
+    }
+
+    #[test]
+    fn copy_waits_without_rendering_a_modal_while_qr_opens_immediately() {
+        for (view, visible) in [(copy_view as fn() -> Element, false), (qr_view, true)] {
+            let mut dom = VirtualDom::new(view);
+            dom.provide_root_context(crate::ui::interaction::Interactions::default());
+            let mutations = dom.rebuild_to_vec();
+            assert_eq!(
+                mutations
+                    .edits
+                    .iter()
+                    .any(|edit| matches!(edit, dioxus::core::Mutation::LoadTemplate { .. })),
+                visible
+            );
+        }
+    }
+
     #[test]
     fn subscription_links_encode_credentials_and_exact_filters_without_pagination() {
         let filter = ConfigFilter {
