@@ -55,21 +55,22 @@ bash -c "$(curl -L https://raw.githubusercontent.com/v2fly/fhs-install-v2ray/mas
 ## Platform Support
 
 Core CLI, config import, parsing, testing, and the TUI work on any Unix-like
-platform xrat compiles for. Platform integrations vary:
+platform xrat compiles for, and on 64-bit Windows. Platform integrations vary:
 
-| Feature                | Linux          | macOS            | FreeBSD          | OpenBSD          |
-| ---------------------- | -------------- | ---------------- | ---------------- | ---------------- |
-| CLI / config / import  | yes            | yes              | expected         | expected         |
-| daemon runtime IPC     | Unix socket    | Unix socket      | Unix socket      | Unix socket      |
-| daemon install         | systemd user   | launchd agent    | rc.d (root)      | rc.d (root)      |
-| runtime reattach       | sysinfo        | sysinfo          | sysinfo          | sysinfo (cmd)    |
-| desktop proxy          | GNOME/gsettings| networksetup     | unsupported      | unsupported      |
-| release upgrade        | musl tarball   | darwin tarball   | source/manual    | source/manual    |
-| clipboard (TUI)        | X11/Wayland    | native           | X11              | X11              |
+| Feature                | Linux          | macOS            | FreeBSD          | OpenBSD          | Windows        |
+| ---------------------- | -------------- | ---------------- | ---------------- | ---------------- | -------------- |
+| CLI / config / import  | yes            | yes              | expected         | expected         | yes            |
+| daemon runtime IPC     | Unix socket    | Unix socket      | Unix socket      | Unix socket      | unsupported    |
+| daemon install         | systemd user   | launchd agent    | rc.d (root)      | rc.d (root)      | unsupported    |
+| runtime reattach       | sysinfo        | sysinfo          | sysinfo          | sysinfo (cmd)    | unsupported    |
+| desktop proxy          | GNOME/gsettings| networksetup     | unsupported      | unsupported      | unsupported    |
+| release upgrade        | musl tarball   | darwin tarball   | source/manual    | source/manual    | source/manual  |
+| clipboard (TUI)        | X11/Wayland    | native           | X11              | X11              | native         |
 
 macOS and BSD integrations are newer; the FreeBSD/OpenBSD rows are expected to
-work but are not yet verified on hardware. Windows is tracked separately and not
-yet supported.
+work but are not yet verified on hardware. Windows support is experimental: the
+CLI and the Web UI work, while the daemon, the managed TUN capture, and the
+release upgrade do not. Windows binaries are 64-bit only.
 
 ## Install
 
