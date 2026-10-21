@@ -97,10 +97,15 @@ exit 7
     Assert-Equal (Invoke-Install) 7
     Assert-Equal (Get-Content (Join-Path $InstallDir 'setup-arguments.txt')) 'setup -y'
     Write-Host 'Windows installer checks passed.'
+    exit 0
+}
+catch {
+    Write-Error "Windows installer checks failed: $_"
+    exit 1
 }
 finally {
     foreach ($name in $savedEnv.Keys) {
         [Environment]::SetEnvironmentVariable($name, $savedEnv[$name])
     }
-    Remove-Item -LiteralPath $testDir -Recurse -Force
+    Remove-Item -LiteralPath $testDir -Recurse -Force -ErrorAction SilentlyContinue
 }
