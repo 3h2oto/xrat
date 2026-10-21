@@ -95,23 +95,23 @@ pub fn render(frame: &mut Frame<'_>, area: Rect, app: &TuiApp, focused: bool) {
             Cell::from(truncate_name(config.display_name())).style(name_style),
             Cell::from(config.protocol.clone()).style(proto_style),
             Cell::from(config.address_label().to_string()),
-            Cell::from(Line::from(config.port_label()).right_aligned()).style(theme::muted_style()),
+            Cell::from(config.port_label()).style(theme::muted_style()),
             Cell::from(config.network_label()).style(theme::muted_style()),
         ];
         if metric_columns.icmp {
             let label = test_metric_label(app, config, || config.icmp_label());
             let style = theme::latency_text_style(&label);
-            cells.push(Cell::from(Line::from(label).right_aligned()).style(style));
+            cells.push(Cell::from(label).style(style));
         }
         if metric_columns.tcp {
             let label = test_metric_label(app, config, || config.tcp_label());
             let style = theme::latency_text_style(&label);
-            cells.push(Cell::from(Line::from(label).right_aligned()).style(style));
+            cells.push(Cell::from(label).style(style));
         }
         if metric_columns.real_delay {
             let label = test_metric_label(app, config, || config.delay_label());
             let style = theme::latency_text_style(&label);
-            cells.push(Cell::from(Line::from(label).right_aligned()).style(style));
+            cells.push(Cell::from(label).style(style));
         }
         if metric_columns.download {
             let label = test_metric_label(app, config, || config.download_label());
@@ -120,7 +120,7 @@ pub fn render(frame: &mut Frame<'_>, area: Rect, app: &TuiApp, focused: bool) {
             } else {
                 theme::series_style("download")
             };
-            cells.push(Cell::from(Line::from(label).right_aligned()).style(style));
+            cells.push(Cell::from(label).style(style));
         }
         if metric_columns.upload {
             let label = test_metric_label(app, config, || config.upload_label());
@@ -129,7 +129,7 @@ pub fn render(frame: &mut Frame<'_>, area: Rect, app: &TuiApp, focused: bool) {
             } else {
                 theme::series_style("upload")
             };
-            cells.push(Cell::from(Line::from(label).right_aligned()).style(style));
+            cells.push(Cell::from(label).style(style));
         }
         if metric_columns.country {
             cells.push(Cell::from(config.country_label().to_string()));

@@ -35,7 +35,7 @@ pub fn render(frame: &mut Frame<'_>, area: Rect, app: &TuiApp, focused: bool) {
         Cell::from("-"),
         Cell::from("All configs"),
         Cell::from("-"),
-        Cell::from(Line::from(app.data.total_configs.to_string()).right_aligned()),
+        Cell::from(app.data.total_configs.to_string()),
         Cell::from("-"),
     ])
     .style(pseudo_style(0));
@@ -44,7 +44,7 @@ pub fn render(frame: &mut Frame<'_>, area: Rect, app: &TuiApp, focused: bool) {
         Cell::from("-"),
         Cell::from("Orphans"),
         Cell::from("-"),
-        Cell::from(Line::from(orphan_count.to_string()).right_aligned()),
+        Cell::from(orphan_count.to_string()),
         Cell::from("-"),
     ])
     .style(pseudo_style(1));
@@ -61,7 +61,7 @@ pub fn render(frame: &mut Frame<'_>, area: Rect, app: &TuiApp, focused: bool) {
             Cell::from(source.display_ref().to_string()).style(theme::secondary_style()),
             Cell::from(source.display_name().to_string()),
             Cell::from(source.kind.clone()),
-            Cell::from(Line::from(source.config_count.to_string()).right_aligned()),
+            Cell::from(source.config_count.to_string()),
             Cell::from(source.updated_at.clone()),
         ])
         .style(style)
