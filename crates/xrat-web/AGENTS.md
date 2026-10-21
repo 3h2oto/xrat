@@ -23,9 +23,10 @@ used by Axum. Keep that boundary explicit:
   rendering.
 - `src/ui/` owns low-level UI primitives such as buttons, dialogs, tooltips,
   inputs, and tables. Reuse these primitives before introducing another variant.
-- `assets/controllers/ui/` owns their browser interactions; `controllers/app/`
-  owns application browser helpers. See `assets/controllers/README.md` for the
-  Rust component and HTML attribute map. Keep `assets/components.js` as imports.
+- `src/ui/interaction/` owns shared browser interaction state, focus, placement,
+  overlay isolation and global dismissal listeners. See its `README.md` for the
+  ownership map. Keep application browser helpers with their Rust components or
+  hooks; do not reintroduce JavaScript controllers or inline evaluation.
 - `src/hooks/`, `src/routing/`, and `src/shell.rs` own shared hooks, navigation,
   and the application shell respectively.
 

@@ -12,16 +12,19 @@ Local adapters (`form_select`, `sidebar`, `states`, `feedback`, `history`, and
 
 Local compatibility patches add controlled values, accessible labels, stable
 IDs, event handlers, and modal close notifications. Router links use plain
-anchors. Inline component scripts are replaced by `assets/components.js` to
-preserve XRAT's Content Security Policy. This external controller supplies popup
-positioning, hover/focus menus, keyboard navigation, focus restoration, modal
-isolation, and tooltip placement. The entry point loads modules under
-`assets/controllers/`; their README maps each controller to its Rust components
-and HTML attributes. Floating content uses manual native popovers when available
-to escape ancestor clipping and transformed modal coordinates without moving
-Dioxus-owned DOM nodes. Shared CSS layer tokens order page chrome, feedback,
-backdrops, and modal panels. Theme tokens use XRAT's existing logo palette.
-Icons come from Rust/UI's `icons` crate (Dioxus feature).
+anchors. UI primitive scripts are replaced by Rust interaction state and typed
+browser bindings under `src/ui/interaction/` to preserve XRAT's Content Security
+Policy. These helpers supply popup positioning, hover/focus menus, keyboard
+navigation, focus restoration, modal isolation, and tooltip placement. Their
+README maps ownership and lifecycle rules. Floating content uses manual native
+popovers when available to escape ancestor clipping and transformed modal
+coordinates without moving Dioxus-owned DOM nodes. Shared CSS layer tokens order
+page chrome, feedback, backdrops, and modal panels. Theme tokens use XRAT's
+existing logo palette. Icons come from Rust/UI's `icons` crate (Dioxus feature).
+
+Application browser helpers now use Rust handlers: copy controls and feedback,
+global paste/import, log scrolling, and chart keyboard navigation. Paste/import
+checks the shared Rust overlay state rather than inspecting DOM markers.
 
 The login page adapts the split layout and password visibility pattern from
 Rust/UI's Login02 block:
