@@ -222,7 +222,11 @@ pub fn render_split_modal(frame: &mut Frame<'_>, area: Rect, app: &TuiApp) {
         .saturating_sub(disc_rows.saturating_sub(1));
     let disc_lines: Vec<Line> = if visible_disc.is_empty() {
         vec![Line::styled(
-            "  No matching applications found.",
+            if modal.search_query.is_empty() {
+                "  No matching applications found."
+            } else {
+                "  No matching applications. Press Esc to reset."
+            },
             theme::muted_style(),
         )]
     } else {

@@ -75,6 +75,11 @@ impl TuiApp {
                 settings.error = None;
             } else if settings.searching {
                 settings.searching = false;
+            } else if !settings.query.is_empty() {
+                settings.query.clear();
+                settings.section_index = 0;
+                settings.field_index = 0;
+                self.needs_full_clear = true;
             } else if settings.discard_confirm {
                 settings.discard_confirm = false;
             } else if settings.session.is_dirty() {
@@ -89,6 +94,10 @@ impl TuiApp {
                 split.error = None;
             } else if split.searching {
                 split.searching = false;
+            } else if !split.search_query.is_empty() {
+                split.search_query.clear();
+                split.discovered_index = 0;
+                self.needs_full_clear = true;
             } else {
                 self.split_modal = None;
                 self.needs_full_clear = true;

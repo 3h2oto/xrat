@@ -112,6 +112,9 @@ pub(super) fn action_for_settings_modal_key(key: KeyEvent, mode: SettingsMode) -
     if key.modifiers.contains(KeyModifiers::CONTROL) && key.code == KeyCode::Char('u') {
         return TuiAction::SettingsClearInput;
     }
+    if key.modifiers.contains(KeyModifiers::CONTROL) && key.code == KeyCode::Char('w') {
+        return TuiAction::SettingsDeleteWord;
+    }
     if key.modifiers.contains(KeyModifiers::CONTROL) && key.code == KeyCode::Char('s') {
         return TuiAction::SettingsSave;
     }
@@ -172,6 +175,9 @@ pub fn action_for_split_modal_key(key: KeyEvent, mode: SplitModalMode) -> TuiAct
     }
     if key.modifiers.contains(KeyModifiers::CONTROL) && key.code == KeyCode::Char('u') {
         return TuiAction::SplitClearInput;
+    }
+    if key.modifiers.contains(KeyModifiers::CONTROL) && key.code == KeyCode::Char('w') {
+        return TuiAction::SplitDeleteWord;
     }
     if key.modifiers.contains(KeyModifiers::CONTROL) && key.code == KeyCode::Char('s') {
         return TuiAction::SplitSave;

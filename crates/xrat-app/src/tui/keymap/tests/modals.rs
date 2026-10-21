@@ -86,6 +86,8 @@ fn settings_modal_has_isolated_browse_and_edit_keys() {
 #[test]
 fn settings_shortcuts_do_not_leak_modified_characters_into_input() {
     let control_s = KeyEvent::new(KeyCode::Char('s'), KeyModifiers::CONTROL);
+    let control_w = KeyEvent::new(KeyCode::Char('w'), KeyModifiers::CONTROL);
+    let control_u = KeyEvent::new(KeyCode::Char('u'), KeyModifiers::CONTROL);
     let control_x = KeyEvent::new(KeyCode::Char('x'), KeyModifiers::CONTROL);
 
     assert_eq!(
@@ -95,6 +97,14 @@ fn settings_shortcuts_do_not_leak_modified_characters_into_input() {
     assert_eq!(
         settings_act(control_s, SettingsMode::Search),
         TuiAction::SettingsSave
+    );
+    assert_eq!(
+        settings_act(control_w, SettingsMode::Search),
+        TuiAction::SettingsDeleteWord
+    );
+    assert_eq!(
+        settings_act(control_u, SettingsMode::Search),
+        TuiAction::SettingsClearInput
     );
     assert_eq!(settings_act(control_x, SettingsMode::Edit), TuiAction::None);
 }

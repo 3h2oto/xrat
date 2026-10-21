@@ -153,6 +153,21 @@ impl TuiApp {
         modal.notice = None;
     }
 
+    pub(super) fn settings_delete_word(&mut self) {
+        let Some(modal) = &mut self.settings_modal else {
+            return;
+        };
+        if let Some(editing) = &mut modal.editing {
+            super::navigation::delete_last_word(&mut editing.input);
+        } else if modal.searching {
+            super::navigation::delete_last_word(&mut modal.query);
+            modal.section_index = 0;
+            modal.field_index = 0;
+        }
+        modal.error = None;
+        modal.notice = None;
+    }
+
     pub(super) fn settings_clear_input(&mut self) {
         let Some(modal) = &mut self.settings_modal else {
             return;

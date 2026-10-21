@@ -217,12 +217,22 @@ pub fn render_settings_modal(frame: &mut Frame<'_>, area: Rect, app: &TuiApp) {
         .unwrap_or_default();
     let selected_row_end = selected_row + selected_tail_rows;
     let start = selected_row_end.saturating_sub(available_rows.saturating_sub(1));
-    let field_lines: Vec<Line> = field_rows
-        .into_iter()
-        .skip(start)
-        .take(available_rows)
-        .map(|(_, line)| line)
-        .collect();
+    let field_lines: Vec<Line> = if indices.is_empty() {
+        vec![
+            Line::raw(""),
+            Line::styled(
+                " No settings match search. Press Esc to reset.",
+                theme::muted_style(),
+            ),
+        ]
+    } else {
+        field_rows
+            .into_iter()
+            .skip(start)
+            .take(available_rows)
+            .map(|(_, line)| line)
+            .collect()
+    };
     if !columns[1].is_empty() {
         frame.render_widget(
             Paragraph::new(field_lines).block(

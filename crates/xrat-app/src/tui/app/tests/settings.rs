@@ -380,3 +380,36 @@ fn legacy_ui_theme_can_be_saved_without_duplicate_sections() {
     assert!(!saved.contains("[ui]"));
     crate::tui::theme::set_active(crate::tui::theme::TuiTheme::Default);
 }
+
+#[test]
+fn settings_search_delete_word_pops_last_segment() {
+    let (_root, mut app) = app_with_settings("[runtime.socks]\nenabled = true\n");
+    app.apply(TuiAction::SettingsBeginSearch);
+    for ch in "first second  ".chars() {
+        app.apply(TuiAction::SettingsInput(ch));
+    }
+    assert_eq!(app.settings_modal.as_ref().unwrap().query, "first second  ");
+    app.apply(TuiAction::SettingsDeleteWord);
+    assert_eq!(app.settings_modal.as_ref().unwrap().query, "first ");
+    app.apply(TuiAction::SettingsDeleteWord);
+    assert_eq!(app.settings_modal.as_ref().unwrap().query, "");
+}
+
+#[test]
+fn settings_search_esc_clears_active_query_before_closing_modal() {
+    let (_root, mut app) = app_with_settings("[runtime.socks]\nenabled = true\n");
+    app.apply(TuiAction::SettingsBeginSearch);
+    for ch in "socks".chars() {
+        app.apply(TuiAction::SettingsInput(ch));
+    }
+    app.apply(TuiAction::SettingsSubmit);
+    assert_eq!(app.settings_modal.as_ref().unwrap().query, "socks");
+    assert!(!app.settings_modal.as_ref().unwrap().searching);
+
+    app.apply(TuiAction::Back);
+    assert!(app.settings_modal.is_some());
+    assert_eq!(app.settings_modal.as_ref().unwrap().query, "");
+
+    app.apply(TuiAction::Back);
+    assert!(app.settings_modal.is_none());
+}
