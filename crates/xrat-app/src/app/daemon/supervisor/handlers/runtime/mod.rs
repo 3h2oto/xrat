@@ -1,4 +1,5 @@
 mod dispatch;
+mod overview;
 mod runtime_lifecycle;
 mod runtime_status_connect;
 
@@ -7,3 +8,5 @@ pub(super) use dispatch::{
     handle_runtime_connect, handle_runtime_disconnect, handle_runtime_replace,
     handle_runtime_status,
 };
+
+pub(super) use overview::handle_runtime_overview;

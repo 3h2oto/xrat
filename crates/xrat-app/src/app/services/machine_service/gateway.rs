@@ -92,6 +92,14 @@ impl MachineGateway {
                         "catalog dispatch invariant failed".into(),
                     ));
                 }
+                GatewayRequestKind::Overview {} => {
+                    let overview = ipc::transport::roundtrip(supervisor, |respond_to| {
+                        SupervisorEvent::RuntimeOverview { respond_to }
+                    })
+                    .await?
+                    .map_err(AppError::InvalidArgument)?;
+                    completed(GatewayPayload::Overview(overview))
+                }
                 GatewayRequestKind::Ping {} => map(
                     ping_response_via_supervisor(supervisor).await?,
                     GatewayPayload::Ping,

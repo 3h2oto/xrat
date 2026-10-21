@@ -23,6 +23,7 @@ pub enum GatewayRequestKind {
     Diagnostics {
         request: crate::app::services::diagnostics::DiagnosticsRequest,
     },
+    Overview {},
     Ping {},
     Status {},
     Connect {
@@ -45,6 +46,7 @@ pub enum GatewayRequestKind {
 pub enum GatewayPayload {
     Catalog(super::CatalogPayload),
     Diagnostics(crate::app::services::diagnostics::DiagnosticsPayload),
+    Overview(Box<crate::app::read_models::RuntimeOverview>),
     Ping(PingPayload),
     Status(RuntimeStatusPayload),
     Connect(RuntimeConnectPayload),

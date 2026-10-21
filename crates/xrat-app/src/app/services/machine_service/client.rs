@@ -118,6 +118,13 @@ impl MachineClient {
             .ok_or_else(|| AppError::InvalidArgument("machine service returned no payload".into()))
     }
 
+    pub async fn overview(&self) -> Result<crate::app::read_models::RuntimeOverview> {
+        match self.call(GatewayRequestKind::Overview {}).await? {
+            GatewayPayload::Overview(overview) => Ok(*overview),
+            _ => Err(unexpected()),
+        }
+    }
+
     pub async fn diagnostics(
         &self,
         request: crate::app::services::diagnostics::DiagnosticsRequest,

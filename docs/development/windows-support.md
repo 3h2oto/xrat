@@ -130,6 +130,13 @@ machine reads/lifecycle results and exercise authenticated HTTP subscription
 exports with a separate empty user store. This is a composition seam; automatic
 machine TUI/Web context construction remains under implementation.
 
+Runtime overview requests execute inside the supervisor, where status
+reconciliation and TUN cleanup already belong. The typed snapshot includes the
+shared runtime/session and inbound-health records, current TUN state, live
+rotation state, and read-only test-stage policy. The operator supplies no paths
+or runtime overrides. UI adapters can consume this snapshot without opening
+protected runtime files or creating a second process owner.
+
 Machine diagnostics use a shared bounded reader also used by dashboard logs.
 Typed requests select persisted events or one of the fixed daemon/Xray/sing-box
 feeds; callers cannot supply a path. CLI `logs` supports app-event JSON/TSV,

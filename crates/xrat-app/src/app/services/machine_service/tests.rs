@@ -335,3 +335,83 @@ async fn diagnostics_authorization_precedes_reads_and_event_clear() {
         Some(GatewayPayload::Diagnostics(DiagnosticsPayload::Cleared(1)))
     ));
 }
+
+#[tokio::test]
+async fn overview_requires_operator_and_uses_only_the_supervisor_result() {
+    let (gateway, mut receiver) = fixture().await;
+    assert!(
+        gateway
+            .dispatch(
+                "S-1-5-21-1-2-3-1002",
+                request(GatewayRequestKind::Overview {})
+            )
+            .await
+            .is_err()
+    );
+    assert!(receiver.try_recv().is_err());
+    let worker = tokio::spawn(async move {
+        let Some(SupervisorEvent::RuntimeOverview { respond_to }) = receiver.recv().await else {
+            panic!("overview");
+        };
+        respond_to
+            .send(Ok(Box::new(crate::app::read_models::RuntimeOverview {
+                runtime: crate::app::runtime_service::RuntimeStatusSnapshot {
+                    status: crate::app::runtime_service::RuntimeSessionDisplay::Stopped,
+                    session: None,
+                    session_config: None,
+                    active_config: None,
+                    pid_running: false,
+                    inbound_health: Default::default(),
+                    database_label: "protected catalog".into(),
+                },
+                tun: ipc::TunStatePayload {
+                    enabled: false,
+                    active: false,
+                    engine: "xray".into(),
+                    interface: None,
+                    active_config_ref: None,
+                    session_id: None,
+                    split_mode: "all".into(),
+                    blacklist_count: 0,
+                    whitelist_count: 0,
+                },
+                daemon_ready: true,
+                rotation_enabled: false,
+                rotation_interval_secs: 71,
+                test_stages: vec!["tcp".into()],
+                config_path: "protected/config.toml".into(),
+            })))
+            .unwrap();
+        let Some(SupervisorEvent::RuntimeOverview { respond_to }) = receiver.recv().await else {
+            panic!("overview");
+        };
+        respond_to
+            .send(Err("runtime owner unavailable".into()))
+            .unwrap();
+    });
+    let response = gateway
+        .dispatch(OPERATOR, request(GatewayRequestKind::Overview {}))
+        .await
+        .unwrap();
+    let decoded: ipc::DaemonResponse<GatewayPayload> =
+        serde_json::from_slice(&serde_json::to_vec(&response).unwrap()).unwrap();
+    let Some(GatewayPayload::Overview(overview)) = decoded.payload else {
+        panic!("overview payload");
+    };
+    assert_eq!(overview.runtime.database_label, "protected catalog");
+    assert!(overview.daemon_ready);
+    assert_eq!(overview.rotation_interval_secs, 71);
+    assert_eq!(overview.test_stages, ["tcp"]);
+    let error = gateway
+        .dispatch(OPERATOR, request(GatewayRequestKind::Overview {}))
+        .await
+        .unwrap_err();
+    assert!(error.to_string().contains("runtime owner unavailable"));
+    worker.await.unwrap();
+    assert!(
+        serde_json::from_str::<GatewayRequestKind>(
+            r#"{"type":"overview","config_path":"untrusted"}"#
+        )
+        .is_err()
+    );
+}

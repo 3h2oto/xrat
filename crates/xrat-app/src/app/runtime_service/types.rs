@@ -65,7 +65,7 @@ pub struct ReplaceResult {
     pub new_pid: u32,
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
 pub struct RuntimeStatusSnapshot {
     pub status: RuntimeSessionDisplay,
     pub session: Option<RuntimeSessionRecord>,
@@ -76,7 +76,8 @@ pub struct RuntimeStatusSnapshot {
     pub database_label: String,
 }
 
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "snake_case")]
 pub enum RuntimeSessionDisplay {
     Degraded,
     Persisted(RuntimeSessionStatus),
@@ -104,13 +105,13 @@ pub struct RuntimeEndpoints {
     pub shadowsocks: Option<RuntimeEndpoint>,
 }
 
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct RuntimeEndpoint {
     pub host: String,
     pub port: u16,
 }
 
-#[derive(Clone, Debug, Default, PartialEq, Eq)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct RuntimeInboundHealth {
     pub socks: Option<RuntimeEndpointHealth>,
     pub http: Option<RuntimeEndpointHealth>,
@@ -126,13 +127,14 @@ impl RuntimeInboundHealth {
     }
 }
 
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct RuntimeEndpointHealth {
     pub endpoint: RuntimeEndpoint,
     pub state: RuntimeEndpointState,
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "snake_case")]
 pub enum RuntimeEndpointState {
     Reachable,
     Unreachable,
