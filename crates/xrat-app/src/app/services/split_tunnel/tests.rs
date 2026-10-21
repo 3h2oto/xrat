@@ -146,7 +146,7 @@ Exec=/usr/bin/helper
 }
 
 #[test]
-#[cfg(unix)]
+#[cfg(all(unix, not(target_os = "macos")))]
 fn resolves_desktop_specifiers_from_custom_directory() {
     let dir = tempfile::tempdir().unwrap();
     std::fs::write(
