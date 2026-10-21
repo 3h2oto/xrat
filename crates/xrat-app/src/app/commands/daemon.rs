@@ -280,6 +280,7 @@ fn spawn_detached_daemon_with_spawner(
         .arg(&context.runtime_paths.config_path)
         .arg("daemon")
         .arg("run-server")
+        .detached(true)
         .stdin(Stdio::null())
         .stdout(Stdio::from(stdout_log))
         .stderr(Stdio::from(stderr_log));

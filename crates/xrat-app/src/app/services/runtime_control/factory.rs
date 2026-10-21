@@ -22,7 +22,7 @@ pub fn local_control(context: &AppContext) -> Arc<dyn RuntimeControl> {
 /// TUI operations use the daemon when reachable, or run standalone when absent.
 /// Protocol failures and timeouts must not create a competing local owner.
 pub async fn tui_control(context: &AppContext) -> crate::app::Result<Arc<dyn RuntimeControl>> {
-    #[cfg(unix)]
+    #[cfg(any(unix, windows))]
     if tui_uses_daemon(&ipc::default_socket_path(
         &context.runtime_paths.runtime_dir,
     ))
@@ -33,7 +33,7 @@ pub async fn tui_control(context: &AppContext) -> crate::app::Result<Arc<dyn Run
     Ok(local_control(context))
 }
 
-#[cfg(unix)]
+#[cfg(any(unix, windows))]
 pub(crate) async fn tui_uses_daemon(socket: &std::path::Path) -> crate::app::Result<bool> {
     let response =
         tokio::time::timeout(std::time::Duration::from_secs(1), ipc::ping_daemon(socket))

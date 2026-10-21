@@ -64,6 +64,11 @@ fn command(spec: &CommandSpec) -> io::Result<std::process::Command> {
         use std::os::unix::process::CommandExt;
         command.process_group(0);
     }
+    #[cfg(windows)]
+    if spec.detached {
+        use std::os::windows::process::CommandExt;
+        command.creation_flags(0x0000_0200 | 0x0000_0008);
+    }
     Ok(command)
 }
 

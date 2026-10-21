@@ -5,7 +5,7 @@ mod local;
 
 pub use control::{RuntimeConnectOutcome, RuntimeControl, RuntimeReplaceOutcome};
 pub use daemon::DaemonRuntimeControl;
-#[cfg(unix)]
+#[cfg(any(unix, windows))]
 pub(crate) use factory::tui_uses_daemon;
 pub use factory::{daemon_control, local_control, tui_control};
 pub use local::LocalRuntimeControl;

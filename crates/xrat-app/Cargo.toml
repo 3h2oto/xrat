@@ -70,5 +70,8 @@ futures-core = "0.3"
 rustls = { version = "0.23", default-features = false, features = ["std", "aws_lc_rs", "tls12"] }
 xrat-web.workspace = true
 
+[target.'cfg(windows)'.dependencies]
+windows-sys = { version = "0.61.2", features = ["Win32_Foundation", "Win32_Security", "Win32_System_Pipes", "Win32_System_Threading", "Win32_Networking_WinInet"] }
+
 [dev-dependencies]
 tower = { version = "0.5", features = ["util"] }

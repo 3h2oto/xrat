@@ -1,6 +1,6 @@
 use crate::app::config::{ConfigEditSession, SettingValue, TunSettings, TunSplitMode};
 use crate::app::context::AppContext;
-#[cfg(unix)]
+#[cfg(any(unix, windows))]
 use crate::app::daemon::ipc;
 use crate::app::daemon::ipc::TunStatePayload;
 use crate::app::runtime_service::RuntimeService;
@@ -15,7 +15,7 @@ pub(crate) async fn apply(
     enabled: Option<bool>,
     standalone_owner: bool,
 ) -> Result<TunStatePayload> {
-    #[cfg(unix)]
+    #[cfg(any(unix, windows))]
     {
         let socket = ipc::default_socket_path(&context.runtime_paths.runtime_dir);
         if super::runtime_control::tui_uses_daemon(&socket).await? {

@@ -62,7 +62,7 @@ pub async fn serve_ping(
     Ok(())
 }
 
-#[cfg(not(unix))]
+#[cfg(not(any(unix, windows)))]
 pub async fn serve_ping(
     _socket_path: &Path,
     _supervisor_tx: mpsc::Sender<SupervisorEvent>,
@@ -71,3 +71,6 @@ pub async fn serve_ping(
         "daemon IPC server is not supported on this platform yet".to_string(),
     ))
 }
+
+#[cfg(windows)]
+pub use super::windows::serve_ping;

@@ -4,9 +4,7 @@ use std::path::{Path, PathBuf};
 mod client;
 mod handler;
 mod responses;
-// The supervisor transport helpers only back the Unix-domain socket server,
-// which has no Windows counterpart yet.
-#[cfg(unix)]
+#[cfg(any(unix, windows))]
 mod transport;
 mod types;
 
@@ -32,3 +30,11 @@ mod requests;
 pub use requests::PROTOCOL_VERSION;
 pub use requests::daemon_unreachable;
 pub use requests::default_socket_path;
+
+#[cfg(any(windows, test))]
+mod frame;
+#[cfg(windows)]
+mod windows;
+
+#[cfg(all(test, windows))]
+mod windows_tests;

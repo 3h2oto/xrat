@@ -6676,6 +6676,7 @@ dependencies = [
  "unicode-width",
  "url",
  "uuid",
+ "windows-sys 0.61.2",
  "xrat-config",
  "xrat-db",
  "xrat-engines",
@@ -6793,6 +6794,7 @@ dependencies = [
  "tokio",
  "url",
  "uuid",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]
