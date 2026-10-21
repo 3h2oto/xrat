@@ -53,8 +53,19 @@ public_url = "http://localhost:$port"
     }
     if (-not $ready -or $html.Content -notmatch 'id="main"') { throw 'Packaged WebUI did not serve its HTML.' }
     foreach ($asset in @('boot.js', 'xrat_web.js', 'xrat_web_bg.wasm', 'app.css')) {
-        $response = Invoke-WebRequest "$base/$asset" -UseBasicParsing -TimeoutSec 20
-        if ($response.StatusCode -ne 200 -or $response.RawContentLength -lt 8) { throw "Missing packaged WebUI asset: $asset" }
+        $file = Join-Path $directory $asset
+        $response = Invoke-WebRequest "$base/$asset" -UseBasicParsing -TimeoutSec 20 -OutFile $file -PassThru
+        if ($response.StatusCode -ne 200 -or (Get-Item -LiteralPath $file).Length -lt 8) { throw "Missing packaged WebUI asset: $asset" }
+        $expectedType = if ($asset.EndsWith('.wasm')) { 'application/wasm' } elseif ($asset.EndsWith('.css')) { 'text/css' } else { 'javascript' }
+        if ($response.Headers['Content-Type'] -notlike "*$expectedType*") { throw "Incorrect content type for $asset" }
+        if ($asset.EndsWith('.wasm')) {
+            $stream = [IO.File]::OpenRead($file)
+            try {
+                $magic = New-Object byte[] 4
+                if ($stream.Read($magic, 0, 4) -ne 4 -or [BitConverter]::ToString($magic) -ne '00-61-73-6D') { throw 'Served WebAssembly is not a WASM binary.' }
+            }
+            finally { $stream.Dispose() }
+        }
     }
     $session = [Microsoft.PowerShell.Commands.WebRequestSession]::new()
     $login = Invoke-RestMethod "$base/api/v1/login" -Method Post -WebSession $session -Headers @{ Origin = $base } -ContentType 'application/json' -Body (@{username = 'ci-admin'; password = $password} | ConvertTo-Json)
@@ -64,6 +75,7 @@ public_url = "http://localhost:$port"
     Invoke-Xrat -Arguments @('daemon', 'status') | Out-Null
     Invoke-Xrat -Arguments @('daemon', 'stop') | Out-Null
     Invoke-Xrat -Arguments @('daemon', 'stop') | Out-Null
+    & "$PSScriptRoot/windows-upgrade.ps1" -Executable $exe -ConfigPath (Join-Path $env:XRAT_PATH 'config.toml')
     Write-Host 'Packaged Windows daemon, HTTP assets, and login acceptance passed.'
 }
 finally {
