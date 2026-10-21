@@ -12,7 +12,7 @@
     'xrat setup'.
 
 .PARAMETER FromSource
-    Build from this checkout, including browser assets (requires Rust and Node.js).
+    Build from this checkout, including browser assets (requires Rust and MSVC tools).
 
 .PARAMETER Version
     Release tag to install (for example v0.31.2). Defaults to the latest release.
@@ -187,7 +187,7 @@ function Build-FromSource {
     if (-not $repoDir -or -not (Test-Path -LiteralPath (Join-Path $repoDir 'Cargo.toml'))) {
         throw '-FromSource requires running install.ps1 directly from the repository checkout.'
     }
-    foreach ($command in @('cargo', 'rustup', 'npx')) {
+    foreach ($command in @('cargo', 'rustup')) {
         if (-not (Get-Command $command -ErrorAction SilentlyContinue)) {
             throw "Required tool not found: $command"
         }

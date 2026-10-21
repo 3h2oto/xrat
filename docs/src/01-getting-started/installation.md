@@ -58,20 +58,22 @@ bash -c "$(curl -L https://raw.githubusercontent.com/v2fly/fhs-install-v2ray/mas
 Core CLI, config import, parsing, testing, and the TUI work on any Unix-like
 platform xrat compiles for, and on 64-bit Windows. Platform integrations vary:
 
-| Feature               | Linux           | macOS          | FreeBSD       | OpenBSD       | Windows       |
-| --------------------- | --------------- | -------------- | ------------- | ------------- | ------------- |
-| CLI / config / import | yes             | yes            | expected      | expected      | yes           |
-| daemon runtime IPC    | Unix socket     | Unix socket    | Unix socket   | Unix socket   | unsupported   |
-| daemon install        | systemd user    | launchd agent  | rc.d (root)   | rc.d (root)   | unsupported   |
-| runtime reattach      | sysinfo         | sysinfo        | sysinfo       | sysinfo (cmd) | unsupported   |
-| desktop proxy         | GNOME/gsettings | networksetup   | unsupported   | unsupported   | unsupported   |
-| release upgrade       | musl tarball    | darwin tarball | source/manual | source/manual | source/manual |
-| clipboard (TUI)       | X11/Wayland     | native         | X11           | X11           | native        |
+| Feature               | Linux           | macOS          | FreeBSD       | OpenBSD       | Windows                   |
+| --------------------- | --------------- | -------------- | ------------- | ------------- | ------------------------- |
+| CLI / config / import | yes             | yes            | expected      | expected      | yes                       |
+| daemon runtime IPC    | Unix socket     | Unix socket    | Unix socket   | Unix socket   | named pipe (experimental) |
+| daemon install        | systemd user    | launchd agent  | rc.d (root)   | rc.d (root)   | unsupported               |
+| runtime reattach      | sysinfo         | sysinfo        | sysinfo       | sysinfo (cmd) | unsupported               |
+| desktop proxy         | GNOME/gsettings | networksetup   | unsupported   | unsupported   | WinINET (experimental)    |
+| release upgrade       | musl tarball    | darwin tarball | source/manual | source/manual | staged (experimental)     |
+| clipboard (TUI)       | X11/Wayland     | native         | X11           | X11           | native                    |
 
 macOS and BSD integrations are newer; the FreeBSD/OpenBSD rows are expected to
-work but are not yet verified on hardware. Windows support is experimental: the
-CLI and the Web UI work, while the daemon, the managed TUN capture, and the
-release upgrade do not. Windows binaries are 64-bit only.
+work but are not yet verified on hardware. Windows support remains experimental.
+This source branch adds daemon IPC, desktop proxy integration, and staged
+upgrades; native acceptance is tracked in the Windows milestone. Windows
+Services and managed TUN capture remain unimplemented. Windows binaries are
+64-bit only.
 
 ## Install
 
@@ -239,9 +241,11 @@ adds that directory to the user PATH, and delegates configuration and core
 installation to `xrat setup`. Restart the terminal to use the updated PATH.
 Options are `-InstallDir <directory>`, `-Version <tag>`, `-Yes`, `-NoSetup`, and
 `-FromSource`. Source installation requires a repository checkout, Rust with
-MSVC build tools, and Node.js; it builds browser assets before the binary.
-Without a terminal, setup is skipped unless `-Yes` is provided, matching the
-shell installer's unattended behavior. Linux desktop and linger flags do not
+MSVC build tools; it builds browser assets before the binary using a
+checksum-pinned standalone Tailwind tool. On Windows ARM64, that CSS build tool
+runs through Windows 11's x64 emulation; XRAT and proxy cores remain native
+ARM64. Without a terminal, setup is skipped unless `-Yes` is provided, matching
+the shell installer's unattended behavior. Linux desktop and linger flags do not
 apply to Windows. Stop XRAT before rerunning the installer. The Windows source
 branch also contains an experimental staged self-upgrader: stop the daemon, run
 `xrat upgrade`, exit the upgrading process when prompted, then run
