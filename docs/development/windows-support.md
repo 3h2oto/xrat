@@ -138,6 +138,17 @@ unsupported error. The TUI selector and HTTP application adapters remain
 outstanding. `--with-api` and `--tun` service-install flags are
 explicitly rejected until their respective integrations are implemented.
 
+Explicit elevated `--profile machine install <core>` provisions official
+checksum-verified core executables at the fixed protected paths. Acquisition and
+version validation reuse the existing core services. Archive selection happens
+in memory before writing an administrator-owned staged file, avoiding elevated
+execution from user-writable temporary directories. Atomic activation preserves
+the old executable on failure. It changes neither user PATH/config nor machine
+policy and leaves the service stopped. A held exclusive profile-file lease
+serializes the service host with core provisioning; a second host or installer
+fails instead of racing runtime ownership. Native lock, locked-target, and
+replacement-ACL tests remain pending.
+
 The service has an actual SCM dispatcher/control handler, pending checkpoints,
 bounded transitions, and bounded restart recovery. Its registered operator may
 start/stop/query it without permission to reconfigure it or rewrite its ACL.

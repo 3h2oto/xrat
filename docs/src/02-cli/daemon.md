@@ -246,6 +246,23 @@ under the ProgramData known folder, in `XRAT-Service`. The installing user is
 registered as its operator. When elevating with a different administrator account,
 pass `--operator-sid <SID>` for the intended operator.
 
+Provision service cores explicitly from an elevated terminal while the machine
+service is stopped. Core installation uses official release metadata/checksums,
+checks the staged executable version, and writes only the fixed protected core
+path. It leaves the service stopped and does not edit user configuration or PATH.
+
+```powershell
+xrat --profile machine daemon stop
+xrat --profile machine install xray --version 26.9.30
+xrat --profile machine install sing-box --version 1.13.21
+xrat --profile machine daemon start
+```
+
+An exclusive profile lease prevents core provisioning while a service host is
+active, and prevents service startup during provisioning. Locked executable or
+activation errors preserve the previous core. Routine gateway requests cannot
+install cores.
+
 The registered operator can use these commands from an ordinary terminal:
 
 ```powershell

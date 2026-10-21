@@ -8,3 +8,6 @@ mod installation;
 pub use entry::run;
 #[cfg(windows)]
 pub use installation::{install, uninstall};
+
+#[cfg(windows)]
+mod cores;

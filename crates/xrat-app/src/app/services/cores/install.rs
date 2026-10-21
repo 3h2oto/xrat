@@ -246,28 +246,7 @@ pub(crate) fn extract_zip_named(
 
     // Entries may sit inside a versioned folder, so match on the file name
     // rather than the full archive path.
-    let bare = kind.name();
-    let mut exact = None;
-    let mut fallback = None;
-    for index in 0..archive.len() {
-        let source = archive
-            .by_index(index)
-            .map_err(|error| format!("could not read archive entry: {error}"))?;
-        if !source.is_file() {
-            continue;
-        }
-        let file_name = source.name().rsplit(['/', '\\']).next().unwrap_or_default();
-        if file_name == wanted {
-            exact = Some(index);
-            break;
-        }
-        if fallback.is_none() && file_name == bare {
-            fallback = Some(index);
-        }
-    }
-    let index = exact.or(fallback).ok_or_else(|| {
-        format!("archive is missing {wanted}: specified file not found in archive")
-    })?;
+    let index = zip_binary_index(&mut archive, kind, wanted)?;
     {
         let mut source = archive
             .by_index(index)
@@ -312,6 +291,63 @@ pub(crate) fn extract_zip_named(
     }
 
     Ok(())
+}
+
+fn zip_binary_index(
+    archive: &mut zip::ZipArchive<Cursor<&[u8]>>,
+    kind: CoreKind,
+    wanted: &str,
+) -> Result<usize, String> {
+    let bare = kind.name();
+    let mut exact = None;
+    let mut fallback = None;
+    for index in 0..archive.len() {
+        let source = archive
+            .by_index(index)
+            .map_err(|error| format!("could not read archive entry: {error}"))?;
+        if !source.is_file() {
+            continue;
+        }
+        let file_name = source.name().rsplit(['/', '\\']).next().unwrap_or_default();
+        if file_name == wanted {
+            exact = Some(index);
+            break;
+        }
+        if fallback.is_none() && file_name == bare {
+            fallback = Some(index);
+        }
+    }
+    exact
+        .or(fallback)
+        .ok_or_else(|| format!("archive is missing {wanted}: specified file not found in archive"))
+}
+
+#[cfg(any(windows, test))]
+pub(crate) fn prepare_machine_binary(
+    kind: CoreKind,
+    release: &CoreRelease,
+    bytes: &[u8],
+) -> Result<Vec<u8>, String> {
+    use std::io::Read;
+    const LIMIT: u64 = 256 * 1024 * 1024;
+    verify_checksum(&release.asset, bytes)?;
+    let wanted = binary_file_name_for(kind, true);
+    let mut archive =
+        zip::ZipArchive::new(Cursor::new(bytes)).map_err(|error| error.to_string())?;
+    let index = zip_binary_index(&mut archive, kind, &wanted)?;
+    let source = archive.by_index(index).map_err(|error| error.to_string())?;
+    if source.size() > LIMIT {
+        return Err("machine core executable exceeds 256 MiB".into());
+    }
+    let mut output = Vec::new();
+    source
+        .take(LIMIT + 1)
+        .read_to_end(&mut output)
+        .map_err(|error| error.to_string())?;
+    if output.is_empty() || output.len() as u64 > LIMIT {
+        return Err("machine core executable is empty or exceeds 256 MiB".into());
+    }
+    Ok(output)
 }
 
 pub(crate) fn extract_sing_box_named(

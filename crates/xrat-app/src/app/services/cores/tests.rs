@@ -490,3 +490,24 @@ fn extracts_the_bare_core_name_when_no_platform_suffix_is_present() {
 
 #[path = "release_tests.rs"]
 mod release_tests;
+
+#[test]
+fn prepares_machine_core_bytes_only_after_archive_verification() {
+    for kind in CORE_KINDS {
+        let name = format!("nested/{}.exe", kind.name());
+        let archive = zip_with(&[("unrelated.exe", "wrong"), (&name, "verified-binary")]);
+        let mut release = test_release("https://example.invalid/archive.zip".into());
+        release.asset.sha256 = format!("{:x}", Sha256::digest(&archive));
+        assert_eq!(
+            super::prepare_machine_binary(kind, &release, &archive).unwrap(),
+            b"verified-binary"
+        );
+        release.asset.sha256 = "0".repeat(64);
+        assert!(super::prepare_machine_binary(kind, &release, &archive).is_err());
+        for entries in [vec![("other.exe", "payload")], vec![(name.as_str(), "")]] {
+            let archive = zip_with(&entries);
+            release.asset.sha256 = format!("{:x}", Sha256::digest(&archive));
+            assert!(super::prepare_machine_binary(kind, &release, &archive).is_err());
+        }
+    }
+}

@@ -6,6 +6,9 @@ use crate::cli::{Command, DaemonAction};
 use windows_sys::Win32::System::Services::*;
 
 pub async fn run(command: &Command) -> Result<()> {
+    if let Command::Install(args) = command {
+        return super::cores::install(args).await;
+    }
     let Command::Daemon(daemon) = command else {
         return super::catalog::run(&MachineClient::new(), command).await;
     };

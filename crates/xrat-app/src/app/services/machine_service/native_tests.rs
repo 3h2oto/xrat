@@ -100,6 +100,21 @@ async fn native_machine_service_lifecycle_and_restricted_operator() {
         &["daemon", "install", "--operator-sid", &operator, "--start"],
     );
     ping().await;
+    let install_while_active = command(
+        &binary,
+        &[
+            "--profile",
+            "machine",
+            "install",
+            "xray",
+            "--version",
+            "26.9.30",
+        ],
+    );
+    assert!(!install_while_active.status.success());
+    assert!(
+        String::from_utf8_lossy(&install_while_active.stderr).contains("machine profile is active")
+    );
     success(&binary, &["--profile", "machine", "daemon", "status"]);
     success(
         &binary,

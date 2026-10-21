@@ -93,6 +93,33 @@ impl MachineProfile {
         self.root.path().join("config.toml")
     }
 
+    pub fn lifecycle_lease(&self) -> Result<std::fs::File> {
+        use std::os::windows::fs::OpenOptionsExt;
+        use windows_sys::Win32::Storage::FileSystem::{FILE_SHARE_READ, FILE_SHARE_WRITE};
+        let path = self.root.path().join("lifecycle.lock");
+        if !path.try_exists()? {
+            match self.root.create_file("lifecycle.lock") {
+                Ok(file) => drop(file),
+                Err(error) if error.kind() == std::io::ErrorKind::AlreadyExists => {}
+                Err(error) => return Err(error.into()),
+            }
+        }
+        self.root.verify_tree()?;
+        let file = std::fs::OpenOptions::new()
+            .read(true)
+            .write(true)
+            .share_mode(FILE_SHARE_READ | FILE_SHARE_WRITE)
+            .open(path)?;
+        file.try_lock().map_err(std::io::Error::from).map_err(|error| AppError::InvalidArgument(
+            format!("machine profile is active or undergoing maintenance: {error}; stop the machine service before provisioning")
+        ))?;
+        Ok(file)
+    }
+
+    pub fn core_directory(&self) -> Result<ProtectedDirectory> {
+        Ok(ProtectedDirectory::open(&self.root.path().join("cores"))?)
+    }
+
     pub async fn context(&self) -> Result<AppContext> {
         if xrat_support::windows::current_user_sid()? != super::SYSTEM_SID {
             return Err(AppError::InvalidArgument(

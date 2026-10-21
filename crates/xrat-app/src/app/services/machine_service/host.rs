@@ -157,6 +157,7 @@ async fn pending<T>(future: impl std::future::Future<Output = Result<T>>, state:
 
 async fn host() -> Result<()> {
     let profile = MachineProfile::open()?;
+    let _lease = profile.lifecycle_lease()?;
     let mut context = pending(profile.context(), SERVICE_START_PENDING).await?;
     pending(
         super::lifecycle::prepare_runtime(&mut context),
