@@ -26,6 +26,17 @@ impl ConfigEditSession {
         {
             setting.kind = SettingKind::Enum(config.tui.theme_names());
         }
+        if let Some(setting) = settings
+            .iter_mut()
+            .find(|setting| setting.path == "tui.border_style")
+        {
+            setting.kind = SettingKind::Enum(
+                crate::app::config::TuiBorderStyle::CANONICAL_NAMES
+                    .iter()
+                    .map(|s| (*s).to_string())
+                    .collect(),
+            );
+        }
         settings
             .sort_by(|left, right| (&left.section, &left.path).cmp(&(&right.section, &right.path)));
         Ok(Self {

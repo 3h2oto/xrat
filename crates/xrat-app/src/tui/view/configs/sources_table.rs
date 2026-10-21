@@ -2,7 +2,10 @@ use ratatui::Frame;
 use ratatui::layout::{Constraint, Rect};
 use ratatui::style::Modifier;
 use ratatui::text::{Line, Span};
-use ratatui::widgets::{Block, Borders, Cell, Row, Table, TableState};
+use ratatui::widgets::{
+    Block, Borders, Cell, HighlightSpacing, Row, Scrollbar, ScrollbarOrientation, ScrollbarState,
+    Table, TableState,
+};
 
 use crate::tui::app::TuiApp;
 use crate::tui::theme;
@@ -64,6 +67,7 @@ pub fn render(frame: &mut Frame<'_>, area: Rect, app: &TuiApp, focused: bool) {
         .style(style)
     });
 
+    let total_rows = 2 + app.data.sources.len();
     let rows = [all_row, orphan_row].into_iter().chain(source_rows);
 
     let table = Table::new(
@@ -77,10 +81,13 @@ pub fn render(frame: &mut Frame<'_>, area: Rect, app: &TuiApp, focused: bool) {
         ],
     )
     .header(header)
+    .highlight_symbol("▶ ")
+    .highlight_spacing(HighlightSpacing::Always)
     .block(
         Block::default()
             .title(tab_title(app))
             .borders(Borders::ALL)
+            .border_type(theme::border_type())
             .border_style(theme::border_style(focused)),
     )
     .column_spacing(1);
@@ -88,6 +95,21 @@ pub fn render(frame: &mut Frame<'_>, area: Rect, app: &TuiApp, focused: bool) {
     let mut state = TableState::default().with_selected(Some(app.source_list.focused));
     crate::tui::theme::clear(frame, area);
     frame.render_stateful_widget(table, area, &mut state);
+
+    let viewport = area.height.saturating_sub(3) as usize;
+    if total_rows > viewport {
+        let mut scrollbar_state = ScrollbarState::new(total_rows)
+            .viewport_content_length(viewport)
+            .position(app.source_list.focused);
+        frame.render_stateful_widget(
+            Scrollbar::new(ScrollbarOrientation::VerticalRight)
+                .style(theme::muted_style())
+                .begin_symbol(None)
+                .end_symbol(None),
+            area,
+            &mut scrollbar_state,
+        );
+    }
 }
 
 fn tab_title(app: &TuiApp) -> Line<'static> {

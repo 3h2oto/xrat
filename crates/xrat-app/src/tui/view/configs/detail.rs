@@ -22,7 +22,7 @@ pub fn render(frame: &mut Frame<'_>, area: Rect, app: &TuiApp, focused: bool) {
         lines,
         &app.panel_scroll.detail,
         PanelStyle {
-            title: numbered_title(3, "Detail"),
+            title: numbered_title(2, "Detail"),
             focused,
             right_pad: RIGHT_PAD,
             wrap_trim: true,
@@ -57,13 +57,12 @@ fn detail_lines<'a>(
     let content_width = area.width.saturating_sub(2 + RIGHT_PAD) as usize;
     match config {
         Some(config) => {
-            let mut lines = vec![
-                Line::styled(
-                    format!("{} {}", config.display_ref(), config.display_name()),
-                    theme::accent_style().add_modifier(Modifier::BOLD),
-                ),
-                Line::raw(""),
-            ];
+            let mut lines = vec![Line::styled(
+                format!("{} {}", config.display_ref(), config.display_name()),
+                theme::accent_style().add_modifier(Modifier::BOLD),
+            )];
+
+            push_section(&mut lines, "Connection", content_width);
             push_detail(
                 &mut lines,
                 "ID",
@@ -72,6 +71,13 @@ fn detail_lines<'a>(
                 content_width,
             );
             push_detail(&mut lines, "Ref", &config.r#ref, LABEL_WIDTH, content_width);
+            push_detail(
+                &mut lines,
+                "Subscription",
+                source_label,
+                LABEL_WIDTH,
+                content_width,
+            );
             push_styled_detail(
                 &mut lines,
                 "Protocol",
@@ -94,6 +100,24 @@ fn detail_lines<'a>(
                 LABEL_WIDTH,
                 content_width,
             );
+            if let Some(fronting) = config.fronting_label() {
+                push_detail(
+                    &mut lines,
+                    "Fronting",
+                    format!("{fronting} (dial endpoint, origin unknown)"),
+                    LABEL_WIDTH,
+                    content_width,
+                );
+            }
+
+            let has_metrics = metric_columns.icmp
+                || metric_columns.tcp
+                || metric_columns.real_delay
+                || metric_columns.download
+                || metric_columns.upload;
+            if has_metrics {
+                push_section(&mut lines, "Metrics", content_width);
+            }
             if metric_columns.icmp {
                 push_styled_detail(
                     &mut lines,
@@ -152,7 +176,9 @@ fn detail_lines<'a>(
                     content_width,
                 );
             }
+
             if metric_columns.country {
+                push_section(&mut lines, "Geo & Location", content_width);
                 push_detail(
                     &mut lines,
                     "Country",
@@ -175,19 +201,13 @@ fn detail_lines<'a>(
                     content_width,
                 );
             }
-            if let Some(fronting) = config.fronting_label() {
-                push_detail(
-                    &mut lines,
-                    "Fronting",
-                    format!("{fronting} (dial endpoint, origin unknown)"),
-                    LABEL_WIDTH,
-                    content_width,
-                );
-            }
-            push_detail(
+
+            push_section(&mut lines, "Status", content_width);
+            push_styled_detail(
                 &mut lines,
-                "Subscription",
-                source_label,
+                "Active",
+                yes_no(config.is_active),
+                theme::available_style(config.is_active),
                 LABEL_WIDTH,
                 content_width,
             );
@@ -196,14 +216,6 @@ fn detail_lines<'a>(
                 "Enabled",
                 yes_no(config.is_enabled),
                 theme::available_style(config.is_enabled),
-                LABEL_WIDTH,
-                content_width,
-            );
-            push_styled_detail(
-                &mut lines,
-                "Active",
-                yes_no(config.is_active),
-                theme::available_style(config.is_active),
                 LABEL_WIDTH,
                 content_width,
             );
@@ -219,7 +231,6 @@ fn detail_lines<'a>(
                 LABEL_WIDTH,
                 content_width,
             );
-            lines.push(Line::raw(""));
             push_styled_detail(
                 &mut lines,
                 "Failure",
@@ -244,6 +255,21 @@ fn detail_lines<'a>(
             Line::raw("or add one with `xrat add <config-uri>`."),
         ],
     }
+}
+
+fn push_section(lines: &mut Vec<Line<'_>>, title: &str, width: usize) {
+    lines.push(Line::raw(""));
+    let prefix = format!("── {title} ");
+    let remaining = width.saturating_sub(prefix.chars().count());
+    let separator = if remaining >= 2 {
+        format!("{prefix}{}", "─".repeat(remaining))
+    } else {
+        format!("── {title} ──")
+    };
+    lines.push(Line::styled(
+        separator,
+        theme::muted_style().add_modifier(Modifier::BOLD),
+    ));
 }
 
 fn yes_no(value: bool) -> &'static str {
@@ -308,5 +334,51 @@ mod tests {
         assert!(text.contains("Real Delay"));
         assert!(!text.contains("Download"));
         assert!(!text.contains("Country"));
+        assert!(!text.contains("Geo & Location"));
+        assert!(text.contains("── Connection ─"));
+        assert!(text.contains("Subscription"));
+    }
+
+    #[test]
+    fn detail_lines_shows_geo_when_country_enabled() {
+        let metric_columns = TuiMetricColumns {
+            country: true,
+            ..Default::default()
+        };
+        let row = row();
+        let lines = detail_lines(
+            Rect::new(0, 0, 80, 24),
+            Some(&row),
+            "my-sub",
+            metric_columns,
+        );
+        let text = lines
+            .iter()
+            .map(|line| line.to_string())
+            .collect::<Vec<_>>()
+            .join("\n");
+
+        assert!(text.contains("── Geo & Location ─"));
+        assert!(text.contains("Country"));
+        assert!(text.contains("Subscription"));
+    }
+
+    #[test]
+    fn push_section_fills_content_width() {
+        let mut lines = Vec::new();
+        push_section(&mut lines, "Connection", 35);
+        assert_eq!(lines.len(), 2);
+        assert_eq!(lines[0].to_string(), "");
+        let section = lines[1].to_string();
+        assert_eq!(section.chars().count(), 35);
+        assert_eq!(section, "── Connection ─────────────────────");
+    }
+
+    #[test]
+    fn push_section_falls_back_when_width_is_small() {
+        let mut lines = Vec::new();
+        push_section(&mut lines, "Connection", 10);
+        assert_eq!(lines.len(), 2);
+        assert_eq!(lines[1].to_string(), "── Connection ──");
     }
 }

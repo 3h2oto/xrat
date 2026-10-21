@@ -112,6 +112,9 @@ pub(super) fn action_for_settings_modal_key(key: KeyEvent, mode: SettingsMode) -
     if key.modifiers.contains(KeyModifiers::CONTROL) && key.code == KeyCode::Char('u') {
         return TuiAction::SettingsClearInput;
     }
+    if key.modifiers.contains(KeyModifiers::CONTROL) && key.code == KeyCode::Char('w') {
+        return TuiAction::SettingsDeleteWord;
+    }
     if key.modifiers.contains(KeyModifiers::CONTROL) && key.code == KeyCode::Char('s') {
         return TuiAction::SettingsSave;
     }
@@ -136,10 +139,10 @@ pub(super) fn action_for_settings_modal_key(key: KeyEvent, mode: SettingsMode) -
             KeyCode::Char('/') => TuiAction::SettingsBeginSearch,
             KeyCode::Enter | KeyCode::Char(' ') => TuiAction::SettingsSubmit,
             KeyCode::Char('r') => TuiAction::SettingsReset,
-            KeyCode::Left => TuiAction::SettingsFocusSections,
-            KeyCode::Right => TuiAction::SettingsFocusFields,
-            KeyCode::Char('h') => TuiAction::SettingsCycle(-1),
-            KeyCode::Char('l') => TuiAction::SettingsCycle(1),
+            KeyCode::Left | KeyCode::Char('h') => TuiAction::SettingsFocusSections,
+            KeyCode::Right | KeyCode::Char('l') => TuiAction::SettingsFocusFields,
+            KeyCode::Char('[') | KeyCode::Char('<') => TuiAction::SettingsCycle(-1),
+            KeyCode::Char(']') | KeyCode::Char('>') => TuiAction::SettingsCycle(1),
             _ => TuiAction::None,
         },
         SettingsMode::DiscardConfirm => TuiAction::None,
@@ -172,6 +175,9 @@ pub fn action_for_split_modal_key(key: KeyEvent, mode: SplitModalMode) -> TuiAct
     }
     if key.modifiers.contains(KeyModifiers::CONTROL) && key.code == KeyCode::Char('u') {
         return TuiAction::SplitClearInput;
+    }
+    if key.modifiers.contains(KeyModifiers::CONTROL) && key.code == KeyCode::Char('w') {
+        return TuiAction::SplitDeleteWord;
     }
     if key.modifiers.contains(KeyModifiers::CONTROL) && key.code == KeyCode::Char('s') {
         return TuiAction::SplitSave;

@@ -9,6 +9,7 @@ pub async fn run(context: &AppContext) -> crate::app::Result<()> {
             .resolve(&context.app_config.tui.theme)
             .map_err(crate::app::AppError::InvalidArgument)?,
     );
+    crate::tui::theme::set_border_type(context.app_config.tui.border_style.to_border_type());
     let mut terminal = TerminalSession::enter()?;
     let data = TuiData::load(&context, false).await?;
     let mut app = TuiApp::with_data(data);
@@ -565,17 +566,59 @@ pub async fn run(context: &AppContext) -> crate::app::Result<()> {
                     if confirmed_clear_events {
                         tasks::run_clear_events(&context, &mut app, &logs_tx).await;
                     }
-                    if let Some((config_id, config_name)) = qr_config_id {
-                        tasks::open_qr_for_config(&context, &mut app, config_id, config_name).await;
+                    if matches!(action, crate::tui::app::TuiAction::OpenQrFocused) {
+                        if !is_sources_view {
+                            if let Some((config_id, config_name)) = qr_config_id {
+                                tasks::open_qr_for_config(
+                                    &context,
+                                    &mut app,
+                                    config_id,
+                                    config_name,
+                                )
+                                .await;
+                            } else {
+                                app.set_chrome_message(
+                                    "no config selected to show QR".to_string(),
+                                    true,
+                                );
+                            }
+                        } else if let Some((source_name, source_url)) = qr_source {
+                            tasks::open_qr_for_source(&mut app, source_name, source_url);
+                        } else if app.focused_source().is_none() {
+                            app.set_chrome_message(
+                                "select a subscription to show QR".to_string(),
+                                true,
+                            );
+                        } else {
+                            app.set_chrome_message(
+                                "subscription has no URL to show QR".to_string(),
+                                true,
+                            );
+                        }
                     }
-                    if let Some((source_name, source_url)) = qr_source {
-                        tasks::open_qr_for_source(&mut app, source_name, source_url);
-                    }
-                    if let Some(config_id) = copy_focused_id {
-                        tasks::copy_config_uri(&context, &mut app, config_id).await;
-                    }
-                    if let Some((source_name, source_url)) = copy_focused_source {
-                        tasks::copy_source_uri(&mut app, source_name, source_url);
+                    if matches!(action, crate::tui::app::TuiAction::CopyFocused) {
+                        if !is_sources_view {
+                            if let Some(config_id) = copy_focused_id {
+                                tasks::copy_config_uri(&context, &mut app, config_id).await;
+                            } else {
+                                app.set_chrome_message(
+                                    "no config selected to copy".to_string(),
+                                    true,
+                                );
+                            }
+                        } else if let Some((source_name, source_url)) = copy_focused_source {
+                            tasks::copy_source_uri(&mut app, source_name, source_url);
+                        } else if app.focused_source().is_none() {
+                            app.set_chrome_message(
+                                "select a subscription to copy".to_string(),
+                                true,
+                            );
+                        } else {
+                            app.set_chrome_message(
+                                "subscription has no URL to copy".to_string(),
+                                true,
+                            );
+                        }
                     }
                     if matches!(action, crate::tui::app::TuiAction::OpenQrApiUrl) {
                         tasks::open_qr_for_api_url(&mut app);

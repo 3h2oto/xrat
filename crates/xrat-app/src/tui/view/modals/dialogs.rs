@@ -39,6 +39,7 @@ pub fn render_import_modal(frame: &mut Frame<'_>, area: Rect, app: &TuiApp) {
         .title(Line::styled(title, theme::accent_style().bold()))
         .title_bottom(footer)
         .borders(Borders::ALL)
+        .border_type(theme::border_type())
         .border_style(theme::muted_style())
         .padding(Padding::horizontal(CONTENT_PADDING));
     let inner = outer.inner(modal_area);
@@ -118,6 +119,7 @@ pub fn render_rename_modal(frame: &mut Frame<'_>, area: Rect, app: &TuiApp) {
         .title(Line::styled(title, theme::accent_style().bold()))
         .title_bottom(footer)
         .borders(Borders::ALL)
+        .border_type(theme::border_type())
         .border_style(theme::muted_style())
         .padding(Padding::horizontal(CONTENT_PADDING));
     let inner = outer.inner(modal_area);

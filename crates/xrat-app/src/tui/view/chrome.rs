@@ -2,6 +2,7 @@ use ratatui::Frame;
 use ratatui::layout::Rect;
 use ratatui::text::{Line, Span};
 use ratatui::widgets::Paragraph;
+use unicode_width::{UnicodeWidthChar, UnicodeWidthStr};
 
 use crate::tui::app::TuiApp;
 use crate::tui::keymap;
@@ -20,20 +21,74 @@ pub fn render_key_bar(frame: &mut Frame<'_>, area: Rect, app: &TuiApp) {
         ));
     }
 
+    brand.push(Span::raw("  "));
+    if app.data.runtime.pid_running
+        && (app.data.runtime.status == "running"
+            || app.data.runtime.status == "connected"
+            || app.data.runtime.status == "degraded")
+    {
+        let active = app
+            .data
+            .runtime
+            .active_config
+            .as_deref()
+            .or(app.data.runtime.session_config.as_deref())
+            .unwrap_or("connected");
+        let active_display = if active.chars().count() > 24 {
+            let truncated: String = active.chars().take(23).collect();
+            format!("{truncated}…")
+        } else {
+            active.to_string()
+        };
+        let dot_style = if app.data.runtime.status == "degraded" {
+            theme::warning_style().bold()
+        } else {
+            theme::success_style().bold()
+        };
+        let mode = app.data.runtime.mode_label();
+        brand.push(Span::styled("● ", dot_style));
+        brand.push(Span::styled(active_display, theme::success_style()));
+        brand.push(Span::styled(format!(" [{mode}]"), theme::muted_style()));
+    } else if app.runtime_activity_in_flight() {
+        brand.push(Span::styled(
+            format!("{} connecting", app.spinner_frame()),
+            theme::warning_style().bold(),
+        ));
+    } else {
+        brand.push(Span::styled("○ idle", theme::muted_style()));
+    }
+
     let actions = [
         Span::styled("Keybindings: ", theme::muted_style()),
         Span::styled("?", theme::accent_style().bold()),
     ];
 
-    let center = center_spans(app);
+    let total = area.width as usize;
+    let center = center_spans(app, total);
     let center_width: usize = center.iter().map(Span::width).sum();
 
-    let total = area.width as usize;
     let brand_width: usize = brand.iter().map(Span::width).sum();
     let actions_width: usize = actions.iter().map(Span::width).sum();
+
+    let center_fits = brand_width + actions_width + center_width + theme::EDGE_MARGIN <= total;
+    let essential = app.confirm.is_some()
+        || app.pending_bulk.is_some()
+        || app.pending_chord.is_some()
+        || app.chrome_message.is_some();
+    if !center_fits && essential {
+        frame.render_widget(Paragraph::new(Line::from(center)), area);
+        return;
+    }
+
+    let (center, center_width) = if center_fits {
+        (center, center_width)
+    } else {
+        (Vec::new(), 0)
+    };
+
     let remaining = total
         .saturating_sub(brand_width + actions_width + center_width + theme::EDGE_MARGIN)
-        .max(3);
+        .max(1);
     let left_gap = remaining / 2;
     let right_gap = remaining - left_gap;
 
@@ -48,14 +103,17 @@ pub fn render_key_bar(frame: &mut Frame<'_>, area: Rect, app: &TuiApp) {
 
 /// Center segment of the key bar. Priority: an inline destructive confirm
 /// (single-row or bulk — there are no confirm modals), then an armed chord
-/// hint.
-fn center_spans(app: &TuiApp) -> Vec<Span<'static>> {
+/// hint, then transient messages, then contextual shortcuts.
+fn center_spans(app: &TuiApp, width: usize) -> Vec<Span<'static>> {
     if let Some(confirm) = &app.confirm {
-        return confirm_prompt(confirm.prompt.clone());
+        return confirm_prompt(confirm.prompt.clone(), width);
     }
     if let Some(op) = app.pending_bulk {
         let count = app.bulk_config_ids(op).len();
-        return confirm_prompt(format!("{} {count} {} configs?", op.verb(), op.target()));
+        return confirm_prompt(
+            format!("{} {count} {} configs?", op.verb(), op.target()),
+            width,
+        );
     }
     if let Some(leader) = app.pending_chord {
         return chord_hint(leader);
@@ -68,11 +126,87 @@ fn center_spans(app: &TuiApp) -> Vec<Span<'static>> {
         };
         return vec![Span::styled(message.text.clone(), style)];
     }
-    Vec::new()
+    contextual_hints(app)
+}
+
+fn contextual_hints(app: &TuiApp) -> Vec<Span<'static>> {
+    let hints: &[(&str, &str)] = match app.active_view {
+        crate::tui::app::TuiView::Configs => match app.focused_panel {
+            crate::tui::app::TuiPanel::Table => &[
+                ("↵", "connect"),
+                ("t", "test"),
+                ("/", "search"),
+                ("s", "sort"),
+                ("y", "QR"),
+                ("c", "copy"),
+                ("d", "del"),
+                ("⇥", "panes"),
+            ],
+            crate::tui::app::TuiPanel::Detail => &[
+                ("j/k", "scroll"),
+                ("y", "QR"),
+                ("c", "copy"),
+                ("e/x", "toggle"),
+                ("⇥", "panes"),
+            ],
+            crate::tui::app::TuiPanel::Log => &[
+                ("[/]", "tabs"),
+                ("C", "clear"),
+                ("j/k", "scroll"),
+                ("⇥", "panes"),
+            ],
+            crate::tui::app::TuiPanel::Runtime => &[
+                ("K", "stop"),
+                ("R", "restart"),
+                ("U", "TUN"),
+                ("G", "split"),
+                ("⇥", "panes"),
+            ],
+        },
+        crate::tui::app::TuiView::Sources => &[
+            ("↵", "view"),
+            ("r", "refresh"),
+            ("u", "update all"),
+            ("n", "rename"),
+            ("d", "del"),
+            ("y", "QR"),
+            ("c", "copy"),
+            ("⇥", "panes"),
+        ],
+    };
+
+    let mut spans = Vec::with_capacity(hints.len() * 3);
+    for (index, (key, label)) in hints.iter().enumerate() {
+        if index > 0 {
+            spans.push(Span::styled(" · ", theme::muted_style()));
+        }
+        spans.push(Span::styled(*key, theme::accent_style().bold()));
+        spans.push(Span::styled(format!(" {label}"), theme::muted_style()));
+    }
+    spans
 }
 
 /// `<prompt>  y / n` with the prompt in danger red and the keys colour-coded.
-fn confirm_prompt(text: String) -> Vec<Span<'static>> {
+fn confirm_prompt(text: String, width: usize) -> Vec<Span<'static>> {
+    let prompt_width = width.saturating_sub("  y / n".width());
+    let text = if text.width() > prompt_width {
+        let mut shortened = String::new();
+        let mut used = 0;
+        for character in text.chars() {
+            let character_width = character.width().unwrap_or(0);
+            if used + character_width > prompt_width.saturating_sub(1) {
+                break;
+            }
+            shortened.push(character);
+            used += character_width;
+        }
+        if prompt_width > 0 {
+            shortened.push('…');
+        }
+        shortened
+    } else {
+        text
+    };
     vec![
         Span::styled(text, theme::failure_style().bold()),
         Span::raw("  "),
@@ -104,3 +238,7 @@ fn chord_hint(leader: char) -> Vec<Span<'static>> {
     spans.push(Span::styled("   esc cancel", theme::muted_style()));
     spans
 }
+
+#[cfg(test)]
+#[path = "chrome_tests.rs"]
+mod tests;

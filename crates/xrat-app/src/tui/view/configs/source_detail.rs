@@ -19,7 +19,7 @@ pub fn render(frame: &mut Frame<'_>, area: Rect, app: &TuiApp, focused: bool) {
         lines,
         &app.panel_scroll.detail,
         PanelStyle {
-            title: numbered_title(3, "Detail"),
+            title: numbered_title(2, "Detail"),
             focused,
             right_pad: RIGHT_PAD,
             wrap_trim: true,

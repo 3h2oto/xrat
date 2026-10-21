@@ -180,7 +180,11 @@ pub fn render_help(frame: &mut Frame<'_>, area: Rect) {
     let area = centered_rect_fixed(inner_width + 2, height, area);
 
     crate::tui::theme::clear(frame, area);
-    let block = Block::default().title(" Help ").borders(Borders::ALL);
+    let block = Block::default()
+        .title(" Help ")
+        .borders(Borders::ALL)
+        .border_type(theme::border_type())
+        .border_style(theme::accent_style());
     let inner = block.inner(area);
     frame.render_widget(block, area);
 

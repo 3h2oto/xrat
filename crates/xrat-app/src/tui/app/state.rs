@@ -15,15 +15,21 @@ impl TuiApp {
             TuiAction::BeginSearch => self.begin_search(),
             TuiAction::SearchInput(ch) => self.push_search_char(ch),
             TuiAction::SearchBackspace => self.pop_search_char(),
+            TuiAction::SearchDeleteWord => self.delete_search_word(),
             TuiAction::ClearSearch => self.clear_search(),
             TuiAction::ConfirmSearch => self.close_search(),
             TuiAction::CycleSort => self.cycle_config_sort(),
+            TuiAction::CycleSortReverse => self.cycle_config_sort_reverse(),
             TuiAction::CycleFilter => self.cycle_config_filter(),
             TuiAction::CycleProtocolFilter => self.cycle_protocol_filter(),
             TuiAction::ToggleDeletedFilter => self.toggle_deleted_filter(),
             TuiAction::FocusNextPanel => self.focus_panel(self.focused_panel.next()),
             TuiAction::FocusPrevPanel => self.focus_panel(self.focused_panel.prev()),
             TuiAction::FocusPanel(panel) => self.focus_panel(panel),
+            TuiAction::SelectSource => {
+                self.switch_view(TuiView::Configs);
+                self.focus_panel(TuiPanel::Table);
+            }
             TuiAction::RequestDeleteFocused => self.request_delete_focused(),
             TuiAction::RequestPurgeFocused => self.request_purge_focused(),
             TuiAction::RequestDeleteSource => self.request_delete_source(),
@@ -88,6 +94,7 @@ impl TuiApp {
             TuiAction::SettingsBeginSearch => self.settings_begin_search(),
             TuiAction::SettingsInput(ch) => self.settings_input(ch),
             TuiAction::SettingsBackspace => self.settings_backspace(),
+            TuiAction::SettingsDeleteWord => self.settings_delete_word(),
             TuiAction::SettingsClearInput => self.settings_clear_input(),
             TuiAction::SettingsSubmit => self.settings_submit(),
             TuiAction::SettingsCycle(direction) => self.settings_cycle(direction),
@@ -102,6 +109,7 @@ impl TuiApp {
             TuiAction::SplitBeginSearch => self.split_begin_search(),
             TuiAction::SplitInput(ch) => self.split_input(ch),
             TuiAction::SplitBackspace => self.split_backspace(),
+            TuiAction::SplitDeleteWord => self.split_delete_word(),
             TuiAction::SplitClearInput => self.split_clear_input(),
             TuiAction::SplitSubmit => self.split_submit(),
             TuiAction::SplitDeleteFocused => self.split_delete_focused(),

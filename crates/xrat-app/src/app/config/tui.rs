@@ -12,9 +12,47 @@ pub use colors::ThemeColor;
 pub use custom::CustomTheme;
 pub use selection::ThemeName;
 
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+pub enum TuiBorderStyle {
+    #[default]
+    Plain,
+    Rounded,
+}
+
+impl TuiBorderStyle {
+    pub const CANONICAL_NAMES: &'static [&'static str] = &["plain", "rounded"];
+
+    pub fn to_border_type(self) -> ratatui::widgets::BorderType {
+        match self {
+            Self::Plain => ratatui::widgets::BorderType::Plain,
+            Self::Rounded => ratatui::widgets::BorderType::Rounded,
+        }
+    }
+
+    pub fn parse(s: &str) -> Result<Self, String> {
+        match s.trim().to_ascii_lowercase().as_str() {
+            "plain" => Ok(Self::Plain),
+            "rounded" => Ok(Self::Rounded),
+            other => Err(format!(
+                "invalid border_style \"{other}\"; choose from: plain, rounded"
+            )),
+        }
+    }
+
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::Plain => "plain",
+            Self::Rounded => "rounded",
+        }
+    }
+}
+
 #[derive(Clone, Debug, Default, Serialize, PartialEq, Eq)]
 pub struct TuiSettings {
     pub theme: ThemeName,
+    #[serde(default)]
+    pub border_style: TuiBorderStyle,
     #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
     pub themes: BTreeMap<String, CustomTheme>,
 }
@@ -23,6 +61,8 @@ pub struct TuiSettings {
 #[serde(default, deny_unknown_fields)]
 struct RawTuiSettings {
     theme: ThemeName,
+    #[serde(default)]
+    border_style: TuiBorderStyle,
     themes: BTreeMap<String, CustomTheme>,
 }
 
@@ -31,6 +71,7 @@ impl<'de> Deserialize<'de> for TuiSettings {
         let raw = RawTuiSettings::deserialize(deserializer)?;
         let settings = Self {
             theme: raw.theme,
+            border_style: raw.border_style,
             themes: raw.themes,
         };
         settings.validate().map_err(serde::de::Error::custom)?;

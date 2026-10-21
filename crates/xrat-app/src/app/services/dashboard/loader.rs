@@ -13,6 +13,7 @@ pub struct DashboardSnapshot {
     pub sources: Vec<SubscriptionRecord>,
     pub runtime: RuntimeStatusSnapshot,
     pub tun_label: Option<String>,
+    pub tun_active: bool,
     pub local_address: Option<String>,
     pub latest_run: Option<ConnectionTestRunRecord>,
     pub test_results: Vec<ConnectionTestRecord>,
@@ -86,6 +87,7 @@ impl<'a> DashboardService<'a> {
             &xrat_support::readiness::RuntimeProcessPorts::default(),
         );
         let split_summary = crate::app::services::tun_control::split_summary(&tun_state);
+        let tun_active = tun_state.active;
         let tun_label = if tun_state.active {
             Some(format!(
                 "{} ({}) · {split_summary}",
@@ -130,6 +132,7 @@ impl<'a> DashboardService<'a> {
             sources,
             runtime,
             tun_label,
+            tun_active,
             latest_run,
             test_results,
             logs,

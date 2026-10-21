@@ -37,8 +37,10 @@ pub fn render(frame: &mut Frame<'_>, area: Rect, app: &TuiApp, focused: bool) {
     } else {
         format!("[{}]", rt.status)
     };
-    let status_style = if rt.status == "connected" {
+    let status_style = if rt.status == "connected" || rt.status == "running" {
         theme::success_style().add_modifier(Modifier::BOLD)
+    } else if rt.status == "degraded" {
+        theme::warning_style().add_modifier(Modifier::BOLD)
     } else if rt.status == "stopped" {
         theme::muted_style().add_modifier(Modifier::BOLD)
     } else if rt.status == "error" || rt.status == "failed" {
