@@ -61,6 +61,32 @@ replacement, and crash recovery adapters before removing Windows TUN rejection.
 
 Standard GitHub runners provide native x64 and ARM64 build/test environments.
 Use those first, including service, driver, and network tests where supported.
+The workflow downloads checksum-pinned Xray 26.9.30 and sing-box 1.13.21 binaries
+for each native architecture. Shared generated-config validators and local proxy
+success/failure/timeout/cancellation fixtures exercise both engines. Engine
+receipts record source, version, architecture, and archive/executable hashes.
+These proxy fixtures do not exercise TUN capture or privileged network cleanup.
+
+The isolated WinINET acceptance step changes runner settings temporarily and
+checks manual/PAC transitions, restoration, and preservation of external changes.
+The ordinary-owner pipe test disables the token's Administrators group to check
+client read/write access without granting pipe-instance creation. Generated shell
+scripts are executed in Windows PowerShell 5.1 and PowerShell 7 where available.
+
+Acceptance harnesses are Rust integration tests. `tests/windows_installer.rs`
+invokes the actual installer helpers through a child PowerShell process; fixture
+creation, assertions, and test reporting are owned by Rust. Set
+`XRAT_TEST_POWERSHELL` to `powershell.exe` or `pwsh.exe`, then run
+`cargo test --locked -p xrat --test windows_installer -- --ignored`.
+`tests/windows_packaging.rs` accepts a native ZIP in `XRAT_WINDOWS_ARCHIVE` and
+checks daemon lifecycle, HTTP assets/login, and updater transactions with
+`cargo test --locked -p xrat --test windows_packaging -- --ignored`.
+Pinned Windows SDK engine tests download and verify their own fixtures; run
+`cargo test --locked -p xrat-sdk --test native_windows -- --ignored --test-threads=1`.
+These tests are ignored in ordinary workspace runs because they require external
+tools, network access, or native artifacts. The Windows workflow runs them
+explicitly on each architecture.
+
 Interactive Windows Terminal, desktop-session behavior, UAC, and reboot checks
 must retain explicit pending acceptance until exercised on suitable Windows 11
 machines; compilation or mocked tests cannot stand in for those results.

@@ -104,3 +104,7 @@ impl Backend for WinInet {
         Ok(())
     }
 }
+
+#[cfg(test)]
+#[path = "windows_tests.rs"]
+mod tests;

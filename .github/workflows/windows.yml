@@ -50,16 +50,12 @@ jobs:
         include:
           - target: x86_64-pc-windows-msvc
             os: windows-latest
+            architecture: x64
           - target: aarch64-pc-windows-msvc
             os: windows-11-arm
+            architecture: arm64
     steps:
       - uses: actions/checkout@v5
-      - name: Test installer (Windows PowerShell 5.1)
-        shell: powershell
-        run: ./tests/install/windows.ps1
-      - name: Test installer (PowerShell 7)
-        shell: pwsh
-        run: ./tests/install/windows.ps1
       - uses: dtolnay/rust-toolchain@stable
         with:
           targets: ${{ matrix.target }}
@@ -95,11 +91,33 @@ jobs:
       - name: Test
         run: cargo test --locked --workspace --exclude xrat-web --target ${{ matrix.target }}
 
+      - name: Test installer (Windows PowerShell 5.1)
+        env:
+          XRAT_TEST_POWERSHELL: powershell.exe
+        run: cargo test --locked -p xrat --test windows_installer --target ${{ matrix.target }} -- --ignored
+      - name: Test installer (PowerShell 7)
+        env:
+          XRAT_TEST_POWERSHELL: pwsh.exe
+        run: cargo test --locked -p xrat --test windows_installer --target ${{ matrix.target }} -- --ignored
+
       - name: Lint backend
         run: cargo clippy --locked --workspace --exclude xrat-web --all-targets --target ${{ matrix.target }} -- -D warnings
 
       - name: Check browser-safe contracts
         run: cargo check --locked -p xrat-web --no-default-features --target ${{ matrix.target }}
+
+      - name: Test native desktop proxy restoration
+        run: cargo test --locked -p xrat-app --lib --target ${{ matrix.target }} native_wininet_restores_owned_settings_and_preserves_conflicts -- --ignored
+
+      - name: Test real proxy engines and cancellation
+        env:
+          XRAT_WINDOWS_ENGINE_RECEIPT: ${{ runner.temp }}/xrat-engines/receipts.json
+        run: cargo test --locked -p xrat-sdk --test native_windows --target ${{ matrix.target }} -- --ignored --test-threads=1
+      - uses: actions/upload-artifact@v4
+        if: ${{ always() }}
+        with:
+          name: windows-engine-receipts-${{ matrix.architecture }}
+          path: ${{ runner.temp }}/xrat-engines/receipts.json
 
       # Both runners are native, so the produced binary can be executed here.
       # The Web UI bundle is embedded at compile time; a binary without it
@@ -141,7 +159,9 @@ jobs:
 
       - name: Test packaged daemon and served browser assets
         shell: pwsh
-        run: ./tests/install/windows-runtime.ps1 -Archive (Get-ChildItem xrat-*.zip | Select-Object -First 1).FullName
+        run: |
+          $env:XRAT_WINDOWS_ARCHIVE = (Get-ChildItem xrat-*.zip | Select-Object -First 1).FullName
+          cargo test --locked -p xrat --test windows_packaging --target '${{ matrix.target }}' -- --ignored --test-threads=1
 
       - uses: actions/upload-artifact@v4
         with:
