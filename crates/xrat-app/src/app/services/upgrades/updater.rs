@@ -1,6 +1,9 @@
 use super::*;
 
-pub async fn run(config_path: &Path, args: &UpgradeArgs) -> crate::app::Result<()> {
+pub(crate) async fn run(
+    config_path: &Path,
+    args: &UpgradeArgs,
+) -> crate::app::Result<super::UpgradeOutcome> {
     let target = current_exe()?;
 
     if args.source {
@@ -50,6 +53,7 @@ pub(crate) fn run_post_upgrade_migrations_with_spawner(
     Ok(())
 }
 
+#[cfg(any(not(windows), test))]
 pub(crate) fn should_restore_tun(target: &Path, config_path: &Path, args: &UpgradeArgs) -> bool {
     if args.no_tun_setup {
         return false;
@@ -102,6 +106,7 @@ pub(crate) fn should_restore_tun(target: &Path, config_path: &Path, args: &Upgra
     }
 }
 
+#[cfg(any(not(windows), test))]
 pub(crate) fn should_restart_daemon(config_path: &Path, args: &UpgradeArgs) -> bool {
     if args.no_restart_daemon {
         return false;
@@ -112,6 +117,7 @@ pub(crate) fn should_restart_daemon(config_path: &Path, args: &UpgradeArgs) -> b
         .is_none_or(|c| c.runtime.tun.restart_daemon_on_upgrade)
 }
 
+#[cfg(not(windows))]
 pub(crate) fn run_post_upgrade_tun_setup_with_spawner(
     target: &Path,
     config_path: &Path,
@@ -165,6 +171,7 @@ pub(crate) fn run_post_upgrade_tun_setup_with_spawner(
     }
 }
 
+#[cfg(not(windows))]
 pub(crate) async fn restart_daemon_if_active(
     target: &Path,
     config_path: &Path,
@@ -213,6 +220,7 @@ pub(crate) async fn restart_daemon_if_active(
     restart_standalone_if_active(target, config_path, &socket_path, spawner).await;
 }
 
+#[cfg(not(windows))]
 pub(super) async fn restart_standalone_if_active(
     target: &Path,
     config_path: &Path,

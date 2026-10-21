@@ -181,7 +181,7 @@ pub(crate) async fn execute(
                     "browser upgrades cannot downgrade XRAT".into(),
                 ));
             }
-            super::upgrades::run(
+            let outcome = super::upgrades::run(
                 &context.runtime_paths.config_path,
                 &super::upgrades::UpgradeOptions {
                     version: Some(version),
@@ -192,7 +192,7 @@ pub(crate) async fn execute(
                 },
             )
             .await?;
-            return Ok("Release check completed. Installed updates require restarting XRAT; restore any required TUN capabilities on the host.".into());
+            return Ok(outcome.message());
         }
         Action::Rotation { enabled } => {
             let socket = app::daemon::ipc::default_socket_path(&context.runtime_paths.runtime_dir);
