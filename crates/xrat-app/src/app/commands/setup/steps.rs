@@ -319,19 +319,26 @@ pub fn apply_manpages() -> StepOutcome {
 
 // ---------------------------------------------------------------------------
 // xratui shim
+//
+// The shim is an extensionless `sh` script. Unix execs it directly; Windows
+// would need a `.cmd` wrapper or a registered file association that setup
+// does not create, so the step is skipped there.
 // ---------------------------------------------------------------------------
 
-fn tui_shim_path() -> Option<PathBuf> {
+#[cfg(unix)]
+pub(super) fn tui_shim_path() -> Option<PathBuf> {
     exe_dir().map(|dir| dir.join("xratui"))
 }
 
-fn tui_shim_script(xrat_path: &std::path::Path) -> String {
+#[cfg(unix)]
+pub(super) fn tui_shim_script(xrat_path: &std::path::Path) -> String {
     format!(
         "#!/usr/bin/env sh\nexec \"{}\" tui \"$@\"\n",
         xrat_path.display()
     )
 }
 
+#[cfg(unix)]
 pub fn probe_tui_shim() -> StepOutcome {
     match tui_shim_path() {
         Some(path) if path.exists() => {
@@ -345,6 +352,12 @@ pub fn probe_tui_shim() -> StepOutcome {
     }
 }
 
+#[cfg(not(unix))]
+pub fn probe_tui_shim() -> StepOutcome {
+    StepOutcome::new(STEP_TUI_SHIM, StepStatus::Skipped, false).with_detail("Unix only".to_string())
+}
+
+#[cfg(unix)]
 pub fn apply_tui_shim() -> StepOutcome {
     let Some(path) = tui_shim_path() else {
         return StepOutcome::new(STEP_TUI_SHIM, StepStatus::Skipped, false)
@@ -371,21 +384,17 @@ pub fn apply_tui_shim() -> StepOutcome {
     StepOutcome::new(STEP_TUI_SHIM, status, false).with_detail(path.display().to_string())
 }
 
+#[cfg(not(unix))]
+pub fn apply_tui_shim() -> StepOutcome {
+    StepOutcome::new(STEP_TUI_SHIM, StepStatus::Skipped, false).with_detail("Unix only".to_string())
+}
+
+#[cfg(unix)]
 fn set_executable(path: &std::path::Path) -> std::io::Result<()> {
-    #[cfg(unix)]
-    {
-        use std::os::unix::fs::PermissionsExt;
-        let mut perms = std::fs::metadata(path)?.permissions();
-        perms.set_mode(0o755);
-        std::fs::set_permissions(path, perms)
-    }
-    // Windows has no executable bit; the shim is launched through its
-    // registered file association instead.
-    #[cfg(not(unix))]
-    {
-        let _ = path;
-        Ok(())
-    }
+    use std::os::unix::fs::PermissionsExt;
+    let mut perms = std::fs::metadata(path)?.permissions();
+    perms.set_mode(0o755);
+    std::fs::set_permissions(path, perms)
 }
 
 // ---------------------------------------------------------------------------
