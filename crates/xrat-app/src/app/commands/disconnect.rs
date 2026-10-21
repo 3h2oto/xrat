@@ -43,11 +43,13 @@ pub async fn run(context: &AppContext, args: &DisconnectArgs) -> crate::app::Res
     Ok(())
 }
 
-#[cfg(test)]
+#[cfg(all(test, unix))]
 mod tests {
     use super::*;
     use crate::app::AppError;
 
+    /// The daemon IPC client only exists on Unix, so the "daemon is not
+    /// running" hint cannot be produced on Windows.
     #[tokio::test]
     async fn disconnect_returns_daemon_unreachable_hint() {
         let context = test_context("disconnect-daemon-hint").await;

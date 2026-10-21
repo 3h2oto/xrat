@@ -1,7 +1,8 @@
 use super::super::super::test_support::{test_context, test_node, test_source};
-use super::helpers::{set_running_session, spawn_sleep, write_fake_runtime_script};
+use super::helpers::{set_running_session, write_fake_runtime_script};
 use super::*;
 use crate::app::daemon::supervisor::{RuntimeReplaceResult, SupervisorEvent, SupervisorState};
+use crate::app::tests::platform::spawn_sleep;
 use tokio::sync::oneshot;
 use xrat_db::RuntimeSessionInsert;
 

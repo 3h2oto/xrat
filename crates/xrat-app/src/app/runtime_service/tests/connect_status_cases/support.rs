@@ -1,6 +1,8 @@
 use super::*;
+#[cfg(unix)]
+use crate::app::tests::platform::make_executable;
+#[cfg(unix)]
 use std::fs;
-use std::os::unix::fs::PermissionsExt;
 
 pub(super) async fn import_single_config(context: &AppContext) -> ConfigRecord {
     let summary = context
@@ -20,6 +22,7 @@ pub(super) async fn import_single_config(context: &AppContext) -> ConfigRecord {
         .expect("config should exist")
 }
 
+#[cfg(unix)]
 pub(super) async fn import_hy2_config(context: &AppContext) -> ConfigRecord {
     let node = xrat_model::Node {
         protocol: Protocol::Hy2,
@@ -55,6 +58,11 @@ pub(super) async fn import_hy2_config(context: &AppContext) -> ConfigRecord {
         .expect("config should exist")
 }
 
+/// Writes the POSIX fake runtime script used by the connect tests.
+///
+/// The fixture is a `python3` script with a shebang, so it can only be
+/// executed on Unix.
+#[cfg(unix)]
 pub(super) fn write_fake_runtime_script(context: &AppContext) {
     let fake_xray = context.runtime_paths.root_dir.join("fake-xray.py");
     fs::write(
@@ -105,9 +113,5 @@ while True:
     )
     .expect("fake runtime script should write");
 
-    let mut perms = fs::metadata(&fake_xray)
-        .expect("fake runtime script metadata should load")
-        .permissions();
-    perms.set_mode(0o755);
-    fs::set_permissions(&fake_xray, perms).expect("fake runtime script should be executable");
+    make_executable(&fake_xray);
 }

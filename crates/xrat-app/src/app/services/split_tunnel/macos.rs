@@ -108,19 +108,33 @@ mod tests {
     #[test]
     fn discovers_nested_bundles_and_keeps_all_helpers_in_the_rule() {
         let temp = tempfile::tempdir().unwrap();
-        let bundle = temp.path().join("Utilities/Demo App.app");
-        std::fs::create_dir_all(bundle.join("Contents/MacOS")).unwrap();
-        std::fs::create_dir_all(bundle.join("Contents/Frameworks/Worker.app")).unwrap();
+        let bundle = temp.path().join("Utilities").join("Demo App.app");
+        std::fs::create_dir_all(bundle.join("Contents").join("MacOS")).unwrap();
+        std::fs::create_dir_all(
+            bundle
+                .join("Contents")
+                .join("Frameworks")
+                .join("Worker.app"),
+        )
+        .unwrap();
         let apps = discover_bundles(&[temp.path().to_path_buf()]);
         assert_eq!(apps.len(), 1);
         assert_eq!(apps[0].name, "Demo App");
         assert_eq!(apps[0].rule_entry, format!("{}/", bundle.display()));
         assert_eq!(
-            bundle_directory(&bundle.join("Contents/Frameworks/Worker.app/Contents/MacOS/worker")),
+            bundle_directory(
+                &bundle
+                    .join("Contents")
+                    .join("Frameworks")
+                    .join("Worker.app")
+                    .join("Contents")
+                    .join("MacOS")
+                    .join("worker")
+            ),
             Some(bundle.clone())
         );
         assert_eq!(
-            bundle_directory(&bundle.join("Contents/MacOS/demo")),
+            bundle_directory(&bundle.join("Contents").join("MacOS").join("demo")),
             Some(bundle)
         );
     }

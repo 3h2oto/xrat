@@ -1,6 +1,8 @@
 use super::*;
 use crate::app::AppError;
 
+/// The daemon IPC client only exists on Unix, so the "daemon is not running"
+/// hint cannot be produced on Windows.
 #[tokio::test]
 async fn status_returns_daemon_unreachable_hint() {
     let context = test_context("status-daemon-hint").await;

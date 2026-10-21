@@ -4,7 +4,7 @@ use crate::cli::StatusArgs;
 
 mod display;
 
-#[cfg(test)]
+#[cfg(all(test, unix))]
 mod tests;
 
 mod handler;

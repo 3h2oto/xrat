@@ -1,8 +1,11 @@
 use super::*;
 use crate::app::config::DnsHostValue;
+#[cfg(unix)]
+use crate::app::tests::platform::{exit_status, make_executable};
+#[cfg(unix)]
 use std::fs;
-use std::os::unix::fs::PermissionsExt;
 
+#[cfg(unix)]
 #[tokio::test]
 async fn xray_preflight_uses_json_config_filename() {
     let mut context = test_context().await;
@@ -23,11 +26,7 @@ with open(config_path, "r", encoding="utf-8") as config_file:
 "#,
     )
     .expect("validator should be written");
-    let mut permissions = fs::metadata(&validator)
-        .expect("validator metadata should load")
-        .permissions();
-    permissions.set_mode(0o755);
-    fs::set_permissions(&validator, permissions).expect("validator should be executable");
+    make_executable(&validator);
     context.runtime_paths.xray_path = validator;
 
     let launch = RuntimeService::new(&context)
@@ -311,6 +310,7 @@ async fn configured_singbox_supports_vless_runtime_generation() {
     assert_eq!(config.outbounds[0]["type"], "vless");
 }
 
+#[cfg(unix)]
 #[tokio::test]
 async fn managed_singbox_launch_adds_tun_inbound_and_route() {
     let mut context = test_context().await;
@@ -340,6 +340,7 @@ async fn managed_singbox_launch_adds_tun_inbound_and_route() {
     assert_eq!(value["route"]["final"], "proxy");
 }
 
+#[cfg(unix)]
 #[tokio::test]
 async fn managed_xray_launch_adds_tun_inbound() {
     let mut context = test_context().await;
@@ -392,6 +393,7 @@ async fn managed_xray_launch_adds_tun_inbound() {
     assert!(value["dns"]["servers"].as_array().unwrap().len() >= 2);
 }
 
+#[cfg(unix)]
 #[tokio::test]
 async fn managed_xray_launch_adds_tun_ipv6_routes() {
     let mut context = test_context().await;
@@ -422,6 +424,7 @@ async fn managed_xray_launch_adds_tun_ipv6_routes() {
     );
 }
 
+#[cfg(unix)]
 #[tokio::test]
 async fn managed_xray_launch_adds_tun_dual_stack_routes() {
     let mut context = test_context().await;
@@ -453,6 +456,7 @@ async fn managed_xray_launch_adds_tun_dual_stack_routes() {
     );
 }
 
+#[cfg(unix)]
 #[tokio::test]
 async fn managed_xray_launch_omits_routes_when_auto_route_false() {
     let mut context = test_context().await;
@@ -480,6 +484,7 @@ async fn managed_xray_launch_omits_routes_when_auto_route_false() {
     assert!(tun["settings"].get("autoSystemRoutingTable").is_none());
 }
 
+#[cfg(unix)]
 #[tokio::test]
 async fn tun_rejects_v2ray_engine() {
     let mut context = test_context().await;
@@ -494,22 +499,27 @@ async fn tun_rejects_v2ray_engine() {
     assert!(error.to_string().contains("V2Ray"));
 }
 
+#[cfg(unix)]
 struct MockHostResolver {
     ip: std::net::IpAddr,
 }
+#[cfg(unix)]
 impl xrat_support::net::HostResolver for MockHostResolver {
     fn resolve(&self, _host: &str, _port: u16) -> Option<std::net::IpAddr> {
         Some(self.ip)
     }
 }
 
+#[cfg(unix)]
 struct FailingHostResolver;
+#[cfg(unix)]
 impl xrat_support::net::HostResolver for FailingHostResolver {
     fn resolve(&self, _host: &str, _port: u16) -> Option<std::net::IpAddr> {
         None
     }
 }
 
+#[cfg(unix)]
 #[tokio::test]
 async fn managed_xray_launch_resolves_node_domain_and_preserves_sni() {
     let mut context = test_context().await;
@@ -546,6 +556,7 @@ async fn managed_xray_launch_resolves_node_domain_and_preserves_sni() {
     assert_eq!(value["dns"]["hosts"]["example.com"], "198.51.100.1");
 }
 
+#[cfg(unix)]
 #[tokio::test]
 async fn managed_xray_launch_rejects_unresolvable_endpoint_for_tun() {
     let mut context = test_context().await;
@@ -575,6 +586,7 @@ async fn managed_xray_launch_rejects_unresolvable_endpoint_for_tun() {
     );
 }
 
+#[cfg(unix)]
 #[tokio::test]
 async fn managed_xray_launch_rejects_unresolvable_dns_provider_for_tun() {
     let mut context = test_context().await;
@@ -601,6 +613,25 @@ async fn managed_xray_launch_rejects_unresolvable_dns_provider_for_tun() {
         error.to_string().contains(
             "failed to resolve DNS provider host \"custom-dns.example.com\" for TUN capture"
         ),
+        "unexpected error: {error}"
+    );
+}
+
+/// Windows has no managed TUN capture, so the launch must be refused there.
+#[cfg(not(unix))]
+#[tokio::test]
+async fn managed_tun_capture_is_refused_without_a_supported_platform() {
+    let mut context = test_context().await;
+    context.app_config.runtime.engine = "xray".to_string();
+    context.app_config.runtime.tun.enabled = true;
+    let config = imported_config(&context, test_node()).await;
+
+    let error = match RuntimeService::new(&context).resolve_launch(&config) {
+        Ok(_) => panic!("TUN capture must be refused on this platform"),
+        Err(error) => error,
+    };
+    assert!(
+        error.to_string().contains("requires Linux or macOS"),
         "unexpected error: {error}"
     );
 }
@@ -633,6 +664,7 @@ fn runtime_session_with_status(status: RuntimeSessionStatus) -> RuntimeSessionRe
     }
 }
 
+#[cfg(unix)]
 #[tokio::test]
 async fn xray_tun_rejects_old_core_without_working_tun() {
     let mut context = test_context().await;
@@ -648,6 +680,7 @@ async fn xray_tun_rejects_old_core_without_working_tun() {
     assert!(error.to_string().contains("26.7.11"));
 }
 
+#[cfg(unix)]
 #[tokio::test]
 async fn xray_tun_accepts_core_with_working_tun() {
     let mut context = test_context().await;
@@ -662,6 +695,7 @@ async fn xray_tun_accepts_core_with_working_tun() {
     assert!(matches!(launch.config, RuntimeLaunchConfig::Xray(_)));
 }
 
+#[cfg(unix)]
 #[tokio::test]
 async fn xray_tun_rejects_route_exclusions() {
     let mut context = test_context().await;
@@ -678,14 +712,14 @@ async fn xray_tun_rejects_route_exclusions() {
     assert!(error.to_string().contains("route_exclude_address"));
 }
 
+/// Writes the POSIX fake core that reports a fixed version banner.
+///
+/// The fixture is a `/bin/sh` script, so it can only be executed on Unix.
+#[cfg(unix)]
 fn write_fake_xray_version(context: &AppContext, banner: &str) -> std::path::PathBuf {
     let path = context.runtime_paths.root_dir.join("fake-xray-version.sh");
     fs::write(&path, format!("#!/bin/sh\necho \"{banner}\"\n")).expect("script should write");
-    let mut permissions = fs::metadata(&path)
-        .expect("script metadata should load")
-        .permissions();
-    permissions.set_mode(0o755);
-    fs::set_permissions(&path, permissions).expect("script should be executable");
+    make_executable(&path);
     path
 }
 
@@ -905,6 +939,7 @@ async fn tun_cleanup_removes_verified_stale_xrat_tun_interface() {
     );
 }
 
+#[cfg(unix)]
 #[tokio::test]
 async fn tun_replacement_preserves_running_session_when_preflight_fails() {
     let mut context = test_context().await;
@@ -937,7 +972,6 @@ async fn tun_replacement_preserves_running_session_when_preflight_fails() {
         .unwrap();
     context.db.set_active_config(cfg1.id).await.unwrap();
 
-    use std::os::unix::process::ExitStatusExt;
     struct FailingPreflightSpawner;
     #[async_trait::async_trait]
     impl xrat_support::process::ProcessSpawner for FailingPreflightSpawner {
@@ -958,13 +992,13 @@ async fn tun_replacement_preserves_running_session_when_preflight_fails() {
                 .any(|a| a.to_string_lossy().contains("version"));
             if is_version {
                 Ok(std::process::Output {
-                    status: std::process::ExitStatus::from_raw(0),
+                    status: exit_status(0),
                     stdout: b"Xray 26.7.28\n".to_vec(),
                     stderr: Vec::new(),
                 })
             } else {
                 Ok(std::process::Output {
-                    status: std::process::ExitStatus::from_raw(1 << 8),
+                    status: exit_status(1),
                     stdout: Vec::new(),
                     stderr: b"config invalid\n".to_vec(),
                 })
@@ -1000,6 +1034,7 @@ async fn tun_replacement_preserves_running_session_when_preflight_fails() {
     );
 }
 
+#[cfg(unix)]
 #[tokio::test]
 async fn tun_connect_replacement_preserves_running_session_when_resolution_fails() {
     let mut context = test_context().await;
@@ -1149,6 +1184,7 @@ fn tun_dns_bootstrap_parses_supported_server_formats() {
     assert!(extract_dns_server_host("https://[invalid]/dns-query").is_err());
 }
 
+#[cfg(unix)]
 #[tokio::test]
 async fn managed_xray_launch_skips_resolution_for_dns_ip_literals_and_special_servers() {
     let mut context = test_context().await;
@@ -1255,6 +1291,7 @@ async fn managed_xray_tun_launch_applies_split_blacklist_and_whitelist() {
     assert_eq!(rules[6]["outboundTag"], "direct");
 }
 
+#[cfg(unix)]
 #[tokio::test]
 async fn managed_singbox_tun_launch_applies_split_blacklist_and_whitelist() {
     let mut context = test_context().await;

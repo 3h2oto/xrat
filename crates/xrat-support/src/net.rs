@@ -374,13 +374,18 @@ mod tests {
     use super::interface_exists;
 
     #[test]
-    fn detects_loopback_and_missing_interfaces() {
+    fn detects_missing_interfaces() {
+        assert!(!interface_exists("xrat-missing-interface"));
+        assert!(!interface_exists("  "));
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn detects_loopback_interface() {
         assert!(interface_exists(if cfg!(target_os = "macos") {
             "lo0"
         } else {
             "lo"
         }));
-        assert!(!interface_exists("xrat-missing-interface"));
-        assert!(!interface_exists("  "));
     }
 }

@@ -343,24 +343,50 @@ mod env_tests {
     use std::collections::HashMap;
     #[test]
     fn xdg_paths_keep_absolute_precedence_and_home_fallback() {
+        // Windows treats a path as absolute only with a drive prefix, so the
+        // fixtures differ per platform.
+        let (home, custom) = if cfg!(windows) {
+            ("C:\\Users\\example", "C:\\custom")
+        } else {
+            ("/home/example", "/custom")
+        };
         let env = MapEnvVars(HashMap::from([
-            ("HOME".into(), "/home/example".into()),
+            ("HOME".into(), home.into()),
             ("XDG_DATA_HOME".into(), "relative".into()),
-            ("XDG_CONFIG_HOME".into(), "/custom".into()),
+            ("XDG_CONFIG_HOME".into(), custom.into()),
         ]));
         assert_eq!(
             xdg_data_home_with_env(&env),
-            Some(PathBuf::from("/home/example/.local/share"))
+            Some(PathBuf::from(home).join(".local").join("share"))
         );
-        assert_eq!(
-            xdg_config_home_with_env(&env),
-            Some(PathBuf::from("/custom"))
-        );
+        assert_eq!(xdg_config_home_with_env(&env), Some(PathBuf::from(custom)));
         assert_eq!(home_dir_with_env(&MapEnvVars::default()), None);
     }
     #[test]
     fn supplied_shell_is_used_without_process_detection() {
         let env = MapEnvVars(HashMap::from([("SHELL".into(), "/bin/fish".into())]));
         assert_eq!(detect_shell_with_env(&env), Shell::Fish);
+    }
+    #[test]
+    fn home_directory_falls_back_to_the_windows_profile() {
+        let env = MapEnvVars(HashMap::from([(
+            "USERPROFILE".into(),
+            "C:\\Users\\example".into(),
+        )]));
+        assert_eq!(
+            home_dir_with_env(&env),
+            Some(PathBuf::from("C:\\Users\\example"))
+        );
+    }
+    #[test]
+    fn home_directory_prefers_home_over_the_windows_profile() {
+        let env = MapEnvVars(HashMap::from([
+            ("HOME".into(), "/home/example".into()),
+            ("USERPROFILE".into(), "C:\\Users\\example".into()),
+        ]));
+        assert_eq!(
+            home_dir_with_env(&env),
+            Some(PathBuf::from("/home/example"))
+        );
     }
 }

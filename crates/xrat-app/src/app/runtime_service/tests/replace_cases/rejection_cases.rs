@@ -2,6 +2,7 @@ use super::fake_runtime::write_fake_runtime_script;
 use super::support::*;
 use super::*;
 
+#[cfg(unix)]
 #[tokio::test]
 async fn replace_starts_runtime_without_running_session() {
     let mut context = test_context().await;

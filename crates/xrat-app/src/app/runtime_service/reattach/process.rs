@@ -101,10 +101,13 @@ fn cmdline_contains_session_config(
     args.iter().any(|arg| arg.contains(expected.as_ref()))
 }
 
-#[cfg(test)]
+#[cfg(all(test, unix))]
 mod tests {
     use super::{process_cmd_args, process_exe_path};
 
+    /// The reattach lookup reads the process command line from `/proc`, which
+    /// only exists on Unix.
+    #[cfg(unix)]
     #[test]
     fn resolves_exe_and_cmd_for_spawned_process() {
         let mut child = xrat_support::process::Command::new("sleep")
