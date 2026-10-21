@@ -23,6 +23,7 @@ pub mod separator;
 pub mod sheet;
 pub mod sidebar;
 pub mod sidenav;
+mod sidenav_resize;
 pub mod skeleton;
 pub mod spinner;
 pub mod switch;

@@ -1,4 +1,3 @@
-use dioxus::document::eval;
 use dioxus::prelude::*;
 
 use tw_merge::tw_merge;
@@ -330,58 +329,9 @@ pub fn SidenavWrapper(
     }
 }
 
-/// Drag handle — place inside `Sidenav`, on the trailing edge.
-/// Reads `data-min-width` / `data-max-width` from the nearest `SidenavWrapper`
-/// for clamping; persists width to localStorage as `sidenav-width`.
 #[component]
 pub fn SidenavResizeHandle(#[props(into, optional)] class: Option<String>) -> Element {
-    use_effect(move || {
-        eval(
-            r#"(function() {
-            const h = document.querySelector('[data-sidenav-resize-handle]');
-            if (!h || h.dataset.initialized) return;
-            h.dataset.initialized = '1';
-
-            const wrapper = h.closest('[data-name="SidenavWrapper"]');
-            if (!wrapper) return;
-
-            const saved = localStorage.getItem('sidenav-width');
-            if (saved) wrapper.style.setProperty('--sidenav-width', saved + 'px');
-
-            h.addEventListener('mousedown', function(e) {
-                e.preventDefault();
-                document.body.style.userSelect = 'none';
-                const aside = wrapper.querySelector('aside');
-                const x0 = e.clientX;
-                const w0 = aside ? aside.getBoundingClientRect().width : 256;
-                const mn = parseInt(wrapper.dataset.minWidth) || 160;
-                const mx = parseInt(wrapper.dataset.maxWidth) || 480;
-
-                function move(e) {
-                    const w = Math.max(mn, Math.min(mx, w0 + e.clientX - x0));
-                    wrapper.style.setProperty('--sidenav-width', w + 'px');
-                }
-                function up() {
-                    document.body.style.userSelect = '';
-                    const aside = wrapper.querySelector('aside');
-                    if (aside) localStorage.setItem('sidenav-width', aside.getBoundingClientRect().width);
-                    document.removeEventListener('mousemove', move);
-                    document.removeEventListener('mouseup', up);
-                }
-                document.addEventListener('mousemove', move);
-                document.addEventListener('mouseup', up);
-            });
-        })();"#,
-        );
-    });
-
-    let merged_class = tw_merge!(
-        "absolute top-0 right-0 w-1 h-full z-50 cursor-col-resize hover:bg-sidenav-border transition-colors",
-        class.as_deref().unwrap_or("")
-    );
-    rsx! {
-        div { "data-sidenav-resize-handle": true, class: "{merged_class}" }
-    }
+    super::sidenav_resize::resize_handle(class)
 }
 
 #[component]
