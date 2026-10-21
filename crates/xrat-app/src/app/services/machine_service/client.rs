@@ -118,6 +118,19 @@ impl MachineClient {
             .ok_or_else(|| AppError::InvalidArgument("machine service returned no payload".into()))
     }
 
+    pub async fn diagnostics(
+        &self,
+        request: crate::app::services::diagnostics::DiagnosticsRequest,
+    ) -> Result<crate::app::services::diagnostics::DiagnosticsPayload> {
+        match self
+            .call(GatewayRequestKind::Diagnostics { request })
+            .await?
+        {
+            GatewayPayload::Diagnostics(payload) => Ok(payload),
+            _ => Err(unexpected()),
+        }
+    }
+
     pub async fn config_reference(&self, id: ConfigId) -> Result<Option<String>> {
         match self
             .catalog(CatalogRequest::Reference { config_id: id })

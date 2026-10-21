@@ -3,6 +3,7 @@ mod configs;
 pub mod dashboard;
 #[cfg(any(windows, test))]
 pub(crate) mod desktop_proxy;
+pub mod diagnostics;
 pub mod engine_probe;
 mod lifecycle;
 pub mod machine_service;

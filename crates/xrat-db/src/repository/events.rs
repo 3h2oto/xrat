@@ -58,6 +58,7 @@ pub async fn query(pool: &DbPool, filter: &EventFilter) -> crate::Result<Vec<Eve
 }
 
 /// Events with `id > after_id`, oldest first, for follow-mode cursoring.
+/// A positive filter limit bounds the batch; zero preserves unbounded local reads.
 pub async fn query_after(
     pool: &DbPool,
     after_id: i64,
@@ -68,6 +69,9 @@ pub async fn query_after(
             let mut builder = QueryBuilder::<Sqlite>::new(BASE_SELECT);
             push_filters(&mut builder, Some(after_id), filter);
             builder.push(" ORDER BY id ASC");
+            if filter.limit > 0 {
+                builder.push(" LIMIT ").push_bind(filter.limit);
+            }
             Ok(builder
                 .build()
                 .fetch_all(pool)
@@ -80,6 +84,9 @@ pub async fn query_after(
             let mut builder = QueryBuilder::<Postgres>::new(BASE_SELECT);
             push_filters(&mut builder, Some(after_id), filter);
             builder.push(" ORDER BY id ASC");
+            if filter.limit > 0 {
+                builder.push(" LIMIT ").push_bind(filter.limit);
+            }
             Ok(builder
                 .build()
                 .fetch_all(pool)

@@ -17,13 +17,24 @@ pub struct GatewayRequest {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(tag = "type", rename_all = "snake_case", deny_unknown_fields)]
 pub enum GatewayRequestKind {
-    Catalog { request: super::CatalogRequest },
+    Catalog {
+        request: super::CatalogRequest,
+    },
+    Diagnostics {
+        request: crate::app::services::diagnostics::DiagnosticsRequest,
+    },
     Ping {},
     Status {},
-    Connect { config_id: ConfigId },
+    Connect {
+        config_id: ConfigId,
+    },
     Disconnect {},
-    Replace { candidate_id: Option<ConfigId> },
-    Tun { enabled: bool },
+    Replace {
+        candidate_id: Option<ConfigId>,
+    },
+    Tun {
+        enabled: bool,
+    },
     RotationStart {},
     RotationStatus {},
     RotationStop {},
@@ -33,6 +44,7 @@ pub enum GatewayRequestKind {
 #[serde(tag = "type", content = "value", rename_all = "snake_case")]
 pub enum GatewayPayload {
     Catalog(super::CatalogPayload),
+    Diagnostics(crate::app::services::diagnostics::DiagnosticsPayload),
     Ping(PingPayload),
     Status(RuntimeStatusPayload),
     Connect(RuntimeConnectPayload),

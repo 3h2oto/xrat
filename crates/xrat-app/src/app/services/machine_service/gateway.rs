@@ -10,6 +10,7 @@ pub struct MachineGateway {
     config_path: PathBuf,
     supervisor: mpsc::Sender<SupervisorEvent>,
     catalog: super::catalog::MachineCatalog,
+    diagnostics: crate::app::services::diagnostics::DiagnosticsService,
 }
 
 impl MachineGateway {
@@ -23,6 +24,9 @@ impl MachineGateway {
             operator_sid: operator_sid.into(),
             config_path: context.runtime_paths.config_path.clone(),
             supervisor,
+            diagnostics: crate::app::services::diagnostics::DiagnosticsService::new(
+                context.clone(),
+            ),
             catalog: super::catalog::MachineCatalog::new(context),
         }
     }
@@ -41,6 +45,9 @@ impl MachineGateway {
             operator_sid: profile.operator_sid().to_owned(),
             config_path: profile.config_path(),
             supervisor,
+            diagnostics: crate::app::services::diagnostics::DiagnosticsService::new(
+                context.clone(),
+            ),
             catalog: super::catalog::MachineCatalog::new(context),
         })
     }
@@ -62,22 +69,25 @@ impl MachineGateway {
                 "unsupported machine gateway protocol version".into(),
             ));
         }
-        if let GatewayRequestKind::Catalog { request } = request.request {
-            let payload = self.catalog.dispatch(request).await?;
-            return Ok(ipc::DaemonResponse {
-                protocol_version: GATEWAY_VERSION,
-                ok: true,
-                code: ipc::DaemonResponseCode::Ok,
-                message: "machine catalog operation completed".into(),
-                payload: Some(GatewayPayload::Catalog(payload)),
-            });
-        }
+        let request = match request.request {
+            GatewayRequestKind::Catalog { request } => {
+                return Ok(completed(GatewayPayload::Catalog(
+                    self.catalog.dispatch(request).await?,
+                )));
+            }
+            GatewayRequestKind::Diagnostics { request } => {
+                return Ok(completed(GatewayPayload::Diagnostics(
+                    self.diagnostics.dispatch(request).await?,
+                )));
+            }
+            request => request,
+        };
         #[cfg(any(unix, windows))]
         {
             use ipc::transport::*;
             let supervisor = self.supervisor.clone();
-            Ok(match request.request {
-                GatewayRequestKind::Catalog { .. } => {
+            Ok(match request {
+                GatewayRequestKind::Catalog { .. } | GatewayRequestKind::Diagnostics { .. } => {
                     return Err(AppError::InvalidArgument(
                         "catalog dispatch invariant failed".into(),
                     ));
@@ -148,6 +158,16 @@ impl MachineGateway {
         Err(AppError::InvalidArgument(
             "machine gateway requires Windows".into(),
         ))
+    }
+}
+
+fn completed(payload: GatewayPayload) -> ipc::DaemonResponse<GatewayPayload> {
+    ipc::DaemonResponse {
+        protocol_version: GATEWAY_VERSION,
+        ok: true,
+        code: ipc::DaemonResponseCode::Ok,
+        message: "machine operation completed".into(),
+        payload: Some(payload),
     }
 }
 

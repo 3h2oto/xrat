@@ -106,10 +106,11 @@ presenters and initial-candidate selection. They never persist administrator
 settings. Machine purge, local CLI purge, and Web purge use the shared lifecycle
 owner; only soft-deleted rows are removed. The CLI supports machine-profile
 add/import/list/show, enable/disable, delete/restore, connect/disconnect, and
-runtime status. Files and URLs are read by the ordinary client; source labels
-are metadata, never privileged input locations. Every body in a multipart import
-is parsed and checked before any write. Structured engine extensions are
-rejected for routine imports.
+runtime status, subscription updates, rotation, purge, and diagnostics. Files
+and URLs are read by the ordinary client; source labels are metadata, never
+privileged input locations. Every body in a multipart import is parsed and
+checked before any write. Structured engine extensions are rejected for routine
+imports.
 
 Wire pages are bounded; the client aggregates filtered selections and exports
 without losing ordering, filters, or top-N semantics. Oversized read pages are
@@ -118,6 +119,17 @@ or transport failure. Settings edits, core/driver installation, and privileged
 filesystem operations are absent from the operator gateway. Service lifecycle
 uses SCM permissions. TUI and HTTP application integration remain outstanding;
 existing HTTP authentication/roles are unchanged.
+
+Machine diagnostics use a shared bounded reader also used by dashboard logs.
+Typed requests select persisted events or one of the fixed daemon/Xray/sing-box
+feeds; callers cannot supply a path. CLI `logs` supports app-event JSON/TSV,
+engine tables, follow cursors, level filters, and confirmed event clearing.
+Machine requests accept 1..2000 entries and read at most 512 KiB per file per
+request. Initial tails report omitted older content. Incremental reads retain
+partial lines and page boundaries; oversized single lines report truncation.
+Session changes and shorter files reset file cursors. Event follow batches are
+limited in SQL, with no loss at page boundaries. Existing unbounded local
+`events_after` calls retain their zero-limit behavior.
 
 Local contract tests cover schema rejection, unauthorized callers, protocol
 versions, identifier validation, service-owned TUN paths, supervisor errors,

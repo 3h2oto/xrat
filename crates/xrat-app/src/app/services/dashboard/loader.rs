@@ -59,7 +59,18 @@ impl<'a> DashboardService<'a> {
     }
 
     pub async fn clear_events(&self) -> crate::app::Result<u64> {
-        Ok(self.context.db.clear_events().await?)
+        use crate::app::services::diagnostics::{
+            DiagnosticsPayload, DiagnosticsRequest, DiagnosticsService,
+        };
+        match DiagnosticsService::new(self.context.clone())
+            .dispatch(DiagnosticsRequest::ClearEvents {})
+            .await?
+        {
+            DiagnosticsPayload::Cleared(count) => Ok(count),
+            _ => Err(crate::app::AppError::InvalidArgument(
+                "unexpected event clear result".into(),
+            )),
+        }
     }
 
     pub async fn load(&self, include_deleted: bool) -> crate::app::Result<DashboardSnapshot> {

@@ -124,5 +124,29 @@ async fn events_after_returns_only_newer_oldest_first() {
     assert_eq!(after[1].kind, "disconnect");
     assert!(after.iter().all(|event| event.id > first));
 
+    let page = db
+        .events_after(
+            first,
+            &EventFilter {
+                limit: 1,
+                ..Default::default()
+            },
+        )
+        .await
+        .unwrap();
+    assert_eq!(page.len(), 1);
+    assert_eq!(page[0], after[0]);
+    let next = db
+        .events_after(
+            page[0].id,
+            &EventFilter {
+                limit: 1,
+                ..Default::default()
+            },
+        )
+        .await
+        .unwrap();
+    assert_eq!(next, after[1..]);
+
     let _ = std::fs::remove_file(db_path);
 }

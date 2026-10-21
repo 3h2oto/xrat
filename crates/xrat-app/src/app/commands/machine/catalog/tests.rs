@@ -529,3 +529,105 @@ async fn machine_purge_uses_shared_deleted_selection_and_preserves_disabled_live
         1
     );
 }
+
+#[tokio::test]
+async fn machine_logs_read_clear_and_follow_use_gateway_and_shutdown_signal() {
+    use crate::app::tests::signals::FixtureShutdown;
+    let Fixture {
+        context,
+        client,
+        calls,
+        _root,
+        ..
+    } = fixture().await;
+    context
+        .db
+        .record_event(&xrat_db::NewEvent {
+            level: "error".into(),
+            source: "runtime".into(),
+            kind: "test".into(),
+            config_id: None,
+            session_id: None,
+            message: "machine event".into(),
+            detail: None,
+        })
+        .await
+        .unwrap();
+    tokio::fs::create_dir_all(&context.runtime_paths.runtime_dir)
+        .await
+        .unwrap();
+    tokio::fs::write(
+        context.runtime_paths.runtime_dir.join("daemon.log"),
+        "daemon test\n",
+    )
+    .await
+    .unwrap();
+    command(
+        &client,
+        &[
+            "logs", "--source", "app", "--format", "json", "--level", "error",
+        ],
+    )
+    .await
+    .unwrap();
+    command(&client, &["logs", "--source", "daemon"])
+        .await
+        .unwrap();
+    assert!(
+        command(&client, &["logs", "--lines", "2001"])
+            .await
+            .is_err()
+    );
+    let parsed = Cli::try_parse_from([
+        "xrat",
+        "--profile",
+        "machine",
+        "logs",
+        "--follow",
+        "--source",
+        "app",
+    ])
+    .unwrap();
+    let crate::cli::Command::Logs(args) = parsed.command else {
+        panic!("logs");
+    };
+    for fail in [false, true] {
+        let signal = FixtureShutdown {
+            fail,
+            ..Default::default()
+        };
+        let follow = super::logs::follow_with_signal(&client, &args, &signal);
+        tokio::pin!(follow);
+        tokio::select! {
+            _ = signal.registered.notified() => {},
+            result = &mut follow => panic!("stopped before shutdown: {result:?}"),
+            _ = tokio::time::sleep(std::time::Duration::from_secs(2)) => panic!("signal not registered"),
+        }
+        signal.shutdown.notify_one();
+        tokio::time::timeout(std::time::Duration::from_secs(2), follow)
+            .await
+            .unwrap()
+            .unwrap();
+        assert_eq!(signal.calls.load(std::sync::atomic::Ordering::SeqCst), 1);
+    }
+    command(&client, &["logs", "clear", "--yes"]).await.unwrap();
+    command(&client, &["logs", "clear", "--yes"]).await.unwrap();
+    assert!(
+        context
+            .db
+            .list_events(&xrat_db::EventFilter {
+                limit: 1,
+                ..Default::default()
+            })
+            .await
+            .unwrap()
+            .is_empty()
+    );
+    assert!(
+        calls
+            .lock()
+            .unwrap()
+            .iter()
+            .any(|request| matches!(request.request, GatewayRequestKind::Diagnostics { .. }))
+    );
+}

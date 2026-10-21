@@ -2,6 +2,7 @@ mod entry;
 mod imports;
 mod lifecycle;
 mod list;
+mod logs;
 mod runtime;
 
 pub(super) use entry::run;

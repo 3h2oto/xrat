@@ -4,6 +4,7 @@ use crate::cli::Command;
 
 pub(crate) async fn run(client: &MachineClient, command: &Command) -> Result<()> {
     match command {
+        Command::Logs(args) => super::logs::run(client, args).await,
         Command::List(args) => super::list::run(client, args).await,
         Command::Import(args) => super::imports::import(client, args).await,
         Command::Update(args) => super::imports::update(client, args).await,

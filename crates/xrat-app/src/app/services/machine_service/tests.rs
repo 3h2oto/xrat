@@ -7,17 +7,12 @@ const OPERATOR: &str = "S-1-5-21-1-2-3-1001";
 
 async fn fixture() -> (MachineGateway, mpsc::Receiver<SupervisorEvent>) {
     let (supervisor, receiver) = mpsc::channel(4);
+    let mut context = crate::app::tests::TestAppBuilder::new("machine-gateway")
+        .build()
+        .await;
+    context.runtime_paths.config_path = "protected/config.toml".into();
     (
-        MachineGateway {
-            operator_sid: OPERATOR.into(),
-            config_path: "protected/config.toml".into(),
-            supervisor,
-            catalog: super::super::catalog::MachineCatalog::new(
-                crate::app::tests::TestAppBuilder::new("machine-gateway")
-                    .build()
-                    .await,
-            ),
-        },
+        MachineGateway::for_test(context, OPERATOR, supervisor),
         receiver,
     )
 }
@@ -273,4 +268,70 @@ async fn unauthorized_catalog_mutations_leave_the_shared_catalog_unchanged() {
     assert_eq!(total, 0);
     assert!(items.is_empty());
     assert!(receiver.try_recv().is_err());
+}
+
+#[tokio::test]
+async fn diagnostics_authorization_precedes_reads_and_event_clear() {
+    use crate::app::services::diagnostics::{DiagnosticsPayload, DiagnosticsRequest};
+    let (context, _root) = crate::app::tests::TestAppBuilder::new("gateway-diagnostics")
+        .build_with_root()
+        .await;
+    context
+        .db
+        .record_event(&xrat_db::NewEvent {
+            level: "info".into(),
+            source: "runtime".into(),
+            kind: "test".into(),
+            config_id: None,
+            session_id: None,
+            message: "kept".into(),
+            detail: None,
+        })
+        .await
+        .unwrap();
+    let (sender, _receiver) = mpsc::channel(4);
+    let gateway = MachineGateway::for_test(context.clone(), OPERATOR, sender);
+    for operation in [
+        DiagnosticsRequest::Events {
+            after: None,
+            limit: 1,
+            level: None,
+        },
+        DiagnosticsRequest::ClearEvents {},
+    ] {
+        assert!(
+            gateway
+                .dispatch(
+                    "S-1-5-21-1-2-3-1002",
+                    request(GatewayRequestKind::Diagnostics { request: operation })
+                )
+                .await
+                .is_err()
+        );
+    }
+    assert_eq!(
+        context
+            .db
+            .list_events(&xrat_db::EventFilter {
+                limit: 1,
+                ..Default::default()
+            })
+            .await
+            .unwrap()
+            .len(),
+        1
+    );
+    let result = gateway
+        .dispatch(
+            OPERATOR,
+            request(GatewayRequestKind::Diagnostics {
+                request: DiagnosticsRequest::ClearEvents {},
+            }),
+        )
+        .await
+        .unwrap();
+    assert!(matches!(
+        result.payload,
+        Some(GatewayPayload::Diagnostics(DiagnosticsPayload::Cleared(1)))
+    ));
 }

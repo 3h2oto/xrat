@@ -9,7 +9,7 @@ pub struct NewEvent {
     pub detail: Option<String>,
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct EventRecord {
     pub id: i64,
     pub level: String,

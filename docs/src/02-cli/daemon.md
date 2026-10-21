@@ -283,6 +283,10 @@ database overrides are rejected. Supported catalog commands currently include
 `restore`, and `purge`. Machine `rotate enable/disable/status/now` also use the
 supervisor; rotation controls are volatile and do not edit administrator policy.
 `rotate now --refresh` refreshes subscriptions through the ordinary client.
+Machine `logs` reads service events and fixed daemon/engine feeds, including
+`--follow`, event `--level`/`--format`, and `logs clear --yes`. Machine log requests
+accept `--lines 1..2000`; file reads are bounded to 512 KiB per request and report
+omitted older content. The operator never opens protected log files directly.
 The machine TUI, HTTP host, driver provisioning, and coordinated service upgrade
 are still under implementation. Windows `daemon install --with-api` and `--tun`
 currently return an explicit unsupported-operation error.

@@ -147,6 +147,23 @@ async fn native_machine_service_lifecycle_and_restricted_operator() {
     success(&binary, &["--profile", "machine", "delete", "config", "1"]);
     success(&binary, &["--profile", "machine", "restore", "1"]);
 
+    success(
+        &binary,
+        &[
+            "--profile",
+            "machine",
+            "logs",
+            "--source",
+            "app",
+            "--format",
+            "json",
+        ],
+    );
+    success(
+        &binary,
+        &["--profile", "machine", "logs", "--source", "xray"],
+    );
+
     success(&binary, &["--profile", "machine", "daemon", "restart"]);
     ping().await;
     let config_path = guard.profile.join("config.toml");
