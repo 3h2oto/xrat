@@ -52,6 +52,30 @@ pub(crate) async fn upgrade_with_spawner(
             color
         )
     );
+    #[cfg(windows)]
+    {
+        let assets = source_dir.join("packaging/windows/build-web.ps1");
+        if !assets.is_file() {
+            return Err(AppError::InvalidArgument(
+                "source checkout is missing packaging/windows/build-web.ps1".into(),
+            ));
+        }
+        let status = Command::with_spawner("powershell.exe", spawner.clone())
+            .args([
+                "-NoProfile",
+                "-NonInteractive",
+                "-ExecutionPolicy",
+                "Bypass",
+                "-File",
+            ])
+            .arg(assets)
+            .status()?;
+        if !status.success() {
+            return Err(AppError::InvalidArgument(format!(
+                "browser asset build failed ({status}); installed executable preserved"
+            )));
+        }
+    }
     let status = Command::with_spawner("cargo", spawner.clone())
         .args(["build", "--release"])
         .current_dir(source_dir)

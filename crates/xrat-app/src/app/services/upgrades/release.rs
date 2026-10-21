@@ -91,6 +91,7 @@ pub(crate) async fn upgrade(
     #[cfg(windows)]
     {
         extract_binary(work.path(), &filename)?;
+        crate::app::services::release_notes::cache_release(&client, &version).await;
         let transaction = super::windows::stage(
             &work.path().join("xrat.exe"),
             target,
