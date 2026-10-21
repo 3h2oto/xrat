@@ -62,7 +62,7 @@ fn detail_lines<'a>(
                 theme::accent_style().add_modifier(Modifier::BOLD),
             )];
 
-            push_section(&mut lines, "Connection");
+            push_section(&mut lines, "Connection", content_width);
             push_detail(
                 &mut lines,
                 "ID",
@@ -116,7 +116,7 @@ fn detail_lines<'a>(
                 || metric_columns.download
                 || metric_columns.upload;
             if has_metrics {
-                push_section(&mut lines, "Metrics");
+                push_section(&mut lines, "Metrics", content_width);
             }
             if metric_columns.icmp {
                 push_styled_detail(
@@ -178,7 +178,7 @@ fn detail_lines<'a>(
             }
 
             if metric_columns.country {
-                push_section(&mut lines, "Geo & Location");
+                push_section(&mut lines, "Geo & Location", content_width);
                 push_detail(
                     &mut lines,
                     "Country",
@@ -202,7 +202,7 @@ fn detail_lines<'a>(
                 );
             }
 
-            push_section(&mut lines, "Status");
+            push_section(&mut lines, "Status", content_width);
             push_styled_detail(
                 &mut lines,
                 "Active",
@@ -257,10 +257,17 @@ fn detail_lines<'a>(
     }
 }
 
-fn push_section(lines: &mut Vec<Line<'_>>, title: &str) {
+fn push_section(lines: &mut Vec<Line<'_>>, title: &str, width: usize) {
     lines.push(Line::raw(""));
+    let prefix = format!("── {title} ");
+    let remaining = width.saturating_sub(prefix.chars().count());
+    let separator = if remaining >= 2 {
+        format!("{prefix}{}", "─".repeat(remaining))
+    } else {
+        format!("── {title} ──")
+    };
     lines.push(Line::styled(
-        format!("── {title} ──"),
+        separator,
         theme::muted_style().add_modifier(Modifier::BOLD),
     ));
 }
@@ -328,7 +335,7 @@ mod tests {
         assert!(!text.contains("Download"));
         assert!(!text.contains("Country"));
         assert!(!text.contains("Geo & Location"));
-        assert!(text.contains("── Connection ──"));
+        assert!(text.contains("── Connection ─"));
         assert!(text.contains("Subscription"));
     }
 
@@ -351,8 +358,27 @@ mod tests {
             .collect::<Vec<_>>()
             .join("\n");
 
-        assert!(text.contains("── Geo & Location ──"));
+        assert!(text.contains("── Geo & Location ─"));
         assert!(text.contains("Country"));
         assert!(text.contains("Subscription"));
+    }
+
+    #[test]
+    fn push_section_fills_content_width() {
+        let mut lines = Vec::new();
+        push_section(&mut lines, "Connection", 35);
+        assert_eq!(lines.len(), 2);
+        assert_eq!(lines[0].to_string(), "");
+        let section = lines[1].to_string();
+        assert_eq!(section.chars().count(), 35);
+        assert_eq!(section, "── Connection ─────────────────────");
+    }
+
+    #[test]
+    fn push_section_falls_back_when_width_is_small() {
+        let mut lines = Vec::new();
+        push_section(&mut lines, "Connection", 10);
+        assert_eq!(lines.len(), 2);
+        assert_eq!(lines[1].to_string(), "── Connection ──");
     }
 }
