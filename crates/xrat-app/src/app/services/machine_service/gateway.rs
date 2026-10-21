@@ -11,6 +11,7 @@ pub struct MachineGateway {
     supervisor: mpsc::Sender<SupervisorEvent>,
     catalog: super::catalog::MachineCatalog,
     diagnostics: crate::app::services::diagnostics::DiagnosticsService,
+    probes: super::probes::ProbeJobs,
 }
 
 impl MachineGateway {
@@ -24,6 +25,7 @@ impl MachineGateway {
             operator_sid: operator_sid.into(),
             config_path: context.runtime_paths.config_path.clone(),
             supervisor,
+            probes: super::probes::ProbeJobs::new(context.clone()),
             diagnostics: crate::app::services::diagnostics::DiagnosticsService::new(
                 context.clone(),
             ),
@@ -45,11 +47,16 @@ impl MachineGateway {
             operator_sid: profile.operator_sid().to_owned(),
             config_path: profile.config_path(),
             supervisor,
+            probes: super::probes::ProbeJobs::new(context.clone()),
             diagnostics: crate::app::services::diagnostics::DiagnosticsService::new(
                 context.clone(),
             ),
             catalog: super::catalog::MachineCatalog::new(context),
         })
+    }
+
+    pub async fn shutdown(&self) -> Result<()> {
+        self.probes.shutdown().await
     }
 
     pub async fn dispatch(
@@ -70,6 +77,11 @@ impl MachineGateway {
             ));
         }
         let request = match request.request {
+            GatewayRequestKind::Probes { request } => {
+                return Ok(completed(GatewayPayload::Probes(
+                    self.probes.dispatch(request).await?,
+                )));
+            }
             GatewayRequestKind::Catalog { request } => {
                 return Ok(completed(GatewayPayload::Catalog(
                     self.catalog.dispatch(request).await?,
@@ -87,7 +99,9 @@ impl MachineGateway {
             use ipc::transport::*;
             let supervisor = self.supervisor.clone();
             Ok(match request {
-                GatewayRequestKind::Catalog { .. } | GatewayRequestKind::Diagnostics { .. } => {
+                GatewayRequestKind::Catalog { .. }
+                | GatewayRequestKind::Diagnostics { .. }
+                | GatewayRequestKind::Probes { .. } => {
                     return Err(AppError::InvalidArgument(
                         "catalog dispatch invariant failed".into(),
                     ));

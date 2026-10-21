@@ -301,3 +301,5 @@ mod imports;
 mod catalog;
 
 mod history;
+
+mod probes;

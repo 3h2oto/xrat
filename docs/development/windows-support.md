@@ -160,8 +160,18 @@ or config. SQL pages retain existing timestamp/id ordering and use an exclusive
 cursor, so equal timestamps and backdated records keep their order. Wire reads
 accept at most 200 records; the client collects complete history or a requested
 recent subset, shrinks oversized read replies, and fails on a later-page error.
-These are read operations; service-owned cancellable probe execution and UI
-routing remain under implementation.
+Probe execution uses a separate typed start/status/cancel contract. Start
+accepts 1..10000 distinct positive stored config IDs and stage skip flags.
+Protected service settings determine core paths, URLs, timeouts, concurrency,
+and enabled stages; requests cannot override them. The shared test owner retains
+its existing missing-ID semantics and assigns the actual persisted run ID.
+Status reports completed/total counts, the last completed config, and terminal
+errors, with the latest 16 jobs retained in memory. An absent status ID returns
+the latest job; unknown or expired IDs return no job. Only one operator job runs
+at a time. Cancellation is idempotent and becomes terminal after worker futures
+exit. Gateway shutdown cancels and drains jobs before supervisor teardown. Jobs
+and rotation are never resumed on service restart. CLI/TUI/Web execution routing
+and native engine/process cleanup acceptance remain under implementation.
 
 Local contract tests cover schema rejection, unauthorized callers, protocol
 versions, identifier validation, service-owned TUN paths, supervisor errors,

@@ -34,7 +34,7 @@ pub(super) async fn serve_with_ready(
     }
     let capacity = Arc::new(Semaphore::new(64));
     let mut connections = tokio::task::JoinSet::new();
-    loop {
+    let result: Result<()> = async { loop {
         tokio::select! {
             biased;
             _ = shutdown.cancelled() => break,
@@ -58,9 +58,11 @@ pub(super) async fn serve_with_ready(
             }
         }
     }
+    Ok(()) }.await;
     connections.abort_all();
     while connections.join_next().await.is_some() {}
-    Ok(())
+    let stopped = gateway.shutdown().await;
+    result.and(stopped)
 }
 
 async fn handle(mut stream: NamedPipeServer, gateway: Arc<MachineGateway>) -> Result<()> {

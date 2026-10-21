@@ -415,3 +415,45 @@ async fn overview_requires_operator_and_uses_only_the_supervisor_result() {
         .is_err()
     );
 }
+
+#[tokio::test]
+async fn probe_job_authorization_precedes_scheduling_and_cancellation() {
+    use super::super::{ProbeRequest, ProbeStages};
+    let (gateway, mut receiver) = fixture().await;
+    for operation in [
+        ProbeRequest::Start {
+            config_ids: vec![ConfigId(1)],
+            stages: ProbeStages::default(),
+        },
+        ProbeRequest::Status { job_id: None },
+        ProbeRequest::Cancel {
+            job_id: uuid::Uuid::new_v4().to_string(),
+        },
+    ] {
+        let request = request(GatewayRequestKind::Probes { request: operation });
+        assert!(
+            gateway
+                .dispatch("S-1-5-21-1-2-3-1002", request.clone())
+                .await
+                .is_err()
+        );
+        let mut wrong_version = request;
+        wrong_version.protocol_version += 1;
+        assert!(gateway.dispatch(OPERATOR, wrong_version).await.is_err());
+    }
+    let response = gateway
+        .dispatch(
+            OPERATOR,
+            request(GatewayRequestKind::Probes {
+                request: ProbeRequest::Status { job_id: None },
+            }),
+        )
+        .await
+        .unwrap();
+    assert!(matches!(
+        response.payload,
+        Some(GatewayPayload::Probes(None))
+    ));
+    assert!(receiver.try_recv().is_err());
+    gateway.shutdown().await.unwrap();
+}

@@ -669,3 +669,59 @@ async fn raw_id_exports_preserve_order_missing_semantics_and_bounded_read_retrie
 }
 
 mod history;
+
+#[tokio::test]
+async fn machine_probe_client_preserves_job_identity_and_optional_status_over_the_wire() {
+    use crate::app::services::machine_service::{ProbeStages, ProbeState};
+    let (_context, client, calls, _root) = fixture(None).await;
+    assert!(client.probe_status(None).await.unwrap().is_none());
+    let start = client
+        .start_probe(vec![ConfigId(i64::MAX)], ProbeStages::default())
+        .await
+        .unwrap();
+    let finished = tokio::time::timeout(std::time::Duration::from_secs(5), async {
+        loop {
+            let snapshot = client
+                .probe_status(Some(start.job_id.clone()))
+                .await
+                .unwrap()
+                .unwrap();
+            if snapshot.state == ProbeState::Completed {
+                return snapshot;
+            }
+            tokio::task::yield_now().await;
+        }
+    })
+    .await
+    .unwrap();
+    assert_eq!(
+        (finished.completed, finished.total, finished.run_id),
+        (0, 0, None)
+    );
+    assert_eq!(
+        client.cancel_probe(start.job_id.clone()).await.unwrap(),
+        Some(finished.clone())
+    );
+    assert_eq!(client.probe_status(None).await.unwrap(), Some(finished));
+    assert!(
+        client
+            .probe_status(Some(uuid::Uuid::new_v4().to_string()))
+            .await
+            .unwrap()
+            .is_none()
+    );
+    assert_eq!(
+        calls
+            .lock()
+            .unwrap()
+            .iter()
+            .filter(|call| matches!(
+                call.request,
+                GatewayRequestKind::Probes {
+                    request: crate::app::services::machine_service::ProbeRequest::Start { .. }
+                }
+            ))
+            .count(),
+        1
+    );
+}

@@ -173,13 +173,22 @@ async fn host() -> Result<()> {
         Ok(())
     });
     let (ready_tx, ready_rx) = tokio::sync::oneshot::channel();
-    tasks.spawn(super::transport::serve_with_ready(
-        profile,
-        context.clone(),
-        sender.clone(),
-        CancellationReceiver::from_flag(&cancel),
-        Some(ready_tx),
-    ));
+    let (transport_stopped, transport_drained) = tokio::sync::oneshot::channel();
+    let transport_context = context.clone();
+    let transport_sender = sender.clone();
+    let transport_cancel = CancellationReceiver::from_flag(&cancel);
+    tasks.spawn(async move {
+        let result = super::transport::serve_with_ready(
+            profile,
+            transport_context,
+            transport_sender,
+            transport_cancel,
+            Some(ready_tx),
+        )
+        .await;
+        let _ = transport_stopped.send(());
+        result
+    });
     let operation = async {
         pending(async {
             ready_rx.await.map_err(|error| io::Error::other(error.to_string()))?;
@@ -202,6 +211,16 @@ async fn host() -> Result<()> {
     }.await;
     let status = report(SERVICE_STOP_PENDING, false);
     cancel.cancel();
+    let probes_stopped = pending(
+        async {
+            transport_drained
+                .await
+                .map_err(|error| io::Error::other(error.to_string()))?;
+            Ok(())
+        },
+        SERVICE_STOP_PENDING,
+    )
+    .await;
     let shutdown = pending(
         async {
             let response = ipc::transport::daemon_shutdown_response_via_supervisor(sender).await?;
@@ -231,6 +250,9 @@ async fn host() -> Result<()> {
     let errors = [
         operation.err().map(|error| diagnostics::describe(&error)),
         status.err().map(|error| error.to_string()),
+        probes_stopped
+            .err()
+            .map(|error| diagnostics::describe(&error)),
         shutdown.err().map(|error| diagnostics::describe(&error)),
         cleanup.err().map(|error| diagnostics::describe(&error)),
     ]
