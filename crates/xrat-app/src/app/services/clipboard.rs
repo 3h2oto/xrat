@@ -45,21 +45,26 @@ pub(crate) fn format_osc52(text: &str, in_tmux: bool) -> String {
     }
 }
 
+pub(crate) fn write_osc52<W: std::io::Write>(
+    writer: &mut W,
+    text: &str,
+    in_tmux: bool,
+) -> std::io::Result<()> {
+    let sequence = format_osc52(text, in_tmux);
+    writer.write_all(sequence.as_bytes())?;
+    writer.flush()
+}
+
 fn emit_osc52(text: &str) -> bool {
-    use std::io::{IsTerminal, Write};
+    use std::io::IsTerminal;
 
     if !std::io::stdout().is_terminal() {
         return false;
     }
 
     let in_tmux = std::env::var_os("TMUX").is_some();
-    let sequence = format_osc52(text, in_tmux);
-
     let mut stdout = std::io::stdout();
-    let res = stdout
-        .write_all(sequence.as_bytes())
-        .and_then(|_| stdout.flush());
-    res.is_ok()
+    write_osc52(&mut stdout, text, in_tmux).is_ok()
 }
 
 #[cfg(test)]
@@ -79,8 +84,22 @@ mod tests {
     }
 
     #[test]
-    fn test_arboard_copy() {
+    fn writes_osc52_to_writer() {
+        let mut buffer = Vec::new();
+        write_osc52(&mut buffer, "hello", false).unwrap();
+        assert_eq!(buffer, b"\x1b]52;c;aGVsbG8=\x07");
+
+        let mut tmux_buffer = Vec::new();
+        write_osc52(&mut tmux_buffer, "hello", true).unwrap();
+        assert_eq!(tmux_buffer, b"\x1bPtmux;\x1b\x1b]52;c;aGVsbG8=\x07\x1b\\");
+    }
+
+    #[test]
+    fn arboard_copy_tolerates_headless_environment() {
         let res = ArboardClipboard.copy_text("HELLO_XRAT_TEST_123");
-        assert!(res.is_ok());
+        match res {
+            Ok(()) | Err(ClipboardError::Unavailable(_)) => {}
+            Err(err) => panic!("unexpected clipboard error: {err}"),
+        }
     }
 }
