@@ -71,6 +71,13 @@ fn detail_lines<'a>(
                 content_width,
             );
             push_detail(&mut lines, "Ref", &config.r#ref, LABEL_WIDTH, content_width);
+            push_detail(
+                &mut lines,
+                "Subscription",
+                source_label,
+                LABEL_WIDTH,
+                content_width,
+            );
             push_styled_detail(
                 &mut lines,
                 "Protocol",
@@ -93,6 +100,15 @@ fn detail_lines<'a>(
                 LABEL_WIDTH,
                 content_width,
             );
+            if let Some(fronting) = config.fronting_label() {
+                push_detail(
+                    &mut lines,
+                    "Fronting",
+                    format!("{fronting} (dial endpoint, origin unknown)"),
+                    LABEL_WIDTH,
+                    content_width,
+                );
+            }
 
             let has_metrics = metric_columns.icmp
                 || metric_columns.tcp
@@ -160,41 +176,9 @@ fn detail_lines<'a>(
                     content_width,
                 );
             }
-            if metric_columns.country {
-                push_detail(
-                    &mut lines,
-                    "Country",
-                    config.country_label(),
-                    LABEL_WIDTH,
-                    content_width,
-                );
-                push_detail(
-                    &mut lines,
-                    "City",
-                    config.location_label(),
-                    LABEL_WIDTH,
-                    content_width,
-                );
-                push_detail(
-                    &mut lines,
-                    "ASN",
-                    config.asn_label(),
-                    LABEL_WIDTH,
-                    content_width,
-                );
-            }
-            if let Some(fronting) = config.fronting_label() {
-                push_detail(
-                    &mut lines,
-                    "Fronting",
-                    format!("{fronting} (dial endpoint, origin unknown)"),
-                    LABEL_WIDTH,
-                    content_width,
-                );
-            }
 
-            push_section(&mut lines, "Routing & Geo");
             if metric_columns.country {
+                push_section(&mut lines, "Geo & Location");
                 push_detail(
                     &mut lines,
                     "Country",
@@ -217,13 +201,6 @@ fn detail_lines<'a>(
                     content_width,
                 );
             }
-            push_detail(
-                &mut lines,
-                "Subscription",
-                source_label,
-                LABEL_WIDTH,
-                content_width,
-            );
 
             push_section(&mut lines, "Status");
             push_styled_detail(
@@ -350,5 +327,32 @@ mod tests {
         assert!(text.contains("Real Delay"));
         assert!(!text.contains("Download"));
         assert!(!text.contains("Country"));
+        assert!(!text.contains("Geo & Location"));
+        assert!(text.contains("── Connection ──"));
+        assert!(text.contains("Subscription"));
+    }
+
+    #[test]
+    fn detail_lines_shows_geo_when_country_enabled() {
+        let metric_columns = TuiMetricColumns {
+            country: true,
+            ..Default::default()
+        };
+        let row = row();
+        let lines = detail_lines(
+            Rect::new(0, 0, 80, 24),
+            Some(&row),
+            "my-sub",
+            metric_columns,
+        );
+        let text = lines
+            .iter()
+            .map(|line| line.to_string())
+            .collect::<Vec<_>>()
+            .join("\n");
+
+        assert!(text.contains("── Geo & Location ──"));
+        assert!(text.contains("Country"));
+        assert!(text.contains("Subscription"));
     }
 }
