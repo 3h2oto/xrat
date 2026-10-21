@@ -2,11 +2,7 @@ use crate::Notice;
 use crate::api::{self, actions::run};
 use crate::components::{clipboard, qr_code::QrCodeImage, states::ErrorState};
 use crate::ui::{
-    button::{Button, ButtonVariant},
-    dialog::*,
-    icon_button::IconButton,
-    spinner::Spinner,
-    textarea::Textarea,
+    button::ButtonVariant, dialog::*, icon_button::IconButton, spinner::Spinner, textarea::Textarea,
 };
 use dioxus::prelude::*;
 use icons::{Copy, ListChecks, Pencil, QrCode, RefreshCw, Trash2};
@@ -86,7 +82,7 @@ fn SourceModal(id: i64, mode: SourceMode, on_close: EventHandler) -> Element {
                         } else {
                             label { class: "sr-only", r#for: text_id.clone(), "Subscription source URL" }
                             Textarea { id: text_id.clone(), value: source.url.clone(), readonly: true, rows: 3, class: "font-mono text-xs break-all" }
-                            Button { class: "mt-3", "data-copy-textarea": text_id.clone(), Copy {} span { "Copy subscription URL" } }
+                            clipboard::CopyButton { class: "mt-3", target_id: text_id.clone(), label: "Copy subscription URL" }
                         }
                     },
                     Some(Err(message)) => rsx! { ErrorState { message: message.clone() } },

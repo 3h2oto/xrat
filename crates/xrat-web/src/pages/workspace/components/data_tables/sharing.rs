@@ -172,7 +172,7 @@ pub(crate) fn ShareModal(
                         QrCodeImage { payload: url.clone(), label: "QR code for the subscription URL", filename: "xrat-subscription.svg" }
                         label { class: "sr-only", r#for: text_id.clone(), "Subscription URL" }
                         Textarea { id: text_id.clone(), readonly: true, rows: 4, value: url, class: "font-mono text-xs mt-3 break-all" }
-                        Button { class: "mt-3", "data-copy-textarea": text_id.clone(), icons::Copy {} span { "Copy subscription link" } }
+                        crate::components::clipboard::CopyButton { class: "mt-3", target_id: text_id.clone(), label: "Copy subscription link" }
                     }
                 } else {
                     if raw.pending() {
@@ -190,7 +190,7 @@ pub(crate) fn ShareModal(
                                 }
                                 div { class: "flex items-center flex-wrap gap-2 mt-3",
                                     if mode() == Mode::Copy {
-                                        Button { variant: ButtonVariant::Outline, "data-copy-textarea": text_id.clone(), icons::Copy {} span { "Copy configs" } }
+                                        crate::components::clipboard::CopyButton { variant: ButtonVariant::Outline, target_id: text_id.clone(), label: "Copy configs" }
                                     }
                                     if filter.is_some() {
                                         Button { variant: ButtonVariant::Ghost, onclick: move |_| mode.set(Mode::Link), icons::Link {} "Subscription link" }
