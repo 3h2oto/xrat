@@ -17,6 +17,7 @@ pub struct TuiRuntimeStatus {
     pub http: Option<String>,
     pub shadowsocks: Option<String>,
     pub tun: Option<String>,
+    pub tun_active: bool,
     pub started_at: Option<String>,
     pub stopped_at: Option<String>,
     pub updated_at: Option<String>,
@@ -40,6 +41,7 @@ impl Default for TuiRuntimeStatus {
             http: None,
             shadowsocks: None,
             tun: None,
+            tun_active: false,
             started_at: None,
             stopped_at: None,
             updated_at: None,
@@ -86,6 +88,7 @@ impl TuiRuntimeStatus {
                 .as_ref()
                 .map(|health| endpoint_health_label("ss", health, local_address)),
             tun: None,
+            tun_active: false,
             started_at: session
                 .as_ref()
                 .and_then(|session| session.started_at.clone()),
@@ -106,6 +109,10 @@ impl TuiRuntimeStatus {
                 }),
             database_label: value.database_label,
         }
+    }
+
+    pub fn mode_label(&self) -> &'static str {
+        if self.tun_active { "tun" } else { "proxy" }
     }
 }
 

@@ -34,6 +34,7 @@ fn converts_dashboard_fixture_without_database_process_or_network_access() {
             },
         },
         tun_label: None,
+        tun_active: false,
         local_address: Some("192.0.2.10".into()),
         latest_run: None,
         test_results: vec![],

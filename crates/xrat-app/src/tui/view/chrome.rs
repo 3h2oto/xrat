@@ -44,8 +44,10 @@ pub fn render_key_bar(frame: &mut Frame<'_>, area: Rect, app: &TuiApp) {
         } else {
             theme::success_style().bold()
         };
+        let mode = app.data.runtime.mode_label();
         brand.push(Span::styled("● ", dot_style));
         brand.push(Span::styled(active_display, theme::success_style()));
+        brand.push(Span::styled(format!(" [{mode}]"), theme::muted_style()));
     } else if app.runtime_activity_in_flight() {
         brand.push(Span::styled(
             format!("{} connecting", app.spinner_frame()),
