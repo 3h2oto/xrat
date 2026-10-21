@@ -11,6 +11,9 @@
     directory, adds that directory to the user PATH, and hands off to
     'xrat setup'.
 
+.PARAMETER FromSource
+    Build from this checkout, including browser assets (requires Rust and Node.js).
+
 .PARAMETER Version
     Release tag to install (for example v0.31.2). Defaults to the latest release.
 
@@ -28,6 +31,7 @@
 #>
 [CmdletBinding()]
 param(
+    [switch]$FromSource,
     [string]$Version,
     [string]$InstallDir = (Join-Path $env:USERPROFILE '.local\bin'),
     [switch]$Yes,
@@ -70,6 +74,7 @@ This installer downloads/verifies/places the xrat binary, then hands off to
 user-local proxy-core installation).
 
 Options:
+  -FromSource         Build from this checkout instead of downloading a release
   -Version TAG        Release tag to install (default: latest published release)
   -InstallDir DIR     Binary install directory (default: %USERPROFILE%\.local\bin)
   -Yes                Accept setup defaults (runs 'xrat setup -y')
@@ -138,9 +143,51 @@ function Add-UserPathEntry {
     return $true
 }
 
+function Build-FromSource {
+    param([string]$Target)
+
+    $repoDir = $PSScriptRoot
+    if (-not $repoDir -or -not (Test-Path -LiteralPath (Join-Path $repoDir 'Cargo.toml'))) {
+        throw '-FromSource requires running install.ps1 directly from the repository checkout.'
+    }
+    foreach ($command in @('cargo', 'rustup', 'npx')) {
+        if (-not (Get-Command $command -ErrorAction SilentlyContinue)) {
+            throw "Required tool not found: $command"
+        }
+    }
+
+    Push-Location $repoDir
+    try {
+        & rustup target add wasm32-unknown-unknown $Target | Out-Host
+        if ($LASTEXITCODE -ne 0) { throw 'Failed to install Rust targets.' }
+        & cargo build --locked --release -p xrat-web --target wasm32-unknown-unknown | Out-Host
+        if ($LASTEXITCODE -ne 0) { throw 'Failed to build browser WebAssembly.' }
+        & cargo install wasm-bindgen-cli --locked --version 0.2.122 --root target/web-tools | Out-Host
+        if ($LASTEXITCODE -ne 0) { throw 'Failed to install wasm-bindgen.' }
+        & ./target/web-tools/bin/wasm-bindgen.exe target/wasm32-unknown-unknown/release/xrat-web.wasm --target web --out-name xrat_web --out-dir crates/xrat-app/web-assets | Out-Host
+        if ($LASTEXITCODE -ne 0) { throw 'Failed to generate browser bindings.' }
+        & npx --yes @tailwindcss/cli@4.1.18 -i crates/xrat-web/assets/app.css -o crates/xrat-app/web-assets/app.css --minify | Out-Host
+        if ($LASTEXITCODE -ne 0) { throw 'Failed to build browser styles.' }
+        Copy-Item crates/xrat-web/index.html crates/xrat-app/web-assets/
+        foreach ($asset in @('boot.js', 'components.js', 'xrat-logo.png', 'favicon.ico', 'manifest.webmanifest', 'pwa.js', 'sw.js', 'offline.html', 'controllers', 'icons')) {
+            Copy-Item "crates/xrat-web/assets/$asset" crates/xrat-app/web-assets/ -Recurse -Force
+        }
+        & cargo build --release --locked --target $Target | Out-Host
+        if ($LASTEXITCODE -ne 0) { throw 'Failed to build xrat.' }
+        return Join-Path $repoDir "target/$Target/release/xrat.exe"
+    }
+    finally {
+        Pop-Location
+    }
+}
+
 function Invoke-Install {
     if ($env:OS -ne 'Windows_NT') {
         throw 'This installer supports Windows only.'
+    }
+
+    if ($FromSource -and $Version) {
+        throw '-FromSource and -Version cannot be used together.'
     }
 
     Write-Info 'Installing xrat - proxy config manager for Xray and sing-box'
@@ -149,58 +196,63 @@ function Invoke-Install {
     $target = Get-WindowsTarget
     Write-Step "Target architecture: $target"
 
-    $tag = $Version
-    if ([string]::IsNullOrWhiteSpace($tag)) {
-        Write-Step 'Sniffing out the latest release'
-        $tag = Get-LatestReleaseTag
-    }
-    Write-Info "Freshest cheese on GitHub: $tag"
-    Write-Host ''
-
-    $archiveName = "xrat-${tag}-${target}.zip"
-    $baseUrl = "https://github.com/$Repo/releases/download/$tag"
     $installedBinary = Join-Path $InstallDir $BinaryName
     $workDir = Join-Path ([System.IO.Path]::GetTempPath()) ("xrat-install-" + [guid]::NewGuid().ToString('N'))
 
     try {
         New-Item -ItemType Directory -Path $workDir -Force | Out-Null
-        $archivePath = Join-Path $workDir $archiveName
+        if ($FromSource) {
+            $binaryPath = Build-FromSource -Target $target
+            $tag = 'from source'
+        }
+        else {
+            $tag = $Version
+            if ([string]::IsNullOrWhiteSpace($tag)) {
+                Write-Step 'Sniffing out the latest release'
+                $tag = Get-LatestReleaseTag
+            }
+            $archiveName = "xrat-${tag}-${target}.zip"
+            $baseUrl = "https://github.com/$Repo/releases/download/$tag"
+            $archivePath = Join-Path $workDir $archiveName
 
-        Write-Step "Scurrying to GitHub for $archiveName"
-        try {
-            Invoke-WebRequest -Uri "$baseUrl/$archiveName" -OutFile $archivePath -UseBasicParsing
-        }
-        catch {
-            throw "Failed to download $baseUrl/$archiveName : $($_.Exception.Message)"
-        }
+            Write-Step "Scurrying to GitHub for $archiveName"
+            try {
+                Invoke-WebRequest -Uri "$baseUrl/$archiveName" -OutFile $archivePath -UseBasicParsing
+            }
+            catch {
+                throw "Failed to download $baseUrl/$archiveName : $($_.Exception.Message)"
+            }
 
-        Write-Step 'Nibbling the checksum to make sure the archive is clean'
-        $sumsPath = Join-Path $workDir 'SHASUMS256.txt'
-        try {
-            Invoke-WebRequest -Uri "$baseUrl/SHASUMS256.txt" -OutFile $sumsPath -UseBasicParsing
-        }
-        catch {
-            throw "Failed to download $baseUrl/SHASUMS256.txt : $($_.Exception.Message)"
-        }
+            Write-Step 'Nibbling the checksum to make sure the archive is clean'
+            $sumsPath = Join-Path $workDir 'SHASUMS256.txt'
+            try {
+                Invoke-WebRequest -Uri "$baseUrl/SHASUMS256.txt" -OutFile $sumsPath -UseBasicParsing
+            }
+            catch {
+                throw "Failed to download $baseUrl/SHASUMS256.txt : $($_.Exception.Message)"
+            }
 
-        $expectedHash = Get-ExpectedChecksum -ChecksumFile $sumsPath -FileName $archiveName
-        $actualHash = (Get-FileHash -LiteralPath $archivePath -Algorithm SHA256).Hash
-        if ($actualHash -ne $expectedHash) {
-            throw "Checksum mismatch for $archiveName. expected: $expectedHash actual: $actualHash"
-        }
+            $expectedHash = Get-ExpectedChecksum -ChecksumFile $sumsPath -FileName $archiveName
+            $actualHash = (Get-FileHash -LiteralPath $archivePath -Algorithm SHA256).Hash
+            if ($actualHash -ne $expectedHash) {
+                throw "Checksum mismatch for $archiveName. expected: $expectedHash actual: $actualHash"
+            }
 
-        Write-Step 'Unpacking the tunnel gear'
-        $extractDir = Join-Path $workDir 'extracted'
-        Expand-Archive -LiteralPath $archivePath -DestinationPath $extractDir -Force
-        $binary = Get-ChildItem -LiteralPath $extractDir -Filter $BinaryName -Recurse | Select-Object -First 1
-        if ($null -eq $binary) {
-            throw "The archive $archiveName does not contain $BinaryName"
+            Write-Step 'Unpacking the tunnel gear'
+            $extractDir = Join-Path $workDir 'extracted'
+            Expand-Archive -LiteralPath $archivePath -DestinationPath $extractDir -Force
+            $binary = Get-ChildItem -LiteralPath $extractDir -Filter $BinaryName -Recurse | Select-Object -First 1
+            if ($null -eq $binary) {
+                throw "The archive $archiveName does not contain $BinaryName"
+            }
+
+            $binaryPath = $binary.FullName
         }
 
         if (-not (Test-Path -LiteralPath $InstallDir)) {
             New-Item -ItemType Directory -Path $InstallDir -Force | Out-Null
         }
-        Copy-Item -LiteralPath $binary.FullName -Destination $installedBinary -Force
+        Copy-Item -LiteralPath $binaryPath -Destination $installedBinary -Force
         Write-Info "Stashed xrat at $installedBinary"
 
         if (Add-UserPathEntry -Directory $InstallDir) {
@@ -227,10 +279,9 @@ function Invoke-Install {
         $setupArgs += '-y'
     }
     elseif ([Console]::IsInputRedirected) {
-        # Setup prompts for the required xray-core install; without a terminal
-        # the prompt turns into a refusal and setup ends in an error.
-        $setupArgs += '-y'
-        Write-Warn 'No interactive terminal detected; accepting the setup defaults.'
+        Write-Warn 'No interactive terminal is available; skipping guided setup.'
+        Write-Warn "Run '$installedBinary setup' from a terminal, or reinstall with -Yes."
+        return 0
     }
 
     Write-Step 'Handing off to xrat setup'
