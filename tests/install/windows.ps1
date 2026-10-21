@@ -46,6 +46,13 @@ try {
     Set-Content -LiteralPath $sums -Value "$hash  $archiveName"
     Assert-Equal (Get-ExpectedChecksum $sums $archiveName) $hash
     Assert-Throws { Get-ExpectedChecksum $sums 'missing.zip' } 'checksum'
+    Set-Content -LiteralPath $sums -Value @("$hash  $archiveName", "$hash  $archiveName")
+    Assert-Throws { Get-ExpectedChecksum $sums $archiveName } 'found 2'
+    Set-Content -LiteralPath $sums -Value "$hash  $archiveName"
+
+    $extracted = Expand-VerifiedExecutable -Archive $archive -Directory (Join-Path $testDir 'extracted') -Name 'xrat.exe'
+    Assert-Equal (Get-Content -LiteralPath $extracted) 'installer fixture'
+    Assert-Throws { Expand-VerifiedExecutable -Archive $archive -Directory (Join-Path $testDir 'missing') -Name 'absent.exe' } 'exactly one'
 
     function Get-LatestReleaseTag { return 'v9.8.7' }
     function Add-UserPathEntry { param($Directory) return $false }

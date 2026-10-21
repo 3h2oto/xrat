@@ -7,7 +7,7 @@ on:
       web_assets_artifact:
         description: Existing browser asset artifact from the calling workflow
         type: string
-        default: ''
+        default: ""
   push:
     branches: [master]
   pull_request:
@@ -30,10 +30,9 @@ jobs:
         with:
           targets: wasm32-unknown-unknown
       - uses: Swatinem/rust-cache@v2
-      - uses: taiki-e/install-action@v2
-        with:
-          tool: just
-      - run: just web-tools web-build
+      - name: Build browser assets
+        shell: pwsh
+        run: ./packaging/windows/build-web.ps1
       - uses: actions/upload-artifact@v4
         with:
           name: windows-web-assets
@@ -41,6 +40,7 @@ jobs:
 
   build:
     name: Build ${{ matrix.target }}
+    timeout-minutes: 90
     runs-on: ${{ matrix.os }}
     needs: [web-assets]
     if: ${{ !cancelled() && (needs.web-assets.result == 'success' || needs.web-assets.result == 'skipped') }}
@@ -95,6 +95,12 @@ jobs:
       - name: Test
         run: cargo test --locked --workspace --exclude xrat-web --target ${{ matrix.target }}
 
+      - name: Lint backend
+        run: cargo clippy --locked --workspace --exclude xrat-web --all-targets --target ${{ matrix.target }} -- -D warnings
+
+      - name: Check browser-safe contracts
+        run: cargo check --locked -p xrat-web --no-default-features --target ${{ matrix.target }}
+
       # Both runners are native, so the produced binary can be executed here.
       # The Web UI bundle is embedded at compile time; a binary without it
       # answers every asset request with HTTP 503.
@@ -132,6 +138,10 @@ jobs:
           Copy-Item "target/$target/release/xrat.exe" stage/
           Copy-Item LICENSE, README.md stage/
           Compress-Archive -Path stage/* -DestinationPath "xrat-$version-$target.zip"
+
+      - name: Test packaged daemon and served browser assets
+        shell: pwsh
+        run: ./tests/install/windows-runtime.ps1 -Archive (Get-ChildItem xrat-*.zip | Select-Object -First 1).FullName
 
       - uses: actions/upload-artifact@v4
         with:

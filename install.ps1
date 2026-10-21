@@ -117,12 +117,14 @@ function Get-LatestReleaseTag {
 function Get-ExpectedChecksum {
     param([string]$ChecksumFile, [string]$FileName)
 
+    $entries = @()
     foreach ($line in Get-Content -LiteralPath $ChecksumFile) {
         if ($line -match '^\s*([0-9a-fA-F]{64})\s+\*?(\S+)\s*$' -and $Matches[2] -eq $FileName) {
-            return $Matches[1]
+            $entries += $Matches[1]
         }
     }
-    throw "No checksum entry found for $FileName"
+    if ($entries.Count -eq 1) { return $entries[0] }
+    throw "Expected one checksum entry for $FileName; found $($entries.Count)"
 }
 
 function Add-UserPathEntry {
@@ -143,6 +145,41 @@ function Add-UserPathEntry {
     return $true
 }
 
+function Expand-VerifiedExecutable {
+    param([string]$Archive, [string]$Directory, [string]$Name)
+    Add-Type -AssemblyName System.IO.Compression.FileSystem
+    $zip = [System.IO.Compression.ZipFile]::OpenRead($Archive)
+    try {
+        $entries = @($zip.Entries | Where-Object { $_.FullName -ceq $Name -or $_.FullName -ceq "./$Name" })
+        if ($entries.Count -ne 1) { throw "Archive must contain exactly one $Name at its root." }
+        $entry = $entries[0]
+        if ($entry.Length -le 0 -or $entry.Length -gt 268435456) { throw 'Invalid executable size.' }
+        New-Item -ItemType Directory -Path $Directory -Force | Out-Null
+        $path = Join-Path $Directory $Name
+        [System.IO.Compression.ZipFileExtensions]::ExtractToFile($entry, $path)
+        return $path
+    }
+    finally { $zip.Dispose() }
+}
+
+function Install-VerifiedBinary {
+    param([string]$Source, [string]$Destination)
+    $directory = Split-Path -Parent $Destination
+    $staged = Join-Path $directory ('.xrat-install-' + [guid]::NewGuid().ToString('N'))
+    $backup = "$staged.backup"
+    try {
+        Copy-Item -LiteralPath $Source -Destination $staged
+        if (Test-Path -LiteralPath $Destination) {
+            [System.IO.File]::Replace($staged, $Destination, $backup)
+        }
+        else { [System.IO.File]::Move($staged, $Destination) }
+    }
+    finally {
+        if (Test-Path -LiteralPath $staged) { Remove-Item -LiteralPath $staged -Force }
+        if (Test-Path -LiteralPath $backup) { Remove-Item -LiteralPath $backup -Force }
+    }
+}
+
 function Build-FromSource {
     param([string]$Target)
 
@@ -160,18 +197,8 @@ function Build-FromSource {
     try {
         & rustup target add wasm32-unknown-unknown $Target | Out-Host
         if ($LASTEXITCODE -ne 0) { throw 'Failed to install Rust targets.' }
-        & cargo build --locked --release -p xrat-web --target wasm32-unknown-unknown | Out-Host
-        if ($LASTEXITCODE -ne 0) { throw 'Failed to build browser WebAssembly.' }
-        & cargo install wasm-bindgen-cli --locked --version 0.2.122 --root target/web-tools | Out-Host
-        if ($LASTEXITCODE -ne 0) { throw 'Failed to install wasm-bindgen.' }
-        & ./target/web-tools/bin/wasm-bindgen.exe target/wasm32-unknown-unknown/release/xrat-web.wasm --target web --out-name xrat_web --out-dir crates/xrat-app/web-assets | Out-Host
-        if ($LASTEXITCODE -ne 0) { throw 'Failed to generate browser bindings.' }
-        & npx --yes @tailwindcss/cli@4.1.18 -i crates/xrat-web/assets/app.css -o crates/xrat-app/web-assets/app.css --minify | Out-Host
-        if ($LASTEXITCODE -ne 0) { throw 'Failed to build browser styles.' }
-        Copy-Item crates/xrat-web/index.html crates/xrat-app/web-assets/
-        foreach ($asset in @('boot.js', 'components.js', 'xrat-logo.png', 'favicon.ico', 'manifest.webmanifest', 'pwa.js', 'sw.js', 'offline.html', 'controllers', 'icons')) {
-            Copy-Item "crates/xrat-web/assets/$asset" crates/xrat-app/web-assets/ -Recurse -Force
-        }
+        & ./packaging/windows/build-web.ps1
+        if ($LASTEXITCODE -ne 0) { throw 'Failed to build browser assets.' }
         & cargo build --release --locked --target $Target | Out-Host
         if ($LASTEXITCODE -ne 0) { throw 'Failed to build xrat.' }
         return Join-Path $repoDir "target/$Target/release/xrat.exe"
@@ -240,19 +267,13 @@ function Invoke-Install {
 
             Write-Step 'Unpacking the tunnel gear'
             $extractDir = Join-Path $workDir 'extracted'
-            Expand-Archive -LiteralPath $archivePath -DestinationPath $extractDir -Force
-            $binary = Get-ChildItem -LiteralPath $extractDir -Filter $BinaryName -Recurse | Select-Object -First 1
-            if ($null -eq $binary) {
-                throw "The archive $archiveName does not contain $BinaryName"
-            }
-
-            $binaryPath = $binary.FullName
+            $binaryPath = Expand-VerifiedExecutable -Archive $archivePath -Directory $extractDir -Name $BinaryName
         }
 
         if (-not (Test-Path -LiteralPath $InstallDir)) {
             New-Item -ItemType Directory -Path $InstallDir -Force | Out-Null
         }
-        Copy-Item -LiteralPath $binaryPath -Destination $installedBinary -Force
+        Install-VerifiedBinary -Source $binaryPath -Destination $installedBinary
         Write-Info "Stashed xrat at $installedBinary"
 
         if (Add-UserPathEntry -Directory $InstallDir) {
