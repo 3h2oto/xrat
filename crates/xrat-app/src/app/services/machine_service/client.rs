@@ -290,3 +290,5 @@ fn unexpected() -> AppError {
 mod tests;
 
 mod imports;
+
+mod catalog;

@@ -9,7 +9,9 @@ const FIELD_LIMIT: usize = 4096;
 
 pub(super) fn validate(request: &CatalogRequest) -> Result<()> {
     match request {
-        CatalogRequest::Profile {} | CatalogRequest::Purge {} => {}
+        CatalogRequest::Profile {} | CatalogRequest::Purge {} | CatalogRequest::Detail { .. } => {}
+        CatalogRequest::FindConfig { reference } => validate_read_reference(reference.as_ref())?,
+        CatalogRequest::FindSubscription { reference } => validate_read_reference(reference)?,
         CatalogRequest::Reference { config_id } => {
             if config_id.0 <= 0 {
                 return Err(invalid("config ID must be positive"));
@@ -274,4 +276,11 @@ const SAFE_EXTENSIONS: &[&str] = &[
 
 fn invalid(message: &str) -> AppError {
     AppError::InvalidArgument(message.into())
+}
+
+fn validate_read_reference(reference: &str) -> Result<()> {
+    if reference.len() > FIELD_LIMIT {
+        return Err(invalid("machine lookup reference exceeds 4096 bytes"));
+    }
+    Ok(())
 }

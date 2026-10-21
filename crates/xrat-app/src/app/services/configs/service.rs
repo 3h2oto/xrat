@@ -63,20 +63,42 @@ pub struct ConfigListResult {
 #[derive(Clone)]
 pub struct ConfigService {
     repository: Arc<DatabaseConfigRepository>,
+    #[cfg(any(windows, test))]
+    machine_client: Option<crate::app::services::machine_service::MachineClient>,
 }
 
 impl ConfigService {
     pub fn new(repository: Arc<DatabaseConfigRepository>) -> Self {
-        Self { repository }
+        Self {
+            repository,
+            #[cfg(any(windows, test))]
+            machine_client: None,
+        }
+    }
+
+    #[cfg(any(windows, test))]
+    pub(crate) fn for_machine(
+        client: crate::app::services::machine_service::MachineClient,
+    ) -> Self {
+        Self {
+            repository: Arc::new(DatabaseConfigRepository::detached()),
+            machine_client: Some(client),
+        }
     }
 
     /// Shared repository access for sibling services.
+    /// Machine services expose a detached repository whose operations return Unsupported.
     pub fn repository(&self) -> Arc<DatabaseConfigRepository> {
         Arc::clone(&self.repository)
     }
 
     /// List configs with the latest test joined, applying filter and pagination.
     pub async fn list(&self, request: &ConfigListRequest) -> Result<ConfigListResult> {
+        #[cfg(any(windows, test))]
+        if let Some(client) = &self.machine_client {
+            return client.list(request).await;
+        }
+
         let filter = request.filter();
         let items = if let Some(top) = request.top_by_real_delay {
             self.repository
@@ -106,6 +128,11 @@ impl ConfigService {
 
     /// Raw config links for a filtered selection, in listing order.
     pub async fn export_raw_configs(&self, request: &ConfigListRequest) -> Result<Vec<String>> {
+        #[cfg(any(windows, test))]
+        if let Some(client) = &self.machine_client {
+            return client.export(request).await;
+        }
+
         let filter = request.filter();
         if let Some(top) = request.top_by_real_delay {
             let rows = self
@@ -124,6 +151,11 @@ impl ConfigService {
 
     /// Fetch a config as an interface-neutral detail model.
     pub async fn detail(&self, id: ConfigId) -> Result<Option<ConfigDetail>> {
+        #[cfg(any(windows, test))]
+        if let Some(client) = &self.machine_client {
+            return client.config_detail(id).await;
+        }
+
         Ok(self
             .repository
             .get_config_with_latest_test(id)
@@ -133,6 +165,14 @@ impl ConfigService {
     }
 
     pub async fn reference(&self, id: ConfigId) -> Result<Option<String>> {
+        #[cfg(any(windows, test))]
+        if let Some(client) = &self.machine_client {
+            if id.0 <= 0 {
+                return Ok(None);
+            }
+            return client.config_reference(id).await;
+        }
+
         Ok(self
             .repository
             .get_config_by_id(id)
@@ -142,6 +182,11 @@ impl ConfigService {
 
     /// Resolve a numeric id or ref prefix into a config id.
     pub async fn resolve_id(&self, token: &ConfigRef) -> Result<Option<ConfigId>> {
+        #[cfg(any(windows, test))]
+        if let Some(client) = &self.machine_client {
+            return client.find_config(token).await;
+        }
+
         let raw = token.as_ref();
         if let Ok(id) = raw.parse::<i64>() {
             let id = ConfigId(id);
@@ -166,6 +211,11 @@ impl ConfigService {
 
     /// Resolve a numeric subscription id or ref prefix.
     pub async fn resolve_subscription_id(&self, raw: &str) -> Result<Option<SubscriptionId>> {
+        #[cfg(any(windows, test))]
+        if let Some(client) = &self.machine_client {
+            return client.find_subscription(raw).await;
+        }
+
         if let Ok(id) = raw.parse::<i64>() {
             let id = SubscriptionId(id);
             if self.repository.get_subscription_by_id(id).await?.is_some() {
@@ -186,6 +236,11 @@ impl ConfigService {
 
     /// List subscriptions for ref enrichment.
     pub async fn subscriptions(&self) -> Result<Vec<xrat_db::SubscriptionRecord>> {
+        #[cfg(any(windows, test))]
+        if let Some(client) = &self.machine_client {
+            return client.subscriptions().await;
+        }
+
         Ok(self.repository.list_subscriptions().await?)
     }
 }

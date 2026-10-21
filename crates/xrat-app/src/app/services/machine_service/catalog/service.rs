@@ -17,6 +17,15 @@ impl MachineCatalog {
         policy::validate(&request)?;
         let services = self.context.services();
         Ok(match request {
+            CatalogRequest::Detail { config_id } => {
+                CatalogPayload::Detail(services.configs.detail(config_id).await?.map(Box::new))
+            }
+            CatalogRequest::FindConfig { reference } => {
+                CatalogPayload::FoundConfig(services.configs.resolve_id(&reference).await?)
+            }
+            CatalogRequest::FindSubscription { reference } => CatalogPayload::FoundSubscription(
+                services.configs.resolve_subscription_id(&reference).await?,
+            ),
             CatalogRequest::Purge {} => CatalogPayload::Changed(services.lifecycle.purge().await?),
             CatalogRequest::Profile {} => CatalogPayload::Profile {
                 database_label: self.context.runtime_paths.database_label.clone(),

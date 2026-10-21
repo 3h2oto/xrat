@@ -19,6 +19,17 @@ impl AppServices {
         Self::from_database(context.db.clone())
     }
 
+    /// Wire catalog operations through the machine gateway, with no local persistence fallback.
+    #[cfg(any(windows, test))]
+    pub fn from_machine(client: super::machine_service::MachineClient) -> Self {
+        Self {
+            configs: ConfigService::for_machine(client.clone()),
+            lifecycle: ConfigLifecycleService::for_machine(client),
+            clock: Arc::new(SystemClock),
+            filesystem: Arc::new(RealFilesystem),
+        }
+    }
+
     /// Wire production services from a database handle alone.
     ///
     /// Used by hosts that only need config services, such as the HTTP API

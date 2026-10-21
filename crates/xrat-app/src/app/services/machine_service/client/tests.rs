@@ -328,3 +328,234 @@ async fn machine_refresh_fetches_as_client_and_preserves_headers_names_and_parti
         3
     );
 }
+
+#[tokio::test]
+async fn application_facades_preserve_shared_reads_lifecycle_and_ref_resolution() {
+    use crate::app::ports::ConfigRepository;
+    use crate::app::services::{AppServices, ConfigExportRequest};
+    let (context, client, _calls, _root) = fixture(None).await;
+    for index in 1..=3 {
+        import(&client, index).await;
+    }
+    let local = context.services();
+    let remote = AppServices::from_machine(client);
+    let configs = local.configs.list(&Default::default()).await.unwrap();
+    assert_eq!(
+        remote
+            .configs
+            .list(&Default::default())
+            .await
+            .unwrap()
+            .items,
+        configs.items
+    );
+    let id = configs.items[0].summary.id;
+    let reference = remote.configs.reference(id).await.unwrap().unwrap();
+    let reference = ConfigRef::from(&reference[..8]);
+    assert_eq!(
+        remote.configs.detail(id).await.unwrap(),
+        local.configs.detail(id).await.unwrap()
+    );
+    assert_eq!(
+        remote.configs.resolve_id(&reference).await.unwrap(),
+        Some(id)
+    );
+    assert_eq!(
+        remote
+            .lifecycle
+            .resolve_config_id(&reference)
+            .await
+            .unwrap(),
+        id
+    );
+    for missing in ["", "not-a-reference", "999999999"] {
+        let reference = ConfigRef::from(missing);
+        assert_eq!(remote.configs.resolve_id(&reference).await.unwrap(), None);
+        assert!(
+            remote
+                .lifecycle
+                .resolve_config_id(&reference)
+                .await
+                .is_err()
+        );
+        assert_eq!(
+            remote
+                .configs
+                .resolve_subscription_id(missing)
+                .await
+                .unwrap(),
+            None
+        );
+    }
+    assert_eq!(
+        remote.configs.detail(ConfigId(i64::MAX)).await.unwrap(),
+        None
+    );
+    let outcome = remote.lifecycle.disable(&reference).await.unwrap();
+    assert_eq!(outcome, crate::app::services::ToggleOutcome::Changed);
+    assert_eq!(
+        remote.lifecycle.disable(&reference).await.unwrap(),
+        crate::app::services::ToggleOutcome::AlreadyDisabled
+    );
+    for filter in [
+        ConfigListRequest::default(),
+        ConfigListRequest {
+            only_enabled: true,
+            offset: Some(1),
+            limit: Some(1),
+            ..Default::default()
+        },
+    ] {
+        let expected = local.configs.list(&filter).await.unwrap();
+        let actual = remote.configs.list(&filter).await.unwrap();
+        assert_eq!(actual.total, expected.total);
+        assert_eq!(actual.items, expected.items);
+    }
+    let export = ConfigExportRequest::default();
+    assert_eq!(
+        remote.configs.export_subscription(&export).await.unwrap(),
+        local.configs.export_subscription(&export).await.unwrap()
+    );
+    assert_eq!(
+        remote.configs.export_summaries(&export).await.unwrap(),
+        local.configs.export_summaries(&export).await.unwrap()
+    );
+    let subscriptions = remote.configs.subscriptions().await.unwrap();
+    assert_eq!(subscriptions, local.configs.subscriptions().await.unwrap());
+    let source = &subscriptions[0];
+    assert_eq!(
+        remote
+            .configs
+            .resolve_subscription_id(&source.r#ref)
+            .await
+            .unwrap(),
+        Some(source.id)
+    );
+    assert_eq!(
+        remote
+            .lifecycle
+            .resolve_subscription_id(&source.r#ref)
+            .await
+            .unwrap(),
+        source.id
+    );
+    assert_eq!(
+        remote.lifecycle.subscription(&source.r#ref).await.unwrap(),
+        *source
+    );
+    assert_eq!(
+        remote
+            .lifecycle
+            .rename_subscription(&source.r#ref, "renamed")
+            .await
+            .unwrap(),
+        *source
+    );
+    assert_eq!(
+        remote
+            .lifecycle
+            .subscription(&source.r#ref)
+            .await
+            .unwrap()
+            .name
+            .as_deref(),
+        Some("renamed")
+    );
+    remote.lifecycle.enable(&reference).await.unwrap();
+    remote.lifecycle.delete(&reference, false).await.unwrap();
+    assert_eq!(
+        remote.lifecycle.enable(&reference).await.unwrap(),
+        crate::app::services::ToggleOutcome::DeletedConfig
+    );
+    assert_eq!(remote.lifecycle.count_deleted().await.unwrap(), 1);
+    remote.lifecycle.restore(&reference).await.unwrap();
+    assert_eq!(remote.lifecycle.count_deleted().await.unwrap(), 0);
+    assert_eq!(remote.lifecycle.delete_many(&[id], false).await.unwrap(), 1);
+    assert_eq!(remote.lifecycle.restore_many(&[id]).await.unwrap(), 1);
+    remote.lifecycle.delete(&reference, true).await.unwrap();
+    assert_eq!(remote.configs.detail(id).await.unwrap(), None);
+    assert_eq!(remote.configs.reference(id).await.unwrap(), None);
+    remote
+        .lifecycle
+        .delete_subscription(&source.r#ref)
+        .await
+        .unwrap();
+    assert_eq!(
+        remote
+            .configs
+            .resolve_subscription_id(&source.r#ref)
+            .await
+            .unwrap(),
+        None
+    );
+    assert_eq!(remote.lifecycle.purge().await.unwrap(), 0);
+    let repository = remote.configs.repository();
+    let error = repository
+        .list_configs(&Default::default())
+        .await
+        .unwrap_err();
+    assert!(
+        matches!(error, xrat_db::DbError::Io(error) if error.kind() == std::io::ErrorKind::Unsupported)
+    );
+    assert!(repository.purge_deleted_configs().await.is_err());
+}
+
+#[tokio::test]
+async fn http_exports_use_machine_catalog_while_api_auth_and_ui_store_remain_local() {
+    use axum::{
+        body::{Body, to_bytes},
+        http::{Request, StatusCode},
+    };
+    use base64::Engine;
+    use tower::ServiceExt;
+    let (machine, client, calls, _machine_root) = fixture(None).await;
+    import(&client, 1).await;
+    import(&client, 2).await;
+    let ui = TestAppBuilder::new("machine-http-user-store").build().await;
+    let mut state =
+        crate::server::ServerState::for_test(ui.db.clone(), Some("operator-secret".into()));
+    state.services = crate::app::services::AppServices::from_machine(client);
+    let router = crate::server::build_router(state);
+    let count = calls.lock().unwrap().len();
+    for uri in ["/b64", "/b64?key=incorrect"] {
+        let response = router
+            .clone()
+            .oneshot(Request::builder().uri(uri).body(Body::empty()).unwrap())
+            .await
+            .unwrap();
+        assert_eq!(response.status(), StatusCode::UNAUTHORIZED);
+    }
+    assert_eq!(
+        calls.lock().unwrap().len(),
+        count,
+        "HTTP auth must precede gateway access"
+    );
+    let response = router
+        .oneshot(
+            Request::builder()
+                .uri("/b64?key=operator-secret")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(response.status(), StatusCode::OK);
+    let body = to_bytes(response.into_body(), 1024 * 1024).await.unwrap();
+    let raw = base64::engine::general_purpose::STANDARD
+        .decode(body)
+        .unwrap();
+    let expected = machine
+        .services()
+        .configs
+        .export_subscription(&crate::app::services::ConfigExportRequest::default())
+        .await
+        .unwrap();
+    assert_eq!(raw, expected.as_bytes());
+    assert!(
+        ui.db
+            .list_configs(&Default::default())
+            .await
+            .unwrap()
+            .is_empty()
+    );
+}

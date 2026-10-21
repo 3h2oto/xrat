@@ -120,6 +120,16 @@ filesystem operations are absent from the operator gateway. Service lifecycle
 uses SCM permissions. TUI and HTTP application integration remain outstanding;
 existing HTTP authentication/roles are unchanged.
 
+Application catalog facades preserve the public `AppServices`, `ConfigService`,
+and lifecycle service types while forwarding machine reads and transitions to
+the same service owners. Optional detail/reference lookups preserve missing
+results without parsing error messages. Detached machine repositories return an
+explicit unsupported error for direct persistence access; no user or Web-auth
+database is attached as a catalog fallback. Contract fixtures compare local and
+machine reads/lifecycle results and exercise authenticated HTTP subscription
+exports with a separate empty user store. This is a composition seam; automatic
+machine TUI/Web context construction remains under implementation.
+
 Machine diagnostics use a shared bounded reader also used by dashboard logs.
 Typed requests select persisted events or one of the fixed daemon/Xray/sing-box
 feeds; callers cannot supply a path. CLI `logs` supports app-event JSON/TSV,
