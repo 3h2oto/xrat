@@ -20,7 +20,6 @@ pub(crate) async fn upgrade(
     config_path: &Path,
 ) -> crate::app::Result<()> {
     let color = output::color_enabled();
-    let arch = detect_arch()?;
 
     let version = match &args.version {
         Some(tag) => tag.clone(),
@@ -42,6 +41,8 @@ pub(crate) async fn upgrade(
         );
         return Ok(());
     }
+
+    let arch = detect_arch()?;
 
     println!(
         "{}",
