@@ -17,9 +17,9 @@ pub use configs::{
     set_config_enabled,
 };
 pub use connection_tests::{
-    get_connection_test_count, get_latest_connection_test, get_latest_connection_test_run,
-    insert_connection_test, insert_connection_test_run, list_connection_tests,
-    list_connection_tests_by_run, recent_connection_tests,
+    connection_test_page, get_connection_test_count, get_latest_connection_test,
+    get_latest_connection_test_run, insert_connection_test, insert_connection_test_run,
+    list_connection_tests, list_connection_tests_by_run, recent_connection_tests,
 };
 pub use events::{clear_events, events_after, list_events, record_event};
 pub use geoip_cache::{get_fresh_geoip_cache, upsert_geoip_cache};

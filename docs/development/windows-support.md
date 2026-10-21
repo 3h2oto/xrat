@@ -155,6 +155,14 @@ Session changes and shorter files reset file cursors. Event follow batches are
 limited in SQL, with no loss at page boundaries. Existing unbounded local
 `events_after` calls retain their zero-limit behavior.
 
+Probe diagnostics include the latest run and paged results for an explicit run
+or config. SQL pages retain existing timestamp/id ordering and use an exclusive
+cursor, so equal timestamps and backdated records keep their order. Wire reads
+accept at most 200 records; the client collects complete history or a requested
+recent subset, shrinks oversized read replies, and fails on a later-page error.
+These are read operations; service-owned cancellable probe execution and UI
+routing remain under implementation.
+
 Local contract tests cover schema rejection, unauthorized callers, protocol
 versions, identifier validation, service-owned TUN paths, supervisor errors,
 idempotent disconnect results, and unavailable supervisors. Ignored native

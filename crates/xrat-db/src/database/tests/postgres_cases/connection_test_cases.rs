@@ -38,4 +38,23 @@ pub(super) async fn verify_connection_test_state(db: &Database, config_id: Confi
     assert_eq!(db.get_connection_test_count().await.expect("count"), 1);
     assert_eq!(latest_test.download_mbps, Some(42.5));
     assert_eq!(latest_test.upload_mbps, Some(11.25));
+    let selection = crate::ConnectionTestSelection::Config(config_id);
+    let page = db.connection_test_page(&selection, None, 1).await.unwrap();
+    assert_eq!(page, vec![latest_test.clone()]);
+    let before = crate::ConnectionTestCursor {
+        id: latest_test.id,
+        tested_at: latest_test.tested_at.clone(),
+    };
+    assert!(
+        db.connection_test_page(&selection, Some(&before), 1)
+            .await
+            .unwrap()
+            .is_empty()
+    );
+    assert!(
+        db.connection_test_page(&crate::ConnectionTestSelection::Run(i64::MAX), None, 1)
+            .await
+            .unwrap()
+            .is_empty()
+    );
 }

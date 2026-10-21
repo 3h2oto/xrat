@@ -32,6 +32,17 @@ impl Transport for Loopback {
             GatewayRequestKind::Catalog {
                 request: CatalogRequest::RawConfigs { ids },
             } => Some((ids.first().map_or(0, |id| id.0 - 1), ids.len())),
+            GatewayRequestKind::Diagnostics {
+                request:
+                    crate::app::services::diagnostics::DiagnosticsRequest::ProbePage {
+                        before,
+                        limit,
+                        ..
+                    },
+            } => Some((
+                before.as_ref().map_or(0, |cursor| cursor.id),
+                usize::from(*limit),
+            )),
             _ => None,
         };
         if let Some((offset, limit)) = page {
@@ -656,3 +667,5 @@ async fn raw_id_exports_preserve_order_missing_semantics_and_bounded_read_retrie
         .unwrap_err();
     assert!(error.to_string().contains("pipe disconnected"));
 }
+
+mod history;

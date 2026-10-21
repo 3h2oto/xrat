@@ -2,6 +2,16 @@ use super::Database;
 use super::types::*;
 
 impl Database {
+    /// Read at most 200 history rows in existing timestamp/id order, before an exclusive cursor.
+    pub async fn connection_test_page(
+        &self,
+        selection: &crate::ConnectionTestSelection,
+        before: Option<&crate::ConnectionTestCursor>,
+        limit: i64,
+    ) -> crate::Result<Vec<ConnectionTestRecord>> {
+        repository::connection_test_page(&self.pool, selection, before, limit).await
+    }
+
     pub async fn recent_connection_tests(
         &self,
         config_id: ConfigId,

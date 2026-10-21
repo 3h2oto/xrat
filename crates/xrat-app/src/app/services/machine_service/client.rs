@@ -299,3 +299,5 @@ mod tests;
 mod imports;
 
 mod catalog;
+
+mod history;

@@ -1,3 +1,4 @@
+mod history;
 mod insert_ops;
 mod query_ops;
 
@@ -6,3 +7,5 @@ pub use query_ops::{
     get_count, get_latest_by_config, get_latest_run, list_by_config, list_by_run,
     list_recent_by_config,
 };
+
+pub use history::page;

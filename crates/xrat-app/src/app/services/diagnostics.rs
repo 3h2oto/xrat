@@ -55,6 +55,12 @@ pub enum DiagnosticsRequest {
         cursor: Option<LogCursor>,
         lines: u16,
     },
+    LatestProbeRun {},
+    ProbePage {
+        selection: xrat_db::ConnectionTestSelection,
+        before: Option<xrat_db::ConnectionTestCursor>,
+        limit: u16,
+    },
     ClearEvents {},
 }
 
@@ -67,6 +73,8 @@ pub enum DiagnosticsPayload {
         cursor: LogCursor,
         truncated: bool,
     },
+    LatestProbeRun(Option<xrat_db::ConnectionTestRunRecord>),
+    ProbePage(Vec<xrat_db::ConnectionTestRecord>),
     Cleared(u64),
 }
 
@@ -123,6 +131,35 @@ impl DiagnosticsService {
                     return Err(invalid("invalid log line limit or session cursor"));
                 }
                 self.file(feed, cursor, lines).await
+            }
+            DiagnosticsRequest::LatestProbeRun {} => Ok(DiagnosticsPayload::LatestProbeRun(
+                self.context.db.get_latest_connection_test_run().await?,
+            )),
+            DiagnosticsRequest::ProbePage {
+                selection,
+                before,
+                limit,
+            } => {
+                let id = match selection {
+                    xrat_db::ConnectionTestSelection::Config(id) => id.0,
+                    xrat_db::ConnectionTestSelection::Run(id) => id,
+                };
+                if id <= 0
+                    || !(1..=200).contains(&limit)
+                    || before.as_ref().is_some_and(|cursor| {
+                        cursor.id <= 0
+                            || cursor.tested_at.is_empty()
+                            || cursor.tested_at.len() > 128
+                    })
+                {
+                    return Err(invalid("invalid probe selection, cursor, or page limit"));
+                }
+                Ok(DiagnosticsPayload::ProbePage(
+                    self.context
+                        .db
+                        .connection_test_page(&selection, before.as_ref(), i64::from(limit))
+                        .await?,
+                ))
             }
             DiagnosticsRequest::ClearEvents {} => Ok(DiagnosticsPayload::Cleared(
                 self.context.db.clear_events().await?,
