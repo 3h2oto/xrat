@@ -4,6 +4,12 @@ pub(crate) async fn run(
     config_path: &Path,
     args: &UpgradeArgs,
 ) -> crate::app::Result<super::UpgradeOutcome> {
+    #[cfg(windows)]
+    if args.tun_setup || args.no_tun_setup {
+        return Err(AppError::InvalidArgument(
+            "--tun-setup and --no-tun-setup manage Linux file capabilities and are not available on Windows".into(),
+        ));
+    }
     let target = current_exe()?;
 
     if args.source {

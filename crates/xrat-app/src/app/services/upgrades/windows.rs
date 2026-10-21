@@ -109,7 +109,7 @@ pub(super) async fn stage(
             "staged executable version does not match the requested release".into(),
         ));
     }
-    let runtime = config.parent().unwrap_or(Path::new(".")).join("runtime");
+    let runtime = crate::app::app_paths::resolve()?.root_dir.join("runtime");
     let endpoint = crate::app::daemon::ipc::default_socket_path(&runtime);
     if crate::app::daemon::ipc::ping_daemon(&endpoint)
         .await

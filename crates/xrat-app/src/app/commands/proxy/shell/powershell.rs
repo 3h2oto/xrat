@@ -37,21 +37,5 @@ pub(super) fn restore() -> String {
 }
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn powershell_quotes_values_and_preserves_unrelated_environment() {
-        let script = enable(
-            "http://user'quote@127.0.0.1:8080",
-            "socks5h://127.0.0.1:1080",
-        );
-        assert!(script.contains("'http://user''quote@127.0.0.1:8080'"));
-        assert!(!script.contains("NO_PROXY"));
-        assert!(!script.contains("http_proxy"));
-        assert!(script.contains("-not (Test-Path Env:XRAT_PROXY_HAD_HTTP_PROXY)"));
-        let restore = restore();
-        assert!(restore.contains("if (Test-Path Env:XRAT_PROXY_HAD_HTTP_PROXY)"));
-        assert!(!restore.contains("NO_PROXY"));
-    }
-}
+#[path = "powershell_tests.rs"]
+mod tests;

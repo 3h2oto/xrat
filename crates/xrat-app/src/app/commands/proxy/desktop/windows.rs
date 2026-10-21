@@ -4,6 +4,9 @@ use crate::app::{AppError, Result};
 use crate::cli::ProxyDesktopAction;
 
 pub(super) async fn run(context: &AppContext, action: &ProxyDesktopAction) -> Result<()> {
+    if xrat_support::windows::current_user_sid()? == "S-1-5-18" {
+        return Err(AppError::InvalidArgument("desktop proxy settings require the interactive user's session; a LocalSystem service cannot change its own HKCU on the user's behalf".into()));
+    }
     let directory = xrat_support::platform::xdg_data_home()
         .ok_or_else(|| {
             AppError::InvalidArgument("could not resolve the user data directory".into())
