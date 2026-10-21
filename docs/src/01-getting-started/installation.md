@@ -1,6 +1,6 @@
 # Installation Script
 
-Use the installer script for a normal Linux or macOS install. It downloads the
+Use `install.sh` for Linux or macOS and `install.ps1` for Windows. It downloads the
 matching release archive, verifies the checksum, installs `xrat`, and can run
 first-time setup for you.
 
@@ -219,3 +219,27 @@ Then follow the [Quickstart](quickstart.md) to import configs and connect.
 | `$HOME/.config/xrat/mmdb/`       | GeoIP data                   | `[mmdb].dir`        |
 | `$HOME/.local/share/xrat/cores/` | Managed proxy cores/assets   | XDG data directory |
 | `$HOME/.local/bin/{xray,v2ray,sing-box}` | Managed core CLI links | -             |
+
+## Windows installer and release packaging
+
+Windows release builds publish `xrat-<tag>-x86_64-pc-windows-msvc.zip` and
+`xrat-<tag>-aarch64-pc-windows-msvc.zip`, containing `xrat.exe`, `LICENSE`,
+`README.md`, and an embedded browser bundle. The release workflow reuses the
+Windows build/test workflow and waits for both targets before publishing;
+`SHASUMS256.txt` covers the Windows ZIPs alongside the Unix archives.
+
+```powershell
+Invoke-WebRequest https://raw.githubusercontent.com/mhyrzt/xrat/master/install.ps1 -OutFile install.ps1
+.\install.ps1 -Yes
+```
+
+The script verifies SHA-256 before installing to `%USERPROFILE%\.local\bin`,
+adds that directory to the user PATH, and delegates configuration and core
+installation to `xrat setup`. Restart the terminal to use the updated PATH.
+Options are `-InstallDir <directory>`, `-Version <tag>`, `-Yes`, `-NoSetup`,
+and `-FromSource`. Source installation requires a repository checkout, Rust
+with MSVC build tools, and Node.js; it builds browser assets before the binary.
+Without a terminal, setup is skipped unless `-Yes` is provided, matching the
+shell installer's unattended behavior. Linux desktop and linger flags do not
+apply to Windows. Windows self-upgrade remains unsupported; download and rerun
+the installer after stopping XRAT.

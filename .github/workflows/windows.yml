@@ -2,6 +2,12 @@ name: Windows build
 
 on:
   workflow_dispatch:
+  workflow_call:
+    inputs:
+      web_assets_artifact:
+        description: Existing browser asset artifact from the calling workflow
+        type: string
+        default: ''
   push:
     branches: [master]
   pull_request:
@@ -16,6 +22,7 @@ concurrency:
 jobs:
   web-assets:
     name: Build browser assets
+    if: ${{ !inputs.web_assets_artifact }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
@@ -29,30 +36,30 @@ jobs:
       - run: just web-tools web-build
       - uses: actions/upload-artifact@v4
         with:
-          name: web-assets
+          name: windows-web-assets
           path: crates/xrat-app/web-assets/
 
   build:
     name: Build ${{ matrix.target }}
     runs-on: ${{ matrix.os }}
     needs: [web-assets]
-    # The ARM64 leg is experimental. A failure there (a dependency without
-    # Windows support, a broken toolchain) must not fail the workflow and
-    # block the pull request, while the x86_64 leg stays mandatory.
-    # `fail-fast: false` keeps one leg from cancelling the other.
-    continue-on-error: ${{ matrix.experimental }}
+    if: ${{ !cancelled() && (needs.web-assets.result == 'success' || needs.web-assets.result == 'skipped') }}
     strategy:
       fail-fast: false
       matrix:
         include:
           - target: x86_64-pc-windows-msvc
             os: windows-latest
-            experimental: false
           - target: aarch64-pc-windows-msvc
             os: windows-11-arm
-            experimental: true
     steps:
       - uses: actions/checkout@v5
+      - name: Test installer (Windows PowerShell 5.1)
+        shell: powershell
+        run: ./tests/install/windows.ps1
+      - name: Test installer (PowerShell 7)
+        shell: pwsh
+        run: ./tests/install/windows.ps1
       - uses: dtolnay/rust-toolchain@stable
         with:
           targets: ${{ matrix.target }}
@@ -62,7 +69,7 @@ jobs:
 
       - uses: actions/download-artifact@v4
         with:
-          name: web-assets
+          name: ${{ inputs.web_assets_artifact || 'windows-web-assets' }}
           path: crates/xrat-app/web-assets/
 
       - name: Build

@@ -89,64 +89,40 @@ Launch the TUI with `xratui` (or `xrat tui`).
 
 ### Windows (experimental)
 
-Windows is not part of the published release artifacts yet. A Windows build can
-be produced from source, but the browser assets have to be generated first. They
-are build artifacts and not committed to the repository, so `cargo build` on a
-fresh checkout embeds an empty asset folder and `xrat webui` then answers every
-request with HTTP 503.
-
-Prerequisites are Rust installed through rustup, Node.js with `npx` on `PATH`,
-and the WebAssembly target:
+The release workflow builds Windows x64 and ARM64 ZIP archives with the Web UI
+embedded. Download `install.ps1` and run it from PowerShell to select the
+matching archive, verify its SHA-256 checksum, install into
+`%USERPROFILE%\.local\bin`, and run `xrat setup`:
 
 ```powershell
-rustup target add wasm32-unknown-unknown
+Invoke-WebRequest https://raw.githubusercontent.com/mhyrzt/xrat/master/install.ps1 -OutFile install.ps1
+.\install.ps1
 ```
 
-Clone the repository, generate the assets, and build the binary:
+Use `-Yes` to accept setup defaults, `-InstallDir <directory>` for a custom
+location, `-Version <tag>` to pin a release, or `-NoSetup` to install only the
+binary. Without an interactive terminal, guided setup is skipped unless `-Yes`
+is supplied. Restart your terminal after installation to pick up the user PATH.
+Use a release containing Windows assets; older releases do not provide these
+ZIPs. Until the first such release is published, use the source installer below.
+
+For a source install, install Rust through rustup (with the MSVC build tools)
+and Node.js with `npx` on `PATH`, then run:
 
 ```powershell
 git clone https://github.com/mhyrzt/xrat.git
 cd xrat
-cargo build --locked --release -p xrat-web --target wasm32-unknown-unknown
-cargo install wasm-bindgen-cli --locked --version 0.2.122
-$wasmBindgen = Join-Path $env:USERPROFILE ".cargo\bin\wasm-bindgen.exe"
-& $wasmBindgen target/wasm32-unknown-unknown/release/xrat-web.wasm --target web --out-name xrat_web --out-dir crates/xrat-app/web-assets
-npx --yes @tailwindcss/cli@4.1.18 -i crates/xrat-web/assets/app.css -o crates/xrat-app/web-assets/app.css --minify
-Copy-Item crates/xrat-web/index.html crates/xrat-app/web-assets/
-Copy-Item crates/xrat-web/assets/boot.js crates/xrat-app/web-assets/
-Copy-Item crates/xrat-web/assets/components.js crates/xrat-app/web-assets/
-Copy-Item crates/xrat-web/assets/xrat-logo.png crates/xrat-app/web-assets/
-Copy-Item crates/xrat-web/assets/favicon.ico crates/xrat-app/web-assets/
-Copy-Item crates/xrat-web/assets/manifest.webmanifest crates/xrat-app/web-assets/
-Copy-Item crates/xrat-web/assets/pwa.js crates/xrat-app/web-assets/
-Copy-Item crates/xrat-web/assets/sw.js crates/xrat-app/web-assets/
-Copy-Item crates/xrat-web/assets/offline.html crates/xrat-app/web-assets/
-Copy-Item -Recurse crates/xrat-web/assets/controllers crates/xrat-app/web-assets/
-Copy-Item -Recurse crates/xrat-web/assets/icons crates/xrat-app/web-assets/
-cargo build --release --locked --target x86_64-pc-windows-msvc
+.\install.ps1 -FromSource
 ```
 
-`cargo install` places `wasm-bindgen` in `%USERPROFILE%\.cargo\bin`, so the
-command above calls it by its full path and also works in a shell that was
-opened before the install. Installing `wasm-bindgen-cli` from source takes a few
-minutes. On ARM64 Windows, build with `--target aarch64-pc-windows-msvc`
-instead.
+This builds the browser assets before the native binary, then installs it and
+runs the same setup as the release path. A plain `cargo build` on a fresh
+checkout does not include browser assets. Both installers delegate platform
+integration to `xrat setup`; Windows skips unsupported Unix integrations.
 
-`just web-tools web-build` performs the same asset steps, but it needs `just`
-and a POSIX shell (Git Bash or WSL) on `PATH`. Use the explicit commands above
-on Windows.
-
-Start the CLI and the Web UI from the built binary:
-
-```powershell
-.\target\x86_64-pc-windows-msvc\release\xrat.exe init
-.\target\x86_64-pc-windows-msvc\release\xrat.exe install xray
-.\target\x86_64-pc-windows-msvc\release\xrat.exe install sing-box
-.\target\x86_64-pc-windows-msvc\release\xrat.exe webui
-```
-
-The Web UI is then served on <http://127.0.0.1:18203>. Use the `127.0.0.1`
-address: the server rejects requests whose `Origin` header uses `localhost`.
+Start the TUI with `xrat tui` or the Web UI with `xrat webui`. The Web UI is
+served on <http://127.0.0.1:18203>; use `127.0.0.1` rather than `localhost`
+because the server checks the request origin.
 
 Known limitations on Windows:
 
