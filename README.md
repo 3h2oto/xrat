@@ -89,53 +89,15 @@ Launch the TUI with `xratui` (or `xrat tui`).
 
 ### Windows (experimental)
 
-The release workflow builds Windows x64 and ARM64 ZIP archives with the Web UI
-embedded. Download `install.ps1` and run it from PowerShell to select the
-matching archive, verify its SHA-256 checksum, install into
-`%USERPROFILE%\.local\bin`, and run `xrat setup`:
-
 ```powershell
 Invoke-WebRequest https://raw.githubusercontent.com/mhyrzt/xrat/master/install.ps1 -OutFile install.ps1
 .\install.ps1
 ```
 
-Use `-Yes` to accept setup defaults, `-InstallDir <directory>` for a custom
-location, `-Version <tag>` to pin a release, or `-NoSetup` to install only the
-binary. Without an interactive terminal, guided setup is skipped unless `-Yes`
-is supplied. Restart your terminal after installation to pick up the user PATH.
-Use a release containing Windows assets; older releases do not provide these
-ZIPs. Until the first such release is published, use the source installer below.
-
-For a source install, install Rust through rustup (with the MSVC build tools)
-and Node.js with `npx` on `PATH`, then run:
-
-```powershell
-git clone https://github.com/mhyrzt/xrat.git
-cd xrat
-.\install.ps1 -FromSource
-```
-
-This builds the browser assets before the native binary, then installs it and
-runs the same setup as the release path. A plain `cargo build` on a fresh
-checkout does not include browser assets. Both installers delegate platform
-integration to `xrat setup`; Windows skips unsupported Unix integrations.
-
-Start the TUI with `xrat tui` or the Web UI with `xrat webui`. The Web UI is
-served on <http://127.0.0.1:18203>; use `127.0.0.1` rather than `localhost`
-because the server checks the request origin.
-
-Known limitations on Windows:
-
-- The daemon supervisor speaks a Unix-domain socket, so `xrat daemon`,
-  `xrat status`, `xrat rotate` and the other daemon-backed commands are
-  unavailable. The CLI and the Web UI work without the daemon.
-- The `xratui` shortcut is a Unix shell script, so setup skips it on Windows.
-  Start the TUI with `xrat tui`.
-- Windows support is 64-bit only. 32-bit Windows (`i686-pc-windows-msvc`) is not
-  supported.
-- Managed TUN capture is Linux-only.
-- The system proxy is not configured automatically; point the application or the
-  OS at the local SOCKS/HTTP inbound (ports `18200`/`18201`).
+> **Warning:** Windows support is experimental and requires a release with
+> Windows assets. Only x64 and ARM64 are supported; daemon-backed commands,
+> managed TUN, automatic system proxy configuration, and self-upgrade are
+> unavailable.
 
 XRAT manages external proxy engines: Xray is the default, V2Ray is an
 alternative, and sing-box supports all imported protocols. Setup can install
