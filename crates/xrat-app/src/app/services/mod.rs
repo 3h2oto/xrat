@@ -14,6 +14,7 @@ pub mod runtime_control;
 pub mod runtime_transitions;
 pub mod runtime_tuning;
 pub mod split_tunnel;
+pub(crate) mod subscriptions;
 pub mod testing;
 pub(crate) mod tun;
 pub(crate) mod tun_control;

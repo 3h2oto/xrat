@@ -242,3 +242,89 @@ async fn mutation_is_not_replayed_after_a_lost_oversized_result_and_versions_are
             .contains("protocol mismatch")
     );
 }
+
+#[tokio::test]
+async fn machine_refresh_fetches_as_client_and_preserves_headers_names_and_partial_failures() {
+    use tokio::io::{AsyncReadExt, AsyncWriteExt};
+    let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let address = listener.local_addr().unwrap();
+    let worker = tokio::spawn(async move {
+        for index in 0..4 {
+            let (mut socket, _) = listener.accept().await.unwrap();
+            let mut request = Vec::new();
+            loop {
+                let mut buffer = [0; 1024];
+                let read = socket.read(&mut buffer).await.unwrap();
+                assert!(read > 0);
+                request.extend_from_slice(&buffer[..read]);
+                if request.windows(4).any(|window| window == b"\r\n\r\n") {
+                    break;
+                }
+                assert!(request.len() < 65536);
+            }
+            let request = String::from_utf8(request).unwrap().to_ascii_lowercase();
+            assert!(request.contains("x-subscription-key: fixture-secret"));
+            let (status, body) = if index == 3 {
+                ("503 Service Unavailable", "unavailable".to_string())
+            } else {
+                (
+                    "200 OK",
+                    format!("vless://id@node{index}.example:443#node{index}"),
+                )
+            };
+            socket.write_all(format!("HTTP/1.1 {status}\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{body}", body.len()).as_bytes()).await.unwrap();
+        }
+    });
+    let (context, client, calls, _root) = fixture(None).await;
+    let headers = BTreeMap::from([("x-subscription-key".into(), "fixture-secret".into())]);
+    let first = client
+        .import_subscription(&format!("http://{address}/one"), Some("main"), &headers)
+        .await
+        .unwrap();
+    let second = client
+        .import_subscription(&format!("http://{address}/two"), Some("backup"), &headers)
+        .await
+        .unwrap();
+    let summary = client
+        .refresh_subscriptions(&[
+            second.subscription_id.to_string(),
+            first.subscription_id.to_string(),
+            first.subscription_id.to_string(),
+        ])
+        .await
+        .unwrap();
+    assert_eq!(
+        (summary.attempted, summary.succeeded, summary.failed),
+        (2, 1, 1)
+    );
+    assert_eq!(summary.successes[0].subscription_id, first.subscription_id);
+    assert_eq!(summary.failures[0].subscription_id, second.subscription_id);
+    assert_eq!(summary.successes[0].subscription_name, "main");
+    assert_eq!(
+        client
+            .subscription(&first.subscription_id.to_string())
+            .await
+            .unwrap()
+            .headers,
+        headers
+    );
+    let configs = context.db.list_configs(&Default::default()).await.unwrap();
+    assert_eq!(configs.len(), 2);
+    assert!(configs.iter().any(|row| row.address == "node1.example"));
+    assert!(configs.iter().any(|row| row.address == "node2.example"));
+    worker.await.unwrap();
+    assert_eq!(
+        calls
+            .lock()
+            .unwrap()
+            .iter()
+            .filter(|request| matches!(
+                request.request,
+                GatewayRequestKind::Catalog {
+                    request: CatalogRequest::Import { .. }
+                }
+            ))
+            .count(),
+        3
+    );
+}

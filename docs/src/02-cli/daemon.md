@@ -279,7 +279,10 @@ xrat --profile machine daemon stop
 `--profile user` is the default. Machine commands use the service gateway and
 never open a user catalog or fall back when the service is unavailable. Path and
 database overrides are rejected. Supported catalog commands currently include
-`add`, `import`, `list`, `show`, `enable`, `disable`, `delete`, and `restore`.
+`add`, `import`, `update`, `list`, `show`, `enable`, `disable`, `delete`,
+`restore`, and `purge`. Machine `rotate enable/disable/status/now` also use the
+supervisor; rotation controls are volatile and do not edit administrator policy.
+`rotate now --refresh` refreshes subscriptions through the ordinary client.
 The machine TUI, HTTP host, driver provisioning, and coordinated service upgrade
 are still under implementation. Windows `daemon install --with-api` and `--tun`
 currently return an explicit unsupported-operation error.

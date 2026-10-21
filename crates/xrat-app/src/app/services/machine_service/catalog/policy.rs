@@ -9,7 +9,7 @@ const FIELD_LIMIT: usize = 4096;
 
 pub(super) fn validate(request: &CatalogRequest) -> Result<()> {
     match request {
-        CatalogRequest::Profile {} => {}
+        CatalogRequest::Profile {} | CatalogRequest::Purge {} => {}
         CatalogRequest::Reference { config_id } => {
             if config_id.0 <= 0 {
                 return Err(invalid("config ID must be positive"));

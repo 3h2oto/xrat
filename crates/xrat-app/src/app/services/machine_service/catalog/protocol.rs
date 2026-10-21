@@ -13,6 +13,7 @@ pub(crate) const PAGE_LIMIT: i64 = 200;
 #[serde(tag = "type", rename_all = "snake_case", deny_unknown_fields)]
 pub enum CatalogRequest {
     Profile {},
+    Purge {},
     List {
         filter: ConfigListRequest,
     },

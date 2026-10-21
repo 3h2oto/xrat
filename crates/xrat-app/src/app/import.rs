@@ -88,6 +88,7 @@ pub(crate) async fn load_url_list_parts<T>(
     path: &str,
     mut parse: impl FnMut(&[u8]) -> crate::app::Result<T>,
 ) -> crate::app::Result<(ImportSource, Vec<T>)> {
+    crate::app::input::source::ensure_acquisition_allowed()?;
     if !std::path::Path::new(path).is_file() {
         return Err(AppError::InvalidArgument(
             "--url-list requires a local file of subscription URLs".into(),

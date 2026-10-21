@@ -73,4 +73,5 @@ pub trait ConfigRepository: Send + Sync {
     async fn delete_configs(&self, ids: &[ConfigId]) -> Result<u64, DbError>;
     async fn hard_delete_configs(&self, ids: &[ConfigId]) -> Result<u64, DbError>;
     async fn restore_configs(&self, ids: &[ConfigId]) -> Result<u64, DbError>;
+    async fn purge_deleted_configs(&self) -> Result<u64, DbError>;
 }

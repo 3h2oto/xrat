@@ -6,6 +6,10 @@ use serde::Serialize;
 use xrat_db::{ImportSource, SourceKind};
 use xrat_support::url::looks_like_url;
 
+#[path = "source_policy.rs"]
+mod policy;
+pub(crate) use policy::ensure_acquisition_allowed;
+
 pub fn read_input(input: &str) -> crate::app::Result<(ImportSource, Vec<u8>)> {
     read_input_with_client(input, &xrat_support::http::ReqwestBlockingHttpClient)
 }
@@ -14,6 +18,7 @@ pub fn read_input_with_client(
     input: &str,
     client: &dyn xrat_support::http::BlockingHttpClient,
 ) -> crate::app::Result<(ImportSource, Vec<u8>)> {
+    ensure_acquisition_allowed()?;
     if looks_like_url(input) {
         return Ok((
             ImportSource {
@@ -44,6 +49,7 @@ pub async fn read_input_async_with_headers(
     client: &xrat_support::http::Client,
     headers: xrat_support::http::HeaderMap,
 ) -> crate::app::Result<(ImportSource, Vec<u8>)> {
+    ensure_acquisition_allowed()?;
     if looks_like_url(input) {
         return Ok((
             ImportSource {
@@ -66,6 +72,7 @@ pub fn fetch_url_with_client(
     url: &str,
     client: &dyn xrat_support::http::BlockingHttpClient,
 ) -> crate::app::Result<Vec<u8>> {
+    ensure_acquisition_allowed()?;
     let response = client
         .get(url)
         .map_err(safe_input_error)?
@@ -90,6 +97,7 @@ async fn fetch_url_async_with_headers(
     client: &xrat_support::http::Client,
     headers: xrat_support::http::HeaderMap,
 ) -> crate::app::Result<Vec<u8>> {
+    ensure_acquisition_allowed()?;
     let response = client
         .get(url)
         .headers(headers)

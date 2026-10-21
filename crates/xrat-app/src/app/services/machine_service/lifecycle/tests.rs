@@ -28,6 +28,7 @@ async fn machine_startup_reconciles_stale_session_without_reconnecting_or_starti
         .await;
     context.app_config.server.enabled = true;
     context.app_config.runtime.rotation.enabled = true;
+    context.app_config.runtime.rotation.refresh_subscriptions = true;
     context.app_config.subscriptions.auto_refresh = true;
     context
         .db
@@ -74,6 +75,7 @@ async fn machine_startup_reconciles_stale_session_without_reconnecting_or_starti
         assert_eq!(session.status, RuntimeSessionStatus::Failed);
         assert!(context.db.get_active_config().await.unwrap().is_none());
         assert!(!context.app_config.runtime.rotation.enabled);
+        assert!(!context.app_config.runtime.rotation.refresh_subscriptions);
         assert!(!context.app_config.server.enabled);
         assert!(!context.app_config.subscriptions.auto_refresh);
     }

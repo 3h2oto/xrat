@@ -326,3 +326,206 @@ async fn machine_cli_runtime_adapters_resolve_the_machine_catalog_and_use_the_su
     );
     assert!(calls.iter().any(|request|matches!(&request.request,GatewayRequestKind::Catalog {request:CatalogRequest::Reference {config_id}} if *config_id==id)));
 }
+
+#[tokio::test]
+async fn machine_rotation_controls_do_not_edit_machine_policy_and_preserve_manual_fallback() {
+    use crate::app::daemon::{
+        ipc,
+        supervisor::{
+            ProxyControlResult, ProxyStatusResult, RuntimeConnectResult, RuntimeReplaceResult,
+            SupervisorEvent,
+        },
+    };
+    let Fixture {
+        context,
+        client,
+        mut supervisor,
+        _root,
+        ..
+    } = fixture().await;
+    command(&client, &["add", NODE]).await.unwrap();
+    let config = context
+        .db
+        .list_configs(&Default::default())
+        .await
+        .unwrap()
+        .remove(0);
+    let id = config.id;
+    std::fs::write(
+        &context.runtime_paths.config_path,
+        "[runtime.rotation]\nenabled = false\n",
+    )
+    .unwrap();
+    let before = std::fs::read(&context.runtime_paths.config_path).unwrap();
+    let worker = tokio::spawn(async move {
+        let SupervisorEvent::ProxyStart { respond_to } = supervisor.recv().await.unwrap() else {
+            panic!("expected start")
+        };
+        respond_to
+            .send(ProxyControlResult::Ok(ipc::ProxyControlPayload {
+                rotation_enabled: true,
+            }))
+            .unwrap();
+        let SupervisorEvent::ProxyStatus { respond_to } = supervisor.recv().await.unwrap() else {
+            panic!("expected status")
+        };
+        respond_to
+            .send(ProxyStatusResult::Ok(ipc::ProxyStatusPayload {
+                daemon_ready: true,
+                rotation_enabled: true,
+                interval_secs: 300,
+                health_trigger_enabled: false,
+                cooldown_secs: 10,
+                active_config_id: None,
+                last_trigger: None,
+                last_result: "never_triggered".into(),
+                last_candidate_config_id: None,
+                last_candidate_result: "never_selected".into(),
+                cooldown_active: false,
+                next_timer_epoch_secs: None,
+                health_failure_threshold: 3,
+                consecutive_health_failures: 0,
+                health_probe_in_flight: false,
+                last_health_check_epoch_secs: None,
+                last_health_error: None,
+                pending_health_recovery: false,
+            }))
+            .unwrap();
+        let SupervisorEvent::ProxyStop { respond_to } = supervisor.recv().await.unwrap() else {
+            panic!("expected stop")
+        };
+        respond_to
+            .send(ProxyControlResult::Ok(ipc::ProxyControlPayload {
+                rotation_enabled: false,
+            }))
+            .unwrap();
+        let SupervisorEvent::RuntimeReplace {
+            trigger,
+            candidate_id,
+            respond_to,
+        } = supervisor.recv().await.unwrap()
+        else {
+            panic!("expected replace")
+        };
+        assert_eq!(trigger, ipc::RotationTrigger::Manual);
+        assert_eq!(candidate_id, None);
+        respond_to
+            .send(RuntimeReplaceResult::Err {
+                message: "no running runtime session to replace".into(),
+            })
+            .unwrap();
+        let SupervisorEvent::RuntimeConnect {
+            config_id,
+            respond_to,
+        } = supervisor.recv().await.unwrap()
+        else {
+            panic!("expected initial connect")
+        };
+        assert_eq!(config_id, id);
+        respond_to
+            .send(RuntimeConnectResult::Ok(ipc::RuntimeConnectPayload {
+                config_id,
+                session_id: 10,
+                pid: 42,
+            }))
+            .unwrap();
+        let SupervisorEvent::RuntimeReplace {
+            trigger,
+            candidate_id,
+            respond_to,
+        } = supervisor.recv().await.unwrap()
+        else {
+            panic!("expected explicit replace")
+        };
+        assert_eq!(trigger, ipc::RotationTrigger::Manual);
+        assert_eq!(candidate_id, Some(id));
+        respond_to
+            .send(RuntimeReplaceResult::Ok(ipc::RuntimeReplacePayload {
+                trigger,
+                replaced: true,
+                old_session_id: Some(10),
+                new_config_id: id,
+                new_session_id: 11,
+                new_pid: 43,
+            }))
+            .unwrap();
+    });
+    command(&client, &["rotate", "enable"]).await.unwrap();
+    command(&client, &["rotate", "status", "--json"])
+        .await
+        .unwrap();
+    command(&client, &["rotate", "disable"]).await.unwrap();
+    command(&client, &["rotate", "now", "--refresh"])
+        .await
+        .unwrap();
+    command(&client, &["rotate", "now", "--config-id", &config.r#ref])
+        .await
+        .unwrap();
+    worker.await.unwrap();
+    assert_eq!(
+        std::fs::read(&context.runtime_paths.config_path).unwrap(),
+        before
+    );
+    command(&client, &["update"]).await.unwrap();
+}
+
+#[tokio::test]
+async fn machine_purge_uses_shared_deleted_selection_and_preserves_disabled_live_rows() {
+    let Fixture {
+        context,
+        client,
+        calls,
+        _root,
+        ..
+    } = fixture().await;
+    command(&client, &["add", NODE]).await.unwrap();
+    command(&client, &["add", "vless://second@two.example:443#second"])
+        .await
+        .unwrap();
+    let configs = context.db.list_configs(&Default::default()).await.unwrap();
+    command(&client, &["delete", "config", &configs[0].r#ref])
+        .await
+        .unwrap();
+    command(&client, &["disable", &configs[1].r#ref])
+        .await
+        .unwrap();
+    assert_eq!(
+        context.services().lifecycle.count_deleted().await.unwrap(),
+        1
+    );
+    command(&client, &["purge", "--yes"]).await.unwrap();
+    command(&client, &["purge", "--yes"]).await.unwrap();
+    assert_eq!(
+        context.services().lifecycle.count_deleted().await.unwrap(),
+        0
+    );
+    assert!(
+        context
+            .db
+            .get_config_by_id(configs[0].id)
+            .await
+            .unwrap()
+            .is_none()
+    );
+    let retained = context
+        .db
+        .get_config_by_id(configs[1].id)
+        .await
+        .unwrap()
+        .unwrap();
+    assert!(!retained.is_deleted && !retained.is_enabled);
+    assert_eq!(
+        calls
+            .lock()
+            .unwrap()
+            .iter()
+            .filter(|request| matches!(
+                request.request,
+                GatewayRequestKind::Catalog {
+                    request: CatalogRequest::Purge {}
+                }
+            ))
+            .count(),
+        1
+    );
+}

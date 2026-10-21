@@ -5,13 +5,6 @@ use crate::app::{AppError, Result, import as import_service};
 use crate::cli::ImportArgs;
 use std::collections::BTreeMap;
 
-fn body(bytes: &[u8]) -> Result<String> {
-    import_service::parse_nodes(bytes)?;
-    String::from_utf8(bytes.to_vec()).map_err(|_| {
-        AppError::InvalidArgument("subscription contents must be UTF-8 text or base64".into())
-    })
-}
-
 pub(super) async fn import(client: &MachineClient, args: &ImportArgs) -> Result<()> {
     let progress = CliProgress::spinner(true, "importing subscription");
     let result = async {
@@ -25,27 +18,19 @@ pub(super) async fn import(client: &MachineClient, args: &ImportArgs) -> Result<
                 )
             })
             .collect();
-        let (source, contents) = if args.url_list {
-            import_service::load_url_list_parts(&args.input, body).await?
+        if args.url_list {
+            client
+                .import_url_list(&args.input, args.name.as_deref())
+                .await
         } else {
-            let (source, bytes) =
-                import_service::load_subscription_input(&args.input, &headers).await?;
-            (source, vec![body(&bytes)?])
-        };
-        client
-            .catalog(CatalogRequest::Import {
-                contents,
-                source,
-                name: args.name.clone(),
-                headers,
-            })
-            .await
+            client
+                .import_subscription(&args.input, args.name.as_deref(), &headers)
+                .await
+        }
     }
     .await;
     progress.finish_and_clear();
-    let CatalogPayload::Import(summary) = result? else {
-        return Err(unexpected());
-    };
+    let summary = result?;
     let subscription = subscription(client, &summary.subscription_id.to_string()).await?;
     let (database_label, config_path) = profile_labels(client).await?;
     import_command::print_summary(&summary, &subscription.r#ref, &database_label, &config_path);
@@ -79,5 +64,11 @@ pub(super) async fn add(client: &MachineClient, input: &str) -> Result<()> {
         &database_label,
         &config_path,
     );
+    Ok(())
+}
+
+pub(super) async fn update(client: &MachineClient, args: &crate::cli::UpdateArgs) -> Result<()> {
+    let summary = client.refresh_subscriptions(&args.subs_ref).await?;
+    crate::app::commands::update::print_summary(&summary);
     Ok(())
 }

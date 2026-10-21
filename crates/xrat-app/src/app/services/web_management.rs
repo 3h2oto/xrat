@@ -267,7 +267,7 @@ pub(crate) async fn execute(
         Action::Purge => {
             return Ok(format!(
                 "Purged {} configs",
-                context.db.purge_deleted_configs().await?
+                services.lifecycle.purge().await?
             ));
         }
         Action::ClearEvents => {

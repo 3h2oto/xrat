@@ -118,4 +118,7 @@ impl ConfigRepository for DatabaseConfigRepository {
     async fn restore_configs(&self, ids: &[ConfigId]) -> Result<u64, DbError> {
         self.db.restore_configs(ids).await
     }
+    async fn purge_deleted_configs(&self) -> Result<u64, DbError> {
+        self.db.purge_deleted_configs().await
+    }
 }

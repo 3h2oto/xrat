@@ -21,7 +21,7 @@ pub(super) fn validate_config(config: &AppConfig) -> Result<()> {
 pub(super) async fn prepare_runtime(context: &mut AppContext) -> Result<()> {
     context.app_config.server.enabled = false;
     context.app_config.runtime.rotation.enabled = false;
-    // Catalog refresh will move behind the typed gateway before it can run as SYSTEM.
+    context.app_config.runtime.rotation.refresh_subscriptions = false;
     context.app_config.subscriptions.auto_refresh = false;
     let runtime = RuntimeService::new(context);
     let _ = runtime

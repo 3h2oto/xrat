@@ -158,4 +158,17 @@ impl ConfigLifecycleService {
     pub async fn restore_many(&self, ids: &[ConfigId]) -> Result<u64> {
         Ok(self.repository.restore_configs(ids).await?)
     }
+    pub async fn count_deleted(&self) -> Result<i64> {
+        Ok(self
+            .repository
+            .count_filtered_configs(&xrat_db::ConfigListFilter {
+                only_deleted: true,
+                ..Default::default()
+            })
+            .await?)
+    }
+
+    pub async fn purge(&self) -> Result<u64> {
+        Ok(self.repository.purge_deleted_configs().await?)
+    }
 }

@@ -8,3 +8,5 @@ pub(super) use entry::run;
 
 #[cfg(test)]
 mod tests;
+
+mod rotation;

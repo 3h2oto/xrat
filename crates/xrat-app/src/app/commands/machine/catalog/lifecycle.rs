@@ -151,3 +151,23 @@ pub(super) async fn show(client: &MachineClient, args: &ShowArgs) -> Result<()> 
         }
     }
 }
+
+pub(super) async fn purge(client: &MachineClient, args: &crate::cli::PurgeArgs) -> Result<()> {
+    let pending = client
+        .list(&crate::app::services::ConfigListRequest {
+            only_deleted: true,
+            offset: Some(0),
+            limit: Some(0),
+            ..Default::default()
+        })
+        .await?
+        .total;
+    if !crate::app::commands::purge::confirm(pending, args.yes)? {
+        return Ok(());
+    }
+    let CatalogPayload::Changed(count) = client.catalog(CatalogRequest::Purge {}).await? else {
+        return Err(unexpected());
+    };
+    crate::app::commands::purge::print_count(count);
+    Ok(())
+}

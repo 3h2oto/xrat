@@ -109,127 +109,136 @@ async fn status(
             let active_config_ref = config_ref(context, payload.active_config_id).await?;
             let last_candidate_config_ref =
                 config_ref(context, payload.last_candidate_config_id).await?;
-            if json {
-                println!(
-                    "{}",
-                    serde_json::to_string_pretty(&serde_json::json!({
-                        "rotation_enabled": payload.rotation_enabled,
-                        "interval_secs": payload.interval_secs,
-                        "health_trigger_enabled": payload.health_trigger_enabled,
-                        "cooldown_secs": payload.cooldown_secs,
-                        "cooldown_active": payload.cooldown_active,
-                        "active_config_ref": active_config_ref,
-                        "last_trigger": payload.last_trigger,
-                        "last_result": payload.last_result,
-                        "last_candidate_config_ref": last_candidate_config_ref,
-                        "last_candidate_result": payload.last_candidate_result,
-                        "next_timer_epoch_secs": payload.next_timer_epoch_secs,
-                        "health_failure_threshold": payload.health_failure_threshold,
-                        "consecutive_health_failures": payload.consecutive_health_failures,
-                        "health_probe_in_flight": payload.health_probe_in_flight,
-                        "last_health_check_epoch_secs": payload.last_health_check_epoch_secs,
-                        "last_health_error": payload.last_health_error,
-                        "pending_health_recovery": payload.pending_health_recovery,
-                    }))?
-                );
-            } else {
-                println!(
-                    "{}",
-                    output::format_kv(
-                        Some("Proxy rotation"),
-                        &[
-                            (
-                                "enabled",
-                                output::bool_label(payload.rotation_enabled).to_string(),
-                            ),
-                            ("interval", format!("{}s", payload.interval_secs)),
-                            (
-                                "health trigger",
-                                output::bool_label(payload.health_trigger_enabled).to_string(),
-                            ),
-                            ("cooldown", format!("{}s", payload.cooldown_secs)),
-                            (
-                                "cooldown active",
-                                output::bool_label(payload.cooldown_active).to_string(),
-                            ),
-                            (
-                                "active config",
-                                active_config_ref.unwrap_or_else(|| "-".to_string()),
-                            ),
-                            (
-                                "last trigger",
-                                payload
-                                    .last_trigger
-                                    .map(|trigger| match trigger {
-                                        ipc::RotationTrigger::Manual => "manual",
-                                        ipc::RotationTrigger::Timer => "timer",
-                                        ipc::RotationTrigger::HealthCheckFailed => {
-                                            "health_check_failed"
-                                        }
-                                    })
-                                    .unwrap_or("-")
-                                    .to_string(),
-                            ),
-                            ("last result", friendly_result(&payload.last_result)),
-                            (
-                                "candidate config",
-                                last_candidate_config_ref.unwrap_or_else(|| "-".to_string()),
-                            ),
-                            (
-                                "candidate result",
-                                friendly_result(&payload.last_candidate_result),
-                            ),
-                            (
-                                "next timer",
-                                payload
-                                    .next_timer_epoch_secs
-                                    .map(|value| value.to_string())
-                                    .unwrap_or_else(|| "-".to_string()),
-                            ),
-                            (
-                                "health threshold",
-                                payload.health_failure_threshold.to_string()
-                            ),
-                            (
-                                "health failures",
-                                payload.consecutive_health_failures.to_string()
-                            ),
-                            (
-                                "health probe",
-                                if payload.health_probe_in_flight {
-                                    "running"
-                                } else {
-                                    "idle"
-                                }
-                                .to_string(),
-                            ),
-                            (
-                                "last health check",
-                                payload
-                                    .last_health_check_epoch_secs
-                                    .map(|value| value.to_string())
-                                    .unwrap_or_else(|| "-".to_string()),
-                            ),
-                            (
-                                "last health error",
-                                payload.last_health_error.unwrap_or_else(|| "-".to_string()),
-                            ),
-                            (
-                                "pending recovery",
-                                output::bool_label(payload.pending_health_recovery).to_string(),
-                            ),
-                        ],
-                        output::color_enabled(),
-                    )
-                );
-            }
-            Ok(())
+            print_status(payload, active_config_ref, last_candidate_config_ref, json)
         }
         Err(err) if ipc::daemon_unreachable(&err) => Err(crate::app::AppError::InvalidArgument(
             daemon_unreachable_message(socket_path),
         )),
         Err(err) => Err(err),
     }
+}
+
+pub(super) fn print_status(
+    payload: ipc::ProxyStatusPayload,
+    active_config_ref: Option<String>,
+    last_candidate_config_ref: Option<String>,
+    json: bool,
+) -> crate::app::Result<()> {
+    if json {
+        println!(
+            "{}",
+            serde_json::to_string_pretty(&serde_json::json!({
+                "rotation_enabled": payload.rotation_enabled,
+                "interval_secs": payload.interval_secs,
+                "health_trigger_enabled": payload.health_trigger_enabled,
+                "cooldown_secs": payload.cooldown_secs,
+                "cooldown_active": payload.cooldown_active,
+                "active_config_ref": active_config_ref,
+                "last_trigger": payload.last_trigger,
+                "last_result": payload.last_result,
+                "last_candidate_config_ref": last_candidate_config_ref,
+                "last_candidate_result": payload.last_candidate_result,
+                "next_timer_epoch_secs": payload.next_timer_epoch_secs,
+                "health_failure_threshold": payload.health_failure_threshold,
+                "consecutive_health_failures": payload.consecutive_health_failures,
+                "health_probe_in_flight": payload.health_probe_in_flight,
+                "last_health_check_epoch_secs": payload.last_health_check_epoch_secs,
+                "last_health_error": payload.last_health_error,
+                "pending_health_recovery": payload.pending_health_recovery,
+            }))?
+        );
+    } else {
+        println!(
+            "{}",
+            output::format_kv(
+                Some("Proxy rotation"),
+                &[
+                    (
+                        "enabled",
+                        output::bool_label(payload.rotation_enabled).to_string(),
+                    ),
+                    ("interval", format!("{}s", payload.interval_secs)),
+                    (
+                        "health trigger",
+                        output::bool_label(payload.health_trigger_enabled).to_string(),
+                    ),
+                    ("cooldown", format!("{}s", payload.cooldown_secs)),
+                    (
+                        "cooldown active",
+                        output::bool_label(payload.cooldown_active).to_string(),
+                    ),
+                    (
+                        "active config",
+                        active_config_ref.unwrap_or_else(|| "-".to_string()),
+                    ),
+                    (
+                        "last trigger",
+                        payload
+                            .last_trigger
+                            .map(|trigger| match trigger {
+                                ipc::RotationTrigger::Manual => "manual",
+                                ipc::RotationTrigger::Timer => "timer",
+                                ipc::RotationTrigger::HealthCheckFailed => {
+                                    "health_check_failed"
+                                }
+                            })
+                            .unwrap_or("-")
+                            .to_string(),
+                    ),
+                    ("last result", friendly_result(&payload.last_result)),
+                    (
+                        "candidate config",
+                        last_candidate_config_ref.unwrap_or_else(|| "-".to_string()),
+                    ),
+                    (
+                        "candidate result",
+                        friendly_result(&payload.last_candidate_result),
+                    ),
+                    (
+                        "next timer",
+                        payload
+                            .next_timer_epoch_secs
+                            .map(|value| value.to_string())
+                            .unwrap_or_else(|| "-".to_string()),
+                    ),
+                    (
+                        "health threshold",
+                        payload.health_failure_threshold.to_string()
+                    ),
+                    (
+                        "health failures",
+                        payload.consecutive_health_failures.to_string()
+                    ),
+                    (
+                        "health probe",
+                        if payload.health_probe_in_flight {
+                            "running"
+                        } else {
+                            "idle"
+                        }
+                        .to_string(),
+                    ),
+                    (
+                        "last health check",
+                        payload
+                            .last_health_check_epoch_secs
+                            .map(|value| value.to_string())
+                            .unwrap_or_else(|| "-".to_string()),
+                    ),
+                    (
+                        "last health error",
+                        payload.last_health_error.unwrap_or_else(|| "-".to_string()),
+                    ),
+                    (
+                        "pending recovery",
+                        output::bool_label(payload.pending_health_recovery).to_string(),
+                    ),
+                ],
+                output::color_enabled(),
+            )
+        );
+    }
+    Ok(())
 }
 
 async fn now(
@@ -282,30 +291,7 @@ async fn now(
                 let new_config_ref = config_ref(context, Some(payload.new_config_id))
                     .await?
                     .unwrap_or_else(|| "-".to_string());
-                println!(
-                    "{}",
-                    output::success("Proxy rotation completed.", output::color_enabled())
-                );
-                println!(
-                    "{}",
-                    output::format_kv(
-                        None,
-                        &[
-                            ("replaced", output::bool_label(payload.replaced).to_string()),
-                            (
-                                "old session",
-                                payload
-                                    .old_session_id
-                                    .map(|id| id.to_string())
-                                    .unwrap_or_else(|| "-".to_string()),
-                            ),
-                            ("new config", new_config_ref),
-                            ("new session", payload.new_session_id.to_string()),
-                            ("new pid", payload.new_pid.to_string()),
-                        ],
-                        output::color_enabled(),
-                    )
-                );
+                print_rotation_result(payload, new_config_ref);
                 Ok(())
             }
             Err(err) if ipc::daemon_unreachable(&err) => Err(
@@ -316,6 +302,33 @@ async fn now(
     stream_task.abort();
     let _ = stream_task.await;
     result
+}
+
+pub(super) fn print_rotation_result(payload: ipc::RuntimeReplacePayload, new_config_ref: String) {
+    println!(
+        "{}",
+        output::success("Proxy rotation completed.", output::color_enabled())
+    );
+    println!(
+        "{}",
+        output::format_kv(
+            None,
+            &[
+                ("replaced", output::bool_label(payload.replaced).to_string()),
+                (
+                    "old session",
+                    payload
+                        .old_session_id
+                        .map(|id| id.to_string())
+                        .unwrap_or_else(|| "-".to_string()),
+                ),
+                ("new config", new_config_ref),
+                ("new session", payload.new_session_id.to_string()),
+                ("new pid", payload.new_pid.to_string()),
+            ],
+            output::color_enabled(),
+        )
+    );
 }
 
 async fn connect_initial_runtime(
@@ -340,23 +353,16 @@ async fn connect_initial_runtime(
             let new_config_ref = config_ref(context, Some(payload.config_id))
                 .await?
                 .unwrap_or_else(|| payload.config_id.to_string());
-            println!(
-                "{}",
-                output::success("Proxy rotation completed.", output::color_enabled())
-            );
-            println!(
-                "{}",
-                output::format_kv(
-                    None,
-                    &[
-                        ("replaced", output::bool_label(false).to_string()),
-                        ("old session", "-".to_string()),
-                        ("new config", new_config_ref),
-                        ("new session", payload.session_id.to_string()),
-                        ("new pid", payload.pid.to_string()),
-                    ],
-                    output::color_enabled(),
-                )
+            print_rotation_result(
+                ipc::RuntimeReplacePayload {
+                    trigger: ipc::RotationTrigger::Manual,
+                    replaced: false,
+                    old_session_id: None,
+                    new_config_id: payload.config_id,
+                    new_session_id: payload.session_id,
+                    new_pid: payload.pid,
+                },
+                new_config_ref,
             );
             Ok(())
         }
@@ -372,16 +378,14 @@ async fn initial_rotation_config_id(context: &AppContext) -> crate::app::Result<
         only_enabled: true,
         ..Default::default()
     };
-    context
-        .db
-        .list_configs(&filter)
-        .await?
-        .into_iter()
-        .map(|config| config.id)
-        .min()
-        .ok_or_else(|| {
-            crate::app::AppError::InvalidArgument("no eligible replacement candidate".to_string())
-        })
+    crate::app::services::rotation::initial_candidate(
+        context
+            .db
+            .list_configs(&filter)
+            .await?
+            .into_iter()
+            .map(|config| config.id),
+    )
 }
 
 async fn stream_rotation_events(context: AppContext) {
@@ -541,7 +545,7 @@ fn rotate_error_message(message: String) -> String {
     message
 }
 
-fn is_no_running_runtime_session_error(message: &str) -> bool {
+pub(super) fn is_no_running_runtime_session_error(message: &str) -> bool {
     message.contains("no running runtime session to replace")
 }
 

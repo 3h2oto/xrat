@@ -180,6 +180,14 @@ impl<'a> RotationService<'a> {
         .await;
     }
 }
+pub(crate) fn initial_candidate(
+    ids: impl IntoIterator<Item = xrat_model::ConfigId>,
+) -> crate::app::Result<xrat_model::ConfigId> {
+    ids.into_iter().min().ok_or_else(|| {
+        crate::app::AppError::InvalidArgument("no eligible replacement candidate".into())
+    })
+}
+
 fn rotation_started_reason(trigger: RotationTrigger) -> &'static str {
     match trigger {
         RotationTrigger::Manual => "rotation_manual_started",

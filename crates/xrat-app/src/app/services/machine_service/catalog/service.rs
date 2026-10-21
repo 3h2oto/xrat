@@ -17,6 +17,7 @@ impl MachineCatalog {
         policy::validate(&request)?;
         let services = self.context.services();
         Ok(match request {
+            CatalogRequest::Purge {} => CatalogPayload::Changed(services.lifecycle.purge().await?),
             CatalogRequest::Profile {} => CatalogPayload::Profile {
                 database_label: self.context.runtime_paths.database_label.clone(),
                 config_path: self.context.runtime_paths.config_path.display().to_string(),
