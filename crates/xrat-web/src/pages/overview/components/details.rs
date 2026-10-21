@@ -43,7 +43,7 @@ fn ConnectionDialog(
     config: Option<ConfigRow>,
     data: Overview,
     stale: bool,
-    on_close: EventHandler<MouseEvent>,
+    on_close: EventHandler,
 ) -> Element {
     let subscription = config
         .as_ref()

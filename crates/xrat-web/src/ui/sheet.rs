@@ -1,5 +1,6 @@
 use std::sync::atomic::{AtomicUsize, Ordering};
 
+use super::interaction::{Interactions, Overlay, use_overlay};
 use dioxus::prelude::*;
 use icons::X;
 use tw_merge::tw_merge;
@@ -8,9 +9,21 @@ use crate::ui::button::{ButtonSize, ButtonVariant};
 
 static SHEET_COUNTER: AtomicUsize = AtomicUsize::new(0);
 
-#[derive(Clone, PartialEq, Eq)]
+pub(super) fn use_sheet_navigation(page: Signal<String>, enabled: bool) {
+    let sheet = try_consume_context::<SheetContext>();
+    let interactions = use_context::<Interactions>();
+    use_effect(move || {
+        let _ = page();
+        if enabled && let Some(sheet) = &sheet {
+            interactions.close_overlay(&sheet.overlay, true);
+        }
+    });
+}
+
+#[derive(Clone)]
 pub struct SheetContext {
     pub target_id: String,
+    overlay: Overlay,
 }
 
 #[derive(Clone, Copy, PartialEq, Eq, Default)]
@@ -46,12 +59,14 @@ impl SheetDirection {
 
 #[component]
 pub fn Sheet(#[props(into, optional)] class: Option<String>, children: Element) -> Element {
+    let overlay = use_overlay();
     let sheet_id = use_hook(|| {
         let id = SHEET_COUNTER.fetch_add(1, Ordering::Relaxed);
         format!("sheet_{id}")
     });
     provide_context(SheetContext {
         target_id: sheet_id,
+        overlay,
     });
     let c = tw_merge!("w-fit", class.as_deref().unwrap_or(""));
     rsx! {
@@ -62,11 +77,12 @@ pub fn Sheet(#[props(into, optional)] class: Option<String>, children: Element) 
 #[component]
 pub fn SheetTrigger(#[props(into, optional)] class: Option<String>, children: Element) -> Element {
     let ctx = use_context::<SheetContext>();
+    let interactions = use_context::<Interactions>();
     rsx! {
         button {
             r#type: "button",
             "data-name": "SheetTrigger",
-            "data-sheet-trigger": "{ctx.target_id}",
+            onclick: move |_| interactions.open_overlay(ctx.overlay.clone()),
             class: tw_merge!(
                 "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium border bg-background shadow-xs hover:bg-accent hover:text-accent-foreground h-9 px-4 py-2 cursor-pointer",
                 class.as_deref().unwrap_or("")
@@ -84,10 +100,27 @@ pub fn SheetContent(
     #[props(default = true)] show_close_button: bool,
     #[props(default)] initial_open: bool,
     #[props(default)] alert: bool,
-    #[props(optional)] on_close: Option<EventHandler<MouseEvent>>,
+    #[props(optional)] on_close: Option<EventHandler>,
     children: Element,
 ) -> Element {
     let ctx = use_context::<SheetContext>();
+    let interactions = use_context::<Interactions>();
+    let overlay = ctx.overlay.clone();
+    let open = overlay.open;
+    overlay.configure(on_close);
+    use_effect({
+        let overlay = overlay.clone();
+        let interactions = interactions.clone();
+        move || {
+            let _ = open();
+            overlay.sync(&interactions);
+        }
+    });
+    use_drop({
+        let overlay = overlay.clone();
+        let interactions = interactions.clone();
+        move || interactions.close_overlay(&overlay, false)
+    });
     let target_id = ctx.target_id;
     let backdrop_id = format!("{target_id}_backdrop");
     let backdrop_behavior = if close_on_backdrop_click {
@@ -115,39 +148,37 @@ pub fn SheetContent(
                 "fixed inset-0 z-60 bg-black/50 pointer-events-none opacity-0 transition-opacity duration-300 ",
                 "data-[state=open]:opacity-100 [&&[data-state=closed]]:invisible [&&]:[z-index:var(--layer-backdrop)] ",
             ),
-            "data-state": "closed",
+            "data-state": if open() { "open" } else { "closed" },
+            onmounted: { let overlay = overlay.clone(); move |event| overlay.mount_backdrop(event) },
+            onclick: {
+                let overlay = overlay.clone(); let interactions = interactions.clone();
+                move |_| { if close_on_backdrop_click { interactions.close_overlay(&overlay, true); } }
+            },
             "data-backdrop": "{backdrop_behavior}",
         }
         div {
             role: if alert { "alertdialog" } else { "dialog" },
             aria_modal: "true",
             tabindex: "-1",
-            inert: true,
+            inert: !open(),
             aria_labelledby: format!("{target_id}-title"),
-            "data-auto-open": initial_open.to_string(),
             "data-backdrop": "{backdrop_behavior}",
             "data-name": "SheetContent",
             id: "{target_id}",
             class: "{c} [&&[data-state=closed]]:invisible [&&]:[z-index:var(--layer-modal)] ",
-            "data-state": "closed",
-            style: "pointer-events: none;",
+            "data-state": if open() { "open" } else { "closed" },
+            style: if open() { "pointer-events:auto" } else { "pointer-events:none" },
+            onmounted: {
+                let overlay = overlay.clone(); let interactions = interactions.clone();
+                move |event| { overlay.mount_content(event); if initial_open { interactions.open_overlay(overlay.clone()); } }
+            },
             button {
                 r#type: "button",
                 class: "{close_btn_class}",
-                "data-sheet-close": "{target_id}",
+                onclick: move |_| interactions.close_overlay(&overlay, true),
                 "aria-label": "Close sheet",
                 span { class: "hidden", "Close Sheet" }
                 X {}
-            }
-            button {
-                hidden: true,
-                r#type: "button",
-                "data-overlay-notify-close": "true",
-                onclick: move |event| {
-                    if let Some(handler) = &on_close {
-                        handler.call(event);
-                    }
-                },
             }
             {children}
         }
@@ -163,10 +194,12 @@ pub fn SheetClose(
     children: Element,
 ) -> Element {
     let ctx = use_context::<SheetContext>();
+    let interactions = use_context::<Interactions>();
     rsx! {
         button {
             "data-name": "SheetClose",
-            "data-sheet-close": "{ctx.target_id}",
+            r#type: "button",
+            onclick: move |_| interactions.close_overlay(&ctx.overlay, true),
             class: tw_merge!(
                 "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-all disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg:not([class*='size-'])]:size-4 shrink-0 outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] hover:cursor-pointer",
                 variant.as_str(), size.as_str(), class.as_deref().unwrap_or("")

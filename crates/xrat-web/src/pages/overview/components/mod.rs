@@ -1,4 +1,5 @@
 pub(super) mod cards;
+mod chart_navigation;
 pub(super) mod charts;
 pub(super) mod controls;
 pub(super) mod details;

@@ -28,6 +28,7 @@ const DROPDOWN_MENU_ACTION_STYLES4: &str = concat!(
     "[&&_svg]:[color:var(--muted)] ",
 );
 
+use super::interaction::{Floating, Interactions, Placement, use_floating};
 use dioxus::prelude::*;
 use icons::{Check, ChevronRight};
 use tw_merge::tw_merge;
@@ -57,6 +58,8 @@ pub enum DropdownMenuPosition {
 struct DropdownMenuContext {
     target_id: String,
     align: DropdownMenuAlign,
+    floating: Floating,
+    open_on_hover: bool,
 }
 
 #[derive(Clone, Copy, PartialEq, Eq, Default)]
@@ -73,15 +76,37 @@ pub fn DropdownMenu(
     children: Element,
 ) -> Element {
     let dropdown_target_id = use_hook(|| use_random_id_for("dropdown"));
+    let floating = use_floating(Placement::Menu {
+        outside: align == DropdownMenuAlign::StartOuter,
+    });
+    let interactions = use_context::<Interactions>();
     provide_context(DropdownMenuContext {
         target_id: dropdown_target_id,
         align,
+        floating: floating.clone(),
+        open_on_hover,
     });
 
     rsx! {
         div {
             "data-name": "DropdownMenu",
             "data-hover-menu": open_on_hover.to_string(),
+            onkeydown: {
+                let floating = floating.clone();
+                let interactions = interactions.clone();
+                move |event| floating.keydown(event, &interactions)
+            },
+            onmouseenter: {
+                let floating = floating.clone();
+                let interactions = interactions.clone();
+                move |_| { if open_on_hover { interactions.open_popup(floating.clone(), false); } }
+            },
+            onfocusin: {
+                let floating = floating.clone();
+                let interactions = interactions.clone();
+                move |_| { if open_on_hover { interactions.open_popup(floating.clone(), false); } }
+            },
+            onmouseleave: move |_| { if open_on_hover { floating.leave_hover(interactions.clone()); } },
             style {
                 r#"
                 .dropdown__menu_sub_content {{
@@ -116,6 +141,23 @@ pub fn DropdownMenuTrigger(
     children: Element,
 ) -> Element {
     let ctx = use_context::<DropdownMenuContext>();
+    let interactions = use_context::<Interactions>();
+    let mounted = ctx.floating.clone();
+    let open = ctx.floating.open;
+    let click = move |_| {
+        if ctx.floating.disabled() {
+            return;
+        }
+        if *open.peek() {
+            if ctx.open_on_hover {
+                ctx.floating.focus_first();
+            } else {
+                interactions.close_floating(&ctx.floating, false);
+            }
+        } else {
+            interactions.open_popup(ctx.floating.clone(), true);
+        }
+    };
     let merged = tw_merge!(
         "px-4 py-2 h-9 inline-flex justify-center items-center text-sm font-medium whitespace-nowrap rounded-md transition-colors w-fit focus:outline-none focus:ring-1 focus:ring-ring focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50 [&_svg:not([class*='size-'])]:size-4 border bg-background border-input hover:bg-accent hover:text-accent-foreground",
         class.as_deref().unwrap_or("")
@@ -125,7 +167,8 @@ pub fn DropdownMenuTrigger(
         rsx! {
             span {
                 "data-name": "DropdownMenuTrigger",
-                "data-dropdown-trigger": "{ctx.target_id}",
+                onmounted: move |event| mounted.mount_trigger(event, true),
+                onclick: click,
                 class: "contents",
                 {children}
             }
@@ -136,7 +179,11 @@ pub fn DropdownMenuTrigger(
                 r#type: "button",
                 class: "{merged}",
                 "data-name": "DropdownMenuTrigger",
-                "data-dropdown-trigger": "{ctx.target_id}",
+                aria_haspopup: "menu",
+                aria_expanded: open().to_string(),
+                aria_controls: ctx.target_id,
+                onmounted: move |event| mounted.mount_trigger(event, false),
+                onclick: click,
                 tabindex: "0",
                 {children}
             }
@@ -151,6 +198,15 @@ pub fn DropdownMenuContent(
     children: Element,
 ) -> Element {
     let ctx = use_context::<DropdownMenuContext>();
+    let mounted = ctx.floating.clone();
+    let open = ctx.floating.open;
+    use_effect({
+        let floating = ctx.floating.clone();
+        move || {
+            let _ = open();
+            floating.sync();
+        }
+    });
     let width_class = match ctx.align {
         DropdownMenuAlign::Center => "min-w-full",
         _ => "w-[180px]",
@@ -175,22 +231,20 @@ pub fn DropdownMenuContent(
     };
     let target_id = ctx.target_id;
 
-    // Large inline JS template with trailing named args; inlining every `{tid}`
-    // into the format string would not improve readability.
-
     rsx! {
         div {
             role: "menu",
-            inert: true,
+            inert: !open(),
             "data-name": "DropdownMenuContent",
             "popover": "manual",
             id: "{target_id}",
             class: "{merged} {DROPDOWN_MENU_CONTENT_STYLES}",
             "data-target": "target__dropdown",
-            "data-state": "closed",
+            "data-state": if open() { "open" } else { "closed" },
             "data-align": align_for_script,
             "data-position": position_for_script,
-            style: "pointer-events: none;",
+            style: if open() { "pointer-events:auto" } else { "pointer-events:none" },
+            onmounted: move |event| mounted.mount_content(event),
             {children}
         }
     }
@@ -274,6 +328,8 @@ pub fn DropdownMenuAction(
     #[props(optional)] disabled: bool,
     children: Element,
 ) -> Element {
+    let ctx = use_context::<DropdownMenuContext>();
+    let interactions = use_context::<Interactions>();
     let variant_class = match variant {
         DropdownMenuActionVariant::Default => {
             "text-popover-foreground hover:bg-accent hover:text-accent-foreground"
@@ -297,6 +353,7 @@ pub fn DropdownMenuAction(
                 class: "{merged} {DROPDOWN_MENU_ACTION_STYLES}",
                 href: "{href}",
                 "data-dropdown-close": "true",
+                onclick: move |_| interactions.close_floating(&ctx.floating, true),
                 {children}
             }
         }
@@ -310,6 +367,7 @@ pub fn DropdownMenuAction(
                     if let Some(handler) = &onclick {
                         handler.call(event);
                     }
+                    interactions.close_floating(&ctx.floating, true);
                 },
                 "data-name": "DropdownMenuAction",
                 class: "{merged} {DROPDOWN_MENU_ACTION_STYLES4}",
@@ -368,6 +426,8 @@ pub fn DropdownMenuSubItem(
     #[props(into, optional)] class: Option<String>,
     children: Element,
 ) -> Element {
+    let ctx = use_context::<DropdownMenuContext>();
+    let interactions = use_context::<Interactions>();
     let merged = tw_merge!(
         "inline-flex gap-2 items-center w-full rounded-sm px-3 py-2 text-sm transition-all duration-150 ease text-popover-foreground hover:bg-accent hover:text-accent-foreground cursor-pointer hover:translate-x-[2px]",
         class.as_deref().unwrap_or("")
@@ -377,6 +437,7 @@ pub fn DropdownMenuSubItem(
             "data-name": "DropdownMenuSubItem",
             class: "{merged}",
             "data-dropdown-close": "true",
+            onclick: move |_| interactions.close_floating(&ctx.floating, true),
             {children}
         }
     }
@@ -404,6 +465,8 @@ pub fn DropdownMenuRadioItem<T: Clone + PartialEq + Send + Sync + 'static>(
     value: T,
     #[props(into, optional)] class: Option<String>,
 ) -> Element {
+    let ctx = use_context::<DropdownMenuContext>();
+    let interactions = use_context::<Interactions>();
     let mut selected = use_context::<Signal<T>>();
     let value_for_check = value.clone();
     let value_for_click = value;
@@ -419,7 +482,10 @@ pub fn DropdownMenuRadioItem<T: Clone + PartialEq + Send + Sync + 'static>(
             role: "menuitemradio",
             "aria-checked": if is_selected() { "true" } else { "false" },
             "data-dropdown-close": "true",
-            onclick: move |_| selected.set(value_for_click.clone()),
+            onclick: move |_| {
+                selected.set(value_for_click.clone());
+                interactions.close_floating(&ctx.floating, true);
+            },
             {children}
             Check { class: "ml-auto opacity-0 size-4 text-muted-foreground group-aria-checked:opacity-100" }
         }

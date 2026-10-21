@@ -26,7 +26,7 @@ pub fn AlertDialogTrigger(
 pub fn AlertDialogContent(
     #[props(into, optional)] class: Option<String>,
     #[props(default)] initial_open: bool,
-    #[props(optional)] on_close: Option<EventHandler<MouseEvent>>,
+    #[props(optional)] on_close: Option<EventHandler>,
     children: Element,
 ) -> Element {
     rsx! {

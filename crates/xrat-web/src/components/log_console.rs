@@ -5,6 +5,7 @@ mod parser;
 #[cfg(test)]
 mod tests;
 
+use super::clipboard::CopyButton;
 use crate::ui::{
     button::ButtonVariant,
     form_select::{FormSelect, FormSelectOption},
@@ -13,7 +14,7 @@ use crate::ui::{
     switch::Switch,
 };
 use dioxus::prelude::*;
-use icons::{ArrowUpToLine, Copy, Download, Pause, Play, Search, WrapText, X};
+use icons::{ArrowUpToLine, Download, Pause, Play, Search, WrapText, X};
 pub use parser::engine_lines;
 use std::collections::{BTreeSet, HashMap};
 use std::hash::{Hash, Hasher};
@@ -63,6 +64,7 @@ pub fn LogConsole(
     let mut unknown = use_signal(|| false);
     let mut wrap = use_signal(|| true);
     let mut paused = use_signal(|| None::<(Vec<LogLine>, f64)>);
+    let mut output_element = use_signal(|| None::<std::rc::Rc<MountedData>>);
     let snapshot = paused();
     let now = snapshot
         .as_ref()
@@ -147,12 +149,12 @@ pub fn LogConsole(
                         onclick: move |_| wrap.toggle(),
                         WrapText {}
                     }
-                    IconButton {
+                    CopyButton {
+                        target_id: copy_id.clone(),
+                        icon_only: true,
                         label: "Copy logs",
                         variant: ButtonVariant::Ghost,
                         disabled: filtered.is_empty(),
-                        "data-copy-textarea": copy_id.clone(),
-                        Copy {}
                     }
                     IconButton {
                         label: "Download logs",
@@ -268,13 +270,19 @@ pub fn LogConsole(
                             label: "Jump to newest log entries",
                             variant: ButtonVariant::Ghost,
                             size: crate::ui::button::ButtonSize::IconXs,
-                            "data-log-top": id.clone(),
+                            onclick: move |_| async move {
+                                let element = output_element.peek().clone();
+                                if let Some(element) = element {
+                                    let _ = element.scroll(Default::default(), ScrollBehavior::Instant).await;
+                                }
+                            },
                             ArrowUpToLine {}
                         }
                     }
                 }
                 div {
                     id: id.clone(),
+                    onmounted: move |event| output_element.set(Some(event.data())),
                     class: concat!(
                         "log-output h-[clamp(220px,_48dvh,_580px)] max-h-[58dvh] min-h-40 overflow-auto ",
                         "[&&]:[--log-columns:minmax(140px,_190px)_58px_minmax(80px,_120px)_minmax(0,_1fr)] ",

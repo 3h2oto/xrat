@@ -1,14 +1,16 @@
 use std::sync::atomic::{AtomicUsize, Ordering};
 
+use super::interaction::{Interactions, Overlay, use_overlay};
 use dioxus::prelude::*;
 use icons::X;
 use tw_merge::tw_merge;
 
 static DIALOG_COUNTER: AtomicUsize = AtomicUsize::new(0);
 
-#[derive(Clone, PartialEq)]
+#[derive(Clone)]
 struct DialogContext {
     target_id: String,
+    overlay: Overlay,
 }
 
 #[must_use]
@@ -22,6 +24,7 @@ pub fn use_dialog_trigger_id() -> Option<String> {
 
 #[component]
 pub fn Dialog(#[props(into, optional)] class: Option<String>, children: Element) -> Element {
+    let overlay = use_overlay();
     let dialog_target_id = use_hook(|| {
         let id = DIALOG_COUNTER.fetch_add(1, Ordering::Relaxed);
         format!("dialog_{id}")
@@ -29,6 +32,7 @@ pub fn Dialog(#[props(into, optional)] class: Option<String>, children: Element)
 
     provide_context(DialogContext {
         target_id: dialog_target_id,
+        overlay,
     });
 
     let merged = tw_merge!("w-fit", class.as_deref().unwrap_or(""));
@@ -45,6 +49,7 @@ pub fn Dialog(#[props(into, optional)] class: Option<String>, children: Element)
 #[component]
 pub fn DialogTrigger(#[props(into, optional)] class: Option<String>, children: Element) -> Element {
     let ctx = use_context::<DialogContext>();
+    let interactions = use_context::<Interactions>();
     let trigger_id = format!("trigger_{}", ctx.target_id);
 
     rsx! {
@@ -56,7 +61,7 @@ pub fn DialogTrigger(#[props(into, optional)] class: Option<String>, children: E
             r#type: "button",
             id: "{trigger_id}",
             tabindex: "0",
-            "data-dialog-trigger": "{ctx.target_id}",
+            onclick: move |_| interactions.open_overlay(ctx.overlay.clone()),
             {children}
         }
     }
@@ -73,10 +78,27 @@ pub fn DialogContent(
     #[props(default = true)] close_on_backdrop_click: bool,
     #[props(default)] initial_open: bool,
     #[props(default)] alert: bool,
-    #[props(optional)] on_close: Option<EventHandler<MouseEvent>>,
+    #[props(optional)] on_close: Option<EventHandler>,
     children: Element,
 ) -> Element {
     let ctx = use_context::<DialogContext>();
+    let interactions = use_context::<Interactions>();
+    let overlay = ctx.overlay.clone();
+    let open = overlay.open;
+    overlay.configure(on_close);
+    use_effect({
+        let overlay = overlay.clone();
+        let interactions = interactions.clone();
+        move || {
+            let _ = open();
+            overlay.sync(&interactions);
+        }
+    });
+    use_drop({
+        let overlay = overlay.clone();
+        let interactions = interactions.clone();
+        move || interactions.close_overlay(&overlay, false)
+    });
     let target_id = ctx.target_id;
     let backdrop_id = format!("{target_id}_backdrop");
     let backdrop_behavior = if close_on_backdrop_click {
@@ -105,45 +127,42 @@ pub fn DialogContent(
                 "data-[state=closed]:opacity-0 data-[state=open]:opacity-100 [&&[data-state=closed]]:invisible ",
                 "[&&]:[z-index:var(--layer-backdrop)] ",
             ),
-            "data-state": "closed",
+            "data-state": if open() { "open" } else { "closed" },
+            onmounted: { let overlay = overlay.clone(); move |event| overlay.mount_backdrop(event) },
+            onclick: {
+                let overlay = overlay.clone(); let interactions = interactions.clone();
+                move |_| { if close_on_backdrop_click { interactions.close_overlay(&overlay, true); } }
+            },
         }
         // Panel
         div {
             role: if alert { "alertdialog" } else { "dialog" },
             aria_modal: "true",
             tabindex: "-1",
-            inert: true,
+            inert: !open(),
             aria_labelledby: format!("{target_id}-title"),
-            "data-auto-open": initial_open.to_string(),
             "data-name": "DialogContent",
             class: "{merged} [&&[data-state=closed]]:invisible [&&]:[overflow:auto] [&&]:[z-index:var(--layer-modal)]",
             id: "{target_id}",
             "data-target": "target__dialog",
-            "data-state": "closed",
+            "data-state": if open() { "open" } else { "closed" },
             "data-backdrop": "{backdrop_behavior}",
-            style: "pointer-events: none;",
+            style: if open() { "pointer-events:auto" } else { "pointer-events:none" },
+            onmounted: {
+                let overlay = overlay.clone(); let interactions = interactions.clone();
+                move |event| { overlay.mount_content(event); if initial_open { interactions.open_overlay(overlay.clone()); } }
+            },
             button {
                 r#type: "button",
                 class: "{close_button_class}",
                 hidden: !show_close_button,
-                "data-dialog-close": "{target_id}",
+                onclick: move |_| interactions.close_overlay(&overlay, true),
                 aria_label: "Close dialog",
                 span { class: "hidden", "Close Dialog" }
                 X {}
             }
-            button {
-                hidden: true,
-                r#type: "button",
-                "data-overlay-notify-close": "true",
-                onclick: move |event| {
-                    if let Some(handler) = &on_close {
-                        handler.call(event);
-                    }
-                },
-            }
             {children}
         }
-        // Setup script
     }
 }
 
@@ -154,6 +173,7 @@ pub fn DialogContent(
 #[component]
 pub fn DialogClose(#[props(into, optional)] class: Option<String>, children: Element) -> Element {
     let ctx = use_context::<DialogContext>();
+    let interactions = use_context::<Interactions>();
     let merged = tw_merge!(
         "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium border bg-background shadow-xs hover:bg-accent hover:text-accent-foreground h-9 px-4 py-2 cursor-pointer",
         class.as_deref().unwrap_or("")
@@ -161,7 +181,8 @@ pub fn DialogClose(#[props(into, optional)] class: Option<String>, children: Ele
     rsx! {
         button {
             class: "{merged}",
-            "data-dialog-close": "{ctx.target_id}",
+            r#type: "button",
+            onclick: move |_| interactions.close_overlay(&ctx.overlay, true),
             aria_label: "Close dialog",
             {children}
         }
@@ -171,6 +192,7 @@ pub fn DialogClose(#[props(into, optional)] class: Option<String>, children: Ele
 #[component]
 pub fn DialogAction(#[props(into, optional)] class: Option<String>, children: Element) -> Element {
     let ctx = use_context::<DialogContext>();
+    let interactions = use_context::<Interactions>();
     let merged = tw_merge!(
         "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium bg-primary text-primary-foreground shadow-xs hover:bg-primary/90 h-9 px-4 py-2 cursor-pointer",
         class.as_deref().unwrap_or("")
@@ -178,7 +200,8 @@ pub fn DialogAction(#[props(into, optional)] class: Option<String>, children: El
     rsx! {
         button {
             class: "{merged}",
-            "data-dialog-close": "{ctx.target_id}",
+            r#type: "button",
+            onclick: move |_| interactions.close_overlay(&ctx.overlay, true),
             aria_label: "Close dialog",
             {children}
         }

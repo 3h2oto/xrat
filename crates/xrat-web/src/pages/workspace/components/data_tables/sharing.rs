@@ -100,6 +100,7 @@ pub(crate) fn ShareModal(
     let mut mode = use_signal(|| mode);
     let mut secret = use_signal(String::new);
     let mut legacy = use_signal(|| false);
+    let mut needs_manual_copy = use_signal(|| false);
     let text_id = use_hook(|| crate::hooks::use_random::use_random_id_for("share-text"));
     let request = snapshot.clone();
     let mut raw = use_resource(move || {
@@ -122,7 +123,10 @@ pub(crate) fn ShareModal(
                         ))));
                         on_close.call(());
                     }
-                    Err(message) => notice.set(Some(crate::Feedback::error(message))),
+                    Err(message) => {
+                        notice.set(Some(crate::Feedback::error(message)));
+                        needs_manual_copy.set(true);
+                    }
                 }
             }
             Ok::<_, String>(Some(response))
@@ -141,6 +145,10 @@ pub(crate) fn ShareModal(
         String::new()
     };
     let result = raw.read().clone();
+    if mode() == Mode::Copy && !needs_manual_copy() && !result.as_ref().is_some_and(Result::is_err)
+    {
+        return rsx! {};
+    }
     rsx! {
         Dialog {
             DialogContent { initial_open: true, class: "w-[min(480px,calc(100%-2rem))] rounded-xl p-5", on_close: move |_| on_close.call(()),
@@ -172,7 +180,7 @@ pub(crate) fn ShareModal(
                         QrCodeImage { payload: url.clone(), label: "QR code for the subscription URL", filename: "xrat-subscription.svg" }
                         label { class: "sr-only", r#for: text_id.clone(), "Subscription URL" }
                         Textarea { id: text_id.clone(), readonly: true, rows: 4, value: url, class: "font-mono text-xs mt-3 break-all" }
-                        Button { class: "mt-3", "data-copy-textarea": text_id.clone(), icons::Copy {} span { "Copy subscription link" } }
+                        crate::components::clipboard::CopyButton { class: "mt-3", target_id: text_id.clone(), label: "Copy subscription link" }
                     }
                 } else {
                     if raw.pending() {
@@ -190,7 +198,7 @@ pub(crate) fn ShareModal(
                                 }
                                 div { class: "flex items-center flex-wrap gap-2 mt-3",
                                     if mode() == Mode::Copy {
-                                        Button { variant: ButtonVariant::Outline, "data-copy-textarea": text_id.clone(), icons::Copy {} span { "Copy configs" } }
+                                        crate::components::clipboard::CopyButton { variant: ButtonVariant::Outline, target_id: text_id.clone(), label: "Copy configs" }
                                     }
                                     if filter.is_some() {
                                         Button { variant: ButtonVariant::Ghost, onclick: move |_| mode.set(Mode::Link), icons::Link {} "Subscription link" }
@@ -259,6 +267,46 @@ fn filter_summary(filter: &ConfigFilter) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    fn copy_view() -> Element {
+        sharing_view(Mode::Copy)
+    }
+
+    fn qr_view() -> Element {
+        sharing_view(Mode::Qr)
+    }
+
+    fn sharing_view(mode: Mode) -> Element {
+        let session = use_signal(|| None);
+        let notice = use_signal(|| None);
+        use_context_provider(|| Session(session));
+        use_context_provider(|| Notice(notice));
+        rsx! {
+            ShareModal {
+                request: ConfigShareRequest::Selected { ids: vec![1] },
+                count: 1,
+                mode,
+                on_close: |_| {},
+            }
+        }
+    }
+
+    #[test]
+    fn copy_waits_without_rendering_a_modal_while_qr_opens_immediately() {
+        for (view, visible) in [(copy_view as fn() -> Element, false), (qr_view, true)] {
+            let mut dom = VirtualDom::new(view);
+            dom.provide_root_context(crate::ui::interaction::Interactions::default());
+            let mutations = dom.rebuild_to_vec();
+            assert_eq!(
+                mutations
+                    .edits
+                    .iter()
+                    .any(|edit| matches!(edit, dioxus::core::Mutation::LoadTemplate { .. })),
+                visible
+            );
+        }
+    }
+
     #[test]
     fn subscription_links_encode_credentials_and_exact_filters_without_pagination() {
         let filter = ConfigFilter {

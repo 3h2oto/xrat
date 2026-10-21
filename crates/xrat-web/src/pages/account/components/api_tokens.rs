@@ -71,11 +71,11 @@ pub(crate) fn ApiTokens() -> Element {
                             value: created(),
                         }
                         div { class: "self-token-reveal-actions flex items-center justify-between mt-2 gap-2",
-                            IconButton {
+                            crate::components::clipboard::CopyButton {
+                                target_id: secret_id.clone(),
+                                icon_only: true,
                                 label: "Copy API token",
                                 variant: ButtonVariant::Ghost,
-                                "data-copy-textarea": secret_id.clone(),
-                                Copy {}
                             }
                             IconButton {
                                 label: "Done",
