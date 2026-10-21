@@ -13,6 +13,9 @@ pub(crate) const PAGE_LIMIT: i64 = 200;
 #[serde(tag = "type", rename_all = "snake_case", deny_unknown_fields)]
 pub enum CatalogRequest {
     Profile {},
+    RawConfigs {
+        ids: Vec<ConfigId>,
+    },
     Detail {
         config_id: ConfigId,
     },
@@ -91,6 +94,7 @@ pub enum CatalogPayload {
         config_path: String,
     },
     Configs(ConfigListResult),
+    RawConfigs(Option<Vec<String>>),
     Detail(Option<Box<crate::app::read_models::ConfigDetail>>),
     FoundConfig(Option<ConfigId>),
     FoundSubscription(Option<SubscriptionId>),

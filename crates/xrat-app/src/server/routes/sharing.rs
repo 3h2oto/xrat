@@ -9,7 +9,7 @@ use crate::{
     },
 };
 use axum::{Extension, Json, extract::State};
-use std::collections::{HashMap, HashSet};
+use std::collections::HashSet;
 use xrat_web::configs::sharing::{
     ConfigFilter, ConfigShareRequest, ConfigShareResponse, filter_configs,
 };
@@ -72,8 +72,9 @@ pub(crate) async fn export(
                 .map(rows::config)
                 .collect::<Vec<_>>();
             let subs = state
-                .db
-                .list_subscriptions()
+                .services
+                .configs
+                .subscriptions()
                 .await?
                 .into_iter()
                 .map(rows::subscription)
@@ -90,31 +91,16 @@ pub(crate) async fn export(
             raw: String::new(),
         });
     }
-    if ids.len() == 1 {
-        let config = state
-            .db
-            .get_config_by_id(ids[0].into())
-            .await?
-            .ok_or(ServerError::NotFound)?;
-        return Ok(ConfigShareResponse {
-            count: 1,
-            raw: config.raw_config,
-        });
-    }
-    let mut raw = state
-        .db
-        .list_configs(&xrat_db::ConfigListFilter {
-            include_deleted: true,
-            ..Default::default()
-        })
+    let lines = state
+        .services
+        .configs
+        .raw_configs_by_ids(
+            &ids.into_iter()
+                .map(xrat_model::ConfigId)
+                .collect::<Vec<_>>(),
+        )
         .await?
-        .into_iter()
-        .map(|row| (row.id.0, row.raw_config))
-        .collect::<HashMap<_, _>>();
-    let lines = ids
-        .iter()
-        .map(|id| raw.remove(id).ok_or(ServerError::NotFound))
-        .collect::<ServerResult<Vec<_>>>()?;
+        .ok_or(ServerError::NotFound)?;
     Ok(ConfigShareResponse {
         count: lines.len(),
         raw: lines.join("\n"),

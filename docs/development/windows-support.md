@@ -130,6 +130,13 @@ machine reads/lifecycle results and exercise authenticated HTTP subscription
 exports with a separate empty user store. This is a composition seam; automatic
 machine TUI/Web context construction remains under implementation.
 
+Filtered and selected HTTP sharing use the same catalog services for source
+metadata and raw links. Ordered raw-ID reads have bounded wire pages and retain
+all matching IDs, including disabled/deleted rows when explicitly selected.
+Missing IDs or failed later pages return no partial export. Read-only oversized
+pages retry at smaller sizes; direct user-store catalog reads are absent from
+these sharing paths.
+
 Runtime overview requests execute inside the supervisor, where status
 reconciliation and TUN cleanup already belong. The typed snapshot includes the
 shared runtime/session and inbound-health records, current TUN state, live

@@ -29,6 +29,9 @@ impl Transport for Loopback {
             GatewayRequestKind::Catalog {
                 request: CatalogRequest::Subscriptions { offset, limit },
             } => Some((*offset as i64, *limit as usize)),
+            GatewayRequestKind::Catalog {
+                request: CatalogRequest::RawConfigs { ids },
+            } => Some((ids.first().map_or(0, |id| id.0 - 1), ids.len())),
             _ => None,
         };
         if let Some((offset, limit)) = page {
@@ -511,6 +514,29 @@ async fn http_exports_use_machine_catalog_while_api_auth_and_ui_store_remain_loc
     let (machine, client, calls, _machine_root) = fixture(None).await;
     import(&client, 1).await;
     import(&client, 2).await;
+    let disabled = machine
+        .db
+        .list_configs(&Default::default())
+        .await
+        .unwrap()
+        .into_iter()
+        .find(|row| row.address == "node2.example")
+        .unwrap();
+    machine
+        .services()
+        .lifecycle
+        .disable(&ConfigRef::from(disabled.r#ref.as_str()))
+        .await
+        .unwrap();
+    let source = machine
+        .services()
+        .configs
+        .subscriptions()
+        .await
+        .unwrap()
+        .into_iter()
+        .find(|row| Some(row.id) == disabled.subscription_id)
+        .unwrap();
     let ui = TestAppBuilder::new("machine-http-user-store").build().await;
     let mut state =
         crate::server::ServerState::for_test(ui.db.clone(), Some("operator-secret".into()));
@@ -531,6 +557,7 @@ async fn http_exports_use_machine_catalog_while_api_auth_and_ui_store_remain_loc
         "HTTP auth must precede gateway access"
     );
     let response = router
+        .clone()
         .oneshot(
             Request::builder()
                 .uri("/b64?key=operator-secret")
@@ -551,6 +578,25 @@ async fn http_exports_use_machine_catalog_while_api_auth_and_ui_store_remain_loc
         .await
         .unwrap();
     assert_eq!(raw, expected.as_bytes());
+    for uri in [
+        format!(
+            "/b64?key=operator-secret&enabled=false&state=all&subscription={}",
+            source.r#ref
+        ),
+        "/b64?key=operator-secret&enabled=false&state=all&q=node2".into(),
+    ] {
+        let response = router
+            .clone()
+            .oneshot(Request::builder().uri(uri).body(Body::empty()).unwrap())
+            .await
+            .unwrap();
+        assert_eq!(response.status(), StatusCode::OK);
+        let body = to_bytes(response.into_body(), 1024 * 1024).await.unwrap();
+        let raw = base64::engine::general_purpose::STANDARD
+            .decode(body)
+            .unwrap();
+        assert_eq!(raw, disabled.raw_config.as_bytes());
+    }
     assert!(
         ui.db
             .list_configs(&Default::default())
@@ -558,4 +604,55 @@ async fn http_exports_use_machine_catalog_while_api_auth_and_ui_store_remain_loc
             .unwrap()
             .is_empty()
     );
+}
+
+#[tokio::test]
+async fn raw_id_exports_preserve_order_missing_semantics_and_bounded_read_retries() {
+    let (context, client, calls, _root) = fixture(None).await;
+    for index in 1..=5 {
+        import(&client, index).await;
+    }
+    let remote = crate::app::services::AppServices::from_machine(client);
+    let ids = vec![
+        ConfigId(5),
+        ConfigId(1),
+        ConfigId(3),
+        ConfigId(3),
+        ConfigId(2),
+    ];
+    assert_eq!(
+        remote.configs.raw_configs_by_ids(&ids).await.unwrap(),
+        context
+            .services()
+            .configs
+            .raw_configs_by_ids(&ids)
+            .await
+            .unwrap()
+    );
+    assert_eq!(
+        remote
+            .configs
+            .raw_configs_by_ids(&[ConfigId(1), ConfigId(999)])
+            .await
+            .unwrap(),
+        None
+    );
+    let before = calls.lock().unwrap().len();
+    assert_eq!(
+        remote.configs.raw_configs_by_ids(&[]).await.unwrap(),
+        Some(Vec::new())
+    );
+    assert_eq!(before, calls.lock().unwrap().len());
+    assert!(calls.lock().unwrap().iter().any(|request| matches!(&request.request, GatewayRequestKind::Catalog { request: CatalogRequest::RawConfigs { ids } } if ids.len() == 1)));
+    let (_context, client, _, _root) = fixture(Some(2)).await;
+    for index in 1..=5 {
+        import(&client, index).await;
+    }
+    let remote = crate::app::services::AppServices::from_machine(client);
+    let error = remote
+        .configs
+        .raw_configs_by_ids(&[ConfigId(1), ConfigId(2), ConfigId(3), ConfigId(4)])
+        .await
+        .unwrap_err();
+    assert!(error.to_string().contains("pipe disconnected"));
 }

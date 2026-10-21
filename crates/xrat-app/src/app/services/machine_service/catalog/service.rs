@@ -17,6 +17,9 @@ impl MachineCatalog {
         policy::validate(&request)?;
         let services = self.context.services();
         Ok(match request {
+            CatalogRequest::RawConfigs { ids } => {
+                CatalogPayload::RawConfigs(services.configs.raw_configs_by_ids(&ids).await?)
+            }
             CatalogRequest::Detail { config_id } => {
                 CatalogPayload::Detail(services.configs.detail(config_id).await?.map(Box::new))
             }

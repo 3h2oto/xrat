@@ -6,6 +6,40 @@ use xrat_db::{ConfigRecord, SubscriptionRecord};
 use xrat_model::{ConfigId, ConfigRef, SubscriptionId};
 
 impl MachineClient {
+    pub(crate) async fn raw_configs_by_ids(&self, ids: &[ConfigId]) -> Result<Option<Vec<String>>> {
+        let mut offset = 0;
+        let mut limit = super::PAGE_LIMIT as usize;
+        let mut items = Vec::new();
+        while offset < ids.len() {
+            let end = (offset + limit).min(ids.len());
+            let response = self
+                .exchange(CatalogRequest::RawConfigs {
+                    ids: ids[offset..end].to_vec(),
+                })
+                .await?;
+            if matches!(
+                response.code,
+                crate::app::daemon::ipc::DaemonResponseCode::MessageTooLarge
+            ) && limit > 1
+            {
+                limit = (limit / 2).max(1);
+                continue;
+            }
+            let CatalogPayload::RawConfigs(page) = Self::payload(response)? else {
+                return Err(unexpected());
+            };
+            let Some(page) = page else {
+                return Ok(None);
+            };
+            if page.len() != end - offset {
+                return Err(unexpected());
+            }
+            items.extend(page);
+            offset = end;
+        }
+        Ok(Some(items))
+    }
+
     pub(crate) async fn config_detail(&self, id: ConfigId) -> Result<Option<ConfigDetail>> {
         match self
             .catalog(CatalogRequest::Detail { config_id: id })

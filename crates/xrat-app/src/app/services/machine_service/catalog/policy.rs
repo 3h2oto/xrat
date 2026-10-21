@@ -10,6 +10,13 @@ const FIELD_LIMIT: usize = 4096;
 pub(super) fn validate(request: &CatalogRequest) -> Result<()> {
     match request {
         CatalogRequest::Profile {} | CatalogRequest::Purge {} | CatalogRequest::Detail { .. } => {}
+        CatalogRequest::RawConfigs { ids } => {
+            if ids.len() > PAGE_LIMIT as usize || ids.iter().any(|id| id.0 <= 0) {
+                return Err(invalid(
+                    "raw-link selections require at most 200 positive config IDs",
+                ));
+            }
+        }
         CatalogRequest::FindConfig { reference } => validate_read_reference(reference.as_ref())?,
         CatalogRequest::FindSubscription { reference } => validate_read_reference(reference)?,
         CatalogRequest::Reference { config_id } => {

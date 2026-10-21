@@ -164,6 +164,35 @@ impl ConfigService {
             .map(ConfigDetail::from_joined))
     }
 
+    /// Raw links in explicit selection order. Missing IDs return no partial selection.
+    pub async fn raw_configs_by_ids(&self, ids: &[ConfigId]) -> Result<Option<Vec<String>>> {
+        #[cfg(any(windows, test))]
+        if let Some(client) = &self.machine_client {
+            return client.raw_configs_by_ids(ids).await;
+        }
+        match ids {
+            [] => Ok(Some(Vec::new())),
+            [id] => Ok(self
+                .repository
+                .get_config_by_id(*id)
+                .await?
+                .map(|row| vec![row.raw_config])),
+            _ => {
+                let raw = self
+                    .repository
+                    .list_configs(&ConfigListFilter {
+                        include_deleted: true,
+                        ..Default::default()
+                    })
+                    .await?
+                    .into_iter()
+                    .map(|row| (row.id, row.raw_config))
+                    .collect::<std::collections::HashMap<_, _>>();
+                Ok(ids.iter().map(|id| raw.get(id).cloned()).collect())
+            }
+        }
+    }
+
     pub async fn reference(&self, id: ConfigId) -> Result<Option<String>> {
         #[cfg(any(windows, test))]
         if let Some(client) = &self.machine_client {

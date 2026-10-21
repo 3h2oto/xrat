@@ -235,6 +235,12 @@ async fn invalid_batch_and_page_inputs_do_not_mutate_the_catalog() {
         CatalogRequest::RestoreMany {
             ids: vec![1.into(); 10_001],
         },
+        CatalogRequest::RawConfigs {
+            ids: vec![0.into()],
+        },
+        CatalogRequest::RawConfigs {
+            ids: vec![1.into(); 201],
+        },
     ] {
         assert!(catalog.dispatch(request).await.is_err());
     }
