@@ -37,7 +37,7 @@ pub(super) async fn compose(client: MachineClient, root: &Path) -> Result<AppCon
 }
 
 #[cfg(windows)]
-pub(super) fn require_ordinary_user() -> Result<()> {
+pub(crate) fn require_ordinary_user() -> Result<()> {
     validate_identity(
         &xrat_support::windows::current_user_sid()?,
         xrat_support::windows::is_current_process_elevated()?,

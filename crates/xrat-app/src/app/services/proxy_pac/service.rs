@@ -10,15 +10,19 @@ pub struct ActiveEndpoints {
 }
 
 pub async fn active_endpoints(db: &xrat_db::Database) -> crate::app::Result<ActiveEndpoints> {
-    let Some(session) = db.get_running_runtime_session().await? else {
-        return Ok(ActiveEndpoints::default());
-    };
+    let session = db.get_running_runtime_session().await?;
+    Ok(from_session(session.as_ref()))
+}
 
-    Ok(ActiveEndpoints {
-        http: endpoint(session.http_host, session.http_port),
-        socks: endpoint(session.socks_host, session.socks_port),
-        shadowsocks: endpoint(session.shadowsocks_host, session.shadowsocks_port),
-    })
+pub(super) fn from_session(session: Option<&xrat_db::RuntimeSessionRecord>) -> ActiveEndpoints {
+    let Some(session) = session else {
+        return ActiveEndpoints::default();
+    };
+    ActiveEndpoints {
+        http: endpoint(session.http_host.clone(), session.http_port),
+        socks: endpoint(session.socks_host.clone(), session.socks_port),
+        shadowsocks: endpoint(session.shadowsocks_host.clone(), session.shadowsocks_port),
+    }
 }
 
 fn endpoint(host: Option<String>, port: Option<i64>) -> Option<(String, u16)> {
@@ -42,18 +46,7 @@ pub async fn active_pac(db: &xrat_db::Database, rules: &PacRules) -> crate::app:
 }
 
 pub async fn context_pac(context: &crate::app::context::AppContext) -> crate::app::Result<String> {
-    use crate::app::services::diagnostics::{
-        DiagnosticsPayload, DiagnosticsRequest, DiagnosticsService,
-    };
-    match DiagnosticsService::new(context.clone())
-        .dispatch(DiagnosticsRequest::Pac {})
-        .await?
-    {
-        DiagnosticsPayload::Pac(pac) => Ok(pac),
-        _ => Err(crate::app::AppError::InvalidArgument(
-            "unexpected PAC response".into(),
-        )),
-    }
+    super::ProxyService::from_context(context).pac().await
 }
 
 #[cfg(test)]

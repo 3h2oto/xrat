@@ -1,9 +1,9 @@
-use crate::app::context::AppContext;
 use crate::app::services::desktop_proxy::{Backend, DesktopProxy, windows::WinInet};
+use crate::app::services::proxy_pac::ProxyService;
 use crate::app::{AppError, Result};
 use crate::cli::ProxyDesktopAction;
 
-pub(super) async fn run(context: &AppContext, action: &ProxyDesktopAction) -> Result<()> {
+pub(super) async fn run(context: &ProxyService, action: &ProxyDesktopAction) -> Result<()> {
     if xrat_support::windows::current_user_sid()? == "S-1-5-18" {
         return Err(AppError::InvalidArgument("desktop proxy settings require the interactive user's session; a LocalSystem service cannot change its own HKCU on the user's behalf".into()));
     }
@@ -49,14 +49,20 @@ pub(super) async fn run(context: &AppContext, action: &ProxyDesktopAction) -> Re
                 let active = super::super::resolve_active_endpoints(context).await?;
                 let mut endpoints = Vec::new();
                 if let Some((host, port)) = active.http {
-                    let host = super::super::loopback_host(&host);
-                    endpoints.push(format!("http={host}:{port}"));
-                    endpoints.push(format!("https={host}:{port}"));
+                    let endpoint = xrat_support::net::format_host_port(
+                        super::super::loopback_host(&host),
+                        port,
+                    );
+                    endpoints.push(format!("http={endpoint}"));
+                    endpoints.push(format!("https={endpoint}"));
                 }
                 if let Some((host, port)) = active.socks {
                     endpoints.push(format!(
-                        "socks={}:{port}",
-                        super::super::loopback_host(&host)
+                        "socks={}",
+                        xrat_support::net::format_host_port(
+                            super::super::loopback_host(&host),
+                            port
+                        )
                     ));
                 }
                 if endpoints.is_empty() {

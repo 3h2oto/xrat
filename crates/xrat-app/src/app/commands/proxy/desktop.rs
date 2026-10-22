@@ -9,7 +9,7 @@ mod windows;
 use crate::app::commands::output;
 #[cfg(any(target_os = "linux", target_os = "macos", windows, test))]
 use crate::app::config::ServerSettings;
-use crate::app::context::AppContext;
+use crate::app::services::proxy_pac::ProxyService;
 use crate::cli::ProxyDesktopAction;
 #[cfg(any(target_os = "linux", test))]
 use crate::cli::ProxyDesktopKind;
@@ -20,7 +20,7 @@ use super::ActiveEndpoints;
 use super::resolve_active_endpoints;
 
 pub(super) async fn run(
-    context: &AppContext,
+    context: &ProxyService,
     action: &ProxyDesktopAction,
 ) -> crate::app::Result<()> {
     #[cfg(target_os = "linux")]
@@ -45,7 +45,7 @@ pub(super) async fn run(
 }
 
 #[cfg(target_os = "linux")]
-async fn run_linux(context: &AppContext, action: &ProxyDesktopAction) -> crate::app::Result<()> {
+async fn run_linux(context: &ProxyService, action: &ProxyDesktopAction) -> crate::app::Result<()> {
     let desktop = match action {
         ProxyDesktopAction::Enable(args) => resolve_desktop(args.desktop)?,
         ProxyDesktopAction::Disable(args) => resolve_desktop(args.desktop)?,
@@ -123,40 +123,18 @@ async fn run_linux(context: &AppContext, action: &ProxyDesktopAction) -> crate::
 }
 
 #[cfg(any(target_os = "linux", target_os = "macos", windows))]
-fn pac_url(context: &AppContext) -> crate::app::Result<String> {
-    pac_url_from_server(&context.app_config.server)
+fn pac_url(context: &ProxyService) -> crate::app::Result<String> {
+    pac_url_from_server(&context.server()?)
 }
 
 #[cfg(any(target_os = "linux", target_os = "macos", windows, test))]
 fn pac_url_from_server(server: &ServerSettings) -> crate::app::Result<String> {
-    if !server.enabled {
-        return Err(AppError::InvalidArgument(
-            "API server is disabled; enable [server] before using `xrat proxy desktop enable --pac`"
-                .to_string(),
-        ));
-    }
-    if !server.pac_enabled {
-        return Err(AppError::InvalidArgument(
-            "PAC serving is disabled; set [server].pac_enabled = true before using `xrat proxy desktop enable --pac`"
-                .to_string(),
-        ));
-    }
-
-    let host = if server.host == "0.0.0.0" || server.host.is_empty() {
-        "127.0.0.1"
-    } else {
-        server.host.as_str()
-    };
-    Ok(format!("http://{host}:{}/proxy.pac", server.port))
+    crate::app::services::proxy_pac::frontend_pac_url(server)
 }
 
 #[cfg(any(target_os = "linux", target_os = "macos", test))]
 fn loopback(host: &str) -> &str {
-    if host == "0.0.0.0" || host.is_empty() {
-        "127.0.0.1"
-    } else {
-        host
-    }
+    super::loopback_host(host)
 }
 
 /// Build the gsettings argument vectors to enable a GNOME proxy from active
@@ -370,7 +348,7 @@ fn parse_network_services(output: &str) -> Vec<String> {
 }
 
 #[cfg(target_os = "macos")]
-async fn run_macos(context: &AppContext, action: &ProxyDesktopAction) -> crate::app::Result<()> {
+async fn run_macos(context: &ProxyService, action: &ProxyDesktopAction) -> crate::app::Result<()> {
     match action {
         ProxyDesktopAction::Enable(args) => {
             macos_apply_enable(context, args.pac).await?;
@@ -434,7 +412,7 @@ async fn run_macos(context: &AppContext, action: &ProxyDesktopAction) -> crate::
 }
 
 #[cfg(target_os = "macos")]
-async fn macos_apply_enable(context: &AppContext, pac: bool) -> crate::app::Result<()> {
+async fn macos_apply_enable(context: &ProxyService, pac: bool) -> crate::app::Result<()> {
     let services = active_network_services()?;
     if pac {
         let url = pac_url(context)?;

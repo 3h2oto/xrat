@@ -311,7 +311,10 @@ subscription filters, existing output formats, and `--latest-run-summary`;
 Ctrl+C requests cancellation and waits for the service result. Policy overrides
 and machine `test --ping` are explicitly unsupported. TUI split-policy edits and Web core/GeoIP maintenance, policy
 validation, and upgrades require local administrator maintenance. Frontend
-server settings and TUI preferences remain editable. PAC policy, runtime state,
+server settings and TUI preferences remain editable. Machine `proxy` reads
+service-owned endpoints/PAC while applying shell and desktop changes in the
+interactive user's session. Desktop disable/status and shell restoration remain
+available without a running service and do not open a catalog/UI database. PAC policy, runtime state,
 probe history, and operational logs come from the service; API request logs stay
 in the frontend store with a separate display cursor.
 

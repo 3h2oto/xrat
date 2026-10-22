@@ -8,3 +8,6 @@ mod tests;
 
 pub use app_context::{AppContext, build_app_context};
 pub use paths::{RuntimePaths, resolve_config_path};
+
+#[cfg(windows)]
+pub(crate) use machine_client::require_ordinary_user;

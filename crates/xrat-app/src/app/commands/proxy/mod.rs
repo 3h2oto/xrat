@@ -5,6 +5,7 @@ mod shell;
 
 use crate::app::context::AppContext;
 pub(crate) use crate::app::services::proxy_pac::ActiveEndpoints;
+use crate::app::services::proxy_pac::ProxyService;
 use crate::cli::{ProxyAction, ProxyArgs, ProxyPacAction};
 
 mod dispatch;
@@ -13,3 +14,6 @@ pub(crate) use dispatch::loopback_host;
 pub(crate) use dispatch::resolve_active_endpoints;
 pub use dispatch::run;
 pub(crate) use dispatch::socks_proxy_url;
+
+#[cfg(windows)]
+pub(crate) use dispatch::run_service;

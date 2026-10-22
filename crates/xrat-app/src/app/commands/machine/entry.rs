@@ -6,6 +6,11 @@ use crate::cli::{Command, DaemonAction};
 use windows_sys::Win32::System::Services::*;
 
 pub async fn run(command: &Command) -> Result<()> {
+    if let Command::Proxy(args) = command {
+        let service =
+            crate::app::services::proxy_pac::ProxyService::for_machine(MachineClient::new())?;
+        return crate::app::commands::proxy::run_service(&service, args).await;
+    }
     if matches!(
         command,
         Command::Tui(_) | Command::Serve(_) | Command::Webui(_)

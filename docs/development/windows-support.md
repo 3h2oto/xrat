@@ -38,6 +38,11 @@ separate evidence. This branch is not a release or proof of full support.
   man pages and the Unix launcher, and gives Windows PATH guidance. Use
   `xrat tui`; dot-source the generated `xrat.ps1` completion file in the shell
   where completion is wanted. No PowerShell profile is edited automatically.
+- Machine proxy commands use the shared proxy read service: endpoint/PAC reads
+  go to the owner, while frontend API preferences are loaded lazily from the
+  operator's client configuration. Local recovery requires neither service
+  readiness nor a catalog/UI database. Shell hints retain explicit profile
+  selection, and IPv6 authorities/PAC origins use shared formatting.
 - Desktop proxy settings use WinINET and a per-user recovery record. Disable
   restores the previous state only while the applied settings are still owned by
   XRAT; unrelated changes are retained and reported for explicit recovery.

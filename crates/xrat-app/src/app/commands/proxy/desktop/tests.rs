@@ -123,3 +123,23 @@ fn detects_desktops_from_hints() {
     assert_eq!(desktop_from_hint("xfce"), Some(ProxyDesktopKind::Xfce));
     assert_eq!(desktop_from_hint("sway"), None);
 }
+
+#[test]
+fn ipv6_pac_url_uses_loopback_and_escapes_scope_identifiers() {
+    let mut server = ServerSettings {
+        enabled: true,
+        pac_enabled: true,
+        host: "::".into(),
+        port: 18203,
+        ..Default::default()
+    };
+    assert_eq!(
+        pac_url_from_server(&server).unwrap(),
+        "http://[::1]:18203/proxy.pac"
+    );
+    server.host = "fe80::1%3".into();
+    assert_eq!(
+        pac_url_from_server(&server).unwrap(),
+        "http://[fe80::1%253]:18203/proxy.pac"
+    );
+}

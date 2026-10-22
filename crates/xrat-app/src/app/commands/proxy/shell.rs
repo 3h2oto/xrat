@@ -1,6 +1,6 @@
 use crate::app::AppError;
 use crate::app::commands::output;
-use crate::app::context::AppContext;
+use crate::app::services::proxy_pac::ProxyService;
 use crate::cli::{ProxyShellAction, ProxyShellKind, ProxyShellProtocol};
 
 use super::{
@@ -9,21 +9,26 @@ use super::{
 
 mod powershell;
 
-pub(super) async fn run(context: &AppContext, action: &ProxyShellAction) -> crate::app::Result<()> {
+pub(super) async fn run(
+    context: &ProxyService,
+    action: &ProxyShellAction,
+) -> crate::app::Result<()> {
     match action {
         ProxyShellAction::Enable(args) => {
             let active = resolve_active_endpoints(context).await?;
             let (http_proxy, all_proxy) = proxy_urls(&active, args.protocol)?;
             let kind = detect_shell(args.shell);
-            print!("{}", enable_output(kind, &http_proxy, &all_proxy));
+            print!(
+                "{}",
+                enable_output(kind, &http_proxy, &all_proxy, context.is_machine())
+            );
             print_status_stderr(&active, Some(http_proxy));
             Ok(())
         }
         ProxyShellAction::Disable(args) => {
             let kind = detect_shell(args.shell);
-            print!("{}", disable_output(kind));
-            let active = resolve_active_endpoints(context).await?;
-            print_status_stderr(&active, None);
+            print!("{}", disable_output(kind, context.is_machine()));
+            eprintln!("Apply the emitted script to restore this shell's proxy environment.");
             Ok(())
         }
         ProxyShellAction::Status(_) => {
@@ -36,7 +41,7 @@ pub(super) async fn run(context: &AppContext, action: &ProxyShellAction) -> crat
 }
 
 pub(super) async fn toggle(
-    context: &AppContext,
+    context: &ProxyService,
     shell: Option<ProxyShellKind>,
 ) -> crate::app::Result<()> {
     let active = resolve_active_endpoints(context).await?;
@@ -44,51 +49,64 @@ pub(super) async fn toggle(
 
     if shell_points_at_active(&active) {
         let restored_proxy = restored_proxy_value();
-        print!("{}", toggle_off_output(kind));
+        print!("{}", toggle_off_output(kind, context.is_machine()));
         print_status_stderr(&active, restored_proxy);
         return Ok(());
     }
 
     let (http_proxy, all_proxy) = proxy_urls(&active, None)?;
-    print!("{}", toggle_on_output(kind, &http_proxy, &all_proxy));
+    print!(
+        "{}",
+        toggle_on_output(kind, &http_proxy, &all_proxy, context.is_machine())
+    );
     print_status_stderr(&active, Some(http_proxy));
     Ok(())
 }
 
 /// Comment telling the user how to apply the emitted script for their shell.
 /// Safe inside an `eval`/`source`, so it can ride on stdout with the script.
-fn usage_hint(kind: ProxyShellKind, verb: &str) -> String {
+fn usage_hint(kind: ProxyShellKind, verb: &str, machine: bool) -> String {
+    let command = if machine {
+        "xrat --profile machine"
+    } else {
+        "xrat"
+    };
     match kind {
         ProxyShellKind::Bash | ProxyShellKind::Zsh => {
-            format!("# apply: eval \"$(xrat proxy shell {verb})\"\n")
+            format!("# apply: eval \"$({command} proxy shell {verb})\"\n")
         }
-        ProxyShellKind::Fish => format!("# apply: xrat proxy shell {verb} | source\n"),
+        ProxyShellKind::Fish => format!("# apply: {command} proxy shell {verb} | source\n"),
         ProxyShellKind::Powershell => format!(
-            "# apply: xrat proxy shell {verb} --shell powershell | Out-String | Invoke-Expression\n"
+            "# apply: {command} proxy shell {verb} --shell powershell | Out-String | Invoke-Expression\n"
         ),
     }
 }
 
-fn enable_output(kind: ProxyShellKind, http_proxy: &str, all_proxy: &str) -> String {
-    let mut out = usage_hint(kind, "enable");
+fn enable_output(kind: ProxyShellKind, http_proxy: &str, all_proxy: &str, machine: bool) -> String {
+    let mut out = usage_hint(kind, "enable", machine);
     out.push_str(&enable_script(kind, http_proxy, all_proxy));
     out
 }
 
-fn disable_output(kind: ProxyShellKind) -> String {
-    let mut out = usage_hint(kind, "disable");
+fn disable_output(kind: ProxyShellKind, machine: bool) -> String {
+    let mut out = usage_hint(kind, "disable", machine);
     out.push_str(&disable_script(kind));
     out
 }
 
-fn toggle_off_output(kind: ProxyShellKind) -> String {
-    let mut out = usage_hint(kind, "toggle");
+fn toggle_off_output(kind: ProxyShellKind, machine: bool) -> String {
+    let mut out = usage_hint(kind, "toggle", machine);
     out.push_str(&restore_script(kind));
     out
 }
 
-fn toggle_on_output(kind: ProxyShellKind, http_proxy: &str, all_proxy: &str) -> String {
-    let mut out = usage_hint(kind, "toggle");
+fn toggle_on_output(
+    kind: ProxyShellKind,
+    http_proxy: &str,
+    all_proxy: &str,
+    machine: bool,
+) -> String {
+    let mut out = usage_hint(kind, "toggle", machine);
     out.push_str(&capture_script(kind));
     out.push_str(&enable_script(kind, http_proxy, all_proxy));
     out
@@ -149,10 +167,12 @@ fn explicit_proxy_url(active: &ActiveEndpoints, protocol: ProxyShellProtocol) ->
             .socks
             .as_ref()
             .map(|(host, port)| format!("socks5://{}:{port}", loopback_host(host))),
-        ProxyShellProtocol::Socks5h => active
-            .socks
-            .as_ref()
-            .map(|(host, port)| format!("socks5h://{}:{port}", loopback_host(host))),
+        ProxyShellProtocol::Socks5h => active.socks.as_ref().map(|(host, port)| {
+            format!(
+                "socks5h://{}",
+                xrat_support::net::format_url_authority(loopback_host(host), *port)
+            )
+        }),
     }
 }
 
@@ -420,7 +440,7 @@ fn active_hostports(active: &ActiveEndpoints) -> Vec<String> {
     [active.http.as_ref(), active.socks.as_ref()]
         .into_iter()
         .flatten()
-        .map(|(host, port)| format!("{}:{port}", loopback_host(host)))
+        .map(|(host, port)| xrat_support::net::format_url_authority(loopback_host(host), *port))
         .collect()
 }
 

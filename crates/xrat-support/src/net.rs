@@ -1,3 +1,15 @@
+pub fn format_host_port(host: &str, port: u16) -> String {
+    if host.contains(':') && !host.starts_with('[') {
+        format!("[{host}]:{port}")
+    } else {
+        format!("{host}:{port}")
+    }
+}
+
+pub fn format_url_authority(host: &str, port: u16) -> String {
+    format_host_port(&host.replace('%', "%25"), port)
+}
+
 pub fn connect_host_for_bind_host(host: &str) -> String {
     match host {
         "0.0.0.0" => "127.0.0.1".to_string(),
@@ -371,7 +383,25 @@ mod linux_netlink {
 
 #[cfg(test)]
 mod tests {
-    use super::interface_exists;
+    use super::{format_host_port, format_url_authority, interface_exists};
+
+    #[test]
+    fn formats_ipv4_dns_and_ipv6_authorities_without_double_bracketing() {
+        for (host, expected) in [
+            ("127.0.0.1", "127.0.0.1:1080"),
+            ("localhost", "localhost:1080"),
+            ("::1", "[::1]:1080"),
+            ("[::1]", "[::1]:1080"),
+        ] {
+            assert_eq!(format_host_port(host, 1080), expected);
+            assert_eq!(format_url_authority(host, 1080), expected);
+        }
+        assert_eq!(format_host_port("fe80::1%3", 1080), "[fe80::1%3]:1080");
+        assert_eq!(
+            format_url_authority("fe80::1%3", 1080),
+            "[fe80::1%253]:1080"
+        );
+    }
 
     #[test]
     fn detects_missing_interfaces() {

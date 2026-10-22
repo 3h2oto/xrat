@@ -110,3 +110,16 @@ fn renders_block_rule_before_default_proxy() {
     assert!(block_index < default_index);
     assert!(pac.contains("return \"PROXY 127.0.0.1:9\";"));
 }
+
+#[test]
+fn renders_ipv6_proxy_authorities_without_using_wildcard_destinations() {
+    let pac = render_pac(
+        &PacEndpoints {
+            http: Some(("::".into(), 18201)),
+            socks: Some(("::1".into(), 18200)),
+        },
+        &PacRules::default(),
+    );
+    assert!(pac.contains("SOCKS5 [::1]:18200; PROXY [::1]:18201"));
+    assert!(!pac.contains("[::]:"));
+}
