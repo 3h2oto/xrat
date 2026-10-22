@@ -48,7 +48,7 @@ fn install_inner(args: &DaemonInstallArgs, quiet: bool) -> Result<()> {
         return Ok(());
     }
     let profile = MachineProfile::provision(&operator)?;
-    let directory = ProtectedDirectory::create(&destination)?;
+    let directory = ProtectedDirectory::create_readable(&destination, &operator)?;
     directory.verify_tree()?;
     let executable = destination.join("xrat.exe");
     let source = std::env::current_exe()?;
@@ -71,6 +71,7 @@ fn install_inner(args: &DaemonInstallArgs, quiet: bool) -> Result<()> {
         }
         Err(error) => return Err(error.into()),
     }
+    directory.make_file_readable("xrat.exe")?;
     directory.verify_tree()?;
     scm::install(&executable, profile.operator_sid())?;
     if args.with_api {

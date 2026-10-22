@@ -72,9 +72,10 @@ macOS and BSD integrations are newer; the FreeBSD/OpenBSD rows are expected to
 work but are not yet verified on hardware. Windows support remains experimental.
 This source branch adds daemon IPC, an optional LocalSystem service with
 ordinary-user TUI/Web clients, desktop proxy integration, and staged upgrades.
-Native acceptance is tracked in the Windows milestone. Managed Windows TUN
-capture and coordinated service upgrades remain under implementation. Windows
-binaries are 64-bit only.
+Managed Windows TUN and coordinated user/service upgrades are implemented in
+this branch. Native acceptance is still tracked in the Windows milestone; these
+source changes do not establish full Windows support. Windows binaries are
+64-bit only.
 
 ## Install
 

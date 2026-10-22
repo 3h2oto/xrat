@@ -23,7 +23,7 @@ function Assert-OwnedTask($task, $request) {
         $actions[0].Arguments -cne $request.arguments) {
         throw 'The reserved API task has a different identity or action; it was preserved.'
     }
-    if ($request.operation -eq 'install' -and $principal[0].UserId -cne $request.operator) {
+    if ($null -ne $request.operator -and $principal[0].UserId -cne $request.operator) {
         throw 'The API task belongs to another operator; it was preserved.'
     }
     $operator = $principal[0].UserId
@@ -66,7 +66,30 @@ try {
         if ($exception.HResult -ne -2147024894) { throw }
     }
     if ($null -ne $existing) { Assert-OwnedTask $existing $request }
-    if ($request.operation -eq 'remove') {
+    if ($request.operation -in @('pause', 'inspect')) {
+        $state = 0
+        if ($null -ne $existing) {
+            if ($existing.Enabled) { $state = $state -bor 2 }
+            if ($existing.GetInstances(0).Count -gt 0) { $state = $state -bor 1 }
+            if ($request.operation -eq 'inspect') { exit (16 + $state) }
+            $existing.Enabled = $false
+            $existing.Stop(0)
+            $deadline = [DateTime]::UtcNow.AddSeconds(20)
+            while ($existing.GetInstances(0).Count -gt 0) {
+                if ([DateTime]::UtcNow -gt $deadline) { throw 'API task did not stop; upgrade refused.' }
+                Start-Sleep -Milliseconds 100
+            }
+        }
+        exit (16 + $state)
+    } elseif ($request.operation -in @('resume_run', 'resume_idle', 'resume_run_disabled', 'resume_disabled')) {
+        if ($null -ne $existing) {
+            $enabled = $request.operation -in @('resume_run', 'resume_idle')
+            if ($request.operation -in @('resume_run', 'resume_run_disabled')) {
+                $existing.Enabled = $true
+                try { $null = $existing.Run($null) } finally { $existing.Enabled = $enabled }
+            } else { $existing.Enabled = $enabled }
+        }
+    } elseif ($request.operation -eq 'remove') {
         if ($null -ne $existing) {
             $existing.Enabled = $false
             if ($existing.GetInstances(0).Count -gt 0) { $existing.Stop(0) }

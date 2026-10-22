@@ -291,6 +291,7 @@ async fn native_machine_service_lifecycle_and_restricted_operator() {
                 .is_err()
         );
     }
+    crate::app::services::upgrades::exercise_machine_upgrade(&binary).await;
     scm::start().unwrap();
     ping().await;
     success(&binary, &["daemon", "uninstall"]);

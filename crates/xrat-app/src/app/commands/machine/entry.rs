@@ -6,6 +6,9 @@ use crate::cli::{Command, DaemonAction};
 use windows_sys::Win32::System::Services::*;
 
 pub async fn run(command: &Command) -> Result<()> {
+    if let Command::Upgrade(args) = command {
+        return crate::app::services::upgrades::run_machine(args).await;
+    }
     if let Command::Tun(crate::cli::TunArgs {
         action: crate::cli::TunAction::Setup(args),
     }) = command

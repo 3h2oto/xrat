@@ -119,3 +119,43 @@ fn native_machine_directory_rejects_user_owned_descendants() {
         io::ErrorKind::PermissionDenied
     );
 }
+
+#[test]
+#[ignore = "requires an elevated native Windows runner"]
+fn native_machine_directory_allows_operator_execute_but_never_write_or_acl_changes() {
+    use std::os::windows::fs::OpenOptionsExt;
+    use windows_sys::Win32::Storage::FileSystem::{FILE_GENERIC_EXECUTE, WRITE_DAC};
+    let parent = tempfile::tempdir().unwrap();
+    let path = parent.path().join("installation");
+    let sid = crate::windows::current_user_sid().unwrap();
+    let directory = ProtectedDirectory::create(&path).unwrap();
+    directory
+        .create_file("xrat.exe")
+        .unwrap()
+        .write_all(b"executable fixture")
+        .unwrap();
+    drop(directory);
+    let directory = ProtectedDirectory::create_readable(&path, &sid).unwrap();
+    directory.make_file_readable("xrat.exe").unwrap();
+    directory.verify_tree().unwrap();
+    assert!(ProtectedDirectory::open(&path).is_err());
+    let executable = path.join("xrat.exe");
+    let ordinary = restricted::OrdinaryUser::enter().unwrap();
+    assert_eq!(std::fs::read(&executable).unwrap(), b"executable fixture");
+    assert!(
+        std::fs::OpenOptions::new()
+            .access_mode(FILE_GENERIC_EXECUTE)
+            .open(&executable)
+            .is_ok()
+    );
+    assert!(std::fs::write(&executable, "tampered").is_err());
+    assert!(std::fs::write(path.join("new.exe"), "tampered").is_err());
+    assert!(
+        std::fs::OpenOptions::new()
+            .access_mode(WRITE_DAC)
+            .open(&executable)
+            .is_err()
+    );
+    drop(ordinary);
+    directory.verify_tree().unwrap();
+}

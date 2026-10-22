@@ -35,7 +35,7 @@ pub(super) fn verify_checksum(archive: &Path, checksums: &str, filename: &str) -
 }
 
 pub(super) fn extract_binary(archive: &Path, directory: &Path, executable: &str) -> Result<()> {
-    let mut staged = tempfile::NamedTempFile::new_in(directory)?;
+    let mut staged = super::staging::StagedFile::new(directory)?;
     let mut found = false;
     if archive
         .extension()
@@ -82,9 +82,7 @@ pub(super) fn extract_binary(archive: &Path, directory: &Path, executable: &str)
     }
     staged.as_file_mut().flush()?;
     staged.as_file().sync_all()?;
-    staged
-        .persist(directory.join(executable))
-        .map_err(|error| AppError::Io(error.error))?;
+    staged.persist(directory.join(executable))?;
     Ok(())
 }
 

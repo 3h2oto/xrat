@@ -12,10 +12,20 @@ pub(crate) async fn run(
     }
     let target = current_exe()?;
 
+    run_at(config_path, args, &target).await
+}
+
+pub(super) async fn run_at(
+    config_path: &Path,
+    args: &UpgradeArgs,
+    target: &Path,
+) -> crate::app::Result<super::UpgradeOutcome> {
+    #[cfg(windows)]
+    super::windows::coordination::classify(target, config_path)?;
     if args.source {
-        source::upgrade(args, &target, config_path).await
+        source::upgrade(args, target, config_path).await
     } else {
-        release::upgrade(args, &target, config_path).await
+        release::upgrade(args, target, config_path).await
     }
 }
 
@@ -112,7 +122,6 @@ pub(crate) fn should_restore_tun(target: &Path, config_path: &Path, args: &Upgra
     }
 }
 
-#[cfg(any(not(windows), test))]
 pub(crate) fn should_restart_daemon(config_path: &Path, args: &UpgradeArgs) -> bool {
     if args.no_restart_daemon {
         return false;
@@ -274,7 +283,7 @@ pub(super) fn current_exe() -> crate::app::Result<PathBuf> {
 /// single filesystem; on Linux replacing a running executable this way is safe.
 pub(crate) fn install_binary(new_binary: &Path, target: &Path) -> crate::app::Result<()> {
     let dir = target.parent().unwrap_or_else(|| Path::new("."));
-    let mut staged = tempfile::NamedTempFile::new_in(dir).map_err(|error| {
+    let mut staged = super::staging::StagedFile::new(dir).map_err(|error| {
         AppError::InvalidArgument(format!(
             "cannot stage upgrade in {} (permission?): {error}",
             dir.display()
@@ -288,7 +297,7 @@ pub(crate) fn install_binary(new_binary: &Path, target: &Path) -> crate::app::Re
         AppError::InvalidArgument(format!(
             "cannot replace {} (permission?): {}",
             target.display(),
-            error.error
+            error
         ))
     })?;
 
@@ -319,4 +328,41 @@ pub(super) fn normalize_tag(tag: &str) -> &str {
 
 pub(crate) fn current_version() -> &'static str {
     env!("CARGO_PKG_VERSION")
+}
+
+#[cfg(windows)]
+pub(crate) async fn run_machine(args: &crate::cli::UpgradeArgs) -> crate::app::Result<()> {
+    if let Some(path) = &args.apply_transaction {
+        return super::windows::apply_transaction(path).await;
+    }
+    let target = super::windows::coordination::machine_target()?;
+    if args.status {
+        println!("{}", super::windows::status_for(&target)?);
+        return Ok(());
+    }
+    if !xrat_support::windows::is_current_process_elevated()? {
+        return Err(AppError::InvalidArgument(
+            "machine upgrades require an elevated administrator shell".into(),
+        ));
+    }
+    if args.tun_setup || args.no_tun_setup {
+        return Err(AppError::InvalidArgument(
+            "Windows driver provisioning is explicit; use machine tun setup".into(),
+        ));
+    }
+    let profile = crate::app::services::machine_service::MachineProfile::open()?;
+    if !target.is_file() || crate::app::services::machine_service::scm::status()?.is_none() {
+        return Err(AppError::InvalidArgument(
+            "install the protected machine service before upgrading".into(),
+        ));
+    }
+    let directory = xrat_support::windows::ProtectedDirectory::create_readable(
+        target.parent().expect("fixed machine target has a parent"),
+        profile.operator_sid(),
+    )?;
+    directory.verify_tree()?;
+    directory.make_file_readable("xrat.exe")?;
+    let outcome = run_at(&profile.config_path(), &args.into(), &target).await?;
+    println!("{}", outcome.message());
+    Ok(())
 }

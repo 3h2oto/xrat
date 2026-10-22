@@ -55,10 +55,11 @@ fn known_folder(folder: &windows_sys::core::GUID) -> io::Result<PathBuf> {
     Ok(path)
 }
 
-/// Pins a non-reparse directory whose owner and protected ACL are administrator-only.
+/// Pins a non-reparse directory with administrator ownership and write access.
 pub struct ProtectedDirectory {
     path: PathBuf,
     _handle: OwnedHandle,
+    reader: Option<String>,
 }
 
 impl ProtectedDirectory {
@@ -77,7 +78,13 @@ impl ProtectedDirectory {
                 "expected a profile file name",
             ));
         }
-        let security = SecurityDescriptor::from_sddl("O:BAG:BAD:P(A;;FA;;;SY)(A;;FA;;;BA)")?;
+        let security = SecurityDescriptor::from_sddl(&format!(
+            "O:BAG:BAD:P(A;;FA;;;SY)(A;;FA;;;BA){}",
+            self.reader
+                .as_ref()
+                .map(|reader| format!("(A;;FRFX;;;{reader})"))
+                .unwrap_or_default()
+        ))?;
         let attributes = security.attributes();
         let path = self.path.join(name);
         let wide = path
@@ -103,7 +110,7 @@ impl ProtectedDirectory {
     }
 
     pub fn verify_tree(&self) -> io::Result<()> {
-        verify_children(&self.path)
+        verify_children(&self.path, self.reader.as_deref())
     }
 
     pub fn create(path: &Path) -> io::Result<Self> {
@@ -124,6 +131,50 @@ impl ProtectedDirectory {
     }
 
     pub fn open(path: &Path) -> io::Result<Self> {
+        Self::open_with_reader(path, None)
+    }
+    pub fn open_readable(path: &Path, reader: &str) -> io::Result<Self> {
+        Self::open_with_reader(path, Some(reader))
+    }
+    pub fn create_readable(path: &Path, reader: &str) -> io::Result<Self> {
+        validate_reader(reader)?;
+        let security = SecurityDescriptor::from_sddl(&directory_security(Some(reader)))?;
+        let attributes = security.attributes();
+        let wide = path
+            .as_os_str()
+            .encode_wide()
+            .chain(Some(0))
+            .collect::<Vec<_>>();
+        if unsafe { CreateDirectoryW(wide.as_ptr(), &attributes) } == 0 {
+            let error = io::Error::last_os_error();
+            if error.kind() != io::ErrorKind::AlreadyExists {
+                return Err(error);
+            }
+            if let Ok(existing) = Self::open(path) {
+                existing.verify_tree()?;
+                set_reader(path, reader, true)?;
+            }
+        }
+        Self::open_readable(path, reader)
+    }
+    pub fn make_file_readable(&self, name: &str) -> io::Result<()> {
+        let reader = self.reader.as_deref().ok_or_else(denied)?;
+        if !matches!(
+            Path::new(name).components().next(),
+            Some(std::path::Component::Normal(_))
+        ) || Path::new(name).components().count() != 1
+            || name.contains([':', '/', '\\', '\0'])
+        {
+            return Err(denied());
+        }
+        self.verify_tree()?;
+        set_reader(&self.path.join(name), reader, false)?;
+        self.verify_tree()
+    }
+    fn open_with_reader(path: &Path, reader: Option<&str>) -> io::Result<Self> {
+        if let Some(reader) = reader {
+            validate_reader(reader)?;
+        }
         let wide = path
             .as_os_str()
             .encode_wide()
@@ -170,10 +221,11 @@ impl ProtectedDirectory {
             return Err(io::Error::from_raw_os_error(result as i32));
         }
         let descriptor = SecurityDescriptor(descriptor);
-        verify_descriptor(&descriptor)?;
+        verify_descriptor_with_reader(&descriptor, reader)?;
         Ok(Self {
             path: path.to_path_buf(),
             _handle: handle,
+            reader: reader.map(str::to_owned),
         })
     }
 
@@ -182,10 +234,11 @@ impl ProtectedDirectory {
     }
 }
 
-fn verify_children(path: &Path) -> io::Result<()> {
+fn verify_children(path: &Path, reader: Option<&str>) -> io::Result<()> {
     use windows_sys::Win32::Security::{ACCESS_ALLOWED_ACE, GetAce, GetSecurityDescriptorDacl};
     use windows_sys::Win32::Storage::FileSystem::{
-        FILE_ALL_ACCESS, FILE_READ_ATTRIBUTES, READ_CONTROL,
+        FILE_ALL_ACCESS, FILE_GENERIC_EXECUTE, FILE_GENERIC_READ, FILE_READ_ATTRIBUTES,
+        READ_CONTROL,
     };
     for entry in std::fs::read_dir(path)? {
         let path = entry?.path();
@@ -251,32 +304,53 @@ fn verify_children(path: &Path) -> io::Result<()> {
         {
             return Err(io::Error::last_os_error());
         }
-        if present == 0 || acl.is_null() || unsafe { (*acl).AceCount } != 2 {
+        if present == 0
+            || acl.is_null()
+            || !matches!(unsafe { (*acl).AceCount }, 2 | 3)
+            || (reader.is_none() && unsafe { (*acl).AceCount } != 2)
+        {
             return Err(denied());
         }
         let mut trustees = Vec::new();
-        for index in 0..2 {
+        for index in 0..unsafe { (*acl).AceCount } {
             let mut ace = ptr::null_mut();
-            if unsafe { GetAce(acl, index, &mut ace) } == 0 {
+            if unsafe { GetAce(acl, u32::from(index), &mut ace) } == 0 {
                 return Err(io::Error::last_os_error());
             }
             let ace = ace.cast::<ACCESS_ALLOWED_ACE>();
             if unsafe { (*ace).Header.AceType } != 0
                 || unsafe { (*ace).Header.AceFlags } & !0x13 != 0
-                || unsafe { (*ace).Mask } != FILE_ALL_ACCESS
             {
                 return Err(denied());
             }
-            trustees.push(super::sid_string(unsafe {
-                ptr::addr_of_mut!((*ace).SidStart).cast()
-            })?);
+            let sid = super::sid_string(unsafe { ptr::addr_of_mut!((*ace).SidStart).cast() })?;
+            let admin = matches!(sid.as_str(), "S-1-5-18" | "S-1-5-32-544");
+            if (admin && unsafe { (*ace).Mask } != FILE_ALL_ACCESS)
+                || (!admin
+                    && (reader != Some(sid.as_str())
+                        || unsafe { (*ace).Mask } != (FILE_GENERIC_READ | FILE_GENERIC_EXECUTE)))
+            {
+                return Err(denied());
+            }
+            trustees.push(sid);
         }
         trustees.sort();
-        if trustees != ["S-1-5-18", "S-1-5-32-544"] {
+        let expected = if trustees.len() == 3 {
+            let mut expected = vec![
+                "S-1-5-18".to_owned(),
+                "S-1-5-32-544".to_owned(),
+                reader.ok_or_else(denied)?.to_owned(),
+            ];
+            expected.sort();
+            expected
+        } else {
+            vec!["S-1-5-18".to_owned(), "S-1-5-32-544".to_owned()]
+        };
+        if trustees != expected {
             return Err(denied());
         }
         if info.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY != 0 {
-            verify_children(&path)?;
+            verify_children(&path, reader)?;
         }
     }
     Ok(())
@@ -289,8 +363,15 @@ fn denied() -> io::Error {
     )
 }
 
+#[cfg(test)]
 fn verify_descriptor(actual: &SecurityDescriptor) -> io::Result<()> {
-    let expected = SecurityDescriptor::from_sddl(DIRECTORY_SECURITY)?;
+    verify_descriptor_with_reader(actual, None)
+}
+fn verify_descriptor_with_reader(
+    actual: &SecurityDescriptor,
+    reader: Option<&str>,
+) -> io::Result<()> {
+    let expected = SecurityDescriptor::from_sddl(&directory_security(reader))?;
     let mut control = 0;
     let mut revision = 0;
     if unsafe { GetSecurityDescriptorControl(actual.0, &mut control, &mut revision) } == 0 {
@@ -331,3 +412,48 @@ fn verify_descriptor(actual: &SecurityDescriptor) -> io::Result<()> {
 
 #[cfg(test)]
 mod tests;
+
+fn validate_reader(reader: &str) -> io::Result<()> {
+    if !reader.starts_with("S-1-5-21-")
+        || reader.len() > 184
+        || !reader[2..]
+            .bytes()
+            .all(|byte| byte.is_ascii_digit() || byte == b'-')
+    {
+        return Err(denied());
+    }
+    Ok(())
+}
+fn directory_security(reader: Option<&str>) -> String {
+    format!(
+        "{DIRECTORY_SECURITY}{}",
+        reader
+            .map(|reader| format!("(A;OICI;FRFX;;;{reader})"))
+            .unwrap_or_default()
+    )
+}
+fn set_reader(path: &Path, reader: &str, directory: bool) -> io::Result<()> {
+    use windows_sys::Win32::Security::{PROTECTED_DACL_SECURITY_INFORMATION, SetFileSecurityW};
+    let text = if directory {
+        directory_security(Some(reader))
+    } else {
+        format!("O:BAG:BAD:P(A;;FA;;;SY)(A;;FA;;;BA)(A;;FRFX;;;{reader})")
+    };
+    let descriptor = SecurityDescriptor::from_sddl(&text)?;
+    let wide = path
+        .as_os_str()
+        .encode_wide()
+        .chain(Some(0))
+        .collect::<Vec<_>>();
+    if unsafe {
+        SetFileSecurityW(
+            wide.as_ptr(),
+            DACL_SECURITY_INFORMATION | PROTECTED_DACL_SECURITY_INFORMATION,
+            descriptor.0,
+        )
+    } == 0
+    {
+        return Err(io::Error::last_os_error());
+    }
+    Ok(())
+}

@@ -15,5 +15,5 @@ mod cores;
 #[cfg(windows)]
 mod tun_setup;
 
-#[cfg(any(windows, test))]
-mod api_task;
+#[cfg(windows)]
+use crate::app::services::machine_service::api_task;

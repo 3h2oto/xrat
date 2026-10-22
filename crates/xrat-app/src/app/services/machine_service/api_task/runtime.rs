@@ -22,15 +22,32 @@ struct Request<'a> {
     descriptor: Option<String>,
 }
 
-pub(in crate::app::commands::machine) fn install(operator: &str) -> Result<()> {
-    run(Some(operator))
+pub(crate) fn install(operator: &str) -> Result<()> {
+    run("install", Some(operator)).map(|_| ())
 }
 
-pub(in crate::app::commands::machine) fn uninstall() -> Result<()> {
-    run(None)
+pub(crate) fn uninstall() -> Result<()> {
+    run("remove", None).map(|_| ())
 }
 
-fn run(operator: Option<&str>) -> Result<()> {
+pub(crate) fn inspect(operator: &str) -> Result<(bool, bool)> {
+    let state = run("inspect", Some(operator))?;
+    Ok((state & 2 != 0, state & 1 != 0))
+}
+pub(crate) fn pause(operator: &str) -> Result<(bool, bool)> {
+    let state = run("pause", Some(operator))?;
+    Ok((state & 2 != 0, state & 1 != 0))
+}
+pub(crate) fn resume(operator: &str, enabled: bool, running: bool) -> Result<()> {
+    let operation = match (enabled, running) {
+        (true, true) => "resume_run",
+        (true, false) => "resume_idle",
+        (false, true) => "resume_run_disabled",
+        (false, false) => "resume_disabled",
+    };
+    run(operation, Some(operator)).map(|_| ())
+}
+fn run(operation: &'static str, operator: Option<&str>) -> Result<u8> {
     let executable = xrat_support::windows::program_files()?.join("XRAT-Service/xrat.exe");
     let directory = executable
         .parent()
@@ -43,11 +60,7 @@ fn run(operator: Option<&str>) -> Result<()> {
     let command = path(&executable)?;
     let directory = path(directory)?;
     let request = Request {
-        operation: if operator.is_some() {
-            "install"
-        } else {
-            "remove"
-        },
+        operation,
         name: NAME,
         uri: URI,
         operator,
@@ -122,6 +135,9 @@ fn run(operator: Option<&str>) -> Result<()> {
     }
     let detail = reader.join().unwrap_or_default();
     let status = status?;
+    if matches!(operation, "pause" | "inspect") && matches!(status.code(), Some(16..=19)) {
+        return Ok((status.code().unwrap() - 16) as u8);
+    }
     if !status.success() {
         return Err(AppError::InvalidArgument(format!(
             "API login task {} failed ({status}): {}",
@@ -129,5 +145,5 @@ fn run(operator: Option<&str>) -> Result<()> {
             detail.trim()
         )));
     }
-    Ok(())
+    Ok(0)
 }

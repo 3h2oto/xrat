@@ -7,10 +7,10 @@ use crate::app::commands::output;
 use crate::app::commands::progress::CliProgress;
 use crate::app::services::upgrades::UpgradeOptions as UpgradeArgs;
 
-use super::{REPO, current_version, same_version};
+use super::{REPO, same_version};
 #[cfg(not(windows))]
 use super::{
-    install_binary, restart_daemon_if_active, run_post_upgrade_migrations,
+    current_version, install_binary, restart_daemon_if_active, run_post_upgrade_migrations,
     run_post_upgrade_tun_setup_with_spawner, should_restart_daemon, should_restore_tun,
 };
 
@@ -31,11 +31,21 @@ pub(crate) async fn upgrade(
         }
     };
 
-    if !args.force && same_version(&version, current_version()) {
+    #[cfg(windows)]
+    let installed_version = crate::app::services::cores::binary_version(target)
+        .map(|version| version.to_string())
+        .ok_or_else(|| {
+            AppError::InvalidArgument(
+                "could not determine the installed XRAT version; executable preserved".into(),
+            )
+        })?;
+    #[cfg(not(windows))]
+    let installed_version = current_version().to_owned();
+    if !args.force && same_version(&version, &installed_version) {
         println!(
             "{}",
             output::success(
-                format!("already using latest version ({})", current_version()),
+                format!("already using latest version ({installed_version})"),
                 color
             )
         );
@@ -46,10 +56,7 @@ pub(crate) async fn upgrade(
 
     println!(
         "{}",
-        output::notice(
-            format!("upgrading {} -> {version}", current_version()),
-            color
-        )
+        output::notice(format!("upgrading {installed_version} -> {version}"), color)
     );
 
     let extension = if arch.contains("windows") {
@@ -60,7 +67,20 @@ pub(crate) async fn upgrade(
     let filename = format!("xrat-{version}-{arch}.{extension}");
     let base_url = format!("https://github.com/{REPO}/releases/download/{version}");
 
+    #[cfg(not(windows))]
     let work = tempfile::tempdir()?;
+    #[cfg(windows)]
+    let work = if super::windows::coordination::classify(target, config_path)? {
+        super::windows::Work::new(
+            target
+                .parent()
+                .ok_or_else(|| AppError::InvalidArgument("upgrade target has no parent".into()))?,
+            true,
+            ".xrat-download-",
+        )?
+    } else {
+        super::windows::Work::new(&std::env::temp_dir(), false, "xrat-download-")?
+    };
     let client = http_client(args.timeout_secs)?;
 
     download_with_progress(
@@ -91,7 +111,9 @@ pub(crate) async fn upgrade(
     #[cfg(windows)]
     {
         extract_binary(work.path(), &filename)?;
-        crate::app::services::release_notes::cache_release(&client, &version).await;
+        if !super::windows::coordination::classify(target, config_path)? {
+            crate::app::services::release_notes::cache_release(&client, &version).await;
+        }
         let transaction = super::windows::stage(
             &work.path().join("xrat.exe"),
             target,
@@ -206,6 +228,13 @@ async fn download(
             operation: "reading xrat release checksums from github.com",
             source,
         })?;
+    #[cfg(windows)]
+    {
+        let mut file = super::windows::output_file(destination)?;
+        file.write_all(&bytes)?;
+        file.sync_all()?;
+    }
+    #[cfg(not(windows))]
     std::fs::write(destination, &bytes)?;
     Ok(())
 }
@@ -236,7 +265,10 @@ async fn download_with_progress(
         response.content_length(),
         format!("downloading {label}"),
     );
+    #[cfg(not(windows))]
     let mut file = std::fs::File::create(destination)?;
+    #[cfg(windows)]
+    let mut file = super::windows::output_file(destination)?;
     while let Some(chunk) = response
         .chunk()
         .await

@@ -45,3 +45,6 @@ pub use identity::{ENDPOINT, SYSTEM_SID};
 
 #[cfg(all(test, windows))]
 mod native_tests;
+
+#[cfg(any(windows, test))]
+pub(crate) mod api_task;

@@ -29,7 +29,6 @@ pub(crate) use updater::run_post_upgrade_migrations_with_spawner;
 #[cfg(not(windows))]
 pub(crate) use updater::run_post_upgrade_tun_setup_with_spawner;
 pub(crate) use updater::same_version;
-#[cfg(any(not(windows), test))]
 pub(crate) use updater::should_restart_daemon;
 #[cfg(any(not(windows), test))]
 pub(crate) use updater::should_restore_tun;
@@ -86,3 +85,11 @@ impl From<&crate::cli::UpgradeArgs> for UpgradeOptions {
         }
     }
 }
+
+#[cfg(windows)]
+pub(crate) use updater::run_machine;
+
+mod staging;
+
+#[cfg(all(windows, test))]
+pub(crate) use windows::exercise_machine_upgrade;
