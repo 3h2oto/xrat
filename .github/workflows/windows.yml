@@ -92,7 +92,7 @@ jobs:
       - name: Test
         id: workspace_tests
         continue-on-error: true
-        run: cargo test --locked --workspace --exclude xrat-web --target ${{ matrix.target }}
+        run: cargo test --locked --workspace --exclude xrat-web --target ${{ matrix.target }} --no-fail-fast
 
       - name: Test installer (Windows PowerShell 5.1)
         id: installer_ps5

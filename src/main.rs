@@ -116,18 +116,34 @@ mod tests {
         let config_path = root.path().join("invalid.toml");
         std::fs::write(&config_path, "this is not valid TOML = [")
             .expect("invalid config fixture should write");
+        let database = root.path().join("must-not-exist.sqlite");
         let args = xrat::cli::Cli::try_parse_from([
             "xrat",
             "--config",
             config_path.to_str().expect("config path should be UTF-8"),
+            "--database",
+            database.to_str().unwrap(),
             "upgrade",
-            "--version",
-            concat!("v", env!("CARGO_PKG_VERSION")),
+            "--source",
+            "--path",
+            root.path().to_str().unwrap(),
         ])
         .expect("upgrade arguments should parse");
 
-        super::run(&args)
-            .await
-            .expect("current-version upgrade should not initialize the database");
+        let error = super::run(&args).await.unwrap_err().to_string();
+        #[cfg(windows)]
+        let elevated = xrat_support::windows::is_current_process_elevated().unwrap();
+        #[cfg(not(windows))]
+        let elevated = false;
+        assert!(
+            error.contains(if elevated {
+                "run user-profile upgrades without elevation"
+            } else {
+                "no Cargo.toml"
+            }),
+            "{error}"
+        );
+        assert!(!database.exists());
+        assert_eq!(std::fs::read_dir(root.path()).unwrap().count(), 1);
     }
 }
