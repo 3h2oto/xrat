@@ -764,9 +764,13 @@ struct MockTunOps {
     interfaces:
         std::sync::Mutex<std::collections::HashMap<String, xrat_support::net::KernelInterfaceInfo>>,
     deleted: std::sync::Mutex<Vec<(String, u32)>>,
+    identities: std::sync::Mutex<std::collections::HashMap<String, String>>,
 }
 
 impl xrat_support::net::TunInterfaceOps for MockTunOps {
+    fn interface_identity(&self, name: &str) -> std::io::Result<Option<String>> {
+        Ok(self.identities.lock().unwrap().get(name).cloned())
+    }
     fn inspect_interface(
         &self,
         name: &str,
@@ -784,6 +788,71 @@ impl xrat_support::net::TunInterfaceOps for MockTunOps {
             .push((name.to_string(), expected_ifindex));
         Ok(())
     }
+}
+
+#[tokio::test]
+async fn tun_cleanup_preserves_reused_index_with_a_different_platform_identity() {
+    let context = test_context().await;
+    let name = context.app_config.runtime.tun.interface_name.clone();
+    let mock = std::sync::Arc::new(MockTunOps::default());
+    mock.interfaces.lock().unwrap().insert(
+        name.clone(),
+        xrat_support::net::KernelInterfaceInfo {
+            name: name.clone(),
+            ifindex: 42,
+            is_tun: true,
+        },
+    );
+    mock.identities
+        .lock()
+        .unwrap()
+        .insert(name.clone(), "foreign-guid".into());
+    let record = crate::app::runtime_service::tun_ownership::TunOwnershipRecord {
+        interface_name: name.clone(),
+        ifindex: Some(42),
+        interface_identity: Some("owned-guid".into()),
+        session_id: 123,
+        engine: "xray".into(),
+        policy_rules: vec![],
+    };
+    crate::app::runtime_service::tun_ownership::save_ownership(
+        &context.runtime_paths.runtime_dir,
+        &record,
+    )
+    .unwrap();
+    let service = RuntimeService::with_process_ports(
+        &context,
+        xrat_support::readiness::RuntimeProcessPorts {
+            tun: mock.clone(),
+            ..Default::default()
+        },
+    );
+    assert!(
+        service
+            .cleanup_stale_tun_interface()
+            .unwrap_err()
+            .to_string()
+            .contains("platform identity")
+    );
+    assert!(mock.deleted.lock().unwrap().is_empty());
+    assert_eq!(
+        crate::app::runtime_service::tun_ownership::load_ownership(
+            &context.runtime_paths.runtime_dir
+        ),
+        Some(record)
+    );
+    mock.identities
+        .lock()
+        .unwrap()
+        .insert(name, "owned-guid".into());
+    service.cleanup_stale_tun_interface().unwrap();
+    assert_eq!(mock.deleted.lock().unwrap().len(), 1);
+    assert!(
+        crate::app::runtime_service::tun_ownership::load_ownership(
+            &context.runtime_paths.runtime_dir
+        )
+        .is_none()
+    );
 }
 
 #[tokio::test]
@@ -859,6 +928,7 @@ async fn tun_cleanup_refuses_ifindex_mismatch() {
             ifindex: Some(42),
             session_id: 1,
             engine: "xray".to_string(),
+            interface_identity: None,
             policy_rules: vec![],
         },
     )
@@ -902,6 +972,7 @@ async fn tun_cleanup_removes_verified_stale_xrat_tun_interface() {
             ifindex: Some(42),
             session_id: 1,
             engine: "xray".to_string(),
+            interface_identity: None,
             policy_rules: vec![],
         },
     )
@@ -1122,6 +1193,7 @@ async fn tun_cleanup_refuses_unknown_ifindex() {
             ifindex: None,
             session_id: 1,
             engine: "xray".to_string(),
+            interface_identity: None,
             policy_rules: vec![],
         },
     )

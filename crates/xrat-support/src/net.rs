@@ -107,6 +107,9 @@ pub struct KernelInterfaceInfo {
 pub trait TunInterfaceOps: Send + Sync {
     fn inspect_interface(&self, name: &str) -> std::io::Result<Option<KernelInterfaceInfo>>;
     fn delete_interface(&self, name: &str, expected_ifindex: u32) -> std::io::Result<()>;
+    fn interface_identity(&self, _name: &str) -> std::io::Result<Option<String>> {
+        Ok(None)
+    }
     fn policy_rules(&self) -> std::io::Result<Vec<KernelPolicyRule>> {
         Ok(vec![])
     }
@@ -157,6 +160,17 @@ impl KernelPolicyRule {
 pub struct SystemTunInterfaceOps;
 
 impl TunInterfaceOps for SystemTunInterfaceOps {
+    fn interface_identity(&self, name: &str) -> std::io::Result<Option<String>> {
+        #[cfg(windows)]
+        {
+            windows_links::identity(name)
+        }
+        #[cfg(not(windows))]
+        {
+            let _ = name;
+            Ok(None)
+        }
+    }
     fn policy_rules(&self) -> std::io::Result<Vec<KernelPolicyRule>> {
         #[cfg(target_os = "linux")]
         {
@@ -195,7 +209,11 @@ impl TunInterfaceOps for SystemTunInterfaceOps {
         {
             macos_links::inspect(name)
         }
-        #[cfg(not(any(target_os = "linux", target_os = "macos")))]
+        #[cfg(windows)]
+        {
+            windows_links::inspect(name)
+        }
+        #[cfg(not(any(target_os = "linux", target_os = "macos", windows)))]
         {
             if interface_exists(name) {
                 Ok(Some(KernelInterfaceInfo {
@@ -219,7 +237,11 @@ impl TunInterfaceOps for SystemTunInterfaceOps {
         {
             macos_links::wait_for_release(name, expected_ifindex)
         }
-        #[cfg(not(any(target_os = "linux", target_os = "macos")))]
+        #[cfg(windows)]
+        {
+            windows_links::wait_for_release(name, expected_ifindex)
+        }
+        #[cfg(not(any(target_os = "linux", target_os = "macos", windows)))]
         {
             let _ = (name, expected_ifindex);
             Err(std::io::Error::new(
@@ -237,6 +259,10 @@ mod kernel_links;
 #[cfg(target_os = "macos")]
 #[path = "net/macos.rs"]
 mod macos_links;
+
+#[cfg(windows)]
+#[path = "net/windows.rs"]
+mod windows_links;
 
 #[cfg(any(target_os = "macos", test))]
 #[path = "net/macos_routes.rs"]

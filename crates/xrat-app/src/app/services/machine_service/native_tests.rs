@@ -80,7 +80,7 @@ async fn ping() {
 }
 
 #[tokio::test(flavor = "current_thread")]
-#[ignore = "requires XRAT_WINDOWS_SERVICE_BINARY and an isolated elevated native Windows host; changes SCM and ProgramData/Program Files"]
+#[ignore = "requires XRAT_WINDOWS_SERVICE_BINARY and an isolated elevated native Windows host; changes SCM, protected files and driver state; creates a temporary Wintun adapter"]
 async fn native_machine_service_lifecycle_and_restricted_operator() {
     let binary = PathBuf::from(
         std::env::var_os("XRAT_WINDOWS_SERVICE_BINARY").expect("set a built native xrat.exe path"),
@@ -280,6 +280,7 @@ async fn native_machine_service_lifecycle_and_restricted_operator() {
         std::fs::read(cores.path().join("wintun-LICENSE.txt")).unwrap(),
         license
     );
+    crate::app::services::windows_tun::verify_native_adapter(cores.path());
     {
         let _restricted =
             crate::app::daemon::ipc::windows::tests::impersonate_owner_without_admin().unwrap();

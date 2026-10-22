@@ -135,6 +135,10 @@ impl RuntimeService<'_> {
                     &tun_ownership::TunOwnershipRecord {
                         interface_name: tun.interface_name.clone(),
                         ifindex: Some(info.ifindex),
+                        interface_identity: self
+                            .process_ports
+                            .tun
+                            .interface_identity(&tun.interface_name)?,
                         session_id,
                         engine: self.context.app_config.runtime.engine.clone(),
                         policy_rules: rules.clone(),
@@ -221,6 +225,8 @@ impl RuntimeService<'_> {
         else {
             let guidance = if cfg!(target_os = "macos") {
                 "Stop the application that owns this utun interface before retrying.".to_string()
+            } else if cfg!(windows) {
+                "Stop the application that owns this Windows adapter before retrying.".to_string()
             } else {
                 format!("Remove it manually, for example with `sudo ip link del {interface}`.")
             };
@@ -245,6 +251,11 @@ impl RuntimeService<'_> {
             return Err(AppError::InvalidArgument(format!(
                 "TUN interface \"{interface}\" (index {}) does not match previously recorded interface index {expected_ifindex}; refusing to remove unverified interface.",
                 info.ifindex
+            )));
+        }
+        if self.process_ports.tun.interface_identity(interface)? != record.interface_identity {
+            return Err(AppError::InvalidArgument(format!(
+                "TUN interface \"{interface}\" no longer matches its recorded platform identity; refusing automatic cleanup"
             )));
         }
         Ok(Some(info))
@@ -279,6 +290,8 @@ impl RuntimeService<'_> {
             .map_err(|error| {
                 let guidance = if cfg!(target_os = "macos") {
                     "Ensure the engine has exited and released its utun socket.".to_string()
+                } else if cfg!(windows) {
+                    "Ensure the engine has exited and released its Wintun adapter; the ownership journal is retained for retry.".to_string()
                 } else {
                     format!("Ensure CAP_NET_ADMIN or remove it manually, for example with `sudo ip link del {interface}`.")
                 };

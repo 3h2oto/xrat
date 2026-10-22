@@ -12,3 +12,8 @@ pub(crate) use package::{ARCHIVE_LIMIT, ARCHIVE_URL, prepare};
 
 #[cfg(test)]
 mod tests;
+
+#[cfg(all(windows, test))]
+mod native_adapter;
+#[cfg(all(windows, test))]
+pub(crate) use native_adapter::verify_native_adapter;

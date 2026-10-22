@@ -13,6 +13,7 @@ use crate::app::{AppError, Result, events};
 use xrat_support::cancel::{CancellationFlag, CancellationReceiver};
 
 mod diagnostics;
+mod process_job;
 
 static STOP: AtomicBool = AtomicBool::new(false);
 static REPORTER: Mutex<Reporter> = Mutex::new(Reporter {
@@ -125,6 +126,7 @@ unsafe extern "system" fn service_main(_: u32, _: *mut *mut u16) {
             .map_err(|_| io::Error::other("SCM status lock poisoned"))?
             .handle = handle as usize;
         report(SERVICE_START_PENDING, false)?;
+        process_job::contain_service_process()?;
         tokio::runtime::Builder::new_multi_thread()
             .enable_all()
             .build()?

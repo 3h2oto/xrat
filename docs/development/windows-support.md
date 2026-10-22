@@ -301,6 +301,29 @@ denial, and service restart. The ignored package fixture accepts
 Windows, their Authenticode trust. Local archive checks are separate from native
 signature/provisioning execution and traffic/restoration acceptance.
 
+Windows interface inspection now uses IP Helper for the kernel index/GUID and
+checks the network device's registered Wintun driver service. Ownership journals
+retain the platform GUID in addition to the interface index. Status and cleanup
+reject a changed identity; a legacy journal without a Windows GUID cannot claim
+an existing Windows adapter. Cleanup waits for the engine-created adapter to be
+released and retains the journal on timeout or identity mismatch. It does not
+remove a driver, foreign adapter, or arbitrary route. The isolated native
+service fixture also creates an empty adapter through the verified protected
+DLL, checks identity and refusal to remove it while open, then closes it and
+checks release. This native fixture changes driver/device state and remains
+unexecuted. Capture still requires Windows route/DNS readiness and recovery
+acceptance.
+
+The SCM host joins an unnamed job before starting application work, with
+`JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE` and no breakaway permission. Its
+non-inheritable job handle remains alive for the service process lifetime, so
+abrupt service exit terminates detached engine/probe descendants as well.
+Startup fails if containment cannot be established. A native subprocess
+regression uses the actual detached process adapter, terminates the containing
+parent, and checks the child's PID plus creation time; independent cleanup
+guards prevent leaks when the assertion fails. This source/API check still needs
+native execution.
+
 Standard GitHub runners provide native x64 and ARM64 build/test environments.
 Use those first, including service, driver, and network tests where supported.
 The workflow downloads checksum-pinned Xray 26.9.30 and sing-box 1.13.21

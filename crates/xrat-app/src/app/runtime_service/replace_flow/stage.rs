@@ -65,6 +65,7 @@ impl<'a> RuntimeService<'a> {
                     ifindex: None,
                     session_id,
                     engine: self.context.app_config.runtime.engine.clone(),
+                    interface_identity: None,
                     policy_rules: vec![],
                 },
             );

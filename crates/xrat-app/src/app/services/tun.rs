@@ -27,6 +27,10 @@ pub(crate) fn capture_state(
                 .is_some_and(|info| {
                     info.is_tun && record.ifindex == Some(info.ifindex) && info.ifindex > 0
                 })
+            && ports
+                .tun
+                .interface_identity(&record.interface_name)
+                .is_ok_and(|identity| identity == record.interface_identity)
     });
     let tun = &context.app_config.runtime.tun;
     TunStatePayload {

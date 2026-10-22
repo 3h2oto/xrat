@@ -6,6 +6,8 @@ use serde::{Deserialize, Serialize};
 pub struct TunOwnershipRecord {
     pub interface_name: String,
     pub ifindex: Option<u32>,
+    #[serde(default)]
+    pub interface_identity: Option<String>,
     pub session_id: i64,
     pub engine: String,
     #[serde(default)]
@@ -67,6 +69,7 @@ mod tests {
             ifindex: Some(42),
             session_id: 100,
             engine: "xray".to_string(),
+            interface_identity: Some("{verified-platform-guid}".into()),
             policy_rules: vec![],
         };
         save_ownership(runtime_dir, &record).expect("save");
@@ -74,5 +77,11 @@ mod tests {
 
         clear_ownership(runtime_dir);
         assert_eq!(load_ownership(runtime_dir), None);
+    }
+
+    #[test]
+    fn legacy_journal_has_no_platform_identity() {
+        let record: TunOwnershipRecord = serde_json::from_str(r#"{"interface_name":"xrat0","ifindex":42,"session_id":100,"engine":"xray","policy_rules":[]}"#).unwrap();
+        assert_eq!(record.interface_identity, None);
     }
 }
