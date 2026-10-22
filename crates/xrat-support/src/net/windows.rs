@@ -112,9 +112,11 @@ fn is_wintun(row: &MIB_IF_ROW2) -> io::Result<bool> {
 }
 
 pub(super) fn identity(name: &str) -> io::Result<Option<String>> {
-    Ok(row(name)?
-        .as_ref()
-        .map(|row| format!("{}@{:016x}", guid(row), unsafe { row.InterfaceLuid.Value })))
+    Ok(row(name)?.as_ref().map(row_identity))
+}
+
+fn row_identity(row: &MIB_IF_ROW2) -> String {
+    format!("{}@{:016x}", guid(row), unsafe { row.InterfaceLuid.Value })
 }
 
 pub(super) fn inspect(name: &str) -> io::Result<Option<KernelInterfaceInfo>> {
@@ -130,16 +132,19 @@ pub(super) fn inspect(name: &str) -> io::Result<Option<KernelInterfaceInfo>> {
 }
 
 pub(super) fn wait_for_release(name: &str, expected_ifindex: u32) -> io::Result<()> {
-    let expected_identity = identity(name)?;
+    let Some(initial) = row(name)? else {
+        return Ok(());
+    };
+    let expected_identity = row_identity(&initial);
     let deadline = Instant::now() + Duration::from_secs(5);
     loop {
-        let Some(info) = inspect(name)? else {
+        let Some(current) = row(name)? else {
             return Ok(());
         };
         if expected_ifindex == 0
-            || !info.is_tun
-            || info.ifindex != expected_ifindex
-            || identity(name)? != expected_identity
+            || current.Type != 53
+            || current.InterfaceIndex != expected_ifindex
+            || row_identity(&current) != expected_identity
         {
             return Err(io::Error::other(
                 "Windows adapter identity changed; refusing cleanup",
@@ -165,5 +170,21 @@ mod tests {
                 .is_none()
         );
         assert!(super::inspect("bad\0alias").is_err());
+    }
+
+    #[test]
+    fn identity_survives_teardown_metadata_but_detects_guid_and_luid_changes() {
+        let mut row = windows_sys::Win32::NetworkManagement::IpHelper::MIB_IF_ROW2::default();
+        row.InterfaceLuid.Value = 42;
+        row.InterfaceGuid.data1 = 1;
+        let identity = super::row_identity(&row);
+        row.OperStatus = 2;
+        row.Alias[0] = b'X' as u16;
+        assert_eq!(super::row_identity(&row), identity);
+        row.InterfaceGuid.data1 = 2;
+        assert_ne!(super::row_identity(&row), identity);
+        row.InterfaceGuid.data1 = 1;
+        row.InterfaceLuid.Value = 43;
+        assert_ne!(super::row_identity(&row), identity);
     }
 }
