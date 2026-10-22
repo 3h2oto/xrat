@@ -1,6 +1,7 @@
 use super::fixture::Fixture;
 use sha2::{Digest, Sha256};
 use std::{
+    io::{Read, Seek},
     path::Path,
     process::{Command, Stdio},
     time::{Duration, Instant},
@@ -43,14 +44,14 @@ pub fn exercise(fixture: &Fixture) {
         if tamper {
             std::fs::write(&next, "tampered executable").unwrap();
         }
-        let log = tempfile::tempfile().unwrap();
+        let mut log = tempfile::tempfile().unwrap();
         let mut child = Command::new(&helper)
             .args(["upgrade", "--apply-transaction"])
             .arg(&manifest)
             .env("XRAT_PATH", &fixture.profile)
             .stdin(Stdio::null())
             .stdout(log.try_clone().unwrap())
-            .stderr(log)
+            .stderr(log.try_clone().unwrap())
             .spawn()
             .unwrap();
         let deadline = Instant::now() + Duration::from_secs(30);
@@ -67,12 +68,15 @@ pub fn exercise(fixture: &Fixture) {
         };
         let result: serde_json::Value =
             serde_json::from_slice(&std::fs::read(&manifest).unwrap()).unwrap();
+        log.rewind().unwrap();
+        let mut diagnostic = String::new();
+        log.read_to_string(&mut diagnostic).unwrap();
         if tamper {
             assert!(!status.success());
-            assert_eq!(result["state"], "failed");
+            assert_eq!(result["state"], "failed", "{diagnostic}");
             assert_eq!(digest(&target), original);
         } else {
-            assert!(status.success(), "{result}");
+            assert!(status.success(), "{result}\n{diagnostic}");
             assert_eq!(result["state"], "completed");
             let output = Command::new(&target)
                 .arg("--version")

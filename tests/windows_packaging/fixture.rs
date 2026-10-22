@@ -48,9 +48,10 @@ impl Fixture {
         let output = self.command().args(arguments).output().unwrap();
         assert!(
             output.status.success(),
-            "XRAT {arguments:?} failed: {} {}",
+            "XRAT {arguments:?} failed: {} {}\nDaemon log: {}",
             String::from_utf8_lossy(&output.stdout),
-            String::from_utf8_lossy(&output.stderr)
+            String::from_utf8_lossy(&output.stderr),
+            std::fs::read_to_string(self.profile.join("runtime/daemon.log")).unwrap_or_default()
         );
         String::from_utf8(output.stdout).unwrap()
     }

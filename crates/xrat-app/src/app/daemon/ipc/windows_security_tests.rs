@@ -27,7 +27,7 @@ pub(crate) fn impersonate_owner_without_admin() -> io::Result<Impersonation> {
 }
 
 #[tokio::test]
-async fn owner_without_admin_group_can_exchange_data_but_cannot_create_pipe_instances() {
+async fn ordinary_daemon_owner_can_replace_listener_instances_and_exchange_data() {
     use tokio::io::{AsyncReadExt, AsyncWriteExt};
 
     let suffix = std::time::SystemTime::now()
@@ -40,13 +40,7 @@ async fn owner_without_admin_group_can_exchange_data_but_cannot_create_pipe_inst
     ));
     let mut server = listener(&endpoint, true).unwrap();
     let impersonation = impersonate_owner_without_admin().unwrap();
-    assert_eq!(
-        listener(&endpoint, false)
-            .err()
-            .expect("an ordinary owner must not create another server pipe instance")
-            .raw_os_error(),
-        Some(5)
-    );
+    drop(listener(&endpoint, false).expect("ordinary daemon owner must replace its listener"));
     let mut client = connect(&endpoint).expect("ordinary owner must have read/write-data access");
     drop(impersonation);
     tokio::time::timeout(std::time::Duration::from_secs(5), async {

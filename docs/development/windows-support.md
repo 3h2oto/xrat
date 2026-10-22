@@ -389,3 +389,11 @@ failed command; use the final gate's outcome list and test logs as evidence.
 The Web UI bootstrap HTML is checked out with LF line endings on every host. Its
 inline script must retain the exact bytes authorized by the server's CSP hash,
 including when browser assets are built on Linux for Windows packages.
+
+MSVC binaries embed an `asInvoker` manifest so the staged `updater.exe` keeps
+the caller's token instead of triggering Windows installer detection. Machine
+maintenance still checks for elevation explicitly. Per-user daemon pipe owners
+can create replacement listener instances; protected SYSTEM gateway operators
+retain only client data access and cannot create server instances. User upgrades
+resolve their own target before inspecting protected machine state, allowing
+independent user and machine installations to coexist.

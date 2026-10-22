@@ -11,11 +11,13 @@ use windows_sys::Win32::System::Services::{SERVICE_RUNNING, SERVICE_STOPPED};
 use xrat_support::windows::ProtectedDirectory;
 
 pub(crate) fn machine_target() -> Result<PathBuf> {
-    Ok(xrat_support::windows::program_files()?.join("XRAT-Service/xrat.exe"))
+    Ok(xrat_support::windows::program_files()?
+        .canonicalize()?
+        .join("XRAT-Service/xrat.exe"))
 }
 pub(crate) fn classify(target: &Path, config: &Path) -> Result<bool> {
     let expected = machine_target()?;
-    let machine = expected.try_exists()? && target.canonicalize()? == expected.canonicalize()?;
+    let machine = target.canonicalize()? == expected;
     if machine {
         if !xrat_support::windows::is_current_process_elevated()? {
             return Err(AppError::InvalidArgument(
@@ -159,9 +161,6 @@ pub(super) async fn recover_before_install(transaction: &Transaction) -> Result<
 pub(crate) fn is_service_path(path: &Path) -> Result<bool> {
     let target = machine_target()?;
     let root = target.parent().unwrap();
-    if !root.try_exists()? {
-        return Ok(false);
-    }
     let path = if path.try_exists()? {
         path.canonicalize()?
     } else {
@@ -173,10 +172,10 @@ pub(crate) fn is_service_path(path: &Path) -> Result<bool> {
                     .ok_or_else(|| AppError::InvalidArgument("output has no name".into()))?,
             )
     };
-    Ok(path.starts_with(root.canonicalize()?))
+    Ok(path.starts_with(root))
 }
 pub(crate) fn open_directory(path: &Path) -> Result<ProtectedDirectory> {
-    if path.canonicalize()? == machine_target()?.parent().unwrap().canonicalize()? {
+    if path.canonicalize()? == machine_target()?.parent().unwrap() {
         let profile = MachineProfile::open()?;
         Ok(ProtectedDirectory::open_readable(
             path,

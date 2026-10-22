@@ -92,9 +92,9 @@ impl SecurityDescriptor {
                 "invalid owner SID",
             ));
         }
-        // Clients get read/write-data rights, without FILE_CREATE_PIPE_INSTANCE.
+        // The ordinary daemon must create replacement instances under its own SID.
         let sddl =
-            format!("D:P(A;;GA;;;SY)(A;;GA;;;BA)(A;;0x0012019b;;;{owner_sid})S:(ML;;NW;;;ME)");
+            format!("D:P(A;;GA;;;SY)(A;;GA;;;BA)(A;;0x0012019f;;;{owner_sid})S:(ML;;NW;;;ME)");
         Self::from_sddl(&sddl)
     }
 

@@ -214,6 +214,13 @@ async fn native_machine_service_lifecycle_and_restricted_operator() {
     {
         let impersonation =
             crate::app::daemon::ipc::windows::tests::impersonate_owner_without_admin().unwrap();
+        assert_eq!(
+            tokio::net::windows::named_pipe::ServerOptions::new()
+                .create(ENDPOINT)
+                .expect_err("ordinary operator must not create a SYSTEM gateway instance")
+                .raw_os_error(),
+            Some(5)
+        );
         assert!(
             std::fs::File::open(&config_path).is_err(),
             "ordinary operator must not read the protected profile directly"
