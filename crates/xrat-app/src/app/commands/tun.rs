@@ -9,7 +9,7 @@ use crate::cli::{
     TunSplitAppsArgs, TunSplitArgs, TunSplitClearArgs, TunSplitClearTarget, TunSplitListArgs,
     TunSplitListTarget, TunSplitListViewTarget, TunSplitModifyArgs, TunStatusArgs,
 };
-#[cfg(not(target_os = "macos"))]
+#[cfg(not(any(target_os = "macos", windows)))]
 use xrat_support::process::Stdio;
 
 pub async fn run(context: &AppContext, args: &TunArgs) -> crate::app::Result<()> {
@@ -743,6 +743,11 @@ fn capability_state(file: &TunPrivilegeFile) -> (String, bool) {
 }
 
 async fn setup_command(context: &AppContext, args: &TunSetupArgs) -> crate::app::Result<()> {
+    #[cfg(windows)]
+    {
+        let _ = (context, args);
+        Err(AppError::InvalidArgument("Windows managed TUN setup uses the protected machine profile. Install the machine service, stop it, then run `xrat --profile machine tun setup` in an elevated administrator shell. Capture remains unavailable until Windows ownership/recovery support is complete.".into()))
+    }
     #[cfg(target_os = "macos")]
     {
         let _ = args;
@@ -756,11 +761,11 @@ async fn setup_command(context: &AppContext, args: &TunSetupArgs) -> crate::app:
         );
         Ok(())
     }
-    #[cfg(not(target_os = "macos"))]
+    #[cfg(not(any(target_os = "macos", windows)))]
     setup_capabilities(context, args).await
 }
 
-#[cfg(not(target_os = "macos"))]
+#[cfg(not(any(target_os = "macos", windows)))]
 async fn setup_capabilities(context: &AppContext, args: &TunSetupArgs) -> crate::app::Result<()> {
     if !tun_privileges::capabilities_supported() {
         return Err(AppError::InvalidArgument(

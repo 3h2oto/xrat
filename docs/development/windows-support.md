@@ -284,6 +284,23 @@ application access. Complete the Windows TUN privilege, driver, interface
 identity, route/DNS ownership, live replacement, and crash recovery adapters
 before removing Windows TUN rejection.
 
+Explicit elevated `--profile machine tun setup` now prepares pinned Wintun
+0.14.1 files beside the protected cores. The official archive, native DLL and
+license have separate fixed SHA-256 hashes; exact bounded ZIP members are read
+in memory. Staged DLLs pass Windows Authenticode verification using local trust
+without online revocation retrieval. The license is retained. Provisioning holds
+the protected lifecycle lease, refuses an active service, and leaves it stopped.
+Verified existing files skip downloads. This does not enable capture, install an
+active adapter, or alter routes/DNS. Ordinary gateway callers receive no driver
+installation operation.
+
+The isolated native service fixture covers dry-run without profile writes,
+active-service refusal, setup, idempotent verified reuse, protected DLL write
+denial, and service restart. The ignored package fixture accepts
+`XRAT_WINTUN_ARCHIVE`; it checks both official native DLL hashes and, on
+Windows, their Authenticode trust. Local archive checks are separate from native
+signature/provisioning execution and traffic/restoration acceptance.
+
 Standard GitHub runners provide native x64 and ARM64 build/test environments.
 Use those first, including service, driver, and network tests where supported.
 The workflow downloads checksum-pinned Xray 26.9.30 and sing-box 1.13.21

@@ -56,13 +56,14 @@ fn command(binary: &Path, arguments: &[&str]) -> Output {
     output
 }
 
-fn success(binary: &Path, arguments: &[&str]) {
+fn success(binary: &Path, arguments: &[&str]) -> std::process::Output {
     let output = command(binary, arguments);
     assert!(
         output.status.success(),
         "{arguments:?}: {}",
         String::from_utf8_lossy(&output.stderr)
     );
+    output
 }
 
 async fn ping() {
@@ -110,6 +111,11 @@ async fn native_machine_service_lifecycle_and_restricted_operator() {
     assert!(api_task::snapshot().is_none());
     assert!(!profile.exists() && !binaries.exists());
     assert!(scm::status().unwrap().is_none());
+    success(
+        &binary,
+        &["--profile", "machine", "tun", "setup", "--dry-run"],
+    );
+    assert!(!profile.exists() && !binaries.exists());
     let guard = InstallationGuard {
         binary: binary.clone(),
         profile,
@@ -144,6 +150,11 @@ async fn native_machine_service_lifecycle_and_restricted_operator() {
     assert!(!install_while_active.status.success());
     assert!(
         String::from_utf8_lossy(&install_while_active.stderr).contains("machine profile is active")
+    );
+    let tun_while_active = command(&binary, &["--profile", "machine", "tun", "setup"]);
+    assert!(!tun_while_active.status.success());
+    assert!(
+        String::from_utf8_lossy(&tun_while_active.stderr).contains("machine profile is active")
     );
     success(&binary, &["--profile", "machine", "daemon", "status"]);
     success(
@@ -254,6 +265,32 @@ async fn native_machine_service_lifecycle_and_restricted_operator() {
     ping().await;
     success(&binary, &["daemon", "uninstall", "--dry-run"]);
     assert!(api_task::snapshot().is_some());
+    ping().await;
+    scm::stop().unwrap();
+    success(&binary, &["--profile", "machine", "tun", "setup"]);
+    let cores = MachineProfile::open().unwrap().core_directory().unwrap();
+    cores.verify_tree().unwrap();
+    crate::app::services::windows_tun::verify_installed(cores.path()).unwrap();
+    let dll = std::fs::read(cores.path().join("wintun.dll")).unwrap();
+    let license = std::fs::read(cores.path().join("wintun-LICENSE.txt")).unwrap();
+    let repeated = success(&binary, &["--profile", "machine", "tun", "setup"]);
+    assert!(String::from_utf8_lossy(&repeated.stdout).contains("already verified"));
+    assert_eq!(std::fs::read(cores.path().join("wintun.dll")).unwrap(), dll);
+    assert_eq!(
+        std::fs::read(cores.path().join("wintun-LICENSE.txt")).unwrap(),
+        license
+    );
+    {
+        let _restricted =
+            crate::app::daemon::ipc::windows::tests::impersonate_owner_without_admin().unwrap();
+        assert!(
+            std::fs::OpenOptions::new()
+                .write(true)
+                .open(cores.path().join("wintun.dll"))
+                .is_err()
+        );
+    }
+    scm::start().unwrap();
     ping().await;
     success(&binary, &["daemon", "uninstall"]);
     success(&binary, &["daemon", "uninstall"]);

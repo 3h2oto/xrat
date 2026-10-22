@@ -103,6 +103,32 @@ so manual re-setup is only required if auto-restoration is disabled or failed.
 - macOS: sing-box, a root runtime owner and a numbered `utun` interface.
 - V2Ray TUN is unsupported; Xray managed TUN is Linux-only.
 
+## Windows preparation
+
+In an elevated administrator shell, install the machine service, stop it, then
+prepare the protected driver files:
+
+```powershell
+xrat --profile machine daemon stop
+xrat --profile machine tun setup --dry-run
+xrat --profile machine tun setup
+```
+
+Setup downloads the official Wintun 0.14.1 archive over HTTPS. It verifies pinned
+SHA-256 hashes for the archive, the native x64 or ARM64 DLL, and the license.
+Windows Authenticode verification checks the staged DLL against the local trust
+policy without network retrieval or a fresh revocation check. Files are staged
+with administrator ownership in the protected machine core directory and
+activated beside `xray.exe`; the original license is retained as
+`wintun-LICENSE.txt`. Repeating setup with verified files performs no download.
+The service must be stopped and remains stopped. Setup does not create a network
+adapter, change routes or DNS, or enable capture.
+
+Windows capture is still unavailable pending interface identity, route/DNS
+ownership, replacement and crash recovery. Preparing driver files alone does
+not establish TUN support. Routine enable/disable operations will not download
+drivers or change system driver policy.
+
 When a daemon is running, `tun status` also inspects its effective `CAP_NET_ADMIN`
 and `NoNewPrivs` through the daemon socket peer PID. The JSON `daemon` object
 contains its PID, readiness and status; it is `null` when no daemon is reachable.
