@@ -68,6 +68,27 @@ async fn machine_probes_use_shared_results_and_exact_run_identity() {
     assert_eq!((finished.completed, finished.total), (1, 1));
     assert_eq!(finished.last_config_id, Some(id));
     let run_id = finished.run_id.unwrap();
+    let page = jobs
+        .progress(&finished.job_id, 0, 1)
+        .await
+        .unwrap()
+        .unwrap();
+    assert_eq!(page.total, 1);
+    assert_eq!(page.rows[0].config_id, id.0);
+    assert!(
+        page.rows[0]
+            .metrics
+            .iter()
+            .any(|metric| metric.metric == xrat_web::types::TestMetric::Tcp
+                && metric.state == xrat_web::types::TestMetricState::Passed)
+    );
+    for (offset, limit) in [(0, 0), (0, 201), (10_001, 1)] {
+        assert!(
+            jobs.progress(&finished.job_id, offset, limit)
+                .await
+                .is_err()
+        );
+    }
     let rows = context
         .db
         .list_connection_tests_by_run(run_id)
@@ -209,7 +230,15 @@ async fn machine_probe_failures_are_terminal_and_only_recent_jobs_are_retained()
         tokio::task::yield_now().await;
     }
     assert!(
-        jobs.dispatch(ProbeRequest::Status { job_id: first })
+        jobs.dispatch(ProbeRequest::Status {
+            job_id: first.clone()
+        })
+        .await
+        .unwrap()
+        .is_none()
+    );
+    assert!(
+        jobs.progress(first.as_deref().unwrap(), 0, 200)
             .await
             .unwrap()
             .is_none()

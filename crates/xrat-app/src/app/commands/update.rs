@@ -1,7 +1,6 @@
 use crate::app::commands::output;
 use crate::app::commands::resolve::resolve_subscription_id;
 use crate::app::context::AppContext;
-use crate::app::import;
 use crate::cli::UpdateArgs;
 use xrat_db::SubscriptionRecord;
 use xrat_model::SubscriptionId;
@@ -26,17 +25,16 @@ pub async fn update_by_ids(
     context: &AppContext,
     ids: &[SubscriptionId],
 ) -> crate::app::Result<SubscriptionUpdateSummary> {
-    let mut targets = Vec::with_capacity(ids.len());
-    for id in ids {
-        if let Some(subscription) = context.db.get_subscription_by_id(*id).await? {
-            targets.push(subscription);
-        }
-    }
+    let subscriptions = context.services().configs.subscriptions().await?;
+    let targets = ids
+        .iter()
+        .filter_map(|id| subscriptions.iter().find(|row| row.id == *id).cloned())
+        .collect();
     update_targets(context, targets).await
 }
 
 pub async fn update_all(context: &AppContext) -> crate::app::Result<SubscriptionUpdateSummary> {
-    let subscriptions = context.db.list_subscriptions().await?;
+    let subscriptions = context.services().configs.subscriptions().await?;
     let targets = subscriptions
         .into_iter()
         .filter(|subscription| !subscription.source_url.as_deref().unwrap_or("").is_empty())
@@ -48,13 +46,14 @@ pub async fn update_by_refs(
     context: &AppContext,
     refs: &[String],
 ) -> crate::app::Result<SubscriptionUpdateSummary> {
+    let subscriptions = context.services().configs.subscriptions().await?;
     let mut targets = Vec::with_capacity(refs.len());
     for raw in refs {
         let id = resolve_subscription_id(context, raw).await?;
-        let subscription = context
-            .db
-            .get_subscription_by_id(id)
-            .await?
+        let subscription = subscriptions
+            .iter()
+            .find(|row| row.id == id)
+            .cloned()
             .ok_or_else(|| {
                 crate::app::AppError::InvalidArgument(format!("no subscription found for '{raw}'"))
             })?;
@@ -69,7 +68,7 @@ async fn update_targets(
 ) -> crate::app::Result<SubscriptionUpdateSummary> {
     Ok(
         crate::app::services::subscriptions::refresh_targets(targets, |url, headers| async move {
-            import::import_subscription(&context.db, &url, None, &headers).await
+            crate::app::services::catalog_import::subscription(context, &url, None, &headers).await
         })
         .await,
     )

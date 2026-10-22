@@ -13,7 +13,9 @@ use windows_sys::Win32::System::Threading::{
     GetCurrentProcess, OpenProcess, OpenProcessToken, PROCESS_QUERY_LIMITED_INFORMATION,
 };
 
+mod elevation;
 mod protected_directory;
+pub use elevation::is_current_process_elevated;
 pub use protected_directory::{ProtectedDirectory, program_data, program_files};
 
 pub fn current_user_sid() -> io::Result<String> {

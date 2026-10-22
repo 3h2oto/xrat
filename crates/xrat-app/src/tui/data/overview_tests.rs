@@ -48,6 +48,7 @@ fn converts_dashboard_fixture_without_database_process_or_network_access() {
         config_path: "/fake/config.toml".into(),
         api_b64_url: "http://192.0.2.10:18203/b64".into(),
         server_enabled: true,
+        test_concurrency_managed: false,
         test_stages: vec!["icmp".into(), "real-delay".into(), "icmp".into()],
         pending_enrichment: vec![(7.into(), "example.com".into())],
     });

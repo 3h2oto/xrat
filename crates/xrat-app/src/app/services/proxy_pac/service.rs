@@ -41,6 +41,21 @@ pub async fn active_pac(db: &xrat_db::Database, rules: &PacRules) -> crate::app:
     ))
 }
 
+pub async fn context_pac(context: &crate::app::context::AppContext) -> crate::app::Result<String> {
+    use crate::app::services::diagnostics::{
+        DiagnosticsPayload, DiagnosticsRequest, DiagnosticsService,
+    };
+    match DiagnosticsService::new(context.clone())
+        .dispatch(DiagnosticsRequest::Pac {})
+        .await?
+    {
+        DiagnosticsPayload::Pac(pac) => Ok(pac),
+        _ => Err(crate::app::AppError::InvalidArgument(
+            "unexpected PAC response".into(),
+        )),
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

@@ -18,19 +18,19 @@ pub(crate) fn HostToggle(
     });
     let mut status = use_resource(move || async move {
         let _ = tick();
-        api::get::<xrat_web::types::Settings>("settings").await
+        api::get::<xrat_web::types::RuntimeDetails>("overview/runtime").await
     });
-    let path = if kind == "rotation" {
-        "runtime.rotation.enabled"
-    } else {
-        "runtime.tun.enabled"
-    };
     let checked = status
         .read()
         .as_ref()
         .and_then(|result| result.as_ref().ok())
-        .and_then(|settings| settings.items.iter().find(|item| item.path == path))
-        .and_then(|setting| setting.value.parse::<bool>().ok());
+        .map(|runtime| {
+            if kind == "rotation" {
+                runtime.rotation_enabled
+            } else {
+                runtime.tun_enabled
+            }
+        });
     rsx! {
         div { class: "feature-toggle-row flex items-center justify-between mt-auto pt-2 gap-4 [&_>_span]:flex [&_>_span]:items-center [&_>_span]:text-[12px] [&_>_span]:gap-[7px] [&_>_span_svg]:w-3.5 [&_>_span_svg]:h-3.5",
             span { class: "muted text-muted-foreground text-[13px] leading-[1.7]",

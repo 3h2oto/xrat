@@ -2,6 +2,10 @@ use super::*;
 
 impl<'a> RuntimeService<'a> {
     pub async fn status(&self) -> crate::app::Result<RuntimeStatusSnapshot> {
+        #[cfg(any(windows, test))]
+        if let Some(client) = &self.context.machine_client {
+            return Ok(client.overview().await?.runtime);
+        }
         let active_state = self.active_session_state().await?;
         let latest = self.context.db.get_latest_runtime_session().await?;
         let session_config = match latest.as_ref().and_then(|session| session.config_id) {
@@ -33,6 +37,7 @@ impl<'a> RuntimeService<'a> {
     }
 
     pub async fn active_session_state(&self) -> crate::app::Result<ActiveSessionState> {
+        self.context.require_local_runtime()?;
         let state = active_session_state(self.context, self.process_ports.signals.as_ref()).await?;
         if let ActiveSessionState::Stale(session) = &state {
             self.cleanup_session_tun(session.id)?;

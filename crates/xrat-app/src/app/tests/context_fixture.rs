@@ -77,6 +77,7 @@ impl TestAppBuilder {
             db,
             app_config,
             runtime_paths,
+            machine_client: None,
         };
         let _ = self.prefix;
         (context, root)

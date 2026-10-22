@@ -8,6 +8,10 @@ use xrat_engines::xray::stats::{SingboxStatsSource, StatsSource, XrayStatsSource
 use xrat_web::types::Traffic;
 
 pub(crate) async fn collect(context: &AppContext) -> crate::app::Result<TrafficSnapshot> {
+    #[cfg(any(windows, test))]
+    if let Some(client) = &context.machine_client {
+        return client.traffic().await;
+    }
     let mut current = context.clone();
     current.app_config = crate::app::config::load(&context.runtime_paths.config_path)?;
     if !current.app_config.runtime.stats.enabled {
@@ -44,6 +48,22 @@ pub(crate) async fn sample(
     context: &AppContext,
     snapshot: &RuntimeStatusSnapshot,
 ) -> Option<Traffic> {
+    #[cfg(any(windows, test))]
+    if let Some(client) = &context.machine_client {
+        return client
+            .traffic()
+            .await
+            .ok()
+            .filter(|remote| {
+                remote.session_id
+                    == snapshot
+                        .session
+                        .as_ref()
+                        .filter(|_| snapshot.pid_running)
+                        .map(|session| session.id)
+            })
+            .and_then(|remote| remote.traffic);
+    }
     if !snapshot.pid_running || !context.app_config.runtime.stats.enabled {
         return None;
     }

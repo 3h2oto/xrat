@@ -1,4 +1,6 @@
 mod app_context;
+#[cfg(any(windows, test))]
+mod machine_client;
 mod paths;
 
 #[cfg(test)]

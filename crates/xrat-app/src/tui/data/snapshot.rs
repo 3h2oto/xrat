@@ -21,6 +21,7 @@ pub struct TuiData {
     pub metric_columns: TuiMetricColumns,
     pub test_stage_label: String,
     pub test_stage_names: Vec<String>,
+    pub test_concurrency_managed: bool,
     /// `(config_id, address)` rows still needing a network location lookup after
     /// DB test geo and the persistent cache have been applied.
     pub pending_enrichment: Vec<(xrat_model::ConfigId, String)>,
@@ -100,6 +101,7 @@ impl TuiData {
             metric_columns,
             test_stage_label: "tcp + real-delay".to_string(),
             test_stage_names: vec!["tcp".to_string(), "real_delay".to_string()],
+            test_concurrency_managed: false,
             pending_enrichment: Vec::new(),
             metric_columns_from_settings: false,
         }
@@ -267,6 +269,7 @@ impl From<DashboardSnapshot> for TuiData {
         data.daemon = value.daemon;
         data.logs = value.logs;
         data.probe_history = TuiProbeHistory::from_records(&value.probe_history);
+        data.test_concurrency_managed = value.test_concurrency_managed;
         data.test_stage_names = normalize_test_stage_names(&value.test_stages);
         data.test_stage_label = format_test_stage_label(&data.test_stage_names);
         data.metric_columns =

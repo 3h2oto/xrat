@@ -20,6 +20,17 @@ use xrat_web::types::{Action, Engine, HostUnlock, HostUnlockRequest};
 #[component]
 pub fn HostAdministration() -> Element {
     let Session(session) = use_context();
+    let capabilities = use_resource(|| api::get::<xrat_web::types::Overview>("overview"));
+    let maintenance = capabilities
+        .read()
+        .as_ref()
+        .and_then(|result| result.as_ref().ok())
+        .is_some_and(|overview| {
+            overview
+                .capabilities
+                .iter()
+                .any(|capability| capability.name == "host_maintenance" && capability.available)
+        });
     let mut grant = use_signal(|| None::<HostUnlock>);
     let mut password = use_signal(String::new);
     let mut error = use_signal(String::new);
@@ -80,6 +91,9 @@ pub fn HostAdministration() -> Element {
                     "Unlocked · locks in {remaining / 60}:{remaining % 60:02}"
                 }
             }
+            if !maintenance && capabilities.read().as_ref().is_some_and(|result| result.is_ok()) {
+                p { class: "muted", "Machine maintenance requires a local Windows administrator. Runtime controls remain available below." }
+            }
             div { class: "host-gate relative",
                 div {
                     class: "host-controls [&&[data-locked=true]]:[filter:blur(4px)] [&&[data-locked=true]]:[opacity:0.35] [&&[data-locked=true]]:select-none ",
@@ -114,7 +128,7 @@ pub fn HostAdministration() -> Element {
                             IconButton {
                                 label: "Install / update",
                                 variant: ButtonVariant::Outline,
-                                disabled: busy(),
+                                disabled: busy() || !maintenance,
                                 onclick: move |_| submit(
                                     Action::InstallEngine {
                                         engine: match engine().as_str() {
@@ -173,14 +187,14 @@ pub fn HostAdministration() -> Element {
                                 IconButton {
                                     label: "Validate config",
                                     variant: ButtonVariant::Outline,
-                                    disabled: busy(),
+                                    disabled: busy() || !maintenance,
                                     onclick: move |_| submit(Action::Validate, grant, busy),
                                     CircleCheck {}
                                 }
                                 IconButton {
                                     label: "Update GeoIP",
                                     variant: ButtonVariant::Ghost,
-                                    disabled: busy(),
+                                    disabled: busy() || !maintenance,
                                     onclick: move |_| submit(Action::GeoIpUpdate, grant, busy),
                                     RefreshCw {}
                                 }
@@ -253,7 +267,7 @@ pub fn HostAdministration() -> Element {
                             IconButton {
                                 label: "Upgrade",
                                 variant: ButtonVariant::Outline,
-                                disabled: busy(),
+                                disabled: busy() || !maintenance,
                                 onclick: move |_| pending.set(Some(Action::Upgrade { version: None })),
                                 Download {}
                             }

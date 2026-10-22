@@ -2,6 +2,7 @@ use super::*;
 
 impl RuntimeService<'_> {
     pub(crate) async fn cleanup_inactive_tun_ownership(&self) -> crate::app::Result<()> {
+        self.context.require_local_runtime()?;
         let Some(record) = tun_ownership::load_ownership(&self.context.runtime_paths.runtime_dir)
         else {
             return Ok(());

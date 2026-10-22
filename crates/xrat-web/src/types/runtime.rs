@@ -13,6 +13,8 @@ pub struct RuntimeDetails {
     pub engines: Vec<RuntimeEngine>,
     pub daemon_running: Option<bool>,
     pub rotation_enabled: bool,
+    #[serde(default)]
+    pub tun_enabled: bool,
     pub rotation_interval_secs: u64,
     pub running_jobs: usize,
     pub queued_jobs: usize,

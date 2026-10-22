@@ -12,6 +12,10 @@ pub(crate) enum TestMetric {
 
 #[derive(Debug, Clone)]
 pub(crate) enum TestActivity {
+    #[cfg(any(windows, test))]
+    Snapshot {
+        row: xrat_web::types::ConfigTestProgress,
+    },
     Queued {
         config_id: ConfigId,
         metrics: Vec<TestMetric>,

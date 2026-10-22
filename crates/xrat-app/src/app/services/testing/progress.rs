@@ -71,6 +71,7 @@ pub(crate) async fn run_machine_probe(
     cancel_rx: xrat_support::cancel::CancellationReceiver,
     progress_tx: tokio::sync::mpsc::UnboundedSender<TestProgressUpdate>,
     started: tokio::sync::oneshot::Sender<i64>,
+    activity: super::TestActivitySender,
 ) -> crate::app::Result<TestRunOutcome> {
     run_with_activity(
         request,
@@ -81,7 +82,7 @@ pub(crate) async fn run_machine_probe(
             updates: progress_tx,
             started: Some(started),
         },
-        None,
+        Some(activity),
         "machine",
     )
     .await
@@ -96,6 +97,18 @@ async fn run_with_activity(
     activity: Option<super::TestActivitySender>,
     run_kind: &str,
 ) -> crate::app::Result<TestRunOutcome> {
+    #[cfg(any(windows, test))]
+    if let Some(client) = &context.machine_client {
+        return super::machine::run(
+            request,
+            client,
+            config_ids,
+            cancel_rx,
+            progress_tx,
+            activity,
+        )
+        .await;
+    }
     if cancel_rx.is_cancelled() {
         return Ok(TestRunOutcome {
             run_id: None,

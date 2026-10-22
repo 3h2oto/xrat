@@ -2,7 +2,7 @@ mod catalog;
 mod gateway;
 mod probes;
 mod protocol;
-pub use probes::{ProbeRequest, ProbeSnapshot, ProbeStages, ProbeState};
+pub use probes::{ProbeProgressPage, ProbeRequest, ProbeSnapshot, ProbeStages, ProbeState};
 #[cfg(any(windows, test))]
 mod response;
 #[cfg(windows)]

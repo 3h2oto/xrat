@@ -192,7 +192,12 @@ async fn tun_uses_only_service_owned_path_and_replace_is_manual() {
             .unwrap();
     });
     let response = gateway
-        .dispatch(OPERATOR, request(GatewayRequestKind::Tun { enabled: true }))
+        .dispatch(
+            OPERATOR,
+            request(GatewayRequestKind::Tun {
+                enabled: Some(true),
+            }),
+        )
         .await
         .unwrap();
     assert!(!response.ok);

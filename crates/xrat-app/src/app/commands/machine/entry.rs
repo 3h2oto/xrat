@@ -6,6 +6,14 @@ use crate::cli::{Command, DaemonAction};
 use windows_sys::Win32::System::Services::*;
 
 pub async fn run(command: &Command) -> Result<()> {
+    if matches!(
+        command,
+        Command::Tui(_) | Command::Serve(_) | Command::Webui(_)
+    ) {
+        let context =
+            crate::app::context::AppContext::from_machine_client(MachineClient::new()).await?;
+        return crate::app::commands::run(&context, command).await;
+    }
     if let Command::Install(args) = command {
         return super::cores::install(args).await;
     }

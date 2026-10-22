@@ -2,6 +2,13 @@ use crate::server::{ServerError, ServerResult, ServerState};
 
 pub fn require_api_key(state: &ServerState, provided: Option<&str>) -> ServerResult<()> {
     let Some(expected) = state.api_key.as_deref() else {
+        if state
+            .context
+            .as_ref()
+            .is_some_and(|context| context.is_machine_client())
+        {
+            return Err(ServerError::MissingApiKey);
+        }
         return Ok(());
     };
     let Some(provided) = provided else {

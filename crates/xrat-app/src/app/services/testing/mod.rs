@@ -1,7 +1,11 @@
 mod activity;
+mod activity_progress;
+pub(crate) use activity_progress::TestActivityProgress;
 mod bulk;
 mod bulk_progress;
 mod execution;
+#[cfg(any(windows, test))]
+mod machine;
 mod output_types;
 mod progress;
 mod request;

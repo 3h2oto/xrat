@@ -2,6 +2,10 @@ use crate::app::{context::AppContext, runtime_service::RuntimeStatusSnapshot};
 use xrat_web::types::{DashboardData, LatencyMetric, ProbePoint};
 
 pub(crate) async fn collect(context: &AppContext) -> crate::app::Result<DashboardData> {
+    #[cfg(any(windows, test))]
+    if let Some(client) = &context.machine_client {
+        return client.dashboard().await;
+    }
     let mut current = context.clone();
     current.app_config = crate::app::config::load(&context.runtime_paths.config_path)?;
     let snapshot = crate::app::runtime_service::RuntimeService::new(&current)
@@ -14,6 +18,10 @@ pub(crate) async fn load(
     context: &AppContext,
     snapshot: &RuntimeStatusSnapshot,
 ) -> crate::app::Result<DashboardData> {
+    #[cfg(any(windows, test))]
+    if let Some(client) = &context.machine_client {
+        return client.dashboard().await;
+    }
     let db = &context.db;
     let sampled_at_ms = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)

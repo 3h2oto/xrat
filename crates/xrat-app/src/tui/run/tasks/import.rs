@@ -53,15 +53,19 @@ pub fn spawn_import(
 async fn run_import(context: &AppContext, import: TuiImport) -> crate::app::Result<String> {
     match import {
         TuiImport::Config { source, node } => {
-            context
-                .db
-                .import_nodes(&source, std::slice::from_ref(node.as_ref()))
-                .await?;
+            crate::app::services::catalog_import::persist_nodes(
+                context,
+                source,
+                std::slice::from_ref(node.as_ref()),
+                None,
+                None,
+            )
+            .await?;
             Ok("added 1 config".to_string())
         }
         TuiImport::Subscription { url, name } => {
-            let summary = crate::app::import::import_subscription(
-                &context.db,
+            let summary = crate::app::services::catalog_import::subscription(
+                context,
                 &url,
                 Some(&name),
                 &Default::default(),

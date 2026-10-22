@@ -100,3 +100,28 @@ fn back_closes_help() {
 
     assert!(!app.show_help);
 }
+
+#[test]
+fn machine_frontend_api_log_watermark_is_separate_from_service_events() {
+    use crate::tui::data::logs::TuiEventLogRow;
+    let event = |id, source: &str| TuiEventLogRow {
+        id,
+        time: String::new(),
+        level: "info".into(),
+        source: source.into(),
+        kind: String::new(),
+        message: String::new(),
+    };
+    let mut app = TuiApp::default();
+    app.data.logs.events = vec![event(900, "runtime")];
+    app.data.logs.frontend_api_events = Some(vec![event(2, "api")]);
+    app.active_log_tab = TuiLogTab::Api;
+    app.apply(TuiAction::ClearLogView);
+    assert_eq!(app.frontend_api_clear_before_id, 2);
+    assert!(app.event_visible(900));
+    app.active_log_tab = TuiLogTab::XratEvents;
+    app.apply(TuiAction::ClearLogView);
+    assert_eq!(app.events_clear_before_id, 900);
+    assert_eq!(app.frontend_api_clear_before_id, 2);
+    assert_eq!(app.data.logs.frontend_api_events.as_ref().unwrap().len(), 1);
+}

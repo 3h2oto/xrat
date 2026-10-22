@@ -179,3 +179,11 @@ fn applies_completed_config_test_row_during_batch() {
         Some(xrat_model::ConfigId(2))
     );
 }
+
+#[test]
+fn machine_tui_test_request_uses_administrator_concurrency() {
+    let mut data = TuiData::from_configs(vec![row(1)]);
+    data.test_concurrency_managed = true;
+    let app = TuiApp::with_data(data);
+    assert!(test_run_request_for_app(&app).concurrency.is_none());
+}

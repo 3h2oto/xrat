@@ -56,6 +56,8 @@ pub enum DiagnosticsRequest {
         lines: u16,
     },
     LatestProbeRun {},
+    Engines {},
+    Pac {},
     ProbePage {
         selection: xrat_db::ConnectionTestSelection,
         before: Option<xrat_db::ConnectionTestCursor>,
@@ -74,6 +76,8 @@ pub enum DiagnosticsPayload {
         truncated: bool,
     },
     LatestProbeRun(Option<xrat_db::ConnectionTestRunRecord>),
+    Engines(Vec<xrat_web::types::RuntimeEngine>),
+    Pac(String),
     ProbePage(Vec<xrat_db::ConnectionTestRecord>),
     Cleared(u64),
 }
@@ -88,8 +92,67 @@ impl DiagnosticsService {
         Self { context }
     }
 
+    pub async fn latest_probe_run(&self) -> Result<Option<xrat_db::ConnectionTestRunRecord>> {
+        match self.dispatch(DiagnosticsRequest::LatestProbeRun {}).await? {
+            DiagnosticsPayload::LatestProbeRun(run) => Ok(run),
+            _ => Err(invalid("unexpected latest probe run payload")),
+        }
+    }
+
+    pub async fn probe_history(
+        &self,
+        selection: xrat_db::ConnectionTestSelection,
+        maximum: Option<usize>,
+    ) -> Result<Vec<xrat_db::ConnectionTestRecord>> {
+        let id = match selection {
+            xrat_db::ConnectionTestSelection::Config(id) => id.0,
+            xrat_db::ConnectionTestSelection::Run(id) => id,
+        };
+        if id <= 0 {
+            return Err(invalid("probe selection must be positive"));
+        }
+        if maximum == Some(0) {
+            return Ok(Vec::new());
+        }
+        #[cfg(any(windows, test))]
+        if let Some(client) = &self.context.machine_client {
+            return client.probe_history(selection, maximum).await;
+        }
+        let mut rows = match (selection, maximum) {
+            (xrat_db::ConnectionTestSelection::Config(id), Some(limit)) => {
+                self.context
+                    .db
+                    .recent_connection_tests(id, i64::try_from(limit).unwrap_or(i64::MAX))
+                    .await?
+            }
+            (xrat_db::ConnectionTestSelection::Config(id), None) => {
+                self.context.db.list_connection_tests(id).await?
+            }
+            (xrat_db::ConnectionTestSelection::Run(id), _) => {
+                self.context.db.list_connection_tests_by_run(id).await?
+            }
+        };
+        if let Some(maximum) = maximum {
+            rows.truncate(maximum);
+        }
+        Ok(rows)
+    }
+
     pub async fn dispatch(&self, request: DiagnosticsRequest) -> Result<DiagnosticsPayload> {
+        #[cfg(any(windows, test))]
+        if let Some(client) = &self.context.machine_client {
+            return client.diagnostics(request).await;
+        }
         match request {
+            DiagnosticsRequest::Pac {} => {
+                let rules =
+                    super::proxy_pac::PacRules::from_routing(&self.context.app_config.routing);
+                let pac = super::proxy_pac::active_pac(&self.context.db, &rules).await?;
+                if pac.len() > MAX_LOG_BYTES as usize {
+                    return Err(invalid("machine PAC exceeds response limit"));
+                }
+                Ok(DiagnosticsPayload::Pac(pac))
+            }
             DiagnosticsRequest::Events {
                 after,
                 limit,
@@ -134,6 +197,20 @@ impl DiagnosticsService {
             }
             DiagnosticsRequest::LatestProbeRun {} => Ok(DiagnosticsPayload::LatestProbeRun(
                 self.context.db.get_latest_connection_test_run().await?,
+            )),
+            DiagnosticsRequest::Engines {} => Ok(DiagnosticsPayload::Engines(
+                super::engine_probe::probe_local_engines(
+                    &self.context,
+                    &super::engine_probe::ProcessRuntimeEngineProbe,
+                )
+                .await
+                .into_iter()
+                .map(|engine| xrat_web::types::RuntimeEngine {
+                    name: engine.name.into(),
+                    available: engine.available,
+                    version: engine.version.filter(|version| version.len() <= 128),
+                })
+                .collect(),
             )),
             DiagnosticsRequest::ProbePage {
                 selection,

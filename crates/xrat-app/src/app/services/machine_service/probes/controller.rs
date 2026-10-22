@@ -1,9 +1,9 @@
-use std::collections::{HashSet, VecDeque};
+use std::collections::{HashMap, HashSet, VecDeque};
 use std::sync::Arc;
 use tokio::sync::Mutex;
 use tokio::task::JoinHandle;
 
-use super::{ProbeRequest, ProbeSnapshot, ProbeStages, ProbeState};
+use super::{ProbeProgressPage, ProbeRequest, ProbeSnapshot, ProbeStages, ProbeState};
 use crate::app::context::AppContext;
 use crate::app::services::testing::{self, TestProgressUpdate, TestRunRequest};
 use crate::app::{AppError, Result};
@@ -23,6 +23,7 @@ pub(in crate::app::services::machine_service) struct ProbeJobs {
 struct State {
     closing: bool,
     jobs: VecDeque<ProbeSnapshot>,
+    progress: HashMap<String, testing::TestActivityProgress>,
     active: Option<Active>,
 }
 
@@ -77,6 +78,31 @@ impl ProbeJobs {
         }
     }
 
+    pub async fn progress(
+        &self,
+        id: &str,
+        offset: u32,
+        limit: u16,
+    ) -> Result<Option<ProbeProgressPage>> {
+        validate_id(id)?;
+        if offset > MAX_CONFIGS as u32 || !(1..=200).contains(&limit) {
+            return Err(AppError::InvalidArgument(
+                "invalid probe progress page".into(),
+            ));
+        }
+        let state = self.state.lock().await;
+        Ok(state.progress.get(id).map(|progress| ProbeProgressPage {
+            total: progress.rows.len() as u32,
+            rows: progress
+                .rows
+                .values()
+                .skip(offset as usize)
+                .take(usize::from(limit))
+                .cloned()
+                .collect(),
+        }))
+    }
+
     async fn start(&self, ids: Vec<ConfigId>, stages: ProbeStages) -> Result<ProbeSnapshot> {
         let unique: HashSet<_> = ids.iter().collect();
         if ids.is_empty()
@@ -105,8 +131,14 @@ impl ProbeJobs {
             error: None,
         };
         state.jobs.push_back(snapshot.clone());
+        state.progress.insert(
+            snapshot.job_id.clone(),
+            testing::TestActivityProgress::default(),
+        );
         while state.jobs.len() > RETAINED_JOBS {
-            state.jobs.pop_front();
+            if let Some(expired) = state.jobs.pop_front() {
+                state.progress.remove(&expired.job_id);
+            }
         }
         let cancel = CancellationFlag::new();
         let task = tokio::spawn(run(
@@ -176,6 +208,7 @@ async fn run(
         ..Default::default()
     };
     let (sender, mut receiver) = tokio::sync::mpsc::unbounded_channel();
+    let (activity, mut activities) = tokio::sync::mpsc::unbounded_channel();
     let (started, mut run_started) = tokio::sync::oneshot::channel();
     let operation = testing::run_machine_probe(
         &request,
@@ -184,6 +217,7 @@ async fn run(
         CancellationReceiver::from_flag(&cancel),
         sender,
         started,
+        activity,
     );
     tokio::pin!(operation);
     let mut run_announced = false;
@@ -197,6 +231,7 @@ async fn run(
                 }
             }
             Some(update) = receiver.recv() => update_progress(&state, &job_id, update).await,
+            Some(update) = activities.recv() => update_activity(&state, &job_id, update).await,
         }
     };
     if !run_announced && let Ok(id) = run_started.try_recv() {
@@ -204,6 +239,9 @@ async fn run(
     }
     while let Ok(update) = receiver.try_recv() {
         update_progress(&state, &job_id, update).await;
+    }
+    while let Ok(update) = activities.try_recv() {
+        update_activity(&state, &job_id, update).await;
     }
     let mut state = state.lock().await;
     if let Some(job) = state.jobs.iter_mut().find(|job| job.job_id == job_id) {
@@ -240,5 +278,12 @@ async fn update_run_id(state: &Mutex<State>, id: &str, run_id: i64) {
     let mut state = state.lock().await;
     if let Some(job) = state.jobs.iter_mut().find(|job| job.job_id == id) {
         job.run_id = Some(run_id);
+    }
+}
+
+async fn update_activity(state: &Mutex<State>, id: &str, activity: testing::TestActivity) {
+    let mut state = state.lock().await;
+    if let Some(progress) = state.progress.get_mut(id) {
+        progress.apply(activity);
     }
 }

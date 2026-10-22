@@ -287,9 +287,34 @@ Machine `logs` reads service events and fixed daemon/engine feeds, including
 `--follow`, event `--level`/`--format`, and `logs clear --yes`. Machine log requests
 accept `--lines 1..2000`; file reads are bounded to 512 KiB per request and report
 omitted older content. The operator never opens protected log files directly.
-The machine TUI, HTTP host, driver provisioning, and coordinated service upgrade
-are still under implementation. Windows `daemon install --with-api` and `--tun`
-currently return an explicit unsupported-operation error.
+Machine frontends run from an ordinary terminal:
+
+```powershell
+xrat --profile machine tui
+xrat --profile machine serve
+xrat --profile machine webui --no-open
+```
+
+These frontends require a ready service and reject elevated tokens. Their
+configuration and SQLite UI/authentication store live in `machine-client` under
+the user data root. They read and modify the service catalog through the
+gateway; that local store never substitutes for an unavailable service.
+Configure Web credentials in the frontend configuration before enabling its Web
+interface. HTTP authentication, roles, and CSRF checks still apply. Machine legacy exports
+(`/json`, `/configs`, and key-based `/b64`) require a configured `server.key`;
+absence of a key does not enable anonymous machine exports. Account-token
+subscription access retains its existing scope and revocation checks.
+
+Test jobs use administrator-configured service targets, timeouts, concurrency,
+and cores. TUI split-policy edits and Web core/GeoIP maintenance, policy
+validation, and upgrades require local administrator maintenance. Frontend
+server settings and TUI preferences remain editable. PAC policy, runtime state,
+probe history, and operational logs come from the service; API request logs stay
+in the frontend store with a separate display cursor.
+
+Driver provisioning and coordinated service upgrade are still under
+implementation. Windows `daemon install --with-api` and `--tun` currently return
+an explicit unsupported-operation error.
 
 Import files and subscription URLs are read by the invoking user. The service
 receives bounded link bodies and source metadata, then uses the shared parsing

@@ -26,6 +26,11 @@ pub enum GatewayRequestKind {
     Probes {
         request: super::ProbeRequest,
     },
+    ProbeProgress {
+        job_id: String,
+        offset: u32,
+        limit: u16,
+    },
     Overview {},
     Traffic {},
     Dashboard {},
@@ -39,7 +44,7 @@ pub enum GatewayRequestKind {
         candidate_id: Option<ConfigId>,
     },
     Tun {
-        enabled: bool,
+        enabled: Option<bool>,
     },
     RotationStart {},
     RotationStatus {},
@@ -52,6 +57,7 @@ pub enum GatewayPayload {
     Catalog(super::CatalogPayload),
     Diagnostics(crate::app::services::diagnostics::DiagnosticsPayload),
     Probes(Option<super::ProbeSnapshot>),
+    ProbeProgress(Option<super::ProbeProgressPage>),
     Overview(Box<crate::app::read_models::RuntimeOverview>),
     Traffic(crate::app::read_models::TrafficSnapshot),
     Dashboard(xrat_web::types::DashboardData),

@@ -1,3 +1,4 @@
+pub(crate) mod catalog_import;
 pub mod clipboard;
 mod configs;
 pub mod dashboard;

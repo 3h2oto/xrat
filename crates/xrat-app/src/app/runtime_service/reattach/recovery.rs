@@ -18,6 +18,7 @@ impl<'a> RuntimeService<'a> {
         &self,
         daemon_instance_id: &str,
     ) -> crate::app::Result<Option<ConfigId>> {
+        self.context.require_local_runtime()?;
         self.reconcile_reattach_with_inspector(&process::SystemProcessInspector, daemon_instance_id)
             .await
     }

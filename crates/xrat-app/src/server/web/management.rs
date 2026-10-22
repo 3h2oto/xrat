@@ -32,19 +32,28 @@ pub async fn overview(
         .map(super::rows::config)
         .collect();
     let subscriptions = state
-        .db
-        .list_subscriptions()
+        .services
+        .configs
+        .subscriptions()
         .await?
         .into_iter()
         .map(super::rows::subscription)
         .collect();
-    let events = state
-        .db
-        .list_events(&xrat_db::EventFilter {
-            limit: 100,
-            ..Default::default()
-        })
-        .await?
+    let app::services::diagnostics::DiagnosticsPayload::Events(mut events) =
+        app::services::diagnostics::DiagnosticsService::new(context.clone())
+            .dispatch(app::services::diagnostics::DiagnosticsRequest::Events {
+                after: None,
+                limit: 100,
+                level: None,
+            })
+            .await?
+    else {
+        return Err(ServerError::InvalidQuery(
+            "unexpected event response".into(),
+        ));
+    };
+    events.reverse();
+    let events = events
         .into_iter()
         .map(|row| EventRow {
             id: row.id,
@@ -55,7 +64,7 @@ pub async fn overview(
         .collect();
     let _ = principal;
     let mut current = context.clone();
-    if query.dashboard {
+    if query.dashboard && !context.is_machine_client() {
         current.app_config = app::config::load(&context.runtime_paths.config_path)?;
     }
     let dashboard = if query.dashboard {
@@ -79,11 +88,20 @@ pub async fn overview(
         configs,
         subscriptions,
         events,
-        capabilities: vec![Capability {
-            name: "runtime".into(),
-            available: true,
-            reason: None,
-        }],
+        capabilities: vec![
+            Capability {
+                name: "runtime".into(),
+                available: true,
+                reason: None,
+            },
+            Capability {
+                name: "host_maintenance".into(),
+                available: !context.is_machine_client(),
+                reason: context
+                    .is_machine_client()
+                    .then(|| "Machine maintenance requires a local Windows administrator.".into()),
+            },
+        ],
     }))
 }
 
@@ -241,7 +259,7 @@ pub async fn action(
             }
             Err(error) => {
                 tracing::error!(%error, job_id = record.id, "management job failed");
-                record.state = if flag.is_cancelled() {
+                record.state = if flag.is_cancelled() && !context.is_machine_client() {
                     "cancelled"
                 } else {
                     "failed"
@@ -272,40 +290,36 @@ pub async fn engine_logs(
     State(state): State<ServerState>,
     Extension(principal): Extension<Principal>,
 ) -> ServerResult<Json<Vec<(String, String)>>> {
-    use tokio::io::{AsyncReadExt, AsyncSeekExt};
+    use app::services::diagnostics::{
+        DiagnosticsPayload, DiagnosticsRequest, DiagnosticsService, LogFeed,
+    };
     require_operator(&principal)?;
     let context = web(&state)?.context.as_ref().ok_or(ServerError::NotFound)?;
-    let Some(session) = state.db.get_latest_runtime_session().await? else {
-        return Ok(Json(Vec::new()));
-    };
+    let service = DiagnosticsService::new(context.clone());
     let mut logs = Vec::new();
-    for suffix in ["out.log", "err.log", "singbox.out.log", "singbox.err.log"] {
-        let path = context
-            .runtime_paths
-            .runtime_dir
-            .join(format!("session-{}.{suffix}", session.id));
-        let mut file = match tokio::fs::File::open(path).await {
-            Ok(file) => file,
-            Err(error) if error.kind() == std::io::ErrorKind::NotFound => continue,
-            Err(error) => return Err(crate::app::AppError::from(error).into()),
+    for (feed, suffix) in [
+        (LogFeed::XrayOut, "out.log"),
+        (LogFeed::XrayErr, "err.log"),
+        (LogFeed::SingboxOut, "singbox.out.log"),
+        (LogFeed::SingboxErr, "singbox.err.log"),
+    ] {
+        let DiagnosticsPayload::File { lines, cursor, .. } = service
+            .dispatch(DiagnosticsRequest::File {
+                feed,
+                cursor: None,
+                lines: 2000,
+            })
+            .await?
+        else {
+            return Err(ServerError::InvalidQuery(
+                "unexpected engine log response".into(),
+            ));
         };
-        let length = file
-            .metadata()
-            .await
-            .map_err(crate::app::AppError::from)?
-            .len();
-        file.seek(std::io::SeekFrom::Start(length.saturating_sub(65_536)))
-            .await
-            .map_err(crate::app::AppError::from)?;
-        let mut bytes = Vec::new();
-        file.take(65_536)
-            .read_to_end(&mut bytes)
-            .await
-            .map_err(crate::app::AppError::from)?;
-        logs.push((
-            format!("Session {} · {suffix}", session.id),
-            String::from_utf8_lossy(&bytes).into_owned(),
-        ));
+        if let Some(session) = cursor.session_id
+            && !lines.is_empty()
+        {
+            logs.push((format!("Session {session} · {suffix}"), lines.join("\n")));
+        }
     }
     Ok(Json(logs))
 }

@@ -24,6 +24,7 @@ pub struct DashboardSnapshot {
     pub api_b64_url: String,
     pub server_enabled: bool,
     pub test_stages: Vec<String>,
+    pub test_concurrency_managed: bool,
     pub pending_enrichment: Vec<(ConfigId, String)>,
 }
 
@@ -90,12 +91,9 @@ impl<'a> DashboardService<'a> {
         let pending_enrichment =
             geo::apply_geo_cache(context, &mut configs, self.clock.as_ref()).await;
         let sources = services.configs.subscriptions().await?;
-        let runtime = RuntimeService::new(context).status().await?;
-        let tun_state = crate::app::services::tun::capture_state(
-            context,
-            &runtime,
-            &xrat_support::readiness::RuntimeProcessPorts::default(),
-        );
+        let projection = super::runtime::load(context).await?;
+        let runtime = projection.runtime;
+        let tun_state = projection.tun;
         let split_summary = crate::app::services::tun_control::split_summary(&tun_state);
         let tun_label = if tun_state.active {
             Some(format!(
@@ -126,16 +124,27 @@ impl<'a> DashboardService<'a> {
         let local_address = needs_local_address
             .then(|| self.local_ip.primary_ip().map(|ip| ip.to_string()))
             .flatten();
-        let latest_run = context.db.get_latest_connection_test_run().await?;
+        let diagnostics =
+            crate::app::services::diagnostics::DiagnosticsService::new(context.clone());
+        let latest_run = diagnostics.latest_probe_run().await?;
         let test_results = match &latest_run {
-            Some(run) => context.db.list_connection_tests_by_run(run.id).await?,
+            Some(run) => {
+                diagnostics
+                    .probe_history(xrat_db::ConnectionTestSelection::Run(run.id), None)
+                    .await?
+            }
             None => Vec::new(),
         };
         let logs = DashboardLogs::load(context).await?;
         let probe_history = match runtime.active_config.as_ref() {
-            Some(config) => context.db.list_connection_tests(config.id).await?,
+            Some(config) => {
+                diagnostics
+                    .probe_history(xrat_db::ConnectionTestSelection::Config(config.id), None)
+                    .await?
+            }
             None => Vec::new(),
         };
+        let db_label = runtime.database_label.clone();
         Ok(DashboardSnapshot {
             configs,
             sources,
@@ -145,9 +154,9 @@ impl<'a> DashboardService<'a> {
             test_results,
             logs,
             probe_history,
-            daemon: daemon::load_daemon_info(context).await,
-            db_label: context.runtime_paths.database_label.clone(),
-            config_path: context.runtime_paths.config_path.display().to_string(),
+            daemon: projection.daemon,
+            db_label,
+            config_path: projection.config_path,
             api_b64_url: format!(
                 "http://{}:{}/b64",
                 display_host(&server.host, local_address.as_deref()),
@@ -155,7 +164,8 @@ impl<'a> DashboardService<'a> {
             ),
             local_address,
             server_enabled: server.enabled,
-            test_stages: context.app_config.runtime.rotation.test_stages.clone(),
+            test_stages: projection.test_stages,
+            test_concurrency_managed: self.context.is_machine_client(),
             pending_enrichment,
         })
     }

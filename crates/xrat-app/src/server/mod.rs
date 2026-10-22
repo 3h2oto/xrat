@@ -78,6 +78,8 @@ pub async fn serve_context(
 ) -> crate::app::Result<()> {
     let mut state =
         ServerState::from_settings(context.db.clone(), settings, &context.app_config.routing)?;
+    state.services = context.services();
+    state.context = Some(context.clone());
     if let Some(web) = state.web.as_mut() {
         let web = std::sync::Arc::get_mut(web).expect("new server state is unshared");
         if context
@@ -93,7 +95,8 @@ pub async fn serve_context(
         }
         web.context = Some(context.clone());
     }
-    if settings.key.is_none()
+    if !context.is_machine_client()
+        && settings.key.is_none()
         && !settings
             .host
             .parse::<IpAddr>()

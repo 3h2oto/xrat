@@ -51,12 +51,17 @@ pub fn render(frame: &mut Frame<'_>, area: Rect, app: &TuiApp) {
 
 fn summary_label(app: &TuiApp) -> String {
     let test = &app.test_state;
+    let concurrency = if app.data.test_concurrency_managed {
+        "administrator policy".to_string()
+    } else {
+        format!("c{}", test.concurrency)
+    };
     format!(
-        "{} ({})  ·  {}  ·  c{}",
+        "{} ({})  ·  {}  ·  {}",
         test.scope.label(),
         app.test_scope_count(),
         app.data.test_stage_label,
-        test.concurrency,
+        concurrency,
     )
 }
 

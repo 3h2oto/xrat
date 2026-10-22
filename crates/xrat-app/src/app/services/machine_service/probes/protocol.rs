@@ -46,3 +46,9 @@ pub struct ProbeSnapshot {
     pub last_config_id: Option<ConfigId>,
     pub error: Option<String>,
 }
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct ProbeProgressPage {
+    pub total: u32,
+    pub rows: Vec<xrat_web::types::ConfigTestProgress>,
+}

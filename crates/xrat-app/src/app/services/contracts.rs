@@ -16,6 +16,10 @@ pub struct AppServices {
 impl AppServices {
     /// Wire production services from an application context.
     pub fn from_context(context: &AppContext) -> Self {
+        #[cfg(any(windows, test))]
+        if let Some(client) = &context.machine_client {
+            return Self::from_machine(client.clone());
+        }
         Self::from_database(context.db.clone())
     }
 

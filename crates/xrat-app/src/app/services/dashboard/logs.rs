@@ -11,13 +11,29 @@ const PROXY_LOG_LIMIT: usize = 200;
 #[derive(Debug, Clone, Default)]
 pub struct DashboardLogs {
     pub events: Vec<DashboardEvent>,
+    pub frontend_api_events: Option<Vec<DashboardEvent>>,
     pub proxy: Vec<EngineLogRow>,
 }
 
 impl DashboardLogs {
     pub async fn load(context: &AppContext) -> crate::app::Result<Self> {
         let (events, proxy) = tokio::join!(load_events(context), load_proxy_logs(context));
+        let frontend_api_events = if context.is_machine_client() {
+            let mut events = context
+                .db
+                .list_events(&xrat_db::EventFilter {
+                    source: Some("api".into()),
+                    limit: i64::from(EVENT_LIMIT),
+                    ..Default::default()
+                })
+                .await?;
+            events.reverse();
+            Some(events.into_iter().map(DashboardEvent::from).collect())
+        } else {
+            None
+        };
         Ok(Self {
+            frontend_api_events,
             events: events?,
             proxy: proxy?,
         })

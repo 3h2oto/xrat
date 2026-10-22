@@ -10,6 +10,7 @@ async fn context(root: &std::path::Path) -> AppContext {
         path: database_path.clone(),
     };
     AppContext {
+        machine_client: None,
         db: Database::connect(&database_config).await.unwrap(),
         app_config: AppConfig::default(),
         runtime_paths: RuntimePaths {

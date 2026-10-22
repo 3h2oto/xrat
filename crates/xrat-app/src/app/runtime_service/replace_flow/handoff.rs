@@ -3,6 +3,7 @@ use super::*;
 impl<'a> RuntimeService<'a> {
     #[tracing::instrument(skip_all)]
     pub async fn replace(&self, request: ReplaceRequest) -> crate::app::Result<ReplaceResult> {
+        self.context.require_local_runtime()?;
         let active = match self.active_session_state().await? {
             ActiveSessionState::Running(session) => session,
             ActiveSessionState::Stale(_) | ActiveSessionState::None => {

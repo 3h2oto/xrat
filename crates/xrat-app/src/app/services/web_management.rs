@@ -12,7 +12,9 @@ pub(crate) async fn execute(
     job_id: &str,
 ) -> app::Result<String> {
     let mut context = context.clone();
-    super::tun_control::reload(&mut context)?;
+    if !context.is_machine_client() {
+        super::tun_control::reload(&mut context)?;
+    }
     let context = &context;
     let services = context.services();
     match action {
@@ -71,8 +73,7 @@ pub(crate) async fn execute(
             ));
         }
         Action::Add { input } => {
-            let (source, node) = app::import::load_single_node(&input)?;
-            context.db.import_nodes(&source, &[node]).await?;
+            super::catalog_import::add(context, &input).await?;
         }
         Action::Import { input, name } => {
             if !input.starts_with("http://") && !input.starts_with("https://") {
@@ -85,11 +86,17 @@ pub(crate) async fn execute(
                     value: "web upload".into(),
                     name: name.clone(),
                 };
-                app::import::persist_nodes(&context.db, source, &nodes, name.as_deref(), None)
-                    .await?;
+                super::catalog_import::persist_nodes(
+                    context,
+                    source,
+                    &nodes,
+                    name.as_deref(),
+                    None,
+                )
+                .await?;
             } else {
-                app::import::import_subscription(
-                    &context.db,
+                super::catalog_import::subscription(
+                    context,
                     &input,
                     name.as_deref(),
                     &Default::default(),
@@ -152,18 +159,23 @@ pub(crate) async fn execute(
                 .await?;
         }
         Action::Refresh { id } => {
-            let subscriptions = context.db.list_subscriptions().await?;
+            let subscriptions = services.configs.subscriptions().await?;
             for source in subscriptions
                 .into_iter()
                 .filter(|source| id.is_none_or(|id| source.id.0 == id))
             {
                 if let Some(url) = source.source_url {
-                    app::import::import_subscription(&context.db, &url, None, &source.headers)
+                    super::catalog_import::subscription(context, &url, None, &source.headers)
                         .await?;
                 }
             }
         }
         Action::Upgrade { version } => {
+            if context.is_machine_client() {
+                return Err(app::AppError::InvalidArgument(
+                    "Machine upgrades require local administrator maintenance".into(),
+                ));
+            }
             let version = match version {
                 Some(version) => version,
                 None => {
@@ -195,6 +207,23 @@ pub(crate) async fn execute(
             return Ok(outcome.message());
         }
         Action::Rotation { enabled } => {
+            #[cfg(any(windows, test))]
+            if let Some(client) = &context.machine_client {
+                use super::machine_service::GatewayRequestKind;
+                client
+                    .call(if enabled {
+                        GatewayRequestKind::RotationStart {}
+                    } else {
+                        GatewayRequestKind::RotationStop {}
+                    })
+                    .await?;
+                return Ok(if enabled {
+                    "Rotation enabled"
+                } else {
+                    "Rotation disabled"
+                }
+                .into());
+            }
             let socket = app::daemon::ipc::default_socket_path(&context.runtime_paths.runtime_dir);
             let response = if enabled {
                 app::daemon::ipc::proxy_start_daemon(&socket).await?
@@ -241,9 +270,19 @@ pub(crate) async fn execute(
             ));
         }
         Action::GeoIpUpdate => {
+            if context.is_machine_client() {
+                return Err(app::AppError::InvalidArgument(
+                    "Machine GeoIP updates require local administrator maintenance".into(),
+                ));
+            }
             return super::geoip_assets::download_assets(context).await;
         }
         Action::Validate => {
+            if context.is_machine_client() {
+                return Err(app::AppError::InvalidArgument(
+                    "Machine policy validation requires local administrator access".into(),
+                ));
+            }
             let config = app::config::load(&context.runtime_paths.config_path)?;
             let errors = app::commands::validate::validate_app_config(&config);
             return Ok(if errors.is_empty() {
@@ -271,7 +310,9 @@ pub(crate) async fn execute(
             ));
         }
         Action::ClearEvents => {
-            context.db.clear_events().await?;
+            super::diagnostics::DiagnosticsService::new(context.clone())
+                .dispatch(super::diagnostics::DiagnosticsRequest::ClearEvents {})
+                .await?;
         }
         Action::Tun { enabled } => {
             let mut context = context.clone();
@@ -279,6 +320,9 @@ pub(crate) async fn execute(
             return Ok(super::tun_control::message(&result));
         }
         Action::InstallEngine { engine } => {
+            if context.is_machine_client() {
+                return Err(app::AppError::InvalidArgument("Machine core installation requires a local administrator command: xrat --profile machine install <core>".into()));
+            }
             let kind = match engine {
                 xrat_web::types::Engine::Xray => super::cores::CoreKind::Xray,
                 xrat_web::types::Engine::SingBox => super::cores::CoreKind::SingBox,
@@ -356,16 +400,17 @@ pub(crate) async fn execute(
             return Ok(format!("Scanned {} IP addresses", rows.len()));
         }
         Action::Test { id } => {
-            let ids = context
-                .db
-                .list_configs(&xrat_db::ConfigListFilter {
+            let ids = services
+                .configs
+                .list(&super::ConfigListRequest {
                     only_enabled: id.is_none(),
                     ..Default::default()
                 })
                 .await?
+                .items
                 .into_iter()
-                .filter(|row| id.is_none_or(|id| row.id.0 == id))
-                .map(|row| row.id)
+                .filter(|row| id.is_none_or(|id| row.summary.id.0 == id))
+                .map(|row| row.summary.id)
                 .collect::<Vec<_>>();
             return test_progress::run(context, &ids, flag, job_id).await;
         }

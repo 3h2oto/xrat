@@ -62,7 +62,7 @@ platform xrat compiles for, and on 64-bit Windows. Platform integrations vary:
 | --------------------- | --------------- | -------------- | ------------- | ------------- | ------------------------- |
 | CLI / config / import | yes             | yes            | expected      | expected      | yes                       |
 | daemon runtime IPC    | Unix socket     | Unix socket    | Unix socket   | Unix socket   | named pipe (experimental) |
-| daemon install        | systemd user    | launchd agent  | rc.d (root)   | rc.d (root)   | unsupported               |
+| daemon install        | systemd user    | launchd agent  | rc.d (root)   | rc.d (root)   | SCM (experimental)        |
 | runtime reattach      | sysinfo         | sysinfo        | sysinfo       | sysinfo (cmd) | unsupported               |
 | desktop proxy         | GNOME/gsettings | networksetup   | unsupported   | unsupported   | WinINET (experimental)    |
 | release upgrade       | musl tarball    | darwin tarball | source/manual | source/manual | staged (experimental)     |
@@ -70,10 +70,11 @@ platform xrat compiles for, and on 64-bit Windows. Platform integrations vary:
 
 macOS and BSD integrations are newer; the FreeBSD/OpenBSD rows are expected to
 work but are not yet verified on hardware. Windows support remains experimental.
-This source branch adds daemon IPC, desktop proxy integration, and staged
-upgrades; native acceptance is tracked in the Windows milestone. Windows
-Services and managed TUN capture remain unimplemented. Windows binaries are
-64-bit only.
+This source branch adds daemon IPC, an optional LocalSystem service with
+ordinary-user TUI/Web clients, desktop proxy integration, and staged upgrades.
+Native acceptance is tracked in the Windows milestone. Managed Windows TUN
+capture and coordinated service upgrades remain under implementation. Windows
+binaries are 64-bit only.
 
 ## Install
 

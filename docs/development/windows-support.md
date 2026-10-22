@@ -59,14 +59,14 @@ separate evidence. This branch is not a release or proof of full support.
 
 `app::services::machine_service` provides SCM hosting and the gateway
 foundation. CLI machine catalog and runtime commands select this gateway before
-user bootstrap; TUI and HTTP selection remain outstanding. User-local daemon
-behavior remains separate. The machine
-profile uses the Windows ProgramData known folder (`XRAT-Service`), without
-consulting `XRAT_PATH`, CLI path overrides, or the interactive user's home
-directory. Configuration, SQLite data, runtime state, logs, GeoIP data, and
-engine binaries belong to this protected profile. Configuration and engine
-binaries must be provisioned by an administrator; there is no automatic copy of
-a user-controlled profile into the service.
+user bootstrap. Machine TUI and HTTP frontends use an ordinary-token context and
+a separate per-user UI/authentication store. User-local daemon behavior remains
+separate. The machine profile uses the Windows ProgramData known folder
+(`XRAT-Service`), without consulting `XRAT_PATH`, CLI path overrides, or the
+interactive user's home directory. Configuration, SQLite data, runtime state,
+logs, GeoIP data, and engine binaries belong to this protected profile.
+Configuration and engine binaries must be provisioned by an administrator; there
+is no automatic copy of a user-controlled profile into the service.
 
 Profile creation assigns an Administrators owner and a protected inheritable
 DACL granting access only to SYSTEM and Administrators. Existing roots with a
@@ -117,8 +117,11 @@ without losing ordering, filters, or top-N semantics. Oversized read pages are
 retried at smaller sizes. A mutation is never replayed after an oversized reply
 or transport failure. Settings edits, core/driver installation, and privileged
 filesystem operations are absent from the operator gateway. Service lifecycle
-uses SCM permissions. TUI and HTTP application integration remain outstanding;
-existing HTTP authentication/roles are unchanged.
+uses SCM permissions. TUI and HTTP adapters use the same service owners;
+existing HTTP authentication, CSRF, and role boundaries remain enforced. Machine
+legacy exports require a configured API key; a missing key never enables
+anonymous service-catalog access. Account subscription tokens keep their
+existing scope and revocation checks.
 
 Application catalog facades preserve the public `AppServices`, `ConfigService`,
 and lifecycle service types while forwarding machine reads and transitions to
@@ -127,8 +130,8 @@ results without parsing error messages. Detached machine repositories return an
 explicit unsupported error for direct persistence access; no user or Web-auth
 database is attached as a catalog fallback. Contract fixtures compare local and
 machine reads/lifecycle results and exercise authenticated HTTP subscription
-exports with a separate empty user store. This is a composition seam; automatic
-machine TUI/Web context construction remains under implementation.
+exports with a separate empty user store. Machine frontend composition checks
+service readiness before creating its UI store and rejects elevated tokens.
 
 Filtered and selected HTTP sharing use the same catalog services for source
 metadata and raw links. Ordered raw-ID reads have bounded wire pages and retain
@@ -151,7 +154,8 @@ services. Traffic collection reads current owner settings, limits engine API
 sampling to 500 ms, and discards samples if the latest runtime session changes.
 Dashboard metadata reads owner test/stats/TUN policy, a bounded recent probe
 window, and actual subscription refresh timestamps. Frontend traffic history
-remains local to its collector. Machine frontend routing remains outstanding.
+remains local to its collector. Machine frontend collectors forward these reads
+to the service without sampling protected engine APIs themselves.
 
 Machine diagnostics use a shared bounded reader also used by dashboard logs.
 Typed requests select persisted events or one of the fixed daemon/Xray/sing-box
@@ -179,8 +183,10 @@ errors, with the latest 16 jobs retained in memory. An absent status ID returns
 the latest job; unknown or expired IDs return no job. Only one operator job runs
 at a time. Cancellation is idempotent and becomes terminal after worker futures
 exit. Gateway shutdown cancels and drains jobs before supervisor teardown. Jobs
-and rotation are never resumed on service restart. CLI/TUI/Web execution routing
-and native engine/process cleanup acceptance remain under implementation.
+and rotation are never resumed on service restart. TUI/Web test jobs forward
+selection and cancellation through the service and display paged stage progress;
+concurrency and network targets remain administrator-controlled. Native
+engine/process cleanup acceptance remains pending.
 
 Local contract tests cover schema rejection, unauthorized callers, protocol
 versions, identifier validation, service-owned TUN paths, supervisor errors,
@@ -210,8 +216,8 @@ rejects CLI database/config/engine path overrides and never bootstraps a user
 profile. The catalog and runtime commands listed above use typed adapters and
 the same CLI presenters as user mode. Other operations report an explicit
 unsupported error. The TUI selector and HTTP application adapters remain
-outstanding. `--with-api` and `--tun` service-install flags are
-explicitly rejected until their respective integrations are implemented.
+outstanding. `--with-api` and `--tun` service-install flags are explicitly
+rejected until their respective integrations are implemented.
 
 Explicit elevated `--profile machine install <core>` provisions official
 checksum-verified core executables at the fixed protected paths. Acquisition and
@@ -244,26 +250,27 @@ native binary in `XRAT_WINDOWS_SERVICE_BINARY`. Run
 `cargo test --locked -p xrat-app native_machine_service_lifecycle_and_restricted_operator -- --ignored --test-threads=1`.
 These tests have not established native service or reboot acceptance yet.
 
-Complete service-aware upgrades and normal-user CLI/TUI/Web application access.
-Complete the Windows TUN privilege, driver, interface identity, route/DNS
-ownership, live replacement, and crash recovery adapters before removing Windows
-TUN rejection.
+Complete service-aware upgrades and native acceptance of normal-user CLI/TUI/Web
+application access. Complete the Windows TUN privilege, driver, interface
+identity, route/DNS ownership, live replacement, and crash recovery adapters
+before removing Windows TUN rejection.
 
 Standard GitHub runners provide native x64 and ARM64 build/test environments.
 Use those first, including service, driver, and network tests where supported.
-The workflow downloads checksum-pinned Xray 26.9.30 and sing-box 1.13.21 binaries
-for each native architecture. Shared generated-config validators and local proxy
-success/failure/timeout/cancellation fixtures exercise both engines. Engine
-receipts record source, version, architecture, and archive/executable hashes.
-These proxy fixtures do not exercise TUN capture or privileged network cleanup.
+The workflow downloads checksum-pinned Xray 26.9.30 and sing-box 1.13.21
+binaries for each native architecture. Shared generated-config validators and
+local proxy success/failure/timeout/cancellation fixtures exercise both engines.
+Engine receipts record source, version, architecture, and archive/executable
+hashes. These proxy fixtures do not exercise TUN capture or privileged network
+cleanup.
 
 The isolated WinINET acceptance step changes runner settings temporarily and
-checks manual/PAC transitions, restoration, and preservation of external changes.
-The ordinary-owner pipe test disables the token's Administrators group and sets
-medium integrity to check client read/write access without granting pipe-instance
-creation. Pipes have an explicit medium mandatory label; a low-integrity owner
-test verifies write denial. Generated shell
-scripts are executed in Windows PowerShell 5.1 and PowerShell 7 where available.
+checks manual/PAC transitions, restoration, and preservation of external
+changes. The ordinary-owner pipe test disables the token's Administrators group
+and sets medium integrity to check client read/write access without granting
+pipe-instance creation. Pipes have an explicit medium mandatory label; a
+low-integrity owner test verifies write denial. Generated shell scripts are
+executed in Windows PowerShell 5.1 and PowerShell 7 where available.
 
 Acceptance harnesses are Rust integration tests. `tests/windows_installer.rs`
 invokes the actual installer helpers through a child PowerShell process; fixture
@@ -272,8 +279,8 @@ creation, assertions, and test reporting are owned by Rust. Set
 `cargo test --locked -p xrat --test windows_installer -- --ignored`.
 `tests/windows_packaging.rs` accepts a native ZIP in `XRAT_WINDOWS_ARCHIVE` and
 checks daemon lifecycle, HTTP assets/login, and updater transactions with
-`cargo test --locked -p xrat --test windows_packaging -- --ignored`.
-Pinned Windows SDK engine tests download and verify their own fixtures; run
+`cargo test --locked -p xrat --test windows_packaging -- --ignored`. Pinned
+Windows SDK engine tests download and verify their own fixtures; run
 `cargo test --locked -p xrat-sdk --test native_windows -- --ignored --test-threads=1`.
 These tests are ignored in ordinary workspace runs because they require external
 tools, network access, or native artifacts. The Windows workflow runs them

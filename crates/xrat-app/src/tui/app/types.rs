@@ -433,6 +433,7 @@ pub struct TuiApp {
     /// View-only watermark: events with id at or below this are hidden in the
     /// events/api tabs. Set by `C l`; never deletes persisted rows.
     pub events_clear_before_id: i64,
+    pub frontend_api_clear_before_id: i64,
     /// View-only watermark for the proxy engine tab: a signature of the last
     /// visible row at clear time. Rows up to and including it stay hidden.
     pub proxy_clear_signature: Option<String>,

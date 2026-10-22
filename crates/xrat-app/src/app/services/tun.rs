@@ -99,6 +99,7 @@ pub(crate) async fn apply(
     context: &mut AppContext,
     enabled: Option<bool>,
 ) -> Result<TunStatePayload> {
+    context.require_local_runtime()?;
     let process_ready = crate::app::tun_privileges::inspect_process_privileges(std::process::id())
         .is_some_and(|(_, ready)| ready);
     apply_with_ports(
@@ -116,6 +117,7 @@ pub(crate) async fn apply_with_ports(
     ports: RuntimeProcessPorts,
     process_ready: bool,
 ) -> Result<TunStatePayload> {
+    context.require_local_runtime()?;
     let mut session = ConfigEditSession::open(&context.runtime_paths.config_path)
         .map_err(AppError::InvalidArgument)?;
     let mut config: crate::app::config::AppConfig = toml::from_str(&session.original_contents)?;
