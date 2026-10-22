@@ -51,7 +51,7 @@ try {
     @{
         principal = $principal
         logon = $xml.Task.Principals.Principal.LogonType
-        run_level = $xml.Task.Principals.Principal.RunLevel
+        run_level = if ($task.Definition.Principal.RunLevel -eq 0) { 'LeastPrivilege' } else { 'HighestAvailable' }
         command = $xml.Task.Actions.Exec.Command
         arguments = $xml.Task.Actions.Exec.Arguments
         owner = $sd.Owner.Value; group = $sd.Group.Value

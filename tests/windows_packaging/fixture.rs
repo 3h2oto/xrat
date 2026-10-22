@@ -45,7 +45,9 @@ impl Fixture {
     }
 
     pub fn xrat(&self, arguments: &[&str]) -> String {
+        eprintln!("Packaged CLI starting: {arguments:?}");
         let output = self.command().args(arguments).output().unwrap();
+        eprintln!("Packaged CLI exited: {arguments:?}: {}", output.status);
         assert!(
             output.status.success(),
             "XRAT {arguments:?} failed: {} {}\nDaemon log: {}",

@@ -397,3 +397,10 @@ can create replacement listener instances; protected SYSTEM gateway operators
 retain only client data access and cannot create server instances. User upgrades
 resolve their own target before inspecting protected machine state, allowing
 independent user and machine installations to coexist.
+
+Detached daemon and updater launches restrict inherited handles to their
+explicit standard streams. This prevents a long-running child from keeping a
+completed CLI command's captured output pipe open. Native regression coverage
+checks EOF while the detached descendant is still alive. Task ownership checks
+use the effective COM run level because Scheduler can omit the default
+`LeastPrivilege` value from its exported XML.

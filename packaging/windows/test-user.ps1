@@ -94,6 +94,12 @@ finally {
             Get-Content -LiteralPath $path
         }
     }
+    $index = 0
+    Get-ChildItem -LiteralPath $work -Filter 'daemon.log' -File -Recurse -ErrorAction SilentlyContinue | ForEach-Object {
+        $index++
+        Copy-Item -LiteralPath $_.FullName -Destination (Join-Path $receipt "daemon-$index.log") -Force
+        Get-Content -LiteralPath $_.FullName -Tail 80
+    }
     if ($created) {
         $null = & "$env:SystemRoot/System32/net.exe" user $name /delete 2>&1
         if ($LASTEXITCODE -ne 0) { throw 'Could not delete the temporary acceptance account.' }

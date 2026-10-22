@@ -26,7 +26,7 @@ function Assert-OwnedTask($task, $request) {
         @($document.Task.Triggers.ChildNodes).Count -ne 1 -or
         $document.Task.RegistrationInfo.URI -cne $request.uri -or
         $principal[0].LogonType -cne 'InteractiveToken' -or
-        $principal[0].RunLevel -cne 'LeastPrivilege' -or
+        $task.Definition.Principal.RunLevel -ne 0 -or
         $triggerOperator -cne $operator -or
         -not [String]::Equals($actions[0].Command, $request.command, [StringComparison]::OrdinalIgnoreCase) -or
         -not [String]::Equals($actions[0].WorkingDirectory, $request.directory, [StringComparison]::OrdinalIgnoreCase) -or
@@ -34,7 +34,7 @@ function Assert-OwnedTask($task, $request) {
         $observed = @{
             principal_count = $principal.Count; action_count = $actions.Count; trigger_count = $triggers.Count
             uri_matches = $document.Task.RegistrationInfo.URI -ceq $request.uri
-            logon = [string]$principal[0].LogonType; run_level = [string]$principal[0].RunLevel
+            logon = [string]$principal[0].LogonType; run_level = $task.Definition.Principal.RunLevel
             operator = $operator; trigger_operator = $triggerOperator
             command_matches = [String]::Equals($actions[0].Command, $request.command, [StringComparison]::OrdinalIgnoreCase)
             directory_matches = [String]::Equals($actions[0].WorkingDirectory, $request.directory, [StringComparison]::OrdinalIgnoreCase)
