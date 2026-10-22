@@ -14,6 +14,11 @@ pub struct Fixture {
 
 impl Fixture {
     pub fn new() -> Self {
+        #[cfg(windows)]
+        assert!(
+            !xrat_support::windows::is_current_process_elevated().unwrap(),
+            "packaged acceptance requires an ordinary user; run packaging/windows/test-user.ps1"
+        );
         let directory = tempfile::Builder::new()
             .prefix("xrat runtime م ")
             .tempdir()

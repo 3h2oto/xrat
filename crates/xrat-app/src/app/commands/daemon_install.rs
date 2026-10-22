@@ -6,6 +6,7 @@
 ))]
 use std::path::{Path, PathBuf};
 
+#[cfg(not(windows))]
 use crate::app::AppError;
 use crate::app::context::AppContext;
 use crate::cli::{DaemonInstallArgs, DaemonUninstallArgs};

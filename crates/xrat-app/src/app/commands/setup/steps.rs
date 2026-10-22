@@ -95,8 +95,7 @@ pub fn probe_daemon() -> StepOutcome {
                     status.dwCurrentState
                 )),
             Ok(None) => StepOutcome::new(STEP_DAEMON, StepStatus::Missing, false).with_detail(
-                "optional Windows machine service not installed; installation requires elevation"
-                    .into(),
+                "optional Windows machine service not installed; installation requires elevation",
             ),
             Err(error) => StepOutcome::new(STEP_DAEMON, StepStatus::Failed, false)
                 .with_detail(format!("cannot inspect Windows service: {error}")),

@@ -347,9 +347,19 @@ creation, assertions, and test reporting are owned by Rust. Set
 `XRAT_TEST_POWERSHELL` to `powershell.exe` or `pwsh.exe`, then run
 `cargo test --locked -p xrat --test windows_installer -- --ignored`.
 `tests/windows_packaging.rs` accepts a native ZIP in `XRAT_WINDOWS_ARCHIVE` and
-checks daemon lifecycle, HTTP assets/login, and updater transactions with
-`cargo test --locked -p xrat --test windows_packaging -- --ignored`. Pinned
-Windows SDK engine tests download and verify their own fixtures; run
+checks daemon lifecycle, HTTP assets/login, and updater transactions. Run it
+from an ordinary account with
+`cargo test --locked -p xrat --test windows_packaging -- --ignored`. On an
+isolated elevated runner, use
+`packaging/windows/test-user.ps1 -Target <native-target> -Archive <zip>`. The
+script compiles the Rust integration executable, creates a temporary local
+standard account, and runs the packaged checks under that identity. It confines
+writable inputs and temporary files to a dedicated ProgramData fixture
+directory, removes its account/processes afterward, and records the account SID,
+archive hash, exit code and logs in `target/windows-user-acceptance/`. The Rust
+fixture rejects elevated execution. This avoids treating an administrator or a
+missing UAC linked token as ordinary-user upgrade evidence. Pinned Windows SDK
+engine tests download and verify their own fixtures; run
 `cargo test --locked -p xrat-sdk --test native_windows -- --ignored --test-threads=1`.
 These tests are ignored in ordinary workspace runs because they require external
 tools, network access, or native artifacts. The Windows workflow runs them

@@ -168,11 +168,17 @@ jobs:
           Copy-Item LICENSE, README.md stage/
           Compress-Archive -Path stage/* -DestinationPath "xrat-$version-$target.zip"
 
-      - name: Test packaged daemon and served browser assets
+      - name: Test packaged daemon and upgrades as ordinary user
         shell: pwsh
         run: |
-          $env:XRAT_WINDOWS_ARCHIVE = (Get-ChildItem xrat-*.zip | Select-Object -First 1).FullName
-          cargo test --locked -p xrat --test windows_packaging --target '${{ matrix.target }}' -- --ignored --test-threads=1
+          $archive = (Get-ChildItem xrat-*.zip | Select-Object -First 1).FullName
+          ./packaging/windows/test-user.ps1 -Target '${{ matrix.target }}' -Archive $archive
+
+      - uses: actions/upload-artifact@v4
+        if: ${{ always() }}
+        with:
+          name: windows-user-acceptance-${{ matrix.architecture }}
+          path: target/windows-user-acceptance/
 
       - uses: actions/upload-artifact@v4
         with:
