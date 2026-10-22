@@ -1,7 +1,10 @@
 use super::{Transaction, save};
 use crate::app::{
     AppError, Result,
-    services::machine_service::{MachineProfile, api_task, scm},
+    services::{
+        machine_service::{MachineProfile, api_task, scm},
+        runtime_control::{DaemonRuntimeControl, RuntimeControl},
+    },
 };
 use std::{
     path::{Path, PathBuf},
@@ -70,6 +73,9 @@ pub(super) async fn quiesce(manifest: &Path, transaction: &mut Transaction) -> R
         transaction.coordination_started = true;
         save(manifest, transaction)?;
         if transaction.was_running {
+            DaemonRuntimeControl::new(endpoint.clone())
+                .disconnect()
+                .await?;
             let response = crate::app::daemon::ipc::daemon_shutdown_daemon(&endpoint).await?;
             if !response.ok {
                 return Err(AppError::InvalidArgument(response.message));
@@ -86,18 +92,6 @@ pub(super) async fn quiesce(manifest: &Path, transaction: &mut Transaction) -> R
                 }
                 tokio::time::sleep(Duration::from_millis(100)).await;
             }
-        }
-    }
-    if !transaction.machine {
-        let status = xrat_support::process::Command::new(&transaction.target)
-            .arg("--config")
-            .arg(&transaction.config)
-            .arg("disconnect")
-            .status()?;
-        if !status.success() {
-            return Err(AppError::InvalidArgument(
-                "user runtime cleanup failed; executable preserved".into(),
-            ));
         }
     }
     Ok(())

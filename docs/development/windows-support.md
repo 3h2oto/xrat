@@ -404,3 +404,9 @@ completed CLI command's captured output pipe open. Native regression coverage
 checks EOF while the detached descendant is still alive. Task ownership checks
 use the effective COM run level because Scheduler can omit the default
 `LeastPrivilege` value from its exported XML.
+
+Adapter release waits compare the index, GUID, and LUID from one IP Helper row
+at a time; registry metadata can disappear before Windows removes that row. User
+upgrades disconnect through the live daemon before shutting it down and preserve
+an already inactive daemon. Packaged acceptance exercises inactive,
+running/restarting, and no-restart upgrades, including checksum rejection.
