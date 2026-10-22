@@ -64,6 +64,8 @@ impl Fixture {
 $ErrorActionPreference = 'Stop'
 $OutputEncoding = [Text.UTF8Encoding]::new($false)
 [Console]::OutputEncoding = $OutputEncoding
+$env:PROCESSOR_ARCHITECTURE = $env:XRAT_TEST_ARCHITECTURE
+$env:PROCESSOR_ARCHITEW6432 = $env:XRAT_TEST_WOW64
 . $env:XRAT_INSTALL_SCRIPT -InstallDir $env:XRAT_TEST_BIN -NoSetup
 function Get-LatestReleaseTag { return 'v9.8.7' }
 function Add-UserPathEntry { param($Directory) return $false }
@@ -105,8 +107,8 @@ try {
             "xrat-v9.8.7-x86_64-pc-windows-msvc.zip",
         )
         .env("OS", "Windows_NT")
-        .env("PROCESSOR_ARCHITECTURE", architecture)
-        .env("PROCESSOR_ARCHITEW6432", wow64)
+        .env("XRAT_TEST_ARCHITECTURE", architecture)
+        .env("XRAT_TEST_WOW64", wow64)
         .output()
         .expect("run PowerShell installer fixture")
     }

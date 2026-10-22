@@ -383,3 +383,9 @@ not replace executing the checks on the current source.
 After a successful release build, independent native checks continue to collect
 diagnostics when another check fails. The final gate rejects any failed step;
 individual failures remain failures and cannot produce a successful workflow.
+GitHub's step conclusion can report success for these diagnostic steps despite a
+failed command; use the final gate's outcome list and test logs as evidence.
+
+The Web UI bootstrap HTML is checked out with LF line endings on every host. Its
+inline script must retain the exact bytes authorized by the server's CSP hash,
+including when browser assets are built on Linux for Windows packages.

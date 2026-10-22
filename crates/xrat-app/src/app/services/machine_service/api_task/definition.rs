@@ -21,7 +21,7 @@ pub(super) fn definition(executable: &Path, operator: &str) -> Result<String> {
         })?)?;
     let descriptor = descriptor(operator);
     Ok(format!(
-        r#"<?xml version="1.0" encoding="UTF-8"?>
+        r#"<?xml version="1.0"?>
 <Task version="1.4" xmlns="http://schemas.microsoft.com/windows/2004/02/mit/task">
   <RegistrationInfo><URI>{URI}</URI><Description>XRAT machine API frontend for the registered interactive operator.</Description><SecurityDescriptor>{descriptor}</SecurityDescriptor></RegistrationInfo>
   <Triggers><LogonTrigger><Enabled>true</Enabled><UserId>{operator}</UserId><Delay>PT20S</Delay></LogonTrigger></Triggers>

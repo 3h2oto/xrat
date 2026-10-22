@@ -40,10 +40,12 @@ async fn owner_without_admin_group_can_exchange_data_but_cannot_create_pipe_inst
     ));
     let mut server = listener(&endpoint, true).unwrap();
     let impersonation = impersonate_owner_without_admin().unwrap();
-    let broad = tokio::net::windows::named_pipe::ClientOptions::new().open(&endpoint);
-    assert!(
-        broad.is_err(),
-        "generic write must not grant pipe-instance creation to an ordinary owner"
+    assert_eq!(
+        listener(&endpoint, false)
+            .err()
+            .expect("an ordinary owner must not create another server pipe instance")
+            .raw_os_error(),
+        Some(5)
     );
     let mut client = connect(&endpoint).expect("ordinary owner must have read/write-data access");
     drop(impersonation);

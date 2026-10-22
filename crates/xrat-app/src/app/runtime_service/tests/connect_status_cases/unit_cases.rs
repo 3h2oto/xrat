@@ -617,7 +617,6 @@ async fn managed_xray_launch_rejects_unresolvable_dns_provider_for_tun() {
     );
 }
 
-/// Windows has no managed TUN capture, so the launch must be refused there.
 #[cfg(not(unix))]
 #[tokio::test]
 async fn managed_tun_capture_is_refused_without_a_supported_platform() {
@@ -630,8 +629,13 @@ async fn managed_tun_capture_is_refused_without_a_supported_platform() {
         Ok(_) => panic!("TUN capture must be refused on this platform"),
         Err(error) => error,
     };
+    let expected = if cfg!(windows) {
+        "requires the protected LocalSystem runtime"
+    } else {
+        "requires Linux or macOS"
+    };
     assert!(
-        error.to_string().contains("requires Linux or macOS"),
+        error.to_string().contains(expected),
         "unexpected error: {error}"
     );
 }
@@ -810,7 +814,7 @@ async fn tun_cleanup_preserves_reused_index_with_a_different_platform_identity()
     let record = crate::app::runtime_service::tun_ownership::TunOwnershipRecord {
         interface_name: name.clone(),
         ifindex: Some(42),
-        interface_identity: Some("owned-guid".into()),
+        interface_identity: Some("owned-guid@ffffffffffffffff".into()),
         session_id: 123,
         engine: "xray".into(),
         policy_rules: vec![],
@@ -844,7 +848,7 @@ async fn tun_cleanup_preserves_reused_index_with_a_different_platform_identity()
     mock.identities
         .lock()
         .unwrap()
-        .insert(name, "owned-guid".into());
+        .insert(name, "owned-guid@ffffffffffffffff".into());
     service.cleanup_stale_tun_interface().unwrap();
     assert_eq!(mock.deleted.lock().unwrap().len(), 1);
     assert!(

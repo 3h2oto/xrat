@@ -34,8 +34,11 @@ $process = $null
 $result = 1
 $previous = @{}
 try {
-    $null = & "$env:SystemRoot/System32/net.exe" user $name $password /add /passwordchg:no 2>&1
-    if ($LASTEXITCODE -ne 0) { throw 'Could not create the isolated standard test account.' }
+    $creation = & "$env:SystemRoot/System32/net.exe" user $name $password /add /passwordchg:no /y 2>&1
+    if ($LASTEXITCODE -ne 0) {
+        $detail = ($creation -join [Environment]::NewLine).Replace($password, '[redacted]')
+        throw "Could not create the isolated standard test account: $detail"
+    }
     $created = $true
     $sid = (New-Object Security.Principal.NTAccount $account).Translate([Security.Principal.SecurityIdentifier])
     $null = New-Item -ItemType Directory -Path $work

@@ -363,10 +363,6 @@ fn denied() -> io::Error {
     )
 }
 
-#[cfg(test)]
-fn verify_descriptor(actual: &SecurityDescriptor) -> io::Result<()> {
-    verify_descriptor_with_reader(actual, None)
-}
 fn verify_descriptor_with_reader(
     actual: &SecurityDescriptor,
     reader: Option<&str>,
