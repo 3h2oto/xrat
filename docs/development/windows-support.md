@@ -375,3 +375,7 @@ fixtures through applicable CLI/TUI/HTTP adapters and preserve server
 authorization. Never close #187/#191/#192/#262 from branch code alone: their
 published-release criteria require a downloaded, checksum-verified release,
 native execution, and actually served browser assets.
+
+Native matrix jobs retain dependency caches after failures so compiler or test
+fixes can be checked without rebuilding every dependency. Cached artifacts do
+not replace executing the checks on the current source.

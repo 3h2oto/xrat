@@ -326,6 +326,7 @@ pub(super) fn normalize_tag(tag: &str) -> &str {
     tag.trim().trim_start_matches('v')
 }
 
+#[cfg(any(not(windows), test))]
 pub(crate) fn current_version() -> &'static str {
     env!("CARGO_PKG_VERSION")
 }

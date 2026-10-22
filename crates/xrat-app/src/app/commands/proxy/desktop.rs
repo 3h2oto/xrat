@@ -1,6 +1,7 @@
 #[cfg(any(target_os = "linux", target_os = "macos"))]
 use xrat_support::process::Command;
 
+#[cfg(any(not(windows), test))]
 use crate::app::AppError;
 
 #[cfg(windows)]

@@ -18,6 +18,7 @@ pub(crate) use crate::app::services::releases::REPO;
 mod tests;
 
 mod updater;
+#[cfg(any(not(windows), test))]
 pub(crate) use updater::current_version;
 pub(crate) use updater::install_binary;
 #[cfg(not(windows))]

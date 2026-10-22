@@ -62,6 +62,7 @@ jobs:
       - uses: Swatinem/rust-cache@v2
         with:
           key: ${{ matrix.target }}
+          cache-on-failure: true
 
       - uses: actions/download-artifact@v4
         with:
