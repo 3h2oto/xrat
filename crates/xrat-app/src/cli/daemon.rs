@@ -60,7 +60,7 @@ pub struct DaemonInstallArgs {
     #[arg(long)]
     pub dry_run: bool,
 
-    /// Install the API server service alongside the daemon.
+    /// Install the API server alongside the daemon (Windows: operator login task).
     #[arg(long)]
     pub with_api: bool,
 

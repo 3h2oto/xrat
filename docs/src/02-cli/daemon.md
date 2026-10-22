@@ -312,9 +312,25 @@ server settings and TUI preferences remain editable. PAC policy, runtime state,
 probe history, and operational logs come from the service; API request logs stay
 in the frontend store with a separate display cursor.
 
+Add `--with-api` during elevated installation to register the optional
+`XRAT-Machine-API` login task. It uses the registered operator's existing
+interactive token with least privilege, stores no password, and launches the
+protected executable as `--profile machine serve --host 127.0.0.1`. It starts at
+the operator's next logon. `--start` starts the SCM service immediately; an
+already logged-on operator can start the API task from Task Scheduler without
+elevation. Configure `server.key` and optional Web credentials in that user's
+`machine-client` configuration first.
+
+The task grants the operator read/run access; administrators control its
+registration and action. Reinstallation preserves operator identity. Uninstall
+removes the owned task and service while preserving protected data and user
+UI/authentication data. Unexpected task ownership, permissions, or actions cause
+an explicit error rather than replacing or deleting another task. Native task
+registration, login, and ACL acceptance remain pending.
+
 Driver provisioning and coordinated service upgrade are still under
-implementation. Windows `daemon install --with-api` and `--tun` currently return
-an explicit unsupported-operation error.
+implementation. Windows `daemon install --tun` returns an explicit unsupported
+operation error.
 
 Import files and subscription URLs are read by the invoking user. The service
 receives bounded link bodies and source metadata, then uses the shared parsing

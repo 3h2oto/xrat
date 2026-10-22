@@ -17,8 +17,8 @@ fn install_inner(args: &DaemonInstallArgs, quiet: bool) -> Result<()> {
         None => xrat_support::windows::current_user_sid()?,
     };
     machine_service::validate_operator(&operator)?;
-    if args.with_api || args.tun {
-        return Err(AppError::InvalidArgument("Windows --with-api and --tun integration is not yet available; install the service without these flags".into()));
+    if args.tun {
+        return Err(AppError::InvalidArgument("Windows --tun service installation is not yet available; provision capture explicitly when supported".into()));
     }
     let destination = xrat_support::windows::program_files()?.join("XRAT-Service");
     if args.dry_run {
@@ -37,6 +37,11 @@ fn install_inner(args: &DaemonInstallArgs, quiet: bool) -> Result<()> {
         println!(
             "Actions: provision protected profile and executable; register auto-start service"
         );
+        if args.with_api {
+            println!(
+                "API login task: XRAT-Machine-API; registered operator interactive token, least privilege; starts at next logon"
+            );
+        }
         if args.start {
             println!("Start service after registration");
         }
@@ -68,11 +73,19 @@ fn install_inner(args: &DaemonInstallArgs, quiet: bool) -> Result<()> {
     }
     directory.verify_tree()?;
     scm::install(&executable, profile.operator_sid())?;
+    if args.with_api {
+        super::api_task::install(profile.operator_sid()).map_err(|error| AppError::InvalidArgument(format!("service is registered, but API login task installation failed: {error}; correct the task error and rerun installation")))?;
+    }
     if args.start {
         scm::start()?;
     }
     if !quiet {
         println!("Windows machine service installed. Profile and operator registration preserved.");
+        if args.with_api {
+            println!(
+                "API login task registered for the operator's next logon. Configure server.key and optional Web credentials in the operator's machine-client configuration. An already logged-on operator can start XRAT-Machine-API from Task Scheduler."
+            );
+        }
     }
     Ok(())
 }
@@ -86,11 +99,13 @@ fn digest(path: &Path) -> io::Result<Vec<u8>> {
 pub fn uninstall(args: &DaemonUninstallArgs) -> Result<()> {
     if args.dry_run {
         println!(
-            "Would stop and remove SCM service {}. Protected profile and executable preserved.",
+            "Would remove the owned API login task and stop/remove SCM service {}. Protected profile, executable, and user UI/auth data preserved.",
             scm::SERVICE_NAME
         );
         return Ok(());
     }
+    super::api_task::uninstall()
+        .map_err(|error| installation_error("API login task removal", error))?;
     scm::uninstall().map_err(|error| installation_error("removal", error.into()))?;
     println!("Windows machine service removed. Protected profile and executable preserved.");
     Ok(())

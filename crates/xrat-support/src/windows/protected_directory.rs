@@ -30,6 +30,10 @@ pub fn program_files() -> io::Result<PathBuf> {
     known_folder(&windows_sys::Win32::UI::Shell::FOLDERID_ProgramFiles)
 }
 
+pub fn system_directory() -> io::Result<PathBuf> {
+    known_folder(&windows_sys::Win32::UI::Shell::FOLDERID_System)
+}
+
 fn known_folder(folder: &windows_sys::core::GUID) -> io::Result<PathBuf> {
     use windows_sys::Win32::System::Com::CoTaskMemFree;
     use windows_sys::Win32::UI::Shell::SHGetKnownFolderPath;

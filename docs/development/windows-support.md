@@ -215,9 +215,20 @@ supports `daemon install/start/stop/restart/status/uninstall`. For example,
 rejects CLI database/config/engine path overrides and never bootstraps a user
 profile. The catalog and runtime commands listed above use typed adapters and
 the same CLI presenters as user mode. Other operations report an explicit
-unsupported error. The TUI selector and HTTP application adapters remain
-outstanding. `--with-api` and `--tun` service-install flags are explicitly
-rejected until their respective integrations are implemented.
+unsupported error. Machine `tui`, `serve`, and `webui` use the ordinary-token
+frontend context and separate UI/auth store described above. The optional `--with-api` installation flag registers an operator
+login task, using `InteractiveToken` and `LeastPrivilege` with no stored
+password. Its fixed action starts the protected executable as a loopback
+machine-profile API frontend. The operator can read/run the task; SYSTEM and
+Administrators control its definition. Installation/removal validate the marker,
+principal, action, owner, and protected ACL before updating or deleting a
+reserved task. The PowerShell Task Scheduler adapter runs from the system
+directory with a cleared environment, fixed system module path, bounded errors,
+and a 30-second timeout. `--start` starts the SCM service; the API task starts
+at the next operator login or on demand through Task Scheduler.
+Reinstall/uninstall preserve user UI/auth data. Native task registration,
+permissions, and login acceptance remain pending. `--tun` installation
+integration remains explicitly unsupported.
 
 Explicit elevated `--profile machine install <core>` provisions official
 checksum-verified core executables at the fixed protected paths. Acquisition and

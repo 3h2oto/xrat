@@ -2,15 +2,24 @@ use super::*;
 use std::path::{Path, PathBuf};
 use std::process::{Command, Output};
 
+#[path = "native_tests/api_task.rs"]
+mod api_task;
+
 struct InstallationGuard {
+    binary: PathBuf,
     profile: PathBuf,
     binaries: PathBuf,
 }
 
 impl Drop for InstallationGuard {
     fn drop(&mut self) {
-        if let Err(error) = scm::uninstall() {
-            eprintln!("service test cleanup failed; profile preserved: {error}");
+        let output = Command::new(&self.binary)
+            .args(["daemon", "uninstall"])
+            .output();
+        if !output.as_ref().is_ok_and(|output| output.status.success()) {
+            eprintln!(
+                "service/API task cleanup failed; profile and executable preserved: {output:?}"
+            );
             return;
         }
         for path in [&self.profile, &self.binaries] {
@@ -90,15 +99,36 @@ async fn native_machine_service_lifecycle_and_restricted_operator() {
         !profile.exists() && !binaries.exists(),
         "test requires a clean isolated machine profile"
     );
-    success(&binary, &["daemon", "install", "--dry-run", "--start"]);
+    assert!(
+        api_task::snapshot().is_none(),
+        "refusing to touch a pre-existing API task"
+    );
+    success(
+        &binary,
+        &["daemon", "install", "--dry-run", "--start", "--with-api"],
+    );
+    assert!(api_task::snapshot().is_none());
     assert!(!profile.exists() && !binaries.exists());
     assert!(scm::status().unwrap().is_none());
-    let guard = InstallationGuard { profile, binaries };
+    let guard = InstallationGuard {
+        binary: binary.clone(),
+        profile,
+        binaries,
+    };
     let operator = xrat_support::windows::current_user_sid().unwrap();
     success(
         &binary,
-        &["daemon", "install", "--operator-sid", &operator, "--start"],
+        &[
+            "daemon",
+            "install",
+            "--operator-sid",
+            &operator,
+            "--start",
+            "--with-api",
+        ],
     );
+    let installed_task =
+        api_task::assert_operator_task(&operator, &guard.binaries.join("xrat.exe"));
     ping().await;
     let install_while_active = command(
         &binary,
@@ -190,7 +220,18 @@ async fn native_machine_service_lifecycle_and_restricted_operator() {
     }
     success(
         &binary,
-        &["daemon", "install", "--operator-sid", &operator, "--start"],
+        &[
+            "daemon",
+            "install",
+            "--operator-sid",
+            &operator,
+            "--start",
+            "--with-api",
+        ],
+    );
+    assert_eq!(
+        api_task::assert_operator_task(&operator, &guard.binaries.join("xrat.exe")),
+        installed_task
     );
     assert_eq!(std::fs::read(&config_path).unwrap(), config);
     assert_eq!(
@@ -212,10 +253,12 @@ async fn native_machine_service_lifecycle_and_restricted_operator() {
     );
     ping().await;
     success(&binary, &["daemon", "uninstall", "--dry-run"]);
+    assert!(api_task::snapshot().is_some());
     ping().await;
     success(&binary, &["daemon", "uninstall"]);
     success(&binary, &["daemon", "uninstall"]);
     assert!(scm::status().unwrap().is_none());
+    assert!(api_task::snapshot().is_none());
     assert_eq!(std::fs::read(&config_path).unwrap(), config);
     assert_eq!(
         std::fs::read(guard.profile.join("operator.json")).unwrap(),

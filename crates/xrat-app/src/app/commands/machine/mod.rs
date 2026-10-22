@@ -11,3 +11,6 @@ pub use installation::{install, uninstall};
 
 #[cfg(windows)]
 mod cores;
+
+#[cfg(any(windows, test))]
+mod api_task;

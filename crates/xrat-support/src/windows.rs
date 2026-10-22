@@ -16,7 +16,7 @@ use windows_sys::Win32::System::Threading::{
 mod elevation;
 mod protected_directory;
 pub use elevation::is_current_process_elevated;
-pub use protected_directory::{ProtectedDirectory, program_data, program_files};
+pub use protected_directory::{ProtectedDirectory, program_data, program_files, system_directory};
 
 pub fn current_user_sid() -> io::Result<String> {
     unsafe { user_sid(GetCurrentProcess()) }
