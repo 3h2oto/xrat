@@ -379,3 +379,7 @@ native execution, and actually served browser assets.
 Native matrix jobs retain dependency caches after failures so compiler or test
 fixes can be checked without rebuilding every dependency. Cached artifacts do
 not replace executing the checks on the current source.
+
+After a successful release build, independent native checks continue to collect
+diagnostics when another check fails. The final gate rejects any failed step;
+individual failures remain failures and cannot produce a successful workflow.
