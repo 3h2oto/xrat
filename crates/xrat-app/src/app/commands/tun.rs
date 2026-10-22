@@ -746,7 +746,7 @@ async fn setup_command(context: &AppContext, args: &TunSetupArgs) -> crate::app:
     #[cfg(windows)]
     {
         let _ = (context, args);
-        Err(AppError::InvalidArgument("Windows managed TUN setup uses the protected machine profile. Install the machine service, stop it, then run `xrat --profile machine tun setup` in an elevated administrator shell. Capture remains unavailable until Windows ownership/recovery support is complete.".into()))
+        Err(AppError::InvalidArgument("Windows managed TUN setup uses the protected machine profile. Install the machine service, stop it, then run `xrat --profile machine tun setup` in an elevated administrator shell.".into()))
     }
     #[cfg(target_os = "macos")]
     {

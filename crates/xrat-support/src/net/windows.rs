@@ -19,7 +19,7 @@ fn wide(value: &str) -> io::Result<Vec<u16>> {
     Ok(value.encode_utf16().chain(Some(0)).collect())
 }
 
-fn row(name: &str) -> io::Result<Option<MIB_IF_ROW2>> {
+pub(super) fn row(name: &str) -> io::Result<Option<MIB_IF_ROW2>> {
     let name = wide(name)?;
     if name.len() <= 1 || name.len() > 257 {
         return Err(io::Error::new(
@@ -42,7 +42,7 @@ fn row(name: &str) -> io::Result<Option<MIB_IF_ROW2>> {
     }
 }
 
-fn guid(row: &MIB_IF_ROW2) -> String {
+pub(super) fn guid(row: &MIB_IF_ROW2) -> String {
     let guid = row.InterfaceGuid;
     format!(
         "{{{:08x}-{:04x}-{:04x}-{:02x}{:02x}-{:02x}{:02x}{:02x}{:02x}{:02x}{:02x}}}",
@@ -112,7 +112,9 @@ fn is_wintun(row: &MIB_IF_ROW2) -> io::Result<bool> {
 }
 
 pub(super) fn identity(name: &str) -> io::Result<Option<String>> {
-    Ok(row(name)?.as_ref().map(guid))
+    Ok(row(name)?
+        .as_ref()
+        .map(|row| format!("{}@{:016x}", guid(row), unsafe { row.InterfaceLuid.Value })))
 }
 
 pub(super) fn inspect(name: &str) -> io::Result<Option<KernelInterfaceInfo>> {

@@ -336,3 +336,36 @@ async fn missing_tun_interface_does_not_change_the_mode_used_for_rollback() {
         .await
         .unwrap();
 }
+
+#[tokio::test]
+async fn ownership_write_failure_never_launches_tun_and_restores_previous_proxy() {
+    let (mut context, ports, state, config) = context_and_ports().await;
+    connect(&context, &ports, &config).await;
+    let path = crate::app::runtime_service::tun_ownership::ownership_path(
+        &context.runtime_paths.runtime_dir,
+    );
+    std::fs::create_dir(&path).unwrap();
+    let error = apply_with_ports(&mut context, Some(true), ports.clone(), true)
+        .await
+        .unwrap_err()
+        .to_string();
+    assert!(error.contains("previous runtime was restored"), "{error}");
+    assert_eq!(
+        state.lock().unwrap().spawned,
+        2,
+        "only original and restored proxy may launch"
+    );
+    assert!(state.lock().unwrap().tun_interface.is_none());
+    assert!(!context.app_config.runtime.tun.enabled);
+    let snapshot = RuntimeService::with_process_ports(&context, ports.clone())
+        .status()
+        .await
+        .unwrap();
+    assert!(snapshot.pid_running);
+    assert_eq!(snapshot.active_config.unwrap().id, config.id);
+    std::fs::remove_dir(path).unwrap();
+    RuntimeService::with_process_ports(&context, ports)
+        .disconnect()
+        .await
+        .unwrap();
+}

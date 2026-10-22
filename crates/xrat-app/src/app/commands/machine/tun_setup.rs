@@ -24,7 +24,7 @@ pub(super) async fn run(args: &TunSetupArgs) -> Result<()> {
                 .display()
         );
         println!(
-            "This prepares files only. TUN capture remains gated until Windows ownership/recovery support is available."
+            "This prepares files only. Start the machine service, then use ordinary --profile machine tun enable."
         );
         return Ok(());
     }
@@ -87,7 +87,7 @@ pub(super) async fn run(args: &TunSetupArgs) -> Result<()> {
     directory.verify_tree()?;
     windows_tun::verify_installed(directory.path()).map_err(AppError::InvalidArgument)?;
     println!(
-        "Prepared signed Wintun 0.14.1 and its license beside protected cores. Service remains stopped; capture support is still gated."
+        "Prepared signed Wintun 0.14.1 and its license beside protected cores. Service remains stopped; start it before enabling machine capture."
     );
     Ok(())
 }

@@ -47,5 +47,4 @@ pub(crate) mod upgrades;
 
 pub(crate) mod geoip_assets;
 
-#[cfg(any(windows, test))]
 pub(crate) mod windows_tun;

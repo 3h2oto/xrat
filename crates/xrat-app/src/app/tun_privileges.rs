@@ -267,7 +267,23 @@ pub fn inspect_process_privileges(pid: u32) -> Option<(&'static str, bool)> {
             root,
         ))
     }
-    #[cfg(not(any(target_os = "linux", target_os = "macos")))]
+    #[cfg(windows)]
+    {
+        xrat_support::windows::process_user_sid(pid)
+            .ok()
+            .map(|sid| {
+                let ready = sid == "S-1-5-18";
+                (
+                    if ready {
+                        "ready (LocalSystem runtime owner)"
+                    } else {
+                        "Windows TUN requires the machine service"
+                    },
+                    ready,
+                )
+            })
+    }
+    #[cfg(not(any(target_os = "linux", target_os = "macos", windows)))]
     {
         let _ = pid;
         None

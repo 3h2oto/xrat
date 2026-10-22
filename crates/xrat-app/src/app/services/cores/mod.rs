@@ -15,3 +15,6 @@ pub(crate) use release::fetch_release;
 pub(crate) use install::prepare_machine_binary;
 #[cfg(windows)]
 pub(crate) use install::{binary_version, download_archive};
+
+#[cfg(windows)]
+pub(crate) use install::binary_version_with_spawner;

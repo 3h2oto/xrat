@@ -32,6 +32,13 @@ pub(crate) fn capture_state(
                 .interface_identity(&record.interface_name)
                 .is_ok_and(|identity| identity == record.interface_identity)
     });
+    #[cfg(windows)]
+    let owned = owned.filter(|record| {
+        record
+            .interface_identity
+            .as_deref()
+            .is_some_and(|identity| super::windows_tun::ready(context, identity).unwrap_or(false))
+    });
     let tun = &context.app_config.runtime.tun;
     TunStatePayload {
         enabled: tun.enabled,
@@ -54,49 +61,54 @@ pub(crate) fn capture_state(
 }
 
 pub(crate) fn check_engine(context: &AppContext, ports: &RuntimeProcessPorts) -> Result<()> {
-    if !cfg!(any(target_os = "linux", target_os = "macos")) {
-        return Err(AppError::InvalidArgument(
-            "Managed TUN requires Linux or macOS (sing-box).".into(),
-        ));
-    }
-    if cfg!(target_os = "macos") && context.app_config.runtime.engine != "sing-box" {
-        return Err(AppError::InvalidArgument(
-            "macOS managed TUN requires sing-box.".into(),
-        ));
-    }
-    let binary = match context.app_config.runtime.engine.as_str() {
-        "xray" => {
-            crate::app::services::runtime_tuning::ensure_xray_tun_supported_with_spawner(
-                &context.runtime_paths.xray_path,
-                ports.spawner.clone(),
-            )?;
-            &context.runtime_paths.xray_path
+    #[cfg(windows)]
+    return super::windows_tun::check_engine(context, ports);
+    #[cfg(not(windows))]
+    {
+        if !cfg!(any(target_os = "linux", target_os = "macos")) {
+            return Err(AppError::InvalidArgument(
+                "Managed TUN requires Linux or macOS (sing-box).".into(),
+            ));
         }
-        "sing-box" => &context.runtime_paths.sing_box_path,
-        engine => {
-            return Err(AppError::InvalidArgument(format!(
-                "Cannot enable TUN with {engine}. Select Xray or sing-box in settings."
-            )));
+        if cfg!(target_os = "macos") && context.app_config.runtime.engine != "sing-box" {
+            return Err(AppError::InvalidArgument(
+                "macOS managed TUN requires sing-box.".into(),
+            ));
         }
-    };
-    let resolved = crate::app::tun_privileges::resolve_executable(binary).ok_or_else(|| {
-        AppError::InvalidArgument(format!(
-            "TUN engine not found at {}. Run `xrat install {}`.",
-            binary.display(),
-            context.app_config.runtime.engine,
-        ))
-    })?;
-    crate::app::tun_privileges::ensure_engine_capability_with_spawner(
-        &resolved,
-        ports.spawner.clone(),
-    )?;
-    if context.app_config.runtime.tun.split_mode != crate::app::config::TunSplitMode::All {
-        crate::app::tun_privileges::ensure_engine_process_routing_capability_with_spawner(
+        let binary = match context.app_config.runtime.engine.as_str() {
+            "xray" => {
+                crate::app::services::runtime_tuning::ensure_xray_tun_supported_with_spawner(
+                    &context.runtime_paths.xray_path,
+                    ports.spawner.clone(),
+                )?;
+                &context.runtime_paths.xray_path
+            }
+            "sing-box" => &context.runtime_paths.sing_box_path,
+            engine => {
+                return Err(AppError::InvalidArgument(format!(
+                    "Cannot enable TUN with {engine}. Select Xray or sing-box in settings."
+                )));
+            }
+        };
+        let resolved = crate::app::tun_privileges::resolve_executable(binary).ok_or_else(|| {
+            AppError::InvalidArgument(format!(
+                "TUN engine not found at {}. Run `xrat install {}`.",
+                binary.display(),
+                context.app_config.runtime.engine,
+            ))
+        })?;
+        crate::app::tun_privileges::ensure_engine_capability_with_spawner(
             &resolved,
             ports.spawner.clone(),
         )?;
+        if context.app_config.runtime.tun.split_mode != crate::app::config::TunSplitMode::All {
+            crate::app::tun_privileges::ensure_engine_process_routing_capability_with_spawner(
+                &resolved,
+                ports.spawner.clone(),
+            )?;
+        }
+        Ok(())
     }
-    Ok(())
 }
 
 pub(crate) async fn apply(

@@ -1,6 +1,34 @@
 use super::*;
 
 impl RuntimeService<'_> {
+    pub(crate) async fn begin_tun_ownership(&self, session_id: i64) -> crate::app::Result<()> {
+        let record = tun_ownership::TunOwnershipRecord {
+            interface_name: self.context.app_config.runtime.tun.interface_name.clone(),
+            ifindex: None,
+            interface_identity: None,
+            session_id,
+            engine: self.context.app_config.runtime.engine.clone(),
+            policy_rules: vec![],
+        };
+        if let Err(error) =
+            tun_ownership::save_ownership(&self.context.runtime_paths.runtime_dir, &record)
+        {
+            self.context
+                .db
+                .update_runtime_session_state(
+                    session_id,
+                    RuntimeSessionStatus::Failed,
+                    None,
+                    None,
+                    Some(&now_string()),
+                    Some(&error.to_string()),
+                )
+                .await?;
+            return Err(error.into());
+        }
+        Ok(())
+    }
+
     pub(crate) async fn cleanup_inactive_tun_ownership(&self) -> crate::app::Result<()> {
         self.context.require_local_runtime()?;
         let Some(record) = tun_ownership::load_ownership(&self.context.runtime_paths.runtime_dir)
@@ -69,6 +97,10 @@ impl RuntimeService<'_> {
     }
     pub(crate) fn preflight_tun_policy_rules(&self) -> crate::app::Result<()> {
         let tun = &self.context.app_config.runtime.tun;
+        #[cfg(windows)]
+        if tun.enabled {
+            crate::app::services::windows_tun::preflight(self.context)?;
+        }
         if !tun.enabled || self.context.app_config.runtime.engine != "sing-box" {
             return Ok(());
         }
@@ -108,7 +140,8 @@ impl RuntimeService<'_> {
     ) -> crate::app::Result<()> {
         let tun = &self.context.app_config.runtime.tun;
         let singbox = self.context.app_config.runtime.engine == "sing-box";
-        let deadline = tokio::time::Instant::now() + Duration::from_secs(5);
+        let deadline =
+            tokio::time::Instant::now() + Duration::from_secs(if cfg!(windows) { 20 } else { 5 });
         loop {
             if let Some(info) = self
                 .process_ports
@@ -144,6 +177,27 @@ impl RuntimeService<'_> {
                         policy_rules: rules.clone(),
                     },
                 )?;
+                #[cfg(windows)]
+                {
+                    let identity = self
+                        .process_ports
+                        .tun
+                        .interface_identity(&tun.interface_name)?
+                        .ok_or_else(|| {
+                            AppError::InvalidArgument(
+                                "Windows TUN has no verified platform identity".into(),
+                            )
+                        })?;
+                    if !crate::app::services::windows_tun::ready(self.context, &identity)? {
+                        if tokio::time::Instant::now() < deadline
+                            && self.process_ports.signals.is_running(i64::from(pid))
+                        {
+                            tokio::time::sleep(Duration::from_millis(100)).await;
+                            continue;
+                        }
+                        return Err(AppError::InvalidArgument("Windows TUN startup timeout: interface addresses, capture routes or DNS were not ready".into()));
+                    }
+                }
                 #[cfg(target_os = "macos")]
                 if singbox
                     && tun.auto_route
@@ -161,7 +215,7 @@ impl RuntimeService<'_> {
                 }
                 if !singbox
                     || !tun.auto_route
-                    || cfg!(target_os = "macos")
+                    || cfg!(any(target_os = "macos", windows))
                     || tun.address.iter().all(|address| {
                         let family = if address.contains(':') { 10 } else { 2 };
                         rules
@@ -280,6 +334,13 @@ impl RuntimeService<'_> {
             }
         }
         let Some(info) = info else {
+            #[cfg(windows)]
+            if let Some(identity) = record
+                .as_ref()
+                .and_then(|record| record.interface_identity.as_deref())
+            {
+                crate::app::services::windows_tun::verify_release(identity)?;
+            }
             tun_ownership::clear_ownership(&self.context.runtime_paths.runtime_dir);
             return Ok(());
         };
@@ -300,6 +361,13 @@ impl RuntimeService<'_> {
                 ))
             })?;
 
+        #[cfg(windows)]
+        if let Some(identity) = record
+            .as_ref()
+            .and_then(|record| record.interface_identity.as_deref())
+        {
+            crate::app::services::windows_tun::verify_release(identity)?;
+        }
         tracing::info!(
             interface,
             ifindex = info.ifindex,

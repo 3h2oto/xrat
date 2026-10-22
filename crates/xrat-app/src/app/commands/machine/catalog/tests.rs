@@ -633,3 +633,54 @@ async fn machine_logs_read_clear_and_follow_use_gateway_and_shutdown_signal() {
 }
 
 mod probes;
+
+#[tokio::test]
+async fn machine_cli_tun_passes_only_enable_state_and_preserves_service_errors() {
+    use crate::app::daemon::supervisor::SupervisorEvent;
+    let Fixture {
+        client,
+        calls,
+        mut supervisor,
+        context,
+        _root,
+    } = fixture().await;
+    let path = context.runtime_paths.config_path.clone();
+    assert!(
+        command(&client, &["tun", "enable", "--mode", "all"])
+            .await
+            .unwrap_err()
+            .to_string()
+            .contains("administrator")
+    );
+    assert!(calls.lock().unwrap().is_empty());
+    let worker = tokio::spawn(async move {
+        for expected in [true, false] {
+            let SupervisorEvent::RuntimeTun {
+                enabled,
+                config_path,
+                respond_to,
+            } = supervisor.recv().await.unwrap()
+            else {
+                panic!("expected TUN request")
+            };
+            assert_eq!(enabled, Some(expected));
+            assert_eq!(config_path, path);
+            respond_to
+                .send(Err(
+                    "native readiness failed; previous runtime restored".into()
+                ))
+                .unwrap();
+        }
+    });
+    for action in ["enable", "disable"] {
+        assert!(
+            command(&client, &["tun", action, "--json"])
+                .await
+                .unwrap_err()
+                .to_string()
+                .contains("previous runtime restored")
+        );
+    }
+    worker.await.unwrap();
+    assert_eq!(calls.lock().unwrap().len(), 2);
+}

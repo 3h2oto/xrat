@@ -1,3 +1,7 @@
+#[path = "net/capture.rs"]
+mod capture;
+pub use capture::{NetworkAdapter, NetworkRoute, NetworkSnapshot};
+
 pub fn format_host_port(host: &str, port: u16) -> String {
     if host.contains(':') && !host.starts_with('[') {
         format!("[{host}]:{port}")
@@ -445,3 +449,9 @@ mod tests {
         }));
     }
 }
+
+#[cfg(windows)]
+#[path = "net/windows_snapshot.rs"]
+mod windows_snapshot;
+#[cfg(windows)]
+pub use windows_snapshot::snapshot as windows_network_snapshot;

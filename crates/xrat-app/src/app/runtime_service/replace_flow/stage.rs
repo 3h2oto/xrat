@@ -58,17 +58,7 @@ impl<'a> RuntimeService<'a> {
             .await?;
 
         if self.context.app_config.runtime.tun.enabled {
-            let _ = tun_ownership::save_ownership(
-                &self.context.runtime_paths.runtime_dir,
-                &tun_ownership::TunOwnershipRecord {
-                    interface_name: self.context.app_config.runtime.tun.interface_name.clone(),
-                    ifindex: None,
-                    session_id,
-                    engine: self.context.app_config.runtime.engine.clone(),
-                    interface_identity: None,
-                    policy_rules: vec![],
-                },
-            );
+            self.begin_tun_ownership(session_id).await?;
         }
 
         let spawned = spawn_runtime_with_ports(

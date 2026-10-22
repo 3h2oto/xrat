@@ -6,6 +6,10 @@ impl<'a> RuntimeService<'a> {
         config: &ConfigRecord,
     ) -> crate::app::Result<ResolvedLaunch> {
         let runtime = &self.context.app_config.runtime;
+        #[cfg(windows)]
+        if runtime.tun.enabled {
+            crate::app::services::windows_tun::check_engine(self.context, &self.process_ports)?;
+        }
         crate::app::services::runtime_tuning::tun_validation::validate(
             &runtime.tun,
             &runtime.engine,
@@ -241,6 +245,8 @@ impl<'a> RuntimeService<'a> {
                 resolved_hosts: &resolved_hosts,
             };
             enable_tun_capture(&mut xray_config, &tun_options);
+            #[cfg(windows)]
+            crate::app::services::windows_tun::configure_xray_dns(&mut xray_config, &runtime.tun)?;
         }
 
         crate::app::services::runtime_tuning::apply_xray_dns_runtime(
