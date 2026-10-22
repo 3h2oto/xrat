@@ -8,6 +8,9 @@ pub(crate) struct TestRunOutcome {
     pub run_id: Option<i64>,
     pub completed: usize,
     pub total: usize,
+    #[cfg_attr(not(any(windows, test)), allow(dead_code))]
+    pub job_id: Option<String>,
+    pub local_results: Option<Vec<super::TestOutputRow>>,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -111,6 +114,8 @@ async fn run_with_activity(
     }
     if cancel_rx.is_cancelled() {
         return Ok(TestRunOutcome {
+            job_id: None,
+            local_results: Some(Vec::new()),
             run_id: None,
             completed: 0,
             total: 0,
@@ -123,6 +128,8 @@ async fn run_with_activity(
     for config_id in config_ids {
         if cancel_rx.is_cancelled() {
             return Ok(TestRunOutcome {
+                job_id: None,
+                local_results: Some(Vec::new()),
                 run_id: None,
                 completed: 0,
                 total: configs.len(),
@@ -135,6 +142,8 @@ async fn run_with_activity(
 
     if configs.is_empty() {
         return Ok(TestRunOutcome {
+            job_id: None,
+            local_results: Some(Vec::new()),
             run_id: None,
             completed: 0,
             total: 0,
@@ -152,9 +161,12 @@ async fn run_with_activity(
         Some(progress_tx),
     )
     .await?;
+    let completed = outcome.rows.len();
     Ok(TestRunOutcome {
+        job_id: None,
+        local_results: Some(outcome.rows),
         run_id: Some(outcome.run_id),
-        completed: outcome.rows.len(),
+        completed,
         total,
     })
 }

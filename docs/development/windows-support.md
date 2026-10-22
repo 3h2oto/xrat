@@ -106,9 +106,9 @@ presenters and initial-candidate selection. They never persist administrator
 settings. Machine purge, local CLI purge, and Web purge use the shared lifecycle
 owner; only soft-deleted rows are removed. The CLI supports machine-profile
 add/import/list/show, enable/disable, delete/restore, connect/disconnect, and
-runtime status, subscription updates, rotation, purge, and diagnostics. Files
-and URLs are read by the ordinary client; source labels are metadata, never
-privileged input locations. Every body in a multipart import is parsed and
+runtime status, subscription updates, rotation, purge, diagnostics, and probes.
+Files and URLs are read by the ordinary client; source labels are metadata,
+never privileged input locations. Every body in a multipart import is parsed and
 checked before any write. Structured engine extensions are rejected for routine
 imports.
 
@@ -183,10 +183,23 @@ errors, with the latest 16 jobs retained in memory. An absent status ID returns
 the latest job; unknown or expired IDs return no job. Only one operator job runs
 at a time. Cancellation is idempotent and becomes terminal after worker futures
 exit. Gateway shutdown cancels and drains jobs before supervisor teardown. Jobs
-and rotation are never resumed on service restart. TUI/Web test jobs forward
+and rotation are never resumed on service restart. CLI/TUI/Web test jobs forward
 selection and cancellation through the service and display paged stage progress;
 concurrency and network targets remain administrator-controlled. Native
 engine/process cleanup acceptance remains pending.
+
+Machine CLI probes use shared ID/reference/subscription selection and existing
+single/bulk result presenters, sorting, and output formats. The service retains
+one completed job's full output until another job starts; typed result pages
+preserve original stage flags, metrics, and measured elapsed time without
+changing the existing CLI JSON shape. Oversized readonly replies shrink, and
+replacement or later-page errors return no partial output. Status/progress
+retention and persisted history remain independent of this latest-output cache.
+Latest-run summaries use the same persisted summary/filter owner as local CLI.
+Machine policy overrides and continuous `--ping` are explicitly unsupported;
+ordinary user-profile ping loops remain available. Injected shutdown fixtures
+cover cancellation while a status read is blocked and transport errors that must
+not produce a success/output file. Native console Ctrl+C acceptance is pending.
 
 Local contract tests cover schema rejection, unauthorized callers, protocol
 versions, identifier validation, service-owned TUN paths, supervisor errors,
@@ -216,19 +229,19 @@ rejects CLI database/config/engine path overrides and never bootstraps a user
 profile. The catalog and runtime commands listed above use typed adapters and
 the same CLI presenters as user mode. Other operations report an explicit
 unsupported error. Machine `tui`, `serve`, and `webui` use the ordinary-token
-frontend context and separate UI/auth store described above. The optional `--with-api` installation flag registers an operator
-login task, using `InteractiveToken` and `LeastPrivilege` with no stored
-password. Its fixed action starts the protected executable as a loopback
-machine-profile API frontend. The operator can read/run the task; SYSTEM and
-Administrators control its definition. Installation/removal validate the marker,
-principal, action, owner, and protected ACL before updating or deleting a
-reserved task. The PowerShell Task Scheduler adapter runs from the system
-directory with a cleared environment, fixed system module path, bounded errors,
-and a 30-second timeout. `--start` starts the SCM service; the API task starts
-at the next operator login or on demand through Task Scheduler.
-Reinstall/uninstall preserve user UI/auth data. Native task registration,
-permissions, and login acceptance remain pending. `--tun` installation
-integration remains explicitly unsupported.
+frontend context and separate UI/auth store described above. The optional
+`--with-api` installation flag registers an operator login task, using
+`InteractiveToken` and `LeastPrivilege` with no stored password. Its fixed
+action starts the protected executable as a loopback machine-profile API
+frontend. The operator can read/run the task; SYSTEM and Administrators control
+its definition. Installation/removal validate the marker, principal, action,
+owner, and protected ACL before updating or deleting a reserved task. The
+PowerShell Task Scheduler adapter runs from the system directory with a cleared
+environment, fixed system module path, bounded errors, and a 30-second timeout.
+`--start` starts the SCM service; the API task starts at the next operator login
+or on demand through Task Scheduler. Reinstall/uninstall preserve user UI/auth
+data. Native task registration, permissions, and login acceptance remain
+pending. `--tun` installation integration remains explicitly unsupported.
 
 Explicit elevated `--profile machine install <core>` provisions official
 checksum-verified core executables at the fixed protected paths. Acquisition and

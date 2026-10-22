@@ -42,3 +42,6 @@ pub(crate) use settings::*;
 use stages::*;
 #[cfg(test)]
 pub(crate) use stages::{classify_endpoint_location, resolve_endpoint_meta};
+
+#[cfg(any(windows, test))]
+pub(crate) use machine::run_for_client as run_machine_for_config_ids;

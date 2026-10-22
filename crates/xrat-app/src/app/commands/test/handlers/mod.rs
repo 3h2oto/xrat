@@ -11,3 +11,6 @@ mod dispatch;
 pub(crate) use dispatch::filter_latest_run_rows;
 pub(super) use dispatch::print_latest_run_summary;
 pub(super) use dispatch::run_ping_loop;
+
+#[cfg(any(windows, test))]
+pub(crate) use summary::print_run_summary;

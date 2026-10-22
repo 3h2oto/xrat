@@ -25,6 +25,7 @@ struct State {
     jobs: VecDeque<ProbeSnapshot>,
     progress: HashMap<String, testing::TestActivityProgress>,
     active: Option<Active>,
+    results: Option<(String, Vec<testing::TestOutputRow>)>,
 }
 
 struct Active {
@@ -103,6 +104,35 @@ impl ProbeJobs {
         }))
     }
 
+    pub async fn results(
+        &self,
+        id: &str,
+        offset: u32,
+        limit: u16,
+    ) -> Result<Option<super::ProbeResultPage>> {
+        validate_id(id)?;
+        if offset > MAX_CONFIGS as u32 || !(1..=200).contains(&limit) {
+            return Err(AppError::InvalidArgument(
+                "invalid probe result page".into(),
+            ));
+        }
+        let state = self.state.lock().await;
+        Ok(state
+            .results
+            .as_ref()
+            .filter(|(job, _)| job == id)
+            .map(|(_, rows)| super::ProbeResultPage {
+                total: rows.len() as u32,
+                rows: rows
+                    .iter()
+                    .skip(offset as usize)
+                    .take(usize::from(limit))
+                    .cloned()
+                    .map(|output| super::ProbeResult { output })
+                    .collect(),
+            }))
+    }
+
     async fn start(&self, ids: Vec<ConfigId>, stages: ProbeStages) -> Result<ProbeSnapshot> {
         let unique: HashSet<_> = ids.iter().collect();
         if ids.is_empty()
@@ -121,6 +151,7 @@ impl ProbeJobs {
                 "machine probe runner is stopping or already has an active job".into(),
             ));
         }
+        state.results = None;
         let snapshot = ProbeSnapshot {
             job_id: uuid::Uuid::new_v4().to_string(),
             state: ProbeState::Running,
@@ -244,6 +275,13 @@ async fn run(
         update_activity(&state, &job_id, update).await;
     }
     let mut state = state.lock().await;
+    let result = result.and_then(|mut outcome| {
+        let rows = outcome.local_results.take().ok_or_else(|| {
+            AppError::InvalidArgument("machine probe runner returned no local results".into())
+        })?;
+        state.results = Some((job_id.clone(), rows));
+        Ok(outcome)
+    });
     if let Some(job) = state.jobs.iter_mut().find(|job| job.job_id == job_id) {
         match result {
             Ok(outcome) => {

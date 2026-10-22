@@ -446,6 +446,20 @@ async fn probe_job_authorization_precedes_scheduling_and_cancellation() {
         wrong_version.protocol_version += 1;
         assert!(gateway.dispatch(OPERATOR, wrong_version).await.is_err());
     }
+    let result_request = request(GatewayRequestKind::ProbeResults {
+        job_id: uuid::Uuid::new_v4().to_string(),
+        offset: 0,
+        limit: 1,
+    });
+    assert!(
+        gateway
+            .dispatch("S-1-5-21-1-2-3-1002", result_request.clone())
+            .await
+            .is_err()
+    );
+    let mut wrong_version = result_request;
+    wrong_version.protocol_version += 1;
+    assert!(gateway.dispatch(OPERATOR, wrong_version).await.is_err());
     let response = gateway
         .dispatch(
             OPERATOR,

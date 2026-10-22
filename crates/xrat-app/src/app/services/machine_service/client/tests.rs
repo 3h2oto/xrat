@@ -43,6 +43,9 @@ impl Transport for Loopback {
                 before.as_ref().map_or(0, |cursor| cursor.id),
                 usize::from(*limit),
             )),
+            GatewayRequestKind::ProbeResults { offset, limit, .. } => {
+                Some((i64::from(*offset), usize::from(*limit)))
+            }
             _ => None,
         };
         if let Some((offset, limit)) = page {
@@ -77,9 +80,10 @@ async fn fixture(
     Arc<Mutex<Vec<GatewayRequest>>>,
     tempfile::TempDir,
 ) {
-    let (context, root) = TestAppBuilder::new("machine-client")
+    let (mut context, root) = TestAppBuilder::new("machine-client")
         .build_with_root()
         .await;
+    context.app_config.testing.geoip.enabled = false;
     let (sender, _receiver) = tokio::sync::mpsc::channel(4);
     let calls = Arc::new(Mutex::new(Vec::new()));
     let client = MachineClient {
@@ -725,3 +729,5 @@ async fn machine_probe_client_preserves_job_identity_and_optional_status_over_th
         1
     );
 }
+
+mod probes;

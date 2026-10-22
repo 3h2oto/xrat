@@ -631,3 +631,5 @@ async fn machine_logs_read_clear_and_follow_use_gateway_and_shutdown_signal() {
             .any(|request| matches!(request.request, GatewayRequestKind::Diagnostics { .. }))
     );
 }
+
+mod probes;

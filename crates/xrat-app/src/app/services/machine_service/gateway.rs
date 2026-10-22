@@ -77,6 +77,15 @@ impl MachineGateway {
             ));
         }
         let request = match request.request {
+            GatewayRequestKind::ProbeResults {
+                job_id,
+                offset,
+                limit,
+            } => {
+                return Ok(completed(GatewayPayload::ProbeResults(
+                    self.probes.results(&job_id, offset, limit).await?,
+                )));
+            }
             GatewayRequestKind::ProbeProgress {
                 job_id,
                 offset,
@@ -111,7 +120,8 @@ impl MachineGateway {
                 GatewayRequestKind::Catalog { .. }
                 | GatewayRequestKind::Diagnostics { .. }
                 | GatewayRequestKind::Probes { .. }
-                | GatewayRequestKind::ProbeProgress { .. } => {
+                | GatewayRequestKind::ProbeProgress { .. }
+                | GatewayRequestKind::ProbeResults { .. } => {
                     return Err(AppError::InvalidArgument(
                         "catalog dispatch invariant failed".into(),
                     ));

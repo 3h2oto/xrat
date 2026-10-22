@@ -280,7 +280,7 @@ xrat --profile machine daemon stop
 never open a user catalog or fall back when the service is unavailable. Path and
 database overrides are rejected. Supported catalog commands currently include
 `add`, `import`, `update`, `list`, `show`, `enable`, `disable`, `delete`,
-`restore`, and `purge`. Machine `rotate enable/disable/status/now` also use the
+`restore`, `purge`, and `test`. Machine `rotate enable/disable/status/now` also use the
 supervisor; rotation controls are volatile and do not edit administrator policy.
 `rotate now --refresh` refreshes subscriptions through the ordinary client.
 Machine `logs` reads service events and fixed daemon/engine feeds, including
@@ -306,7 +306,10 @@ absence of a key does not enable anonymous machine exports. Account-token
 subscription access retains its existing scope and revocation checks.
 
 Test jobs use administrator-configured service targets, timeouts, concurrency,
-and cores. TUI split-policy edits and Web core/GeoIP maintenance, policy
+and cores. Machine CLI `test` supports single references, bulk enabled/active/
+subscription filters, existing output formats, and `--latest-run-summary`;
+Ctrl+C requests cancellation and waits for the service result. Policy overrides
+and machine `test --ping` are explicitly unsupported. TUI split-policy edits and Web core/GeoIP maintenance, policy
 validation, and upgrades require local administrator maintenance. Frontend
 server settings and TUI preferences remain editable. PAC policy, runtime state,
 probe history, and operational logs come from the service; API request logs stay

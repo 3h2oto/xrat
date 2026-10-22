@@ -89,6 +89,21 @@ async fn machine_probes_use_shared_results_and_exact_run_identity() {
                 .is_err()
         );
     }
+    let output = jobs.results(&finished.job_id, 0, 1).await.unwrap().unwrap();
+    assert_eq!(output.total, 1);
+    assert_eq!(output.rows[0].output.id, id);
+    assert!(output.rows[0].output.ran_tcp && output.rows[0].output.tcp_ok);
+    assert!(output.rows[0].output.elapsed_secs.is_finite());
+    let encoded = serde_json::to_vec(&output).unwrap();
+    let decoded: ProbeResultPage = serde_json::from_slice(&encoded).unwrap();
+    assert_eq!(
+        decoded.rows[0].output.elapsed_secs,
+        output.rows[0].output.elapsed_secs
+    );
+    assert_eq!(decoded.rows[0].output.tcp_ms, output.rows[0].output.tcp_ms);
+    for (offset, limit) in [(0, 0), (0, 201), (10_001, 1)] {
+        assert!(jobs.results(&finished.job_id, offset, limit).await.is_err());
+    }
     let rows = context
         .db
         .list_connection_tests_by_run(run_id)

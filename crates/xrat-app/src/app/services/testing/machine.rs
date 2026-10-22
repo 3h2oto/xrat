@@ -29,6 +29,8 @@ pub(super) async fn run(
     }
     if ids.is_empty() || cancel.is_cancelled() {
         return Ok(TestRunOutcome {
+            job_id: None,
+            local_results: None,
             run_id: None,
             completed: 0,
             total: 0,
@@ -103,6 +105,8 @@ pub(super) async fn run(
         match snapshot.state {
             ProbeState::Completed | ProbeState::Cancelled => {
                 return Ok(TestRunOutcome {
+                    job_id: Some(start.job_id.clone()),
+                    local_results: None,
                     run_id: snapshot.run_id,
                     completed: snapshot.completed,
                     total: snapshot.total,
@@ -122,4 +126,25 @@ pub(super) async fn run(
             _ = tokio::time::sleep(std::time::Duration::from_millis(200)) => {},
         }
     }
+}
+
+pub(crate) async fn run_for_client(
+    request: &TestRunRequest,
+    client: &MachineClient,
+    ids: &[ConfigId],
+    cancel: CancellationReceiver,
+    updates: tokio::sync::mpsc::UnboundedSender<super::TestProgressUpdate>,
+) -> Result<TestRunOutcome> {
+    run(
+        request,
+        client,
+        ids,
+        cancel,
+        BulkProgress {
+            updates,
+            started: None,
+        },
+        None,
+    )
+    .await
 }
