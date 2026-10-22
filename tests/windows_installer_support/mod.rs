@@ -64,6 +64,7 @@ impl Fixture {
 $ErrorActionPreference = 'Stop'
 $OutputEncoding = [Text.UTF8Encoding]::new($false)
 [Console]::OutputEncoding = $OutputEncoding
+Import-Module (Join-Path $PSHOME 'Modules/Microsoft.PowerShell.Utility/Microsoft.PowerShell.Utility.psd1') -ErrorAction Stop
 $env:PROCESSOR_ARCHITECTURE = $env:XRAT_TEST_ARCHITECTURE
 $env:PROCESSOR_ARCHITEW6432 = $env:XRAT_TEST_WOW64
 . $env:XRAT_INSTALL_SCRIPT -InstallDir $env:XRAT_TEST_BIN -NoSetup

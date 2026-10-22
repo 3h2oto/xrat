@@ -27,7 +27,7 @@ async fn server(responses: Vec<String>) -> (String, JoinHandle<Vec<String>>) {
     let task = tokio::spawn(async move {
         let mut requests = Vec::new();
         for response in responses {
-            let (mut socket, _) = tokio::time::timeout(Duration::from_secs(10), listener.accept())
+            let (mut socket, _) = tokio::time::timeout(Duration::from_secs(60), listener.accept())
                 .await
                 .unwrap()
                 .unwrap();

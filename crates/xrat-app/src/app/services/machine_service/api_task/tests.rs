@@ -17,6 +17,7 @@ fn machine_api_task_encodes_paths_without_changing_its_security_principal() {
     let xml = definition(&executable, "S-1-5-21-1-2-3-1001").unwrap();
     assert!(xml.starts_with("<?xml version=\"1.0\"?>"));
     assert!(!xml.contains("encoding="));
+    assert!(xml.contains(r"<URI>\XRAT-Machine-API</URI>"));
     assert!(xml.contains("XRAT &amp; &lt;machine&gt; &apos;operator&apos;"));
     assert!(xml.contains("<LogonType>InteractiveToken</LogonType>"));
     assert!(xml.contains("<RunLevel>LeastPrivilege</RunLevel>"));

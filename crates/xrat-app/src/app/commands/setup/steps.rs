@@ -54,6 +54,7 @@ pub fn apply_init(context: &AppContext) -> StepOutcome {
 // daemon
 // ---------------------------------------------------------------------------
 
+#[cfg(not(windows))]
 pub fn daemon_unit_path() -> Option<PathBuf> {
     #[cfg(target_os = "linux")]
     {

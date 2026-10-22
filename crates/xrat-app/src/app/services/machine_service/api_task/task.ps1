@@ -5,28 +5,46 @@ function Read-TaskXml($task) {
     $document.LoadXml($task.Xml)
     return ,$document
 }
+function Resolve-TaskSid([string]$identity) {
+    if ($identity -cmatch '^S-1-5-21-(?:[0-9]+-){3}[0-9]+$') { return $identity }
+    $account = New-Object Security.Principal.NTAccount $identity
+    $sid = $account.Translate([Security.Principal.SecurityIdentifier]).Value
+    if ($sid -cnotmatch '^S-1-5-21-(?:[0-9]+-){3}[0-9]+$') {
+        throw 'The API task principal is not an ordinary account SID; it was preserved.'
+    }
+    return $sid
+}
 function Assert-OwnedTask($task, $request) {
     $document = Read-TaskXml $task
     $principal = @($document.Task.Principals.Principal)
     $actions = @($document.Task.Actions.Exec)
     $triggers = @($document.Task.Triggers.LogonTrigger)
+    $operator = if ($principal.Count -eq 1) { Resolve-TaskSid $principal[0].UserId } else { $null }
+    $triggerOperator = if ($triggers.Count -eq 1) { Resolve-TaskSid $triggers[0].UserId } else { $null }
     if ($principal.Count -ne 1 -or $actions.Count -ne 1 -or $triggers.Count -ne 1 -or
         @($document.Task.Actions.ChildNodes).Count -ne 1 -or
         @($document.Task.Triggers.ChildNodes).Count -ne 1 -or
         $document.Task.RegistrationInfo.URI -cne $request.uri -or
         $principal[0].LogonType -cne 'InteractiveToken' -or
         $principal[0].RunLevel -cne 'LeastPrivilege' -or
-        $principal[0].UserId -cnotmatch '^S-1-5-21-(?:[0-9]+-){3}[0-9]+$' -or
-        $triggers[0].UserId -cne $principal[0].UserId -or
+        $triggerOperator -cne $operator -or
         -not [String]::Equals($actions[0].Command, $request.command, [StringComparison]::OrdinalIgnoreCase) -or
         -not [String]::Equals($actions[0].WorkingDirectory, $request.directory, [StringComparison]::OrdinalIgnoreCase) -or
         $actions[0].Arguments -cne $request.arguments) {
-        throw 'The reserved API task has a different identity or action; it was preserved.'
+        $observed = @{
+            principal_count = $principal.Count; action_count = $actions.Count; trigger_count = $triggers.Count
+            uri_matches = $document.Task.RegistrationInfo.URI -ceq $request.uri
+            logon = [string]$principal[0].LogonType; run_level = [string]$principal[0].RunLevel
+            operator = $operator; trigger_operator = $triggerOperator
+            command_matches = [String]::Equals($actions[0].Command, $request.command, [StringComparison]::OrdinalIgnoreCase)
+            directory_matches = [String]::Equals($actions[0].WorkingDirectory, $request.directory, [StringComparison]::OrdinalIgnoreCase)
+            arguments_match = $actions[0].Arguments -ceq $request.arguments
+        } | ConvertTo-Json -Compress
+        throw "The reserved API task has a different identity or action; it was preserved. Observed: $observed"
     }
-    if ($null -ne $request.operator -and $principal[0].UserId -cne $request.operator) {
+    if ($null -ne $request.operator -and $operator -cne $request.operator) {
         throw 'The API task belongs to another operator; it was preserved.'
     }
-    $operator = $principal[0].UserId
     $expectedText = "O:BAG:BAD:P(A;;FA;;;SY)(A;;FA;;;BA)(A;;FRFX;;;$operator)"
     $expected = New-Object System.Security.AccessControl.RawSecurityDescriptor $expectedText
     $security = New-Object System.Security.AccessControl.RawSecurityDescriptor ($task.GetSecurityDescriptor(7))

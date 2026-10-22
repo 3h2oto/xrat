@@ -4,7 +4,7 @@ use crate::app::{AppError, Result};
 
 #[cfg(windows)]
 pub(super) const NAME: &str = "XRAT-Machine-API";
-pub(super) const URI: &str = "urn:xrat:machine-api:v1";
+pub(super) const URI: &str = r"\XRAT-Machine-API";
 pub(super) const ARGUMENTS: &str = "--profile machine serve --host 127.0.0.1";
 
 pub(super) fn definition(executable: &Path, operator: &str) -> Result<String> {

@@ -40,12 +40,16 @@ try {
     $xml = New-Object System.Xml.XmlDocument
     $xml.XmlResolver = $null
     $xml.LoadXml($task.Xml)
+    $principal = [string]$xml.Task.Principals.Principal.UserId
+    if ($principal -notmatch '^S-1-') {
+        $principal = (New-Object Security.Principal.NTAccount $principal).Translate([Security.Principal.SecurityIdentifier]).Value
+    }
     $sd = New-Object System.Security.AccessControl.RawSecurityDescriptor ($task.GetSecurityDescriptor(7))
     $permissions = @($sd.DiscretionaryAcl | ForEach-Object {
         @{ sid = $_.SecurityIdentifier.Value; mask = [long]$_.AccessMask; flags = [long]$_.AceFlags; kind = [long]$_.AceType }
     } | Sort-Object { $_.sid })
     @{
-        principal = $xml.Task.Principals.Principal.UserId
+        principal = $principal
         logon = $xml.Task.Principals.Principal.LogonType
         run_level = $xml.Task.Principals.Principal.RunLevel
         command = $xml.Task.Actions.Exec.Command
