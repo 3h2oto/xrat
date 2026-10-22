@@ -6,6 +6,8 @@ use std::sync::Arc;
 
 use async_trait::async_trait;
 mod system;
+#[cfg(windows)]
+mod windows_detached;
 pub use system::SystemProcessSpawner;
 
 #[cfg(all(test, unix))]

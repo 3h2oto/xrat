@@ -100,6 +100,10 @@ async fn read_output(reader: Option<impl AsyncRead + Unpin>) -> io::Result<Vec<u
 #[async_trait]
 impl ProcessSpawner for SystemProcessSpawner {
     fn spawn(&self, spec: &CommandSpec) -> io::Result<Child> {
+        #[cfg(windows)]
+        if let Some(child) = super::windows_detached::spawn(spec)? {
+            return Ok(child);
+        }
         let mut child = command(spec)?.spawn()?;
         let id = child.id();
         let stdout = child
