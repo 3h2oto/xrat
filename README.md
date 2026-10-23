@@ -94,10 +94,16 @@ Invoke-WebRequest https://raw.githubusercontent.com/mhyrzt/xrat/master/install.p
 .\install.ps1
 ```
 
-> **Warning:** Windows support is experimental and requires a release with
-> Windows assets. Only x64 and ARM64 are supported; daemon-backed commands,
-> managed TUN, automatic system proxy configuration, and self-upgrade are
-> unavailable.
+> [!WARNING]
+>
+> Windows support is experimental, targets x64 and ARM64, and requires a release
+> with Windows assets. Native automated checks cover installation,
+> daemon/service control, proxy engines, desktop proxy restoration, and
+> upgrades. End-to-end TUN traffic, DNS, bypass and crash recovery, plus
+> interactive UAC, desktop and reboot checks, remain unverified. Feel free to
+> [open an issue](https://github.com/mhyrzt/xrat/issues) or
+> [submit a pull request](https://github.com/mhyrzt/xrat/pulls) to report
+> problems or help improve Windows support.
 
 XRAT manages external proxy engines: Xray is the default, V2Ray is an
 alternative, and sing-box supports all imported protocols. Setup can install
