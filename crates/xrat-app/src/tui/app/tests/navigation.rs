@@ -137,6 +137,16 @@ fn clearing_search_restores_visible_configs() {
     app.apply(TuiAction::ClearSearch);
 
     assert_eq!(app.visible_configs().len(), 2);
+
+    // Esc in normal mode also clears search query
+    app.apply(TuiAction::BeginSearch);
+    app.apply(TuiAction::SearchInput('z'));
+    app.apply(TuiAction::ConfirmSearch);
+    assert!(app.visible_configs().is_empty());
+    assert!(!app.config_list.editing_search);
+    app.apply(TuiAction::Back);
+    assert_eq!(app.visible_configs().len(), 2);
+    assert!(app.config_list.search_query.is_empty());
 }
 
 #[test]
@@ -166,6 +176,37 @@ fn cycles_config_sort_order() {
     assert_eq!(app.config_list.sort, ConfigSort::ImportedAt);
     app.apply(TuiAction::CycleSort);
     assert_eq!(app.config_list.sort, ConfigSort::RealDelay);
+
+    app.apply(TuiAction::CycleSortReverse);
+    assert_eq!(app.config_list.sort, ConfigSort::ImportedAt);
+    app.apply(TuiAction::CycleSortReverse);
+    assert_eq!(app.config_list.sort, ConfigSort::LastTested);
+}
+
+#[test]
+fn search_delete_word_pops_last_segment() {
+    let mut app = TuiApp::default();
+    app.apply(TuiAction::BeginSearch);
+    for ch in "first second  ".chars() {
+        app.apply(TuiAction::SearchInput(ch));
+    }
+    assert_eq!(app.config_list.search_query, "first second  ");
+    app.apply(TuiAction::SearchDeleteWord);
+    assert_eq!(app.config_list.search_query, "first ");
+    app.apply(TuiAction::SearchDeleteWord);
+    assert_eq!(app.config_list.search_query, "");
+}
+
+#[test]
+fn select_source_switches_to_configs_view() {
+    let data = TuiData::from_configs_and_sources(vec![row(1)], vec![source(1)]);
+    let mut app = TuiApp::with_data(data);
+    app.apply(TuiAction::NextTab);
+    assert_eq!(app.active_view, crate::tui::app::TuiView::Sources);
+
+    app.apply(TuiAction::SelectSource);
+    assert_eq!(app.active_view, crate::tui::app::TuiView::Configs);
+    assert_eq!(app.focused_panel, TuiPanel::Table);
 }
 
 #[test]

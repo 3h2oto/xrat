@@ -63,10 +63,14 @@ mod tests {
         require_api_key(&state, Some("secret")).expect("auth should pass");
     }
 
+    static TEST_COUNTER: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+
     async fn test_state(api_key: Option<&str>) -> ServerState {
+        let seq = TEST_COUNTER.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
         let db = Database::connect(&DatabaseConnectionConfig::Sqlite {
             path: std::env::temp_dir().join(format!(
-                "xrat-server-auth-{}.sqlite",
+                "xrat-server-auth-{}-{}-{seq}.sqlite",
+                std::process::id(),
                 std::time::SystemTime::now()
                     .duration_since(std::time::UNIX_EPOCH)
                     .expect("time should be valid")

@@ -241,7 +241,7 @@ fn maps_number_keys_to_panel_focus() {
             false,
             false,
         ),
-        TuiAction::FocusPanel(TuiPanel::Log)
+        TuiAction::FocusPanel(TuiPanel::Detail)
     );
     assert_eq!(
         action_for_key(
@@ -255,7 +255,7 @@ fn maps_number_keys_to_panel_focus() {
             false,
             false,
         ),
-        TuiAction::FocusPanel(TuiPanel::Detail)
+        TuiAction::FocusPanel(TuiPanel::Log)
     );
     assert_eq!(
         action_for_key(
@@ -346,7 +346,7 @@ fn maps_navigation_and_help_keys() {
     );
     assert_eq!(
         act(
-            key(KeyCode::Char('S')),
+            key(KeyCode::Char('s')),
             TuiView::Configs,
             false,
             false,
@@ -354,6 +354,17 @@ fn maps_navigation_and_help_keys() {
             false
         ),
         TuiAction::CycleSort
+    );
+    assert_eq!(
+        act(
+            key(KeyCode::Char('S')),
+            TuiView::Configs,
+            false,
+            false,
+            false,
+            false
+        ),
+        TuiAction::CycleSortReverse
     );
 }
 

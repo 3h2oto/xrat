@@ -243,6 +243,7 @@ pub(crate) fn enum_options(path: &str) -> Option<&'static [&'static str]> {
         "testing.geoip.remote.provider" => Some(&["ip-whois", "ip-api"]),
         "parser.parse_mode" => Some(&["strict", "lenient", "auto", "loose"]),
         "tui.theme" => Some(crate::tui::theme::TuiTheme::CANONICAL_NAMES),
+        "tui.border_style" => Some(crate::app::config::TuiBorderStyle::CANONICAL_NAMES),
         _ => None,
     }
 }

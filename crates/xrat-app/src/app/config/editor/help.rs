@@ -696,6 +696,11 @@ pub(super) fn for_path(path: &str) -> Option<SettingHelp> {
             "",
             "theme = \"catppuccin\"",
         ),
+        "tui.border_style" => help(
+            "Border style for cards and modals: plain (classic square corners) or rounded (smooth corners).",
+            "",
+            "border_style = \"rounded\"",
+        ),
         _ => return None,
     })
 }

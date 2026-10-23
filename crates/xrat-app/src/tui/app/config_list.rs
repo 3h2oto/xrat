@@ -14,6 +14,19 @@ impl ConfigSort {
         }
     }
 
+    pub(super) fn prev(self) -> Self {
+        match self {
+            Self::RealDelay => Self::ImportedAt,
+            Self::TcpDelay => Self::RealDelay,
+            Self::Id => Self::TcpDelay,
+            Self::Name => Self::Id,
+            Self::Protocol => Self::Name,
+            Self::Source => Self::Protocol,
+            Self::LastTested => Self::Source,
+            Self::ImportedAt => Self::LastTested,
+        }
+    }
+
     pub fn label(self) -> &'static str {
         match self {
             Self::RealDelay => "real-delay",

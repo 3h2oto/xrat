@@ -3,6 +3,8 @@ mod focus;
 mod search;
 mod sort;
 
+pub(crate) use search::delete_last_word;
+
 use super::TuiApp;
 use crate::tui::app::{TuiPanel, TuiView};
 

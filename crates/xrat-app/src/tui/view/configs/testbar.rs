@@ -8,7 +8,12 @@ use crate::tui::task::TuiTaskKind;
 use crate::tui::theme;
 
 pub fn render(frame: &mut Frame<'_>, area: Rect, app: &TuiApp) {
-    let block = Block::default().title(" Testing ").borders(Borders::ALL);
+    let is_testing = app.task_state.running == Some(TuiTaskKind::TestBatch);
+    let block = Block::default()
+        .title(" Testing ")
+        .borders(Borders::ALL)
+        .border_type(theme::border_type())
+        .border_style(theme::border_style(is_testing));
     let inner = block.inner(area);
 
     crate::tui::theme::clear(frame, area);

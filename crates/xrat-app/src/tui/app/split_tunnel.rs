@@ -264,6 +264,20 @@ impl TuiApp {
         modal.notice = None;
     }
 
+    pub(super) fn split_delete_word(&mut self) {
+        let Some(modal) = &mut self.split_modal else {
+            return;
+        };
+        if let Some(input) = &mut modal.adding_input {
+            super::navigation::delete_last_word(input);
+        } else if modal.searching {
+            super::navigation::delete_last_word(&mut modal.search_query);
+            modal.discovered_index = 0;
+        }
+        modal.error = None;
+        modal.notice = None;
+    }
+
     pub(super) fn split_clear_input(&mut self) {
         let Some(modal) = &mut self.split_modal else {
             return;

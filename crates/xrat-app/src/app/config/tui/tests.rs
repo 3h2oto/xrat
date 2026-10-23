@@ -76,3 +76,14 @@ fn lists_builtins_before_sorted_custom_names() {
     assert_eq!(&names[..8], TuiTheme::CANONICAL_NAMES);
     assert_eq!(&names[8..], ["alpha", "zebra"]);
 }
+
+#[test]
+fn border_style_defaults_to_plain_and_parses_rounded() {
+    let settings: TuiSettings = toml::from_str("").unwrap();
+    assert_eq!(settings.border_style, TuiBorderStyle::Plain);
+
+    let settings: TuiSettings = toml::from_str("border_style = 'rounded'").unwrap();
+    assert_eq!(settings.border_style, TuiBorderStyle::Rounded);
+
+    assert!(toml::from_str::<TuiSettings>("border_style = 'double'").is_err());
+}

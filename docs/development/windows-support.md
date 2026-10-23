@@ -6,6 +6,21 @@ and [the parent roadmap](https://github.com/mhyrzt/xrat/issues/262). Source
 changes, local checks, native Windows results, and published releases are
 separate evidence. This branch is not a release or proof of full support.
 
+## Verified hosted baseline
+
+[Run 39861267399](https://github.com/mhyrzt/xrat/actions/runs/39861267399)
+passed at `9f9fa2bc8bf22c1182c545422572254a9c76c34e` on native x64 (Windows
+Server 2025) and ARM64 (Windows 11). It covers workspace tests and Clippy,
+PowerShell 5.1/7 installers, protected profiles, SCM/operator security, Wintun
+adapter creation/release, native proxy engines, WinINET restoration, and
+packaged daemon/assets/login plus ordinary-user and machine upgrades. These
+results apply to that revision; updated revisions need fresh checks.
+
+Full TUN traffic, DNS, IPv4/IPv6, bypass and crash recovery remain unverified.
+Interactive Windows 11 x64/ARM64 Terminal, UAC, desktop, login and reboot
+acceptance, plus published older-to-newer release upgrades, remain outstanding.
+Merging this implementation does not complete the Windows Support milestone.
+
 ## Design
 
 - User-local installation stays unprivileged. The optional machine service runs
@@ -24,11 +39,11 @@ separate evidence. This branch is not a release or proof of full support.
   machine policy remain administrator-controlled. Service clients must not
   supply arbitrary paths, commands, SQL, or root engine JSON.
 
-## Implemented foundations requiring native acceptance
+## Implemented foundations
 
 - Named-pipe request dispatch reuses the existing supervisor/runtime services.
   Its framing is tested independently of Windows; native pipe tests run only on
-  Windows. Service identity and the application gateway are separate work.
+  Windows. The protected service gateway is described below.
 - PowerShell 5.1/7 proxy scripts capture and restore the previous process
   environment without changing `NO_PROXY`. Apply generated output with
   `xrat proxy shell enable --shell powershell | Out-String | Invoke-Expression`.
@@ -49,16 +64,16 @@ separate evidence. This branch is not a release or proof of full support.
 - Release archive verification and extraction use Rust, exact checksum entries,
   and executable-only extraction. Windows self-upgrade stages a verified
   replacement and starts an updater helper. Exit the upgrading client within 120
-  seconds and inspect `xrat upgrade --status` afterward. Running daemon/service
-  coordination still needs implementation; the current staging path refuses a
-  reachable daemon instead of replacing its executable.
+  seconds and inspect `xrat upgrade --status` afterward. Daemon/service
+  coordination preserves the prior running state and respects restart settings;
+  the isolated native fixtures exercise both ordinary-user and machine upgrades.
 - Windows source installation and CI share the browser-asset build script. Its
   bundle follows `just web-build`, including `public/` assets and removal of
   obsolete JavaScript bootstrap/controller files from reused output directories.
   Installer replacement stages on the destination filesystem and preserves an
   existing executable when replacement cannot proceed.
 
-## Remaining implementation and evidence
+## Implementation details and acceptance boundaries
 
 ### Protected machine profile and local gateway foundation
 
@@ -245,8 +260,9 @@ PowerShell Task Scheduler adapter runs from the system directory with a cleared
 environment, fixed system module path, bounded errors, and a 30-second timeout.
 `--start` starts the SCM service; the API task starts at the next operator login
 or on demand through Task Scheduler. Reinstall/uninstall preserve user UI/auth
-data. Native task registration, permissions, and login acceptance remain
-pending. `--tun` installation integration remains explicitly unsupported.
+data. Native task registration and permissions passed the hosted fixture;
+interactive login execution remains pending. `--tun` installation integration
+remains explicitly unsupported.
 
 Explicit elevated `--profile machine install <core>` provisions official
 checksum-verified core executables at the fixed protected paths. Acquisition and
@@ -277,12 +293,11 @@ reinstall, operator mismatch, and uninstall preservation. It requires an
 isolated elevated Windows host with no existing XRAT service/profile and a built
 native binary in `XRAT_WINDOWS_SERVICE_BINARY`. Run
 `cargo test --locked -p xrat-app native_machine_service_lifecycle_and_restricted_operator -- --ignored --test-threads=1`.
-These tests have not established native service or reboot acceptance yet.
-
-Complete service-aware upgrades and native acceptance of normal-user CLI/TUI/Web
-application access. Complete the Windows TUN privilege, driver, interface
-identity, route/DNS ownership, live replacement, and crash recovery adapters
-before removing Windows TUN rejection.
+These service tests passed on both hosted architectures. They do not establish
+interactive login or reboot acceptance. Service-aware upgrades are implemented
+and covered by the same fixture. Interactive TUI/Web operation and end-to-end
+TUN traffic, route/DNS behavior, live replacement and crash recovery still
+require acceptance evidence.
 
 Explicit elevated `--profile machine tun setup` now prepares pinned Wintun
 0.14.1 files beside the protected cores. The official archive, native DLL and
@@ -310,9 +325,9 @@ released and retains the journal on timeout or identity mismatch. It does not
 remove a driver, foreign adapter, or arbitrary route. The isolated native
 service fixture also creates an empty adapter through the verified protected
 DLL, checks identity and refusal to remove it while open, then closes it and
-checks release. This native fixture changes driver/device state and remains
-unexecuted. Capture still requires Windows route/DNS readiness and recovery
-acceptance.
+checks release. This native fixture changes driver/device state and passed on
+both hosted architectures. Capture still requires Windows route/DNS readiness
+and recovery acceptance.
 
 The SCM host joins an unnamed job before starting application work, with
 `JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE` and no breakaway permission. Its
@@ -321,8 +336,8 @@ abrupt service exit terminates detached engine/probe descendants as well.
 Startup fails if containment cannot be established. A native subprocess
 regression uses the actual detached process adapter, terminates the containing
 parent, and checks the child's PID plus creation time; independent cleanup
-guards prevent leaks when the assertion fails. This source/API check still needs
-native execution.
+guards prevent leaks when the assertion fails. This regression passed on both
+hosted architectures; full TUN crash recovery remains separate.
 
 Standard GitHub runners provide native x64 and ARM64 build/test environments.
 Use those first, including service, driver, and network tests where supported.
@@ -336,10 +351,12 @@ cleanup.
 The isolated WinINET acceptance step changes runner settings temporarily and
 checks manual/PAC transitions, restoration, and preservation of external
 changes. The ordinary-owner pipe test disables the token's Administrators group
-and sets medium integrity to check client read/write access without granting
-pipe-instance creation. Pipes have an explicit medium mandatory label; a
-low-integrity owner test verifies write denial. Generated shell scripts are
-executed in Windows PowerShell 5.1 and PowerShell 7 where available.
+and sets medium integrity to check ordinary-owner pipe access. The ordinary
+daemon owner can create its own listeners; the SYSTEM gateway operator receives
+client-only access and cannot create gateway instances. Pipes have an explicit
+medium mandatory label; a low-integrity owner test verifies write denial.
+Generated shell scripts are executed in Windows PowerShell 5.1 and PowerShell 7
+where available.
 
 Acceptance harnesses are Rust integration tests. `tests/windows_installer.rs`
 invokes the actual installer helpers through a child PowerShell process; fixture

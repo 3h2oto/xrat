@@ -256,6 +256,7 @@ impl From<DashboardSnapshot> for TuiData {
         let mut runtime =
             TuiRuntimeStatus::from_snapshot(value.runtime, value.local_address.as_deref());
         runtime.tun = value.tun_label;
+        runtime.tun_active = value.tun_active;
         let mut data = Self::from_parts(
             configs,
             value.sources.into_iter().map(TuiSourceRow::from).collect(),

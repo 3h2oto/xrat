@@ -2,6 +2,7 @@ use std::str::FromStr;
 use std::sync::{LazyLock, RwLock};
 
 use ratatui::style::{Color, Style};
+use ratatui::widgets::BorderType;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
 /// Blank columns kept between a right-aligned action group and the edge.
@@ -18,6 +19,9 @@ pub const DETAIL_RIGHT_PAD: u16 = 3;
 
 static ACTIVE_PALETTE: LazyLock<RwLock<ThemePalette>> =
     LazyLock::new(|| RwLock::new(TuiTheme::Default.palette()));
+
+static ACTIVE_BORDER_TYPE: LazyLock<RwLock<BorderType>> =
+    LazyLock::new(|| RwLock::new(BorderType::Plain));
 
 #[cfg(test)]
 pub static TEST_THEME_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
@@ -306,6 +310,19 @@ pub fn border_style(focused: bool) -> Style {
         accent_style()
     } else {
         muted_style()
+    }
+}
+
+/// Preferred border type for dashboard cards and modal windows.
+/// Configurable: Plain (classic square corners) or Rounded (smooth corners).
+pub fn border_type() -> BorderType {
+    *ACTIVE_BORDER_TYPE.read().unwrap_or_else(|e| e.into_inner())
+}
+
+/// Set active border type for cards and modals across the application.
+pub fn set_border_type(border_type: BorderType) {
+    if let Ok(mut lock) = ACTIVE_BORDER_TYPE.write() {
+        *lock = border_type;
     }
 }
 
