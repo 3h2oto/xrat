@@ -1,17 +1,16 @@
 use super::security::{Principal, web};
 use crate::{
-    app::{
-        self,
-        runtime_service::{RuntimeEndpointState, RuntimeService},
-    },
+    app::runtime_service::RuntimeEndpointState,
     server::{ServerError, ServerResult, ServerState},
 };
 use axum::{Extension, Json, extract::State, http::HeaderMap};
 use std::{
     sync::LazyLock,
-    time::{Duration, SystemTime, UNIX_EPOCH},
+    time::{SystemTime, UNIX_EPOCH},
 };
 use xrat_web::types::{RuntimeDetails, RuntimeEngine, RuntimeInbound};
+
+mod source;
 
 pub async fn get(
     State(state): State<ServerState>,
@@ -22,29 +21,8 @@ pub async fn get(
         LazyLock::new(|| tokio::sync::Semaphore::new(2));
     let _permit = SLOTS.try_acquire().map_err(|_| ServerError::RateLimited)?;
     let context = web(&state)?.context.as_ref().ok_or(ServerError::NotFound)?;
-    let mut current = context.clone();
-    current.app_config = app::config::load(&context.runtime_paths.config_path)?;
-    let snapshot = RuntimeService::new(&current).status().await?;
-    let socket = app::daemon::ipc::default_socket_path(&context.runtime_paths.runtime_dir);
-    let (engines, daemon) = tokio::join!(
-        app::services::engine_probe::probe_engines(
-            &current,
-            &app::services::engine_probe::ProcessRuntimeEngineProbe
-        ),
-        tokio::time::timeout(
-            Duration::from_millis(500),
-            app::daemon::ipc::proxy_status_daemon(&socket)
-        )
-    );
-    let daemon = daemon
-        .ok()
-        .and_then(Result::ok)
-        .filter(|response| response.ok)
-        .and_then(|response| response.payload);
-    let daemon_running = daemon
-        .as_ref()
-        .map(|value| value.daemon_ready)
-        .or_else(|| (!socket.exists()).then_some(false));
+    let source = source::load(context).await?;
+    let snapshot = source.snapshot;
     let local_address = xrat_support::net::primary_local_ip();
     let inbounds = [
         ("SOCKS", snapshot.inbound_health.socks.as_ref()),
@@ -66,7 +44,6 @@ pub async fn get(
     })
     .collect();
     let jobs = state.db.web_jobs().await?;
-    let rotation = &current.app_config.runtime.rotation;
     Ok(Json(RuntimeDetails {
         pac_available: state.pac_enabled
             && crate::server::routes::pac::require_allowed_pac_host(&state, &headers).is_ok(),
@@ -76,15 +53,7 @@ pub async fn get(
             .as_secs_f64()
             * 1000.0,
         status: snapshot.status.as_str().into(),
-        engine: if snapshot
-            .active_config
-            .as_ref()
-            .is_some_and(|config| config.protocol == "hysteria2")
-        {
-            "sing-box".into()
-        } else {
-            current.app_config.runtime.engine.clone()
-        },
+        engine: source.engine,
         process_id: snapshot
             .session
             .as_ref()
@@ -96,7 +65,8 @@ pub async fn get(
             .filter(|_| snapshot.pid_running)
             .and_then(|session| session.started_at.clone()),
         inbounds,
-        engines: engines
+        engines: source
+            .engines
             .into_iter()
             .map(|engine| RuntimeEngine {
                 name: engine.name.into(),
@@ -104,15 +74,10 @@ pub async fn get(
                 version: engine.version,
             })
             .collect(),
-        daemon_running,
-        rotation_enabled: daemon
-            .as_ref()
-            .map(|value| value.rotation_enabled)
-            .unwrap_or(rotation.enabled),
-        rotation_interval_secs: daemon
-            .as_ref()
-            .map(|value| value.interval_secs)
-            .unwrap_or(rotation.interval_secs),
+        daemon_running: source.daemon_running,
+        rotation_enabled: source.rotation_enabled,
+        tun_enabled: source.tun_enabled,
+        rotation_interval_secs: source.rotation_interval_secs,
         running_jobs: jobs.iter().filter(|job| job.state == "running").count(),
         queued_jobs: jobs.iter().filter(|job| job.state == "queued").count(),
     }))

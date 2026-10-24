@@ -5,7 +5,7 @@ use xrat_model::{ConfigId, SubscriptionId};
 ///
 /// CLI tables/JSON, HTTP DTOs, and TUI rows all derive from this model so a new
 /// config field only needs mapping in one place.
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct ConfigSummary {
     pub id: ConfigId,
     pub r#ref: String,
@@ -23,7 +23,7 @@ pub struct ConfigSummary {
 }
 
 /// Interface-neutral latest connection-test facts for a config.
-#[derive(Clone, Debug, Default, PartialEq)]
+#[derive(Clone, Debug, Default, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct LatestTestSummary {
     pub id: Option<i64>,
     pub icmp_ok: Option<bool>,
@@ -43,7 +43,7 @@ pub struct LatestTestSummary {
 }
 
 /// Interface-neutral endpoint geolocation facts attached to a config row.
-#[derive(Clone, Debug, Default, PartialEq)]
+#[derive(Clone, Debug, Default, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct EndpointLocation {
     pub location: Option<String>,
     pub country: Option<String>,
@@ -53,7 +53,7 @@ pub struct EndpointLocation {
 }
 
 /// Interface-neutral detail view of a stored config.
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct ConfigDetail {
     pub summary: ConfigSummary,
     pub subscription_id: Option<SubscriptionId>,

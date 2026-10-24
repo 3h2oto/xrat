@@ -3,6 +3,7 @@ use super::*;
 impl<'a> RuntimeService<'a> {
     #[tracing::instrument(skip_all, fields(config_id = request.config_id.0))]
     pub async fn connect(&self, request: ConnectRequest) -> crate::app::Result<ConnectResult> {
+        self.context.require_local_runtime()?;
         let Some(config) = self.context.db.get_config_by_id(request.config_id).await? else {
             return Err(AppError::InvalidArgument(format!(
                 "config {} was not found",
@@ -147,17 +148,10 @@ impl<'a> RuntimeService<'a> {
             })
             .await?;
 
-        if tun_enabled {
-            let _ = tun_ownership::save_ownership(
-                &self.context.runtime_paths.runtime_dir,
-                &tun_ownership::TunOwnershipRecord {
-                    interface_name: self.context.app_config.runtime.tun.interface_name.clone(),
-                    ifindex: None,
-                    session_id,
-                    engine: self.context.app_config.runtime.engine.clone(),
-                    policy_rules: vec![],
-                },
-            );
+        if tun_enabled && let Err(error) = self.begin_tun_ownership(session_id).await {
+            return Err(self
+                .rollback_runtime_error(previous_active_config_id, error)
+                .await);
         }
 
         let process = match spawn_runtime_with_ports(

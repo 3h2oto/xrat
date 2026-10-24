@@ -37,6 +37,7 @@ impl Default for TuiApp {
             engines: Vec::new(),
             stats: crate::tui::data::StatsHistory::default(),
             events_clear_before_id: 0,
+            frontend_api_clear_before_id: 0,
             proxy_clear_signature: None,
         }
     }

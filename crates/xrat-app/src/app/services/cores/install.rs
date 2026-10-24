@@ -149,7 +149,7 @@ pub(crate) fn install_archive(
         "proxy core archive extracted"
     );
 
-    let staged_binary = payload.join(kind.name());
+    let staged_binary = payload.join(binary_file_name(kind));
     set_executable(&staged_binary)?;
     let staged_version = binary_version(&staged_binary)
         .ok_or_else(|| format!("staged {} did not report a version", kind.name()))?;
@@ -174,7 +174,7 @@ pub(crate) fn install_archive(
         "activating managed proxy core"
     );
     replace_directory(&payload, &target)?;
-    let binary_path = target.join(kind.name());
+    let binary_path = target.join(binary_file_name(kind));
     let cli_link_warning = ensure_cli_link(kind, &binary_path, &root)?;
     config::update_runtime_binary_path(
         &context.runtime_paths.config_path,
@@ -218,29 +218,143 @@ pub(crate) fn extract_archive(
     bytes: &[u8],
     destination: &Path,
 ) -> Result<(), String> {
+    extract_archive_for(kind, bytes, destination, cfg!(windows))
+}
+
+pub(crate) fn extract_archive_for(
+    kind: CoreKind,
+    bytes: &[u8],
+    destination: &Path,
+    windows: bool,
+) -> Result<(), String> {
+    let wanted = binary_file_name_for(kind, windows);
     match kind {
-        CoreKind::Xray | CoreKind::V2Ray => extract_zip(kind, bytes, destination),
-        CoreKind::SingBox => extract_sing_box(bytes, destination),
+        CoreKind::Xray | CoreKind::V2Ray => extract_zip_named(kind, bytes, destination, &wanted),
+        CoreKind::SingBox if windows => extract_zip_named(kind, bytes, destination, &wanted),
+        CoreKind::SingBox => extract_sing_box_named(bytes, destination, &wanted),
     }
 }
 
-pub(crate) fn extract_zip(kind: CoreKind, bytes: &[u8], destination: &Path) -> Result<(), String> {
+pub(crate) fn extract_zip_named(
+    kind: CoreKind,
+    bytes: &[u8],
+    destination: &Path,
+    wanted: &str,
+) -> Result<(), String> {
     let mut archive = zip::ZipArchive::new(Cursor::new(bytes))
         .map_err(|error| format!("invalid zip archive: {error}"))?;
-    for name in [kind.name(), "geoip.dat", "geosite.dat"] {
+
+    // Entries may sit inside a versioned folder, so match on the file name
+    // rather than the full archive path.
+    let index = zip_binary_index(&mut archive, kind, wanted)?;
+    {
         let mut source = archive
-            .by_name(name)
-            .map_err(|error| format!("archive is missing {name}: {error}"))?;
-        let mut target = fs::File::create(destination.join(name))
-            .map_err(|error| format!("could not create {name}: {error}"))?;
+            .by_index(index)
+            .map_err(|error| format!("could not read archive entry: {error}"))?;
+        let mut target = fs::File::create(destination.join(wanted))
+            .map_err(|error| format!("could not create {wanted}: {error}"))?;
         std::io::copy(&mut source, &mut target)
-            .map_err(|error| format!("could not extract {name}: {error}"))?;
+            .map_err(|error| format!("could not extract {wanted}: {error}"))?;
         target.flush().map_err(|error| error.to_string())?;
     }
+
+    // geoip.dat / geosite.dat are optional: not every upstream release ships
+    // them, and the runtime fetches them separately when they are missing.
+    for name in ["geoip.dat", "geosite.dat"] {
+        let mut found = None;
+        for index in 0..archive.len() {
+            let source = archive
+                .by_index(index)
+                .map_err(|error| format!("could not read archive entry: {error}"))?;
+            if !source.is_file() {
+                continue;
+            }
+            let file_name = source.name().rsplit(['/', '\\']).next().unwrap_or_default();
+            if file_name == name {
+                found = Some(index);
+                break;
+            }
+        }
+        let Some(index) = found else {
+            continue;
+        };
+        {
+            let mut source = archive
+                .by_index(index)
+                .map_err(|error| format!("could not read archive entry: {error}"))?;
+            let mut target = fs::File::create(destination.join(name))
+                .map_err(|error| format!("could not create {name}: {error}"))?;
+            std::io::copy(&mut source, &mut target)
+                .map_err(|error| format!("could not extract {name}: {error}"))?;
+            target.flush().map_err(|error| error.to_string())?;
+        }
+    }
+
     Ok(())
 }
 
-pub(crate) fn extract_sing_box(bytes: &[u8], destination: &Path) -> Result<(), String> {
+fn zip_binary_index(
+    archive: &mut zip::ZipArchive<Cursor<&[u8]>>,
+    kind: CoreKind,
+    wanted: &str,
+) -> Result<usize, String> {
+    let bare = kind.name();
+    let mut exact = None;
+    let mut fallback = None;
+    for index in 0..archive.len() {
+        let source = archive
+            .by_index(index)
+            .map_err(|error| format!("could not read archive entry: {error}"))?;
+        if !source.is_file() {
+            continue;
+        }
+        let file_name = source.name().rsplit(['/', '\\']).next().unwrap_or_default();
+        if file_name == wanted {
+            exact = Some(index);
+            break;
+        }
+        if fallback.is_none() && file_name == bare {
+            fallback = Some(index);
+        }
+    }
+    exact
+        .or(fallback)
+        .ok_or_else(|| format!("archive is missing {wanted}: specified file not found in archive"))
+}
+
+#[cfg(any(windows, test))]
+pub(crate) fn prepare_machine_binary(
+    kind: CoreKind,
+    release: &CoreRelease,
+    bytes: &[u8],
+) -> Result<Vec<u8>, String> {
+    use std::io::Read;
+    const LIMIT: u64 = 256 * 1024 * 1024;
+    verify_checksum(&release.asset, bytes)?;
+    let wanted = binary_file_name_for(kind, true);
+    let mut archive =
+        zip::ZipArchive::new(Cursor::new(bytes)).map_err(|error| error.to_string())?;
+    let index = zip_binary_index(&mut archive, kind, &wanted)?;
+    let source = archive.by_index(index).map_err(|error| error.to_string())?;
+    if source.size() > LIMIT {
+        return Err("machine core executable exceeds 256 MiB".into());
+    }
+    let mut output = Vec::new();
+    source
+        .take(LIMIT + 1)
+        .read_to_end(&mut output)
+        .map_err(|error| error.to_string())?;
+    if output.is_empty() || output.len() as u64 > LIMIT {
+        return Err("machine core executable is empty or exceeds 256 MiB".into());
+    }
+    Ok(output)
+}
+
+pub(crate) fn extract_sing_box_named(
+    bytes: &[u8],
+    destination: &Path,
+    wanted: &str,
+) -> Result<(), String> {
     let decoder = GzDecoder::new(Cursor::new(bytes));
     let mut archive = tar::Archive::new(decoder);
     for entry in archive
@@ -252,17 +366,17 @@ pub(crate) fn extract_sing_box(bytes: &[u8], destination: &Path) -> Result<(), S
             continue;
         }
         let path = entry.path().map_err(|error| error.to_string())?;
-        if path.file_name().and_then(|name| name.to_str()) != Some("sing-box") {
+        if path.file_name().and_then(|name| name.to_str()) != Some(wanted) {
             continue;
         }
-        let mut target = fs::File::create(destination.join("sing-box"))
-            .map_err(|error| format!("could not create sing-box: {error}"))?;
+        let mut target = fs::File::create(destination.join(wanted))
+            .map_err(|error| format!("could not create {wanted}: {error}"))?;
         std::io::copy(&mut entry, &mut target)
-            .map_err(|error| format!("could not extract sing-box: {error}"))?;
+            .map_err(|error| format!("could not extract {wanted}: {error}"))?;
         target.flush().map_err(|error| error.to_string())?;
         return Ok(());
     }
-    Err("archive is missing sing-box".to_string())
+    Err(format!("archive is missing {wanted}"))
 }
 
 #[cfg(unix)]
@@ -278,7 +392,24 @@ pub(crate) fn set_executable(path: &Path) -> Result<(), String> {
 
 #[cfg(not(unix))]
 pub(crate) fn set_executable(_path: &Path) -> Result<(), String> {
-    Err("managed core installation requires a Unix platform".to_string())
+    Ok(())
+}
+
+/// On-disk file name of a core binary. Windows executables carry the `.exe`
+/// suffix, and the upstream archives ship them under that name too.
+pub(crate) fn binary_file_name(kind: CoreKind) -> String {
+    binary_file_name_for(kind, cfg!(windows))
+}
+
+/// On-disk file name of a core binary for the given platform. Windows
+/// executables carry the `.exe` suffix, and the upstream archives ship them
+/// under that name too.
+pub(crate) fn binary_file_name_for(kind: CoreKind, windows: bool) -> String {
+    if windows {
+        format!("{}.exe", kind.name())
+    } else {
+        kind.name().to_string()
+    }
 }
 
 pub(crate) fn replace_directory(staged: &Path, target: &Path) -> Result<(), String> {
@@ -366,7 +497,10 @@ pub(crate) fn ensure_cli_link(
     _binary_path: &Path,
     _managed_root: &Path,
 ) -> Result<Option<String>, String> {
-    Err("managed core installation requires a Unix platform".to_string())
+    // Unix links the core into ~/.local/bin. Windows has no equivalent
+    // symlink convention, so the managed core is referenced by its absolute
+    // path in config.toml instead.
+    Ok(None)
 }
 
 pub(crate) fn binary_version(path: &Path) -> Option<Version> {

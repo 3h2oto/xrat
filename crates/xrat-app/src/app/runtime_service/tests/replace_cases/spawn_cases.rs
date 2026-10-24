@@ -1,7 +1,9 @@
+#[cfg(unix)]
 use super::fake_runtime::write_fake_runtime_script;
 use super::support::*;
 use super::*;
 
+#[cfg(unix)]
 #[tokio::test]
 async fn replace_spawn_failure_restores_old_runtime() {
     let mut context = test_context().await;

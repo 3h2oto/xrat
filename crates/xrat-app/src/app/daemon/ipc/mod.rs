@@ -4,7 +4,8 @@ use std::path::{Path, PathBuf};
 mod client;
 mod handler;
 mod responses;
-mod transport;
+#[cfg(any(unix, windows))]
+pub(crate) mod transport;
 mod types;
 
 pub use client::{
@@ -29,3 +30,11 @@ mod requests;
 pub use requests::PROTOCOL_VERSION;
 pub use requests::daemon_unreachable;
 pub use requests::default_socket_path;
+
+#[cfg(any(windows, test))]
+pub(crate) mod frame;
+#[cfg(windows)]
+pub(crate) mod windows;
+
+#[cfg(all(test, windows))]
+mod windows_tests;

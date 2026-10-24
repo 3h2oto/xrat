@@ -1,4 +1,3 @@
-use std::fs;
 use std::io::Write;
 use std::time::Duration;
 
@@ -212,6 +211,7 @@ pub(crate) fn download_source_line(template: &str, edition: MmdbEdition) -> Stri
 fn set_mmdb_permissions(path: &std::path::Path) -> crate::app::Result<()> {
     #[cfg(unix)]
     {
+        use std::fs;
         use std::os::unix::fs::PermissionsExt;
 
         fs::set_permissions(path, fs::Permissions::from_mode(0o644))?;

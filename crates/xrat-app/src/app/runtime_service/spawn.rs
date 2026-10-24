@@ -51,7 +51,7 @@ pub(super) async fn spawn_runtime_with_ports(
     }
 }
 
-#[cfg(test)]
+#[cfg(all(test, unix))]
 pub(super) fn preflight_runtime(
     launch: &ResolvedLaunch,
     runtime_dir: &std::path::Path,

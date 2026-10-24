@@ -156,6 +156,15 @@ pub(super) async fn handle_event_inner(
             }
             let _ = respond_to.send(result);
         }
+        SupervisorEvent::RuntimeOverview { respond_to } => {
+            runtime::handle_runtime_overview(state, context, respond_to).await;
+        }
+        SupervisorEvent::RuntimeTraffic { respond_to } => {
+            runtime::handle_runtime_traffic(context, respond_to).await;
+        }
+        SupervisorEvent::RuntimeDashboard { respond_to } => {
+            runtime::handle_runtime_dashboard(context, respond_to).await;
+        }
         SupervisorEvent::RuntimeStatus { respond_to } => {
             runtime::handle_runtime_status(state, context, respond_to).await;
         }

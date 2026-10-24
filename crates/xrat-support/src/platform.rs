@@ -10,6 +10,7 @@ pub enum Shell {
     Bash,
     Zsh,
     Fish,
+    Powershell,
 }
 
 impl Shell {
@@ -19,6 +20,7 @@ impl Shell {
             Shell::Bash => "bash",
             Shell::Zsh => "zsh",
             Shell::Fish => "fish",
+            Shell::Powershell => "powershell",
         }
     }
 }
@@ -26,9 +28,11 @@ impl Shell {
 /// Map a shell binary name or path to a [`Shell`]. Handles full paths and a
 /// trailing `.exe`.
 pub fn shell_from_name(name: &str) -> Option<Shell> {
-    let base = name.rsplit('/').next().unwrap_or(name).trim();
+    let name = name.to_ascii_lowercase();
+    let base = name.rsplit(['/', '\\']).next().unwrap_or(&name).trim();
     let base = base.strip_suffix(".exe").unwrap_or(base);
     match base {
+        "pwsh" | "powershell" => Some(Shell::Powershell),
         b if b.contains("fish") => Some(Shell::Fish),
         b if b.contains("zsh") => Some(Shell::Zsh),
         b if b.contains("bash") => Some(Shell::Bash),
@@ -54,7 +58,11 @@ pub fn detect_shell_with_env(env: &dyn crate::env::EnvVars) -> Shell {
     if let Some(kind) = parent_process_name().as_deref().and_then(shell_from_name) {
         return kind;
     }
-    Shell::Bash
+    if cfg!(windows) {
+        Shell::Powershell
+    } else {
+        Shell::Bash
+    }
 }
 
 fn parent_process_name() -> Option<String> {
@@ -66,6 +74,23 @@ fn parent_process_name() -> Option<String> {
         .map(|process| process.name().to_string_lossy().to_string())
 }
 
+#[cfg(test)]
+mod windows_shell_tests {
+    use super::*;
+
+    #[test]
+    fn detects_both_native_powershell_generations() {
+        for name in [
+            "powershell.exe",
+            "pwsh.exe",
+            r"C:\Program Files\PowerShell\7\PWSH.EXE",
+            r"C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe",
+        ] {
+            assert_eq!(shell_from_name(name), Some(Shell::Powershell));
+        }
+    }
+}
+
 #[cfg(unix)]
 fn parent_process_id() -> u32 {
     std::os::unix::process::parent_id()
@@ -73,7 +98,17 @@ fn parent_process_id() -> u32 {
 
 #[cfg(windows)]
 fn parent_process_id() -> u32 {
-    std::os::windows::process::parent_id()
+    // std::os::windows::process::parent_id() does not exist on stable Rust
+    // (it is not part of the stable std API), so the parent pid is resolved
+    // through sysinfo, which is already a dependency of this crate.
+    let pid = sysinfo::Pid::from_u32(std::process::id());
+    let mut system = sysinfo::System::new();
+    system.refresh_processes(sysinfo::ProcessesToUpdate::Some(&[pid]), false);
+    system
+        .process(pid)
+        .and_then(|process| process.parent())
+        .map(|parent| parent.as_u32())
+        .unwrap_or(0)
 }
 
 /// Resolve a binary name against `$PATH`, returning the first existing match.
@@ -227,7 +262,10 @@ pub fn home_dir() -> Option<PathBuf> {
 }
 
 pub fn home_dir_with_env(env: &dyn crate::env::EnvVars) -> Option<PathBuf> {
-    env.get_os(("HOME").as_ref()).map(PathBuf::from)
+    env.get_os(("HOME").as_ref())
+        .map(PathBuf::from)
+        // Windows has no HOME by default; USERPROFILE is its equivalent.
+        .or_else(|| env.get_os(("USERPROFILE").as_ref()).map(PathBuf::from))
 }
 
 /// `$XDG_DATA_HOME`, falling back to `$HOME/.local/share`.
@@ -330,24 +368,50 @@ mod env_tests {
     use std::collections::HashMap;
     #[test]
     fn xdg_paths_keep_absolute_precedence_and_home_fallback() {
+        // Windows treats a path as absolute only with a drive prefix, so the
+        // fixtures differ per platform.
+        let (home, custom) = if cfg!(windows) {
+            ("C:\\Users\\example", "C:\\custom")
+        } else {
+            ("/home/example", "/custom")
+        };
         let env = MapEnvVars(HashMap::from([
-            ("HOME".into(), "/home/example".into()),
+            ("HOME".into(), home.into()),
             ("XDG_DATA_HOME".into(), "relative".into()),
-            ("XDG_CONFIG_HOME".into(), "/custom".into()),
+            ("XDG_CONFIG_HOME".into(), custom.into()),
         ]));
         assert_eq!(
             xdg_data_home_with_env(&env),
-            Some(PathBuf::from("/home/example/.local/share"))
+            Some(PathBuf::from(home).join(".local").join("share"))
         );
-        assert_eq!(
-            xdg_config_home_with_env(&env),
-            Some(PathBuf::from("/custom"))
-        );
+        assert_eq!(xdg_config_home_with_env(&env), Some(PathBuf::from(custom)));
         assert_eq!(home_dir_with_env(&MapEnvVars::default()), None);
     }
     #[test]
     fn supplied_shell_is_used_without_process_detection() {
         let env = MapEnvVars(HashMap::from([("SHELL".into(), "/bin/fish".into())]));
         assert_eq!(detect_shell_with_env(&env), Shell::Fish);
+    }
+    #[test]
+    fn home_directory_falls_back_to_the_windows_profile() {
+        let env = MapEnvVars(HashMap::from([(
+            "USERPROFILE".into(),
+            "C:\\Users\\example".into(),
+        )]));
+        assert_eq!(
+            home_dir_with_env(&env),
+            Some(PathBuf::from("C:\\Users\\example"))
+        );
+    }
+    #[test]
+    fn home_directory_prefers_home_over_the_windows_profile() {
+        let env = MapEnvVars(HashMap::from([
+            ("HOME".into(), "/home/example".into()),
+            ("USERPROFILE".into(), "C:\\Users\\example".into()),
+        ]));
+        assert_eq!(
+            home_dir_with_env(&env),
+            Some(PathBuf::from("/home/example"))
+        );
     }
 }

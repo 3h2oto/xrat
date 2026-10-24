@@ -1,3 +1,19 @@
+#[path = "net/capture.rs"]
+mod capture;
+pub use capture::{NetworkAdapter, NetworkRoute, NetworkSnapshot};
+
+pub fn format_host_port(host: &str, port: u16) -> String {
+    if host.contains(':') && !host.starts_with('[') {
+        format!("[{host}]:{port}")
+    } else {
+        format!("{host}:{port}")
+    }
+}
+
+pub fn format_url_authority(host: &str, port: u16) -> String {
+    format_host_port(&host.replace('%', "%25"), port)
+}
+
 pub fn connect_host_for_bind_host(host: &str) -> String {
     match host {
         "0.0.0.0" => "127.0.0.1".to_string(),
@@ -95,6 +111,9 @@ pub struct KernelInterfaceInfo {
 pub trait TunInterfaceOps: Send + Sync {
     fn inspect_interface(&self, name: &str) -> std::io::Result<Option<KernelInterfaceInfo>>;
     fn delete_interface(&self, name: &str, expected_ifindex: u32) -> std::io::Result<()>;
+    fn interface_identity(&self, _name: &str) -> std::io::Result<Option<String>> {
+        Ok(None)
+    }
     fn policy_rules(&self) -> std::io::Result<Vec<KernelPolicyRule>> {
         Ok(vec![])
     }
@@ -145,6 +164,17 @@ impl KernelPolicyRule {
 pub struct SystemTunInterfaceOps;
 
 impl TunInterfaceOps for SystemTunInterfaceOps {
+    fn interface_identity(&self, name: &str) -> std::io::Result<Option<String>> {
+        #[cfg(windows)]
+        {
+            windows_links::identity(name)
+        }
+        #[cfg(not(windows))]
+        {
+            let _ = name;
+            Ok(None)
+        }
+    }
     fn policy_rules(&self) -> std::io::Result<Vec<KernelPolicyRule>> {
         #[cfg(target_os = "linux")]
         {
@@ -183,7 +213,11 @@ impl TunInterfaceOps for SystemTunInterfaceOps {
         {
             macos_links::inspect(name)
         }
-        #[cfg(not(any(target_os = "linux", target_os = "macos")))]
+        #[cfg(windows)]
+        {
+            windows_links::inspect(name)
+        }
+        #[cfg(not(any(target_os = "linux", target_os = "macos", windows)))]
         {
             if interface_exists(name) {
                 Ok(Some(KernelInterfaceInfo {
@@ -207,7 +241,11 @@ impl TunInterfaceOps for SystemTunInterfaceOps {
         {
             macos_links::wait_for_release(name, expected_ifindex)
         }
-        #[cfg(not(any(target_os = "linux", target_os = "macos")))]
+        #[cfg(windows)]
+        {
+            windows_links::wait_for_release(name, expected_ifindex)
+        }
+        #[cfg(not(any(target_os = "linux", target_os = "macos", windows)))]
         {
             let _ = (name, expected_ifindex);
             Err(std::io::Error::new(
@@ -225,6 +263,10 @@ mod kernel_links;
 #[cfg(target_os = "macos")]
 #[path = "net/macos.rs"]
 mod macos_links;
+
+#[cfg(windows)]
+#[path = "net/windows.rs"]
+mod windows_links;
 
 #[cfg(any(target_os = "macos", test))]
 #[path = "net/macos_routes.rs"]
@@ -371,16 +413,45 @@ mod linux_netlink {
 
 #[cfg(test)]
 mod tests {
-    use super::interface_exists;
+    use super::{format_host_port, format_url_authority, interface_exists};
 
     #[test]
-    fn detects_loopback_and_missing_interfaces() {
+    fn formats_ipv4_dns_and_ipv6_authorities_without_double_bracketing() {
+        for (host, expected) in [
+            ("127.0.0.1", "127.0.0.1:1080"),
+            ("localhost", "localhost:1080"),
+            ("::1", "[::1]:1080"),
+            ("[::1]", "[::1]:1080"),
+        ] {
+            assert_eq!(format_host_port(host, 1080), expected);
+            assert_eq!(format_url_authority(host, 1080), expected);
+        }
+        assert_eq!(format_host_port("fe80::1%3", 1080), "[fe80::1%3]:1080");
+        assert_eq!(
+            format_url_authority("fe80::1%3", 1080),
+            "[fe80::1%253]:1080"
+        );
+    }
+
+    #[test]
+    fn detects_missing_interfaces() {
+        assert!(!interface_exists("xrat-missing-interface"));
+        assert!(!interface_exists("  "));
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn detects_loopback_interface() {
         assert!(interface_exists(if cfg!(target_os = "macos") {
             "lo0"
         } else {
             "lo"
         }));
-        assert!(!interface_exists("xrat-missing-interface"));
-        assert!(!interface_exists("  "));
     }
 }
+
+#[cfg(windows)]
+#[path = "net/windows_snapshot.rs"]
+mod windows_snapshot;
+#[cfg(windows)]
+pub use windows_snapshot::snapshot as windows_network_snapshot;

@@ -1,4 +1,6 @@
 mod layout;
+#[cfg(any(windows, test))]
+pub(crate) use layout::ensure_layout_at;
 
 #[cfg(test)]
 mod tests;

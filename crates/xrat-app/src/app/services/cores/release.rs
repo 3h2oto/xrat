@@ -169,6 +169,7 @@ pub(crate) fn asset_name_for(
             let os = match os {
                 "linux" => "linux",
                 "macos" => "macos",
+                "windows" => "windows",
                 _ => {
                     return Err(format!(
                         "managed installation is unsupported on {os}/{arch}"
@@ -190,6 +191,7 @@ pub(crate) fn asset_name_for(
             let os = match os {
                 "linux" => "linux",
                 "macos" => "darwin",
+                "windows" => "windows",
                 _ => {
                     return Err(format!(
                         "managed installation is unsupported on {os}/{arch}"
@@ -205,7 +207,8 @@ pub(crate) fn asset_name_for(
                     ));
                 }
             };
-            Ok(format!("sing-box-{version}-{os}-{arch}.tar.gz"))
+            let extension = if os == "windows" { "zip" } else { "tar.gz" };
+            Ok(format!("sing-box-{version}-{os}-{arch}.{extension}"))
         }
     }
 }

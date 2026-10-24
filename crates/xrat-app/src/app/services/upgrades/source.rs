@@ -3,9 +3,11 @@ use xrat_support::process::Command;
 
 use crate::app::AppError;
 use crate::app::commands::output;
+#[cfg(not(windows))]
 use crate::app::commands::progress::CliProgress;
 use crate::app::services::upgrades::UpgradeOptions as UpgradeArgs;
 
+#[cfg(not(windows))]
 use super::{
     install_binary, restart_daemon_if_active, run_post_upgrade_migrations_with_spawner,
     run_post_upgrade_tun_setup_with_spawner, should_restart_daemon, should_restore_tun,
@@ -15,7 +17,7 @@ pub(crate) async fn upgrade(
     args: &UpgradeArgs,
     target: &Path,
     config_path: &Path,
-) -> crate::app::Result<()> {
+) -> crate::app::Result<super::UpgradeOutcome> {
     upgrade_with_spawner(
         args,
         target,
@@ -30,7 +32,7 @@ pub(crate) async fn upgrade_with_spawner(
     target: &Path,
     config_path: &Path,
     spawner: std::sync::Arc<dyn xrat_support::process::ProcessSpawner>,
-) -> crate::app::Result<()> {
+) -> crate::app::Result<super::UpgradeOutcome> {
     let color = output::color_enabled();
     let source_dir = &args.path;
     if !source_dir.join("Cargo.toml").is_file() {
@@ -50,6 +52,30 @@ pub(crate) async fn upgrade_with_spawner(
             color
         )
     );
+    #[cfg(windows)]
+    {
+        let assets = source_dir.join("packaging/windows/build-web.ps1");
+        if !assets.is_file() {
+            return Err(AppError::InvalidArgument(
+                "source checkout is missing packaging/windows/build-web.ps1".into(),
+            ));
+        }
+        let status = Command::with_spawner("powershell.exe", spawner.clone())
+            .args([
+                "-NoProfile",
+                "-NonInteractive",
+                "-ExecutionPolicy",
+                "Bypass",
+                "-File",
+            ])
+            .arg(assets)
+            .status()?;
+        if !status.success() {
+            return Err(AppError::InvalidArgument(format!(
+                "browser asset build failed ({status}); installed executable preserved"
+            )));
+        }
+    }
     let status = Command::with_spawner("cargo", spawner.clone())
         .args(["build", "--release"])
         .current_dir(source_dir)
@@ -61,7 +87,10 @@ pub(crate) async fn upgrade_with_spawner(
         )));
     }
 
-    let built = source_dir.join("target").join("release").join("xrat");
+    let built = source_dir
+        .join("target")
+        .join("release")
+        .join(if cfg!(windows) { "xrat.exe" } else { "xrat" });
     if !built.is_file() {
         return Err(AppError::InvalidArgument(format!(
             "build succeeded but {} is missing",
@@ -69,28 +98,40 @@ pub(crate) async fn upgrade_with_spawner(
         )));
     }
 
+    #[cfg(not(windows))]
     let restore_tun = should_restore_tun(target, config_path, args);
 
-    let progress = CliProgress::spinner(true, format!("installing to {}", target.display()));
-    let result = install_binary(&built, target);
-    progress.finish_and_clear();
-    result?;
-
-    let progress = CliProgress::spinner(true, "applying database migrations");
-    let result = run_post_upgrade_migrations_with_spawner(target, config_path, spawner.clone());
-    progress.finish_and_clear();
-    result?;
-
-    if restore_tun {
-        let tun_ok = run_post_upgrade_tun_setup_with_spawner(target, config_path, spawner.clone());
-        if tun_ok && should_restart_daemon(config_path, args) {
-            restart_daemon_if_active(target, config_path, spawner.clone()).await;
-        }
+    #[cfg(windows)]
+    {
+        let transaction =
+            super::windows::stage(&built, target, config_path, "source", args).await?;
+        Ok(super::UpgradeOutcome::Staged(transaction))
     }
 
-    println!("{}", output::success("upgraded xrat from source", color));
+    #[cfg(not(windows))]
+    {
+        let progress = CliProgress::spinner(true, format!("installing to {}", target.display()));
+        let result = install_binary(&built, target);
+        progress.finish_and_clear();
+        result?;
 
-    Ok(())
+        let progress = CliProgress::spinner(true, "applying database migrations");
+        let result = run_post_upgrade_migrations_with_spawner(target, config_path, spawner.clone());
+        progress.finish_and_clear();
+        result?;
+
+        if restore_tun {
+            let tun_ok =
+                run_post_upgrade_tun_setup_with_spawner(target, config_path, spawner.clone());
+            if tun_ok && should_restart_daemon(config_path, args) {
+                restart_daemon_if_active(target, config_path, spawner.clone()).await;
+            }
+        }
+
+        println!("{}", output::success("upgraded xrat from source", color));
+
+        Ok(super::UpgradeOutcome::Completed)
+    }
 }
 
 #[cfg(all(test, unix))]

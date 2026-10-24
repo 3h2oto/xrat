@@ -22,6 +22,15 @@ pub enum SupervisorEvent {
         config_path: std::path::PathBuf,
         respond_to: oneshot::Sender<Result<crate::app::daemon::ipc::TunStatePayload, String>>,
     },
+    RuntimeOverview {
+        respond_to: oneshot::Sender<Result<Box<crate::app::read_models::RuntimeOverview>, String>>,
+    },
+    RuntimeTraffic {
+        respond_to: oneshot::Sender<Result<crate::app::read_models::TrafficSnapshot, String>>,
+    },
+    RuntimeDashboard {
+        respond_to: oneshot::Sender<Result<xrat_web::types::DashboardData, String>>,
+    },
     RuntimeStatus {
         respond_to: oneshot::Sender<RuntimeStatusResult>,
     },

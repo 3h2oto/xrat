@@ -149,15 +149,15 @@ fn override_takes_priority() {
 
 #[test]
 fn usage_hint_bash_uses_eval() {
-    let hint = usage_hint(ProxyShellKind::Bash, "enable");
+    let hint = usage_hint(ProxyShellKind::Bash, "enable", false);
     assert!(hint.starts_with("# apply: eval \"$(xrat proxy shell enable)\""));
-    let hint = usage_hint(ProxyShellKind::Zsh, "disable");
+    let hint = usage_hint(ProxyShellKind::Zsh, "disable", false);
     assert!(hint.starts_with("# apply: eval \"$(xrat proxy shell disable)\""));
 }
 
 #[test]
 fn usage_hint_fish_uses_source_pipe() {
-    let hint = usage_hint(ProxyShellKind::Fish, "toggle");
+    let hint = usage_hint(ProxyShellKind::Fish, "toggle", false);
     assert!(hint.starts_with("# apply: xrat proxy shell toggle | source"));
 }
 
@@ -167,6 +167,7 @@ fn enable_output_prefixes_usage_hint() {
         ProxyShellKind::Bash,
         "http://127.0.0.1:18201",
         "socks5://127.0.0.1:18200",
+        false,
     );
     assert!(out.starts_with("# apply: eval \"$(xrat proxy shell enable)\"\n"));
     assert!(out.contains("export http_proxy=\"http://127.0.0.1:18201\""));
@@ -174,7 +175,7 @@ fn enable_output_prefixes_usage_hint() {
 
 #[test]
 fn disable_output_prefixes_usage_hint() {
-    let out = disable_output(ProxyShellKind::Fish);
+    let out = disable_output(ProxyShellKind::Fish, false);
     assert!(out.starts_with("# apply: xrat proxy shell disable | source\n"));
     assert!(out.contains("set -e http_proxy"));
 }
@@ -185,12 +186,13 @@ fn toggle_output_prefixes_usage_hint_for_both_branches() {
         ProxyShellKind::Bash,
         "http://127.0.0.1:18201",
         "socks5://127.0.0.1:18200",
+        false,
     );
     assert!(on.starts_with("# apply: eval \"$(xrat proxy shell toggle)\"\n"));
     assert!(on.contains("export XRAT_PROXY_HAD_http_proxy"));
     assert!(on.contains("export http_proxy=\"http://127.0.0.1:18201\""));
 
-    let off = toggle_off_output(ProxyShellKind::Bash);
+    let off = toggle_off_output(ProxyShellKind::Bash, false);
     assert!(off.starts_with("# apply: eval \"$(xrat proxy shell toggle)\"\n"));
     assert!(off.contains("unset XRAT_PROXY_HAD_http_proxy"));
 }
@@ -212,4 +214,77 @@ fn status_text_reports_post_disable_state() {
     let status = status_text_for(&endpoints(true, true), None, false);
     assert!(status.contains("shell has no proxy environment set"));
     assert!(status.contains("http_proxy  -"));
+}
+
+#[test]
+fn machine_proxy_shell_hints_preserve_explicit_profile_selection() {
+    for kind in [
+        ProxyShellKind::Bash,
+        ProxyShellKind::Zsh,
+        ProxyShellKind::Fish,
+        ProxyShellKind::Powershell,
+    ] {
+        assert!(
+            usage_hint(kind, "disable", true)
+                .contains("xrat --profile machine proxy shell disable")
+        );
+    }
+}
+
+#[tokio::test]
+async fn machine_shell_disable_emits_recovery_without_querying_the_owner() {
+    use crate::app::daemon::ipc::DaemonResponse;
+    use crate::app::services::machine_service::{
+        GatewayPayload, GatewayRequest, MachineClient, Transport,
+    };
+    struct NoOwner;
+    #[async_trait::async_trait]
+    impl Transport for NoOwner {
+        async fn exchange(
+            &self,
+            _: GatewayRequest,
+        ) -> crate::app::Result<DaemonResponse<GatewayPayload>> {
+            panic!("local shell recovery must not query the runtime owner");
+        }
+    }
+    use clap::Parser;
+    let service =
+        ProxyService::for_machine_test(MachineClient::with_transport(std::sync::Arc::new(NoOwner)));
+    let parsed = crate::cli::Cli::try_parse_from([
+        "xrat",
+        "proxy",
+        "shell",
+        "disable",
+        "--shell",
+        "powershell",
+    ])
+    .unwrap();
+    let crate::cli::Command::Proxy(args) = parsed.command else {
+        panic!("proxy args")
+    };
+    let crate::cli::ProxyAction::Shell(args) = args.action else {
+        panic!("shell args")
+    };
+    run(&service, &args.action).await.unwrap();
+}
+
+#[test]
+fn ipv6_proxy_urls_and_status_use_loopback_and_bracketed_authorities() {
+    let active = ActiveEndpoints {
+        http: Some(("::".into(), 18201)),
+        socks: Some(("::".into(), 18200)),
+        shadowsocks: None,
+    };
+    let urls = proxy_urls(&active, None).unwrap();
+    assert_eq!(
+        urls,
+        ("http://[::1]:18201".into(), "socks5://[::1]:18200".into())
+    );
+    assert!(points_at_active(&urls.0, &active_hostports(&active)));
+    assert_eq!(
+        proxy_urls(&active, Some(ProxyShellProtocol::Socks5h))
+            .unwrap()
+            .0,
+        "socks5h://[::1]:18200"
+    );
 }

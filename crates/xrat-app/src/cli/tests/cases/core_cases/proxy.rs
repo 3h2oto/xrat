@@ -3,6 +3,21 @@ use clap::{CommandFactory, Parser};
 use crate::cli::{Cli, Command, ProxyAction, ProxyShellAction, ProxyShellKind, ProxyShellProtocol};
 
 #[test]
+fn parses_powershell_proxy_override() {
+    let cli = Cli::parse_from(["xrat", "proxy", "shell", "enable", "--shell", "powershell"]);
+    let Command::Proxy(proxy) = cli.command else {
+        panic!("expected proxy command");
+    };
+    let ProxyAction::Shell(shell) = proxy.action else {
+        panic!("expected shell command");
+    };
+    let ProxyShellAction::Enable(enable) = shell.action else {
+        panic!("expected enable command");
+    };
+    assert_eq!(enable.shell, Some(ProxyShellKind::Powershell));
+}
+
+#[test]
 fn parses_proxy_shell_enable_with_protocol_positional() {
     let cli = Cli::parse_from(["xrat", "proxy", "shell", "enable", "socks5h"]);
 

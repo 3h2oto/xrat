@@ -4,6 +4,16 @@ use super::bulk_progress::{
 use super::*;
 use xrat_support::cancel::CancellationReceiver;
 
+pub(crate) struct BulkProgress {
+    pub updates: tokio::sync::mpsc::UnboundedSender<TestProgressUpdate>,
+    pub started: Option<tokio::sync::oneshot::Sender<i64>>,
+}
+
+pub(crate) struct BulkTestOutcome {
+    pub run_id: i64,
+    pub rows: Vec<TestOutputRow>,
+}
+
 pub(crate) async fn run_bulk_for_configs(
     context: &AppContext,
     settings: ResolvedTestSettings,
@@ -21,6 +31,7 @@ pub(crate) async fn run_bulk_for_configs(
         None,
     )
     .await
+    .map(|outcome| outcome.rows)
 }
 
 pub(crate) async fn run_bulk_for_configs_cancellable(
@@ -30,14 +41,19 @@ pub(crate) async fn run_bulk_for_configs_cancellable(
     run_kind: &str,
     show_progress: bool,
     cancel_rx: Option<CancellationReceiver>,
-    progress_tx: Option<tokio::sync::mpsc::UnboundedSender<TestProgressUpdate>>,
-) -> crate::app::Result<Vec<TestOutputRow>> {
+    mut progress_tx: Option<BulkProgress>,
+) -> crate::app::Result<BulkTestOutcome> {
     let run_id = context
         .db
         .insert_connection_test_run(&ConnectionTestRunInsert {
             kind: run_kind.to_string(),
         })
         .await?;
+    if let Some(progress) = &mut progress_tx
+        && let Some(started) = progress.started.take()
+    {
+        let _ = started.send(run_id);
+    }
 
     let total = configs.len();
     for config in &configs {
@@ -124,16 +140,22 @@ pub(crate) async fn run_bulk_for_configs_cancellable(
                 outputs.push(output);
                 update_bulk_progress(&progress, completed, failed);
                 if let Some(tx) = &progress_tx {
-                    let _ = tx.send(TestProgressUpdate {
+                    let _ = tx.updates.send(TestProgressUpdate {
                         config_id,
                         done: completed,
                         total,
                     });
                 }
             }
-            Ok(Err(error)) => return Err(error),
+            Ok(Err(error)) => {
+                stop_workers(&mut join_set).await;
+                return Err(error);
+            }
             Err(join_error) if join_error.is_cancelled() => {}
-            Err(join_error) => return Err(join_error.into()),
+            Err(join_error) => {
+                stop_workers(&mut join_set).await;
+                return Err(join_error.into());
+            }
         }
 
         if cancelled() {
@@ -151,6 +173,7 @@ pub(crate) async fn run_bulk_for_configs_cancellable(
             );
         }
     }
+    stop_workers(&mut join_set).await;
     finish_bulk_progress(progress, completed, failed);
     if run_kind == "rotation" {
         crate::app::events::record(
@@ -186,5 +209,16 @@ pub(crate) async fn run_bulk_for_configs_cancellable(
     )
     .await;
 
-    Ok(outputs)
+    Ok(BulkTestOutcome {
+        run_id,
+        rows: outputs,
+    })
 }
+
+async fn stop_workers(workers: &mut JoinSet<crate::app::Result<TestOutputRow>>) {
+    workers.abort_all();
+    while workers.join_next().await.is_some() {}
+}
+
+#[cfg(test)]
+mod tests;

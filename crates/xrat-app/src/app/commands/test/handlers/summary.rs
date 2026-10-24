@@ -9,6 +9,15 @@ pub(super) async fn print_latest_run_summary(
         return Ok(());
     };
     let tests = db.list_connection_tests_by_run(run.id).await?;
+    print_run_summary(&run, tests, args);
+    Ok(())
+}
+
+pub(crate) fn print_run_summary(
+    run: &xrat_db::ConnectionTestRunRecord,
+    tests: Vec<xrat_db::ConnectionTestRecord>,
+    args: &TestArgs,
+) {
     let tests = filter_latest_run_rows(tests, args.country.as_deref(), args.asn.as_deref());
     let total = tests.len();
     let failed = tests
@@ -38,7 +47,6 @@ pub(super) async fn print_latest_run_summary(
             .iter()
             .filter_map(|row| row.dial_endpoint_fronting.as_deref()),
     );
-    Ok(())
 }
 
 pub(super) fn filter_latest_run_rows(

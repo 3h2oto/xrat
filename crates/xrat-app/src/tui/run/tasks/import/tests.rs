@@ -1,5 +1,5 @@
 use tempfile::TempDir;
-use tokio::io::AsyncWriteExt;
+use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::TcpListener;
 
 use super::{TuiImport, run_import};
@@ -25,6 +25,21 @@ async fn subscription_url(request_count: usize) -> String {
         );
         for _ in 0..request_count {
             let (mut socket, _) = listener.accept().await.expect("request should connect");
+            // The request has to be drained before the socket is closed.
+            // Windows answers an unread request with a reset, which would
+            // abort the response the client is still reading.
+            let mut request = Vec::new();
+            let mut chunk = [0u8; 1024];
+            while !request.windows(4).any(|window| window == b"\r\n\r\n") {
+                let read = socket
+                    .read(&mut chunk)
+                    .await
+                    .expect("request should be readable");
+                if read == 0 {
+                    break;
+                }
+                request.extend_from_slice(&chunk[..read]);
+            }
             socket
                 .write_all(response.as_bytes())
                 .await

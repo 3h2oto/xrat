@@ -1,0 +1,220 @@
+name: Windows build
+
+on:
+  workflow_dispatch:
+  workflow_call:
+    inputs:
+      web_assets_artifact:
+        description: Existing browser asset artifact from the calling workflow
+        type: string
+        default: ""
+  push:
+    branches: [master]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  web-assets:
+    name: Build browser assets
+    if: ${{ !inputs.web_assets_artifact }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32-unknown-unknown
+      - uses: Swatinem/rust-cache@v2
+      - name: Build browser assets
+        shell: pwsh
+        run: ./packaging/windows/build-web.ps1
+      - uses: actions/upload-artifact@v4
+        with:
+          name: windows-web-assets
+          path: crates/xrat-app/web-assets/
+
+  build:
+    name: Build ${{ matrix.target }}
+    timeout-minutes: 90
+    runs-on: ${{ matrix.os }}
+    needs: [web-assets]
+    if: ${{ !cancelled() && (needs.web-assets.result == 'success' || needs.web-assets.result == 'skipped') }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - target: x86_64-pc-windows-msvc
+            os: windows-latest
+            architecture: x64
+          - target: aarch64-pc-windows-msvc
+            os: windows-11-arm
+            architecture: arm64
+    steps:
+      - uses: actions/checkout@v5
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+      - uses: Swatinem/rust-cache@v2
+        with:
+          key: ${{ matrix.target }}
+          cache-on-failure: true
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: ${{ inputs.web_assets_artifact || 'windows-web-assets' }}
+          path: crates/xrat-app/web-assets/
+
+      - name: Build
+        run: cargo build --release --locked --target ${{ matrix.target }}
+
+      # The Linux runners compile the Windows code paths out, so the Windows
+      # fixtures are exercised here for the first time. The Dioxus frontend
+      # targets wasm32 and is not part of a Windows test run.
+      - name: Install release tooling
+        uses: taiki-e/install-action@v2
+        with:
+          tool: just
+      # The Justfile drives its recipes through bash, and the version recipe
+      # rewrites manifests with perl. Both ship with the Windows image.
+      - name: Add a POSIX shell to PATH
+        shell: pwsh
+        run: |
+          $bash = "C:\Program Files\Git\bin"
+          if (Test-Path $bash) { $bash | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append }
+          $perl = (Get-Command perl -ErrorAction SilentlyContinue).Source
+          if (-not $perl) { throw "perl is required by the release tooling tests" }
+          Split-Path $perl | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+      - name: Test
+        id: workspace_tests
+        continue-on-error: true
+        run: cargo test --locked --workspace --exclude xrat-web --target ${{ matrix.target }} --no-fail-fast
+
+      - name: Test installer (Windows PowerShell 5.1)
+        id: installer_ps5
+        continue-on-error: true
+        env:
+          XRAT_TEST_POWERSHELL: powershell.exe
+        run: cargo test --locked -p xrat --test windows_installer --target ${{ matrix.target }} -- --ignored
+      - name: Test installer (PowerShell 7)
+        id: installer_ps7
+        continue-on-error: true
+        env:
+          XRAT_TEST_POWERSHELL: pwsh.exe
+        run: cargo test --locked -p xrat --test windows_installer --target ${{ matrix.target }} -- --ignored
+
+      - name: Lint backend
+        id: backend_lint
+        continue-on-error: true
+        run: cargo clippy --locked --workspace --exclude xrat-web --all-targets --target ${{ matrix.target }} -- -D warnings
+
+      - name: Check browser-safe contracts
+        id: browser_contracts
+        continue-on-error: true
+        run: cargo check --locked -p xrat-web --no-default-features --target ${{ matrix.target }}
+
+      - name: Test native desktop proxy restoration
+        id: desktop_proxy
+        continue-on-error: true
+        run: cargo test --locked -p xrat-app --lib --target ${{ matrix.target }} native_wininet_restores_owned_settings_and_preserves_conflicts -- --ignored
+
+      - name: Test protected machine profile
+        id: machine_profile
+        continue-on-error: true
+        run: |
+          cargo test --locked -p xrat-support --lib --target ${{ matrix.target }} native_machine_directory -- --ignored --test-threads=1
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          cargo test --locked -p xrat-app --lib --target ${{ matrix.target }} native_machine_profile -- --ignored --test-threads=1
+
+      - name: Test isolated machine service and coordinated upgrades
+        id: machine_service
+        continue-on-error: true
+        env:
+          XRAT_WINDOWS_SERVICE_BINARY: ${{ github.workspace }}/target/${{ matrix.target }}/release/xrat.exe
+        run: cargo test --locked -p xrat-app --lib --target ${{ matrix.target }} native_machine_service_lifecycle_and_restricted_operator -- --ignored --test-threads=1
+
+      - name: Test real proxy engines and cancellation
+        id: engines
+        continue-on-error: true
+        env:
+          XRAT_WINDOWS_ENGINE_RECEIPT: ${{ runner.temp }}/xrat-engines/receipts.json
+        run: cargo test --locked -p xrat-sdk --test native_windows --target ${{ matrix.target }} -- --ignored --test-threads=1
+      - uses: actions/upload-artifact@v4
+        if: ${{ always() }}
+        with:
+          name: windows-engine-receipts-${{ matrix.architecture }}
+          path: ${{ runner.temp }}/xrat-engines/receipts.json
+
+      # Both runners are native, so the produced binary can be executed here.
+      # The Web UI bundle is embedded at compile time; a binary without it
+      # answers every asset request with HTTP 503.
+      - name: Smoke check
+        id: smoke
+        continue-on-error: true
+        shell: pwsh
+        env:
+          XRAT_TARGET: ${{ matrix.target }}
+        run: |
+          $exe = "target/$env:XRAT_TARGET/release/xrat.exe"
+          & $exe --version
+          if ($LASTEXITCODE -ne 0) { throw "xrat --version exited with $LASTEXITCODE" }
+          $strings = [System.Text.Encoding]::ASCII.GetString([System.IO.File]::ReadAllBytes($exe))
+          if (-not $strings.Contains("xrat_web_bg.wasm")) {
+            throw "Web UI bundle is not embedded in $exe"
+          }
+
+      - name: Package binary
+        shell: pwsh
+        env:
+          XRAT_TARGET: ${{ matrix.target }}
+          XRAT_REF_NAME: ${{ github.ref_name }}
+        run: |
+          $target = $env:XRAT_TARGET
+          $match = Select-String -Path Cargo.toml -Pattern '^\s*version\s*=\s*"([^"]+)"' | Select-Object -First 1
+          $cargo = if ($match) { $match.Matches[0].Groups[1].Value } else { "" }
+          # Release archives are named after the release tag (v<version>).
+          # Branch and pull-request builds fall back to the workspace version
+          # so the archive keeps the published release naming contract.
+          $version = $env:XRAT_REF_NAME
+          if ($version -notmatch '^v\d+\.\d+\.\d+') {
+            $version = if ($cargo) { "v$cargo" } else { "v0.0.0" }
+          }
+          $version = $version -replace '[^A-Za-z0-9._-]', '_'
+          New-Item -ItemType Directory -Force -Path stage | Out-Null
+          Copy-Item "target/$target/release/xrat.exe" stage/
+          Copy-Item LICENSE, README.md stage/
+          Compress-Archive -Path stage/* -DestinationPath "xrat-$version-$target.zip"
+
+      - name: Test packaged daemon and upgrades as ordinary user
+        id: packaged_user
+        continue-on-error: true
+        shell: pwsh
+        run: |
+          $archive = (Get-ChildItem xrat-*.zip | Select-Object -First 1).FullName
+          ./packaging/windows/test-user.ps1 -Target '${{ matrix.target }}' -Archive $archive
+
+      - uses: actions/upload-artifact@v4
+        if: ${{ always() }}
+        with:
+          name: windows-user-acceptance-${{ matrix.architecture }}
+          path: target/windows-user-acceptance/
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: xrat-${{ matrix.target }}
+          path: xrat-*.zip
+          if-no-files-found: error
+
+      - name: Require every native check to pass
+        if: ${{ always() }}
+        shell: pwsh
+        env:
+          CHECK_OUTCOMES: ${{ toJSON(steps) }}
+        run: |
+          $checks = $env:CHECK_OUTCOMES | ConvertFrom-Json
+          $failures = @($checks.PSObject.Properties | Where-Object { $_.Value.outcome -eq 'failure' } | ForEach-Object { $_.Name })
+          if ($failures.Count -gt 0) { throw "Windows checks failed: $($failures -join ', ')" }

@@ -29,6 +29,21 @@ pub async fn run(context: &AppContext, args: &crate::cli::ImportArgs) -> crate::
         .map(|subscription| subscription.r#ref)
         .unwrap_or_else(|| "-".to_string());
 
+    print_summary(
+        &summary,
+        &subscription_label,
+        &context.runtime_paths.database_label,
+        &context.runtime_paths.config_path.display().to_string(),
+    );
+    Ok(())
+}
+
+pub(super) fn print_summary(
+    summary: &xrat_db::ImportSummary,
+    subscription_label: &str,
+    database_label: &str,
+    config_path: &str,
+) {
     println!(
         "{}",
         output::success(
@@ -41,20 +56,15 @@ pub async fn run(context: &AppContext, args: &crate::cli::ImportArgs) -> crate::
         output::format_kv(
             None,
             &[
-                ("database", context.runtime_paths.database_label.clone()),
-                (
-                    "config",
-                    context.runtime_paths.config_path.display().to_string()
-                ),
-                ("subscription", subscription_label),
+                ("database", database_label.to_string()),
+                ("config", config_path.to_string()),
+                ("subscription", subscription_label.to_string()),
                 ("removed configs", summary.removed_configs.to_string()),
                 ("total configs", summary.total_configs.to_string()),
             ],
             output::color_enabled(),
         )
     );
-
-    Ok(())
 }
 
 async fn import_url_list(

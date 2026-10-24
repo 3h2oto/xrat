@@ -115,7 +115,9 @@ pub fn spawn_test_batch(
                         data: None,
                     },
                 },
-                Err(_) if was_cancelled => TuiTaskEvent::Cancelled { kind },
+                Err(_) if was_cancelled && !context.is_machine_client() => {
+                    TuiTaskEvent::Cancelled { kind }
+                }
                 Err(error) => TuiTaskEvent::Failed {
                     kind,
                     error: error.to_string(),
@@ -152,6 +154,7 @@ pub(crate) fn test_run_request_for_app(
         real_delay_timeout_ms: None,
         download_timeout_ms: None,
         upload_timeout_ms: None,
-        concurrency: Some(app.test_state.concurrency as i32),
+        concurrency: (!app.data.test_concurrency_managed)
+            .then_some(app.test_state.concurrency as i32),
     }
 }

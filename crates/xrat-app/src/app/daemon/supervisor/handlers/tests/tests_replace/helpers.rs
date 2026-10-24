@@ -1,8 +1,15 @@
+#[cfg(unix)]
+use crate::app::tests::platform::make_executable;
+#[cfg(unix)]
 use std::fs;
-use std::os::unix::fs::PermissionsExt;
+#[cfg(unix)]
 use xrat_db::RuntimeSessionInsert;
-use xrat_support::process::{Child, Command, Stdio};
 
+/// Writes the POSIX fake runtime script used by the replacement tests.
+///
+/// The fixture is a `python3` script with a shebang, so it can only be
+/// executed on Unix.
+#[cfg(unix)]
 pub(super) fn write_fake_runtime_script(context: &crate::app::context::AppContext) {
     let fake_xray = context.runtime_paths.root_dir.join("fake-xray.py");
     fs::write(
@@ -49,23 +56,10 @@ while True:
     )
     .expect("fake runtime script should write");
 
-    let mut perms = fs::metadata(&fake_xray)
-        .expect("fake runtime script metadata should load")
-        .permissions();
-    perms.set_mode(0o755);
-    fs::set_permissions(&fake_xray, perms).expect("fake runtime script should be executable");
+    make_executable(&fake_xray);
 }
 
-pub(super) fn spawn_sleep(seconds: u64) -> Child {
-    Command::new("sleep")
-        .arg(seconds.to_string())
-        .stdin(Stdio::null())
-        .stdout(Stdio::null())
-        .stderr(Stdio::null())
-        .spawn()
-        .expect("sleep process should spawn")
-}
-
+#[cfg(unix)]
 pub(super) async fn set_running_session(
     context: &crate::app::context::AppContext,
     config_id: xrat_model::ConfigId,

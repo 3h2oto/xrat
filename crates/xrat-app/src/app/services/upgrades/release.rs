@@ -1,26 +1,25 @@
 use std::io::Write;
 use std::path::Path;
 use std::time::Duration;
-use xrat_support::process::Command;
 
 use crate::app::AppError;
 use crate::app::commands::output;
 use crate::app::commands::progress::CliProgress;
 use crate::app::services::upgrades::UpgradeOptions as UpgradeArgs;
 
+use super::{REPO, same_version};
+#[cfg(not(windows))]
 use super::{
-    REPO, current_version, install_binary, restart_daemon_if_active, run_post_upgrade_migrations,
-    run_post_upgrade_tun_setup_with_spawner, same_version, should_restart_daemon,
-    should_restore_tun,
+    current_version, install_binary, restart_daemon_if_active, run_post_upgrade_migrations,
+    run_post_upgrade_tun_setup_with_spawner, should_restart_daemon, should_restore_tun,
 };
 
 pub(crate) async fn upgrade(
     args: &UpgradeArgs,
     target: &Path,
     config_path: &Path,
-) -> crate::app::Result<()> {
+) -> crate::app::Result<super::UpgradeOutcome> {
     let color = output::color_enabled();
-    let arch = detect_arch()?;
 
     let version = match &args.version {
         Some(tag) => tag.clone(),
@@ -32,29 +31,56 @@ pub(crate) async fn upgrade(
         }
     };
 
-    if !args.force && same_version(&version, current_version()) {
+    #[cfg(windows)]
+    let installed_version = crate::app::services::cores::binary_version(target)
+        .map(|version| version.to_string())
+        .ok_or_else(|| {
+            AppError::InvalidArgument(
+                "could not determine the installed XRAT version; executable preserved".into(),
+            )
+        })?;
+    #[cfg(not(windows))]
+    let installed_version = current_version().to_owned();
+    if !args.force && same_version(&version, &installed_version) {
         println!(
             "{}",
             output::success(
-                format!("already using latest version ({})", current_version()),
+                format!("already using latest version ({installed_version})"),
                 color
             )
         );
-        return Ok(());
+        return Ok(super::UpgradeOutcome::Current);
     }
+
+    let arch = detect_arch()?;
 
     println!(
         "{}",
-        output::notice(
-            format!("upgrading {} -> {version}", current_version()),
-            color
-        )
+        output::notice(format!("upgrading {installed_version} -> {version}"), color)
     );
 
-    let filename = format!("xrat-{version}-{arch}.tar.gz");
+    let extension = if arch.contains("windows") {
+        "zip"
+    } else {
+        "tar.gz"
+    };
+    let filename = format!("xrat-{version}-{arch}.{extension}");
     let base_url = format!("https://github.com/{REPO}/releases/download/{version}");
 
+    #[cfg(not(windows))]
     let work = tempfile::tempdir()?;
+    #[cfg(windows)]
+    let work = if super::windows::coordination::classify(target, config_path)? {
+        super::windows::Work::new(
+            target
+                .parent()
+                .ok_or_else(|| AppError::InvalidArgument("upgrade target has no parent".into()))?,
+            true,
+            ".xrat-download-",
+        )?
+    } else {
+        super::windows::Work::new(&std::env::temp_dir(), false, "xrat-download-")?
+    };
     let client = http_client(args.timeout_secs)?;
 
     download_with_progress(
@@ -79,40 +105,67 @@ pub(crate) async fn upgrade(
     progress.finish_and_clear();
     result?;
 
+    #[cfg(not(windows))]
     let restore_tun = should_restore_tun(target, config_path, args);
 
-    let progress = CliProgress::spinner(true, format!("installing to {}", target.display()));
-    let result = (|| {
+    #[cfg(windows)]
+    {
         extract_binary(work.path(), &filename)?;
-        install_binary(&work.path().join("xrat"), target)
-    })();
-    progress.finish_and_clear();
-    result?;
-
-    let progress = CliProgress::spinner(true, "applying database migrations");
-    let result = run_post_upgrade_migrations(target, config_path);
-    progress.finish_and_clear();
-    result?;
-
-    if restore_tun {
-        let spawner = std::sync::Arc::new(xrat_support::process::SystemProcessSpawner);
-        let tun_ok = run_post_upgrade_tun_setup_with_spawner(target, config_path, spawner.clone());
-        if tun_ok && should_restart_daemon(config_path, args) {
-            restart_daemon_if_active(target, config_path, spawner).await;
+        if !super::windows::coordination::classify(target, config_path)? {
+            crate::app::services::release_notes::cache_release(&client, &version).await;
         }
+        let transaction = super::windows::stage(
+            &work.path().join("xrat.exe"),
+            target,
+            config_path,
+            &version,
+            args,
+        )
+        .await?;
+        Ok(super::UpgradeOutcome::Staged(transaction))
     }
 
-    crate::app::services::release_notes::cache_release(&client, &version).await;
+    #[cfg(not(windows))]
+    {
+        let progress = CliProgress::spinner(true, format!("installing to {}", target.display()));
+        let result = (|| {
+            extract_binary(work.path(), &filename)?;
+            install_binary(
+                &work
+                    .path()
+                    .join(if cfg!(windows) { "xrat.exe" } else { "xrat" }),
+                target,
+            )
+        })();
+        progress.finish_and_clear();
+        result?;
 
-    println!(
-        "{}",
-        output::success(
-            format!("upgraded xrat {} -> {version}", current_version()),
-            color
-        )
-    );
+        let progress = CliProgress::spinner(true, "applying database migrations");
+        let result = run_post_upgrade_migrations(target, config_path);
+        progress.finish_and_clear();
+        result?;
 
-    Ok(())
+        if restore_tun {
+            let spawner = std::sync::Arc::new(xrat_support::process::SystemProcessSpawner);
+            let tun_ok =
+                run_post_upgrade_tun_setup_with_spawner(target, config_path, spawner.clone());
+            if tun_ok && should_restart_daemon(config_path, args) {
+                restart_daemon_if_active(target, config_path, spawner).await;
+            }
+        }
+
+        crate::app::services::release_notes::cache_release(&client, &version).await;
+
+        println!(
+            "{}",
+            output::success(
+                format!("upgraded xrat {} -> {version}", current_version()),
+                color
+            )
+        );
+
+        Ok(super::UpgradeOutcome::Completed)
+    }
 }
 
 fn detect_arch() -> crate::app::Result<&'static str> {
@@ -128,6 +181,8 @@ fn detect_arch_with_platform(
         ("linux", "aarch64") => Ok("aarch64-unknown-linux-musl"),
         ("macos", "x86_64") => Ok("x86_64-apple-darwin"),
         ("macos", "aarch64") => Ok("aarch64-apple-darwin"),
+        ("windows", "x86_64") => Ok("x86_64-pc-windows-msvc"),
+        ("windows", "aarch64") => Ok("aarch64-pc-windows-msvc"),
         (os, arch) => Err(AppError::UnsupportedPlatform(format!(
             "no prebuilt release for {os}/{arch}; use --source to build from source"
         ))),
@@ -173,6 +228,13 @@ async fn download(
             operation: "reading xrat release checksums from github.com",
             source,
         })?;
+    #[cfg(windows)]
+    {
+        let mut file = super::windows::output_file(destination)?;
+        file.write_all(&bytes)?;
+        file.sync_all()?;
+    }
+    #[cfg(not(windows))]
     std::fs::write(destination, &bytes)?;
     Ok(())
 }
@@ -203,7 +265,10 @@ async fn download_with_progress(
         response.content_length(),
         format!("downloading {label}"),
     );
+    #[cfg(not(windows))]
     let mut file = std::fs::File::create(destination)?;
+    #[cfg(windows)]
+    let mut file = super::windows::output_file(destination)?;
     while let Some(chunk) = response
         .chunk()
         .await
@@ -221,58 +286,23 @@ async fn download_with_progress(
 }
 
 fn verify_checksum(work_dir: &Path, filename: &str) -> crate::app::Result<()> {
-    let sums = std::fs::read_to_string(work_dir.join("SHASUMS256.txt"))?;
-    let line = sums
-        .lines()
-        .find(|line| line.contains(filename))
-        .ok_or_else(|| AppError::InvalidArgument(format!("no checksum entry for {filename}")))?;
-    std::fs::write(work_dir.join("checksum.txt"), format!("{line}\n"))?;
-
-    run_in(
-        work_dir,
-        "sha256sum",
-        &["-c", "checksum.txt"],
-        "checksum verification failed",
+    super::archive::verify_checksum(
+        &work_dir.join(filename),
+        &std::fs::read_to_string(work_dir.join("SHASUMS256.txt"))?,
+        filename,
     )
 }
 
 fn extract_binary(work_dir: &Path, filename: &str) -> crate::app::Result<()> {
-    run_in(
+    super::archive::extract_binary(
+        &work_dir.join(filename),
         work_dir,
-        "tar",
-        &["-xzf", filename, "./xrat"],
-        "failed to extract xrat binary from release archive",
+        if filename.ends_with(".zip") {
+            "xrat.exe"
+        } else {
+            "xrat"
+        },
     )
-}
-
-fn run_in(dir: &Path, program: &str, args: &[&str], context: &str) -> crate::app::Result<()> {
-    run_in_with_spawner(
-        dir,
-        program,
-        args,
-        context,
-        std::sync::Arc::new(xrat_support::process::SystemProcessSpawner),
-    )
-}
-
-fn run_in_with_spawner(
-    dir: &Path,
-    program: &str,
-    args: &[&str],
-    context: &str,
-    spawner: std::sync::Arc<dyn xrat_support::process::ProcessSpawner>,
-) -> crate::app::Result<()> {
-    let status = Command::with_spawner(program, spawner.clone())
-        .args(args)
-        .current_dir(dir)
-        .status()
-        .map_err(|error| {
-            AppError::InvalidArgument(format!("{context}: cannot run {program}: {error}"))
-        })?;
-    if !status.success() {
-        return Err(AppError::InvalidArgument(format!("{context} ({status})")));
-    }
-    Ok(())
 }
 
 #[cfg(test)]
@@ -302,6 +332,16 @@ mod platform_tests {
                 Architecture::Aarch64,
                 "aarch64-apple-darwin",
             ),
+            (
+                OperatingSystem::Windows,
+                Architecture::X86_64,
+                "x86_64-pc-windows-msvc",
+            ),
+            (
+                OperatingSystem::Windows,
+                Architecture::Aarch64,
+                "aarch64-pc-windows-msvc",
+            ),
         ] {
             assert_eq!(
                 detect_arch_with_platform(&Platform { os, arch }).unwrap(),
@@ -311,7 +351,7 @@ mod platform_tests {
         assert!(
             detect_arch_with_platform(&Platform {
                 os: OperatingSystem::Windows,
-                arch: Architecture::X86_64
+                arch: Architecture::Other("i686")
             })
             .is_err()
         );

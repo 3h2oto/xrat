@@ -6762,8 +6762,10 @@ name = "xrat"
 version = "0.31.3"
 dependencies = [
  "clap",
+ "reqwest 0.13.4",
  "rustls",
  "serde_json",
+ "sha2 0.10.9",
  "sqlx",
  "tempfile",
  "tokio",
@@ -6776,6 +6778,7 @@ dependencies = [
  "xrat-model",
  "xrat-prober",
  "xrat-support",
+ "zip",
 ]
 
 [[package]]
@@ -6827,6 +6830,7 @@ dependencies = [
  "unicode-width",
  "url",
  "uuid",
+ "windows-sys 0.61.2",
  "xrat-config",
  "xrat-db",
  "xrat-engines",
@@ -6857,6 +6861,7 @@ dependencies = [
 name = "xrat-db"
 version = "0.31.3"
 dependencies = [
+ "serde",
  "serde_json",
  "sqlx",
  "thiserror 2.0.18",
@@ -6915,7 +6920,9 @@ dependencies = [
 name = "xrat-sdk"
 version = "0.31.3"
 dependencies = [
+ "reqwest 0.13.4",
  "serde_json",
+ "sha2 0.10.9",
  "tempfile",
  "tokio",
  "xrat-app",
@@ -6923,6 +6930,7 @@ dependencies = [
  "xrat-engines",
  "xrat-model",
  "xrat-prober",
+ "zip",
 ]
 
 [[package]]
@@ -6944,6 +6952,7 @@ dependencies = [
  "tokio",
  "url",
  "uuid",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]

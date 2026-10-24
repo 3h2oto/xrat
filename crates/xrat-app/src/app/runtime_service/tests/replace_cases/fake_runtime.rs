@@ -1,4 +1,5 @@
 use super::*;
+use crate::app::tests::platform::make_executable;
 
 pub(super) fn write_fake_runtime_script(context: &AppContext) {
     let fake_xray = context.runtime_paths.root_dir.join("fake-xray.py");
@@ -50,9 +51,5 @@ while True:
     )
     .expect("fake runtime script should write");
 
-    let mut perms = fs::metadata(&fake_xray)
-        .expect("fake runtime script metadata should load")
-        .permissions();
-    perms.set_mode(0o755);
-    fs::set_permissions(&fake_xray, perms).expect("fake runtime script should be executable");
+    make_executable(&fake_xray);
 }

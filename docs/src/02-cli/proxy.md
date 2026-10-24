@@ -240,3 +240,40 @@ system proxy authority across platforms.
 - [`daemon`](daemon.md) — daemon must be running for runtime operations
 - [`connect`](runtime.md#connect) — start one proxy session through the daemon
 - [`serve`](serve.md) — run the API server that hosts `/proxy.pac`
+
+
+## Windows machine runtime
+
+Use an ordinary operator terminal to read service-owned endpoints and policy:
+
+```powershell
+xrat --profile machine proxy info
+xrat --profile machine proxy pac print
+xrat --profile machine proxy shell enable --shell powershell | Out-String | Invoke-Expression
+xrat --profile machine proxy desktop enable
+```
+
+The service supplies runtime endpoints and PAC routing policy. PAC URL settings
+come from the operator's `machine-client/config.toml`; enable `[server]` and
+`pac_enabled` when using PAC, and configure the frontend's HTTP/HTTPS origin and
+PAC host allowlist appropriately. Missing frontend preferences use defaults;
+invalid preferences report an error. Proxy commands do not initialize a catalog
+or a UI database.
+
+Desktop settings and their recovery record belong to the interactive user.
+They never change LocalSystem's HKCU. Recover after the service stops or is
+removed with:
+
+```powershell
+xrat --profile machine proxy desktop disable
+xrat --profile machine proxy shell disable --shell powershell | Out-String | Invoke-Expression
+```
+
+Desktop status/disable and shell restoration do not require the service or a
+catalog database. Shell output must be applied in the current shell; emitting a
+script cannot change the parent process by itself. Owned desktop restoration
+continues to preserve changes made by another application.
+
+IPv6 wildcard endpoints use loopback for connection URLs, with bracketed IPv6
+literals and URI-escaped scope IDs. Native Windows desktop/Terminal acceptance
+remains pending.

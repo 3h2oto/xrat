@@ -9,6 +9,9 @@ use super::local::LocalRuntimeControl;
 
 /// CLI operations require the daemon and never fall back to a second owner.
 pub fn daemon_control(context: &AppContext) -> Arc<dyn RuntimeControl> {
+    if let Some(control) = machine_control(context) {
+        return control;
+    }
     Arc::new(DaemonRuntimeControl::new(ipc::default_socket_path(
         &context.runtime_paths.runtime_dir,
     )))
@@ -16,13 +19,19 @@ pub fn daemon_control(context: &AppContext) -> Arc<dyn RuntimeControl> {
 
 /// Build an in-process control implementation.
 pub fn local_control(context: &AppContext) -> Arc<dyn RuntimeControl> {
+    if let Some(control) = machine_control(context) {
+        return control;
+    }
     Arc::new(LocalRuntimeControl::new(context.clone()))
 }
 
 /// TUI operations use the daemon when reachable, or run standalone when absent.
 /// Protocol failures and timeouts must not create a competing local owner.
 pub async fn tui_control(context: &AppContext) -> crate::app::Result<Arc<dyn RuntimeControl>> {
-    #[cfg(unix)]
+    if let Some(control) = machine_control(context) {
+        return Ok(control);
+    }
+    #[cfg(any(unix, windows))]
     if tui_uses_daemon(&ipc::default_socket_path(
         &context.runtime_paths.runtime_dir,
     ))
@@ -33,7 +42,19 @@ pub async fn tui_control(context: &AppContext) -> crate::app::Result<Arc<dyn Run
     Ok(local_control(context))
 }
 
-#[cfg(unix)]
+fn machine_control(context: &AppContext) -> Option<Arc<dyn RuntimeControl>> {
+    #[cfg(any(windows, test))]
+    if let Some(client) = &context.machine_client {
+        return Some(Arc::new(super::machine::MachineRuntimeControl::new(
+            client.clone(),
+        )));
+    }
+    #[cfg(not(any(windows, test)))]
+    let _ = context;
+    None
+}
+
+#[cfg(any(unix, windows))]
 pub(crate) async fn tui_uses_daemon(socket: &std::path::Path) -> crate::app::Result<bool> {
     let response =
         tokio::time::timeout(std::time::Duration::from_secs(1), ipc::ping_daemon(socket))

@@ -16,7 +16,22 @@ pub struct AppServices {
 impl AppServices {
     /// Wire production services from an application context.
     pub fn from_context(context: &AppContext) -> Self {
+        #[cfg(any(windows, test))]
+        if let Some(client) = &context.machine_client {
+            return Self::from_machine(client.clone());
+        }
         Self::from_database(context.db.clone())
+    }
+
+    /// Wire catalog operations through the machine gateway, with no local persistence fallback.
+    #[cfg(any(windows, test))]
+    pub fn from_machine(client: super::machine_service::MachineClient) -> Self {
+        Self {
+            configs: ConfigService::for_machine(client.clone()),
+            lifecycle: ConfigLifecycleService::for_machine(client),
+            clock: Arc::new(SystemClock),
+            filesystem: Arc::new(RealFilesystem),
+        }
     }
 
     /// Wire production services from a database handle alone.

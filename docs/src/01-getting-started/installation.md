@@ -1,27 +1,28 @@
 # Installation Script
 
-Use the installer script for a normal Linux or macOS install. It downloads the
-matching release archive, verifies the checksum, installs `xrat`, and can run
-first-time setup for you.
+Use `install.sh` for Linux or macOS and `install.ps1` for Windows. It downloads
+the matching release archive, verifies the checksum, installs `xrat`, and can
+run first-time setup for you.
 
 For other install paths, see [Arch Linux (AUR)](aur-install.md),
-[Docker Install](docker-install.md), [Manual Binary Install](manual-binary-install.md),
-or [Build From Source](source-install.md).
+[Docker Install](docker-install.md),
+[Manual Binary Install](manual-binary-install.md), or
+[Build From Source](source-install.md).
 
 ## Requirements
 
 ### Runtime dependencies
 
-| Tool       | Required | Purpose                                                 | Upstream                                                  |
-| ---------- | -------- | ------------------------------------------------------- | --------------------------------------------------------- |
-| `xray`     | Yes      | Managed Xray runtime and real-delay tests               | [XTLS/Xray-core](https://github.com/XTLS/Xray-core)       |
+| Tool       | Required | Purpose                                                | Upstream                                                  |
+| ---------- | -------- | ------------------------------------------------------ | --------------------------------------------------------- |
+| `xray`     | Yes      | Managed Xray runtime and real-delay tests              | [XTLS/Xray-core](https://github.com/XTLS/Xray-core)       |
 | `sing-box` | No       | Managed runtime and test probes for imported protocols | [SagerNet/sing-box](https://github.com/SagerNet/sing-box) |
-| `v2ray`    | No       | Alternative V2Ray managed runtime                       | [V2Fly/V2Ray](https://github.com/v2fly/v2ray-core)        |
+| `v2ray`    | No       | Alternative V2Ray managed runtime                      | [V2Fly/V2Ray](https://github.com/v2fly/v2ray-core)        |
 
 `xrat setup` detects these tools, checks their latest stable versions, and can
-install verified user-local copies without root access. Managed files live
-under `~/.local/share/xrat/cores`, with commands linked into `~/.local/bin`.
-Existing system or package-manager installations are never overwritten.
+install verified user-local copies without root access. Managed files live under
+`~/.local/share/xrat/cores`, with commands linked into `~/.local/bin`. Existing
+system or package-manager installations are never overwritten.
 
 The upstream system installers remain available when a system-wide service is
 preferred. Install Xray system-wide:
@@ -44,32 +45,37 @@ bash -c "$(curl -L https://raw.githubusercontent.com/v2fly/fhs-install-v2ray/mas
 
 ### System requirements
 
-| Requirement | Details                                           |
-| ----------- | ------------------------------------------------- |
-| OS          | Linux x86_64/aarch64, or macOS x86_64/arm64       |
+| Requirement | Details                                              |
+| ----------- | ---------------------------------------------------- |
+| OS          | Linux x86_64/aarch64, or macOS x86_64/arm64          |
 | libc        | None -- Linux release binaries are statically linked |
-| SQLite      | Bundled -- no system SQLite needed                |
-| PostgreSQL  | Optional -- version 14+ if used instead of SQLite |
-| Network     | Outbound HTTPS for imports and release downloads  |
+| SQLite      | Bundled -- no system SQLite needed                   |
+| PostgreSQL  | Optional -- version 14+ if used instead of SQLite    |
+| Network     | Outbound HTTPS for imports and release downloads     |
 
 ## Platform Support
 
 Core CLI, config import, parsing, testing, and the TUI work on any Unix-like
-platform xrat compiles for. Platform integrations vary:
+platform xrat compiles for, and on 64-bit Windows. Platform integrations vary:
 
-| Feature                | Linux          | macOS            | FreeBSD          | OpenBSD          |
-| ---------------------- | -------------- | ---------------- | ---------------- | ---------------- |
-| CLI / config / import  | yes            | yes              | expected         | expected         |
-| daemon runtime IPC     | Unix socket    | Unix socket      | Unix socket      | Unix socket      |
-| daemon install         | systemd user   | launchd agent    | rc.d (root)      | rc.d (root)      |
-| runtime reattach       | sysinfo        | sysinfo          | sysinfo          | sysinfo (cmd)    |
-| desktop proxy          | GNOME/gsettings| networksetup     | unsupported      | unsupported      |
-| release upgrade        | musl tarball   | darwin tarball   | source/manual    | source/manual    |
-| clipboard (TUI)        | X11/Wayland    | native           | X11              | X11              |
+| Feature               | Linux           | macOS          | FreeBSD       | OpenBSD       | Windows                   |
+| --------------------- | --------------- | -------------- | ------------- | ------------- | ------------------------- |
+| CLI / config / import | yes             | yes            | expected      | expected      | yes                       |
+| daemon runtime IPC    | Unix socket     | Unix socket    | Unix socket   | Unix socket   | named pipe (experimental) |
+| daemon install        | systemd user    | launchd agent  | rc.d (root)   | rc.d (root)   | SCM (experimental)        |
+| runtime reattach      | sysinfo         | sysinfo        | sysinfo       | sysinfo (cmd) | unsupported               |
+| desktop proxy         | GNOME/gsettings | networksetup   | unsupported   | unsupported   | WinINET (experimental)    |
+| release upgrade       | musl tarball    | darwin tarball | source/manual | source/manual | staged (experimental)     |
+| clipboard (TUI)       | X11/Wayland     | native         | X11           | X11           | native                    |
 
 macOS and BSD integrations are newer; the FreeBSD/OpenBSD rows are expected to
-work but are not yet verified on hardware. Windows is tracked separately and not
-yet supported.
+work but are not yet verified on hardware. Windows support remains experimental.
+This source branch adds daemon IPC, an optional LocalSystem service with
+ordinary-user TUI/Web clients, desktop proxy integration, and staged upgrades.
+Managed Windows TUN and coordinated user/service upgrades are implemented in
+this branch. Native acceptance is still tracked in the Windows milestone; these
+source changes do not establish full Windows support. Windows binaries are
+64-bit only.
 
 ## Install
 
@@ -101,14 +107,14 @@ diagnostics.
 
 Useful flags (passed through to `xrat setup`):
 
-| Flag                | Purpose                                                  |
-| ------------------- | -------------------------------------------------------- |
-| `--from-source`     | Build from the current checkout instead of downloading   |
-| `--install-dir DIR` | Binary install directory                                |
-| `--no-desktop`      | Skip installing desktop launcher and icon assets         |
-| `--linger`          | Enable boot-before-login daemon start (Linux)            |
-| `-y`, `--yes`       | Skip prompts and accept setup defaults                   |
-| `-h`, `--help`      | Show installer help                                      |
+| Flag                | Purpose                                                |
+| ------------------- | ------------------------------------------------------ |
+| `--from-source`     | Build from the current checkout instead of downloading |
+| `--install-dir DIR` | Binary install directory                               |
+| `--no-desktop`      | Skip installing desktop launcher and icon assets       |
+| `--linger`          | Enable boot-before-login daemon start (Linux)          |
+| `-y`, `--yes`       | Skip prompts and accept setup defaults                 |
+| `-h`, `--help`      | Show installer help                                    |
 
 To install to a different directory:
 
@@ -128,15 +134,15 @@ window identity for taskbar/dock icon matching on X11 or Wayland. If no
 supported terminal is found, the launcher falls back to the desktop's default
 terminal behavior and the taskbar icon may belong to that terminal window.
 
-| Terminal | X11 identity | Wayland identity | Notes |
-| -------- | ------------ | ---------------- | ----- |
-| kitty | `--class=xrat` | `--class=xrat` / app id | Preferred cross-session launcher |
-| Alacritty | `--class xrat,xrat` | `--class xrat,xrat` | Preferred cross-session launcher |
-| WezTerm | `--class xrat` | `--class xrat` / app id | Preferred cross-session launcher |
-| foot / footclient | n/a | `--app-id=xrat` | Wayland-only terminal |
-| Konsole | `--desktopfile xrat` | `--desktopfile xrat` | KDE/Qt desktop-file identity hint |
-| GNOME Terminal | `--class=xrat` | fallback only | Used for X11 sessions |
-| xterm | `-class xrat` | n/a | X11-only fallback |
+| Terminal          | X11 identity         | Wayland identity        | Notes                             |
+| ----------------- | -------------------- | ----------------------- | --------------------------------- |
+| kitty             | `--class=xrat`       | `--class=xrat` / app id | Preferred cross-session launcher  |
+| Alacritty         | `--class xrat,xrat`  | `--class xrat,xrat`     | Preferred cross-session launcher  |
+| WezTerm           | `--class xrat`       | `--class xrat` / app id | Preferred cross-session launcher  |
+| foot / footclient | n/a                  | `--app-id=xrat`         | Wayland-only terminal             |
+| Konsole           | `--desktopfile xrat` | `--desktopfile xrat`    | KDE/Qt desktop-file identity hint |
+| GNOME Terminal    | `--class=xrat`       | fallback only           | Used for X11 sessions             |
+| xterm             | `-class xrat`        | n/a                     | X11-only fallback                 |
 
 Make sure the install directory is in `PATH`:
 
@@ -208,13 +214,57 @@ Then follow the [Quickstart](quickstart.md) to import configs and connect.
 
 ## State Paths
 
-| Path                             | Purpose                      | Override            |
-| -------------------------------- | ---------------------------- | ------------------- |
-| `$HOME/.config/xrat/`            | App root                     | `XRAT_PATH` env var |
-| `$HOME/.config/xrat/config.toml` | Configuration                | `--config` flag     |
-| `$HOME/.config/xrat/db.sqlite`   | SQLite database              | `--database` flag   |
-| `$HOME/.config/xrat/runtime/`    | Daemon socket, session state | -                   |
-| `$HOME/.config/xrat/logs/`       | Runtime logs                 | `[runtime.log].dir` |
-| `$HOME/.config/xrat/mmdb/`       | GeoIP data                   | `[mmdb].dir`        |
-| `$HOME/.local/share/xrat/cores/` | Managed proxy cores/assets   | XDG data directory |
-| `$HOME/.local/bin/{xray,v2ray,sing-box}` | Managed core CLI links | -             |
+| Path                                     | Purpose                      | Override            |
+| ---------------------------------------- | ---------------------------- | ------------------- |
+| `$HOME/.config/xrat/`                    | App root                     | `XRAT_PATH` env var |
+| `$HOME/.config/xrat/config.toml`         | Configuration                | `--config` flag     |
+| `$HOME/.config/xrat/db.sqlite`           | SQLite database              | `--database` flag   |
+| `$HOME/.config/xrat/runtime/`            | Daemon socket, session state | -                   |
+| `$HOME/.config/xrat/logs/`               | Runtime logs                 | `[runtime.log].dir` |
+| `$HOME/.config/xrat/mmdb/`               | GeoIP data                   | `[mmdb].dir`        |
+| `$HOME/.local/share/xrat/cores/`         | Managed proxy cores/assets   | XDG data directory  |
+| `$HOME/.local/bin/{xray,v2ray,sing-box}` | Managed core CLI links       | -                   |
+
+## Windows installer and release packaging
+
+Windows release builds publish `xrat-<tag>-x86_64-pc-windows-msvc.zip` and
+`xrat-<tag>-aarch64-pc-windows-msvc.zip`, containing `xrat.exe`, `LICENSE`,
+`README.md`, and an embedded browser bundle. The release workflow reuses the
+Windows build/test workflow and waits for both targets before publishing;
+`SHASUMS256.txt` covers the Windows ZIPs alongside the Unix archives.
+
+```powershell
+Invoke-WebRequest https://raw.githubusercontent.com/mhyrzt/xrat/master/install.ps1 -OutFile install.ps1
+.\install.ps1 -Yes
+```
+
+The script verifies SHA-256 before installing to `%USERPROFILE%\.local\bin`,
+adds that directory to the user PATH, and delegates configuration and core
+installation to `xrat setup`. Restart the terminal to use the updated PATH.
+Options are `-InstallDir <directory>`, `-Version <tag>`, `-Yes`, `-NoSetup`, and
+`-FromSource`. Source installation requires a repository checkout, Rust with
+MSVC build tools; it builds browser assets before the binary using a
+checksum-pinned standalone Tailwind tool. On Windows ARM64, that CSS build tool
+runs through Windows 11's x64 emulation; XRAT and proxy cores remain native
+ARM64. Without a terminal, setup is skipped unless `-Yes` is provided, matching
+the shell installer's unattended behavior. Linux desktop and linger flags do not
+apply to Windows. Stop XRAT before rerunning the installer. The Windows source
+branch also contains an experimental staged self-upgrader: stop the daemon, run
+`xrat upgrade`, exit the upgrading process when prompted, then run
+`xrat upgrade --status` to inspect completion. A staged operation is not yet an
+installed upgrade. Migration failure retains the new binary and a backup for
+manual recovery; binary rollback does not undo database migrations. Native
+acceptance and service-coordinated upgrades remain pending.
+
+PowerShell proxy integration emits a script for the caller's session:
+
+```powershell
+xrat proxy shell enable --shell powershell | Out-String | Invoke-Expression
+xrat proxy shell disable --shell powershell | Out-String | Invoke-Expression
+```
+
+Enable preserves previous proxy variables; disable restores them. `NO_PROXY` is
+retained. Setup writes a PowerShell completion script under the user data
+directory (`.local/share/xrat/completions/xrat.ps1` by default); dot-source it
+in the shell where completions are wanted. Setup does not edit your PowerShell
+profile. Use `xrat tui` to launch the terminal interface.

@@ -3,8 +3,10 @@ use crate::app::daemon::ipc;
 use crate::cli::StatusArgs;
 
 mod display;
+#[cfg(any(windows, test))]
+pub(super) use display::print_payload;
 
-#[cfg(test)]
+#[cfg(all(test, unix))]
 mod tests;
 
 mod handler;

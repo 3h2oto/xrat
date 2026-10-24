@@ -117,16 +117,6 @@ pub(super) async fn insert_failing_test(context: &AppContext, config_id: xrat_mo
         .expect("connection test should insert");
 }
 
-pub(super) fn spawn_sleep(seconds: u64) -> Child {
-    Command::new("sleep")
-        .arg(seconds.to_string())
-        .stdin(Stdio::null())
-        .stdout(Stdio::null())
-        .stderr(Stdio::null())
-        .spawn()
-        .expect("sleep process should spawn")
-}
-
 pub(super) async fn set_running_session(
     context: &AppContext,
     config_id: xrat_model::ConfigId,

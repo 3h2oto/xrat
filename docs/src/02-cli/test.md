@@ -229,3 +229,32 @@ Test failures are classified into categories:
 
 - [`list configs`](list.md#list-configs) — view configs before testing
 - [`connect`](runtime.md#connect) — start a proxy for a tested config
+
+
+## Windows machine profile
+
+On the registered operator's ordinary terminal:
+
+```powershell
+xrat --profile machine test --enabled-only --format json --output results.json
+xrat --profile machine test <config-ref>
+xrat --profile machine test --latest-run-summary
+```
+
+Machine probes run as service jobs using administrator-configured cores, target
+URLs, timeouts, concurrency, and enabled stages. CLI skip flags and bulk
+selection filters still apply; URL, timeout, and concurrency overrides are
+rejected. A job accepts at most 10000 distinct config IDs. Ctrl+C requests
+cancellation and waits for a terminal service response; an unconfirmed
+cancellation reports an error.
+
+The service retains the latest job's completed result rows until another job
+starts, including completed rows from a cancelled job.
+If it is replaced before the CLI finishes reading it, the command reports an
+error instead of writing partial results. The latest persisted run can still be summarized
+with `--latest-run-summary`. Single-config and bulk output use the existing
+presenters and formats. These commands never bootstrap a user catalog or run a
+local test as fallback. Machine `--ping` is explicitly unsupported; continuous
+ping remains available in the separate user profile.
+
+Native Windows engine and console cancellation acceptance remain pending.

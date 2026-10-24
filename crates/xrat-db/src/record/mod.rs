@@ -10,7 +10,8 @@ mod runtime_sessions;
 pub use cf_scan_results::{CfScanResultRecord, CfScanResultUpsert};
 pub use configs::{ConfigListFilter, ConfigRecord, ConfigWithLatestTest, node_from_record};
 pub use connection_tests::{
-    ConnectionTestInsert, ConnectionTestRecord, ConnectionTestRunInsert, ConnectionTestRunRecord,
+    ConnectionTestCursor, ConnectionTestInsert, ConnectionTestRecord, ConnectionTestRunInsert,
+    ConnectionTestRunRecord, ConnectionTestSelection,
 };
 pub use events::{EventFilter, EventRecord, NewEvent};
 pub use geoip_cache::{GeoIpCacheRecord, GeoIpCacheUpsert};

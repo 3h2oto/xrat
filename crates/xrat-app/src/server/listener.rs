@@ -31,6 +31,8 @@ pub fn build_router_from_context(
     routing: &RoutingSettings,
 ) -> crate::app::Result<Router> {
     let mut state = ServerState::from_settings(context.db.clone(), settings, routing)?;
+    state.services = context.services();
+    state.context = Some(context.clone());
     if let Some(web) = state.web.as_mut() {
         std::sync::Arc::get_mut(web)
             .expect("new server state is unshared")

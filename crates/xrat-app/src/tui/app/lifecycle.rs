@@ -8,6 +8,18 @@ impl TuiApp {
     /// the last visible row signature; the stats tab empties the ring buffer.
     pub(crate) fn clear_log_view(&mut self) {
         match self.active_log_tab {
+            TuiLogTab::Api if self.data.logs.frontend_api_events.is_some() => {
+                self.frontend_api_clear_before_id = self
+                    .data
+                    .logs
+                    .frontend_api_events
+                    .as_ref()
+                    .into_iter()
+                    .flatten()
+                    .map(|event| event.id)
+                    .max()
+                    .unwrap_or(self.frontend_api_clear_before_id);
+            }
             TuiLogTab::XratEvents | TuiLogTab::Api => {
                 self.events_clear_before_id = self
                     .data

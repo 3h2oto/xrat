@@ -7,11 +7,14 @@ proof.
 
 ## Capability matrix
 
-| Engine   | Version/build                                     | Linux amd64                                  | Linux arm64                                                        | macOS/Windows               | Other architectures                   |
-| -------- | ------------------------------------------------- | -------------------------------------------- | ------------------------------------------------------------------ | --------------------------- | ------------------------------------- |
-| Xray     | Native TUN, minimum 26.7.11                       | Pinned acceptance builds 26.7.11 and 26.9.30 | Same gated native backend; packet harness must be run on that host | Unsupported managed capture | No validated managed capture contract |
-| sing-box | Official 1.13.x build with system/gVisor stacks   | Pinned acceptance build 1.13.21              | Same gated native backend; packet harness must be run on that host | Unsupported managed capture | No validated managed capture contract |
-| V2Ray    | XRAT currently generates the legacy config schema | Unsupported                                  | Unsupported                                                        | Unsupported                 | Unsupported                           |
+| Engine   | Linux                                             | macOS                                                     | Windows x64/ARM64                                                          |
+| -------- | ------------------------------------------------- | --------------------------------------------------------- | -------------------------------------------------------------------------- |
+| Xray     | >= 26.7.11; pinned acceptance 26.7.11 and 26.9.30 | Unsupported managed capture                               | >= 26.9.30 and < 27.0.0; protected service only; native acceptance pending |
+| sing-box | >= 1.13.0; pinned acceptance 1.13.21              | Root owner with numbered utun; native acceptance required | >= 1.13.21 and < 1.14.0; protected service only; native acceptance pending |
+| V2Ray    | Unsupported                                       | Unsupported                                               | Separate follow-up, outside this delivery                                  |
+
+Linux ARM64 uses the same backend; packet acceptance must run on that host.
+Other architectures have no validated managed capture contract.
 
 Xray 26.3.27 and unknown-version binaries are rejected before replacement.
 Sing-box requires at least 1.13.0; newer versions pass native config preflight
@@ -33,7 +36,7 @@ too.
 | `strict_route`          | Rejected when true                                                | Native stricter routing; no persistent kill switch                |
 | Route inclusions        | Selected whole address families; custom include CIDRs unsupported | Selected whole address families; custom include CIDRs unsupported |
 | DNS ownership           | Managed port-53 interception and optional loopback listener       | Native hijack-DNS and optional loopback listener                  |
-| System DNS              | Never changed by XRAT                                             | Never changed by XRAT                                             |
+| Physical-interface DNS  | Never changed by XRAT                                             | Never changed by XRAT                                             |
 | Local proxy             | At least one listener remains enabled for readiness and fallback  | Same                                                              |
 | Desktop proxy           | Independent opt-in; not required by capture                       | Same                                                              |
 
@@ -52,6 +55,26 @@ preserves the resource and ownership record for a later recovery attempt. Normal
 disconnect, daemon shutdown and detected core failure run through the same
 lifecycle service. Abrupt namespace destruction is a test isolation boundary,
 not a substitute for asserting managed cleanup.
+
+## Windows ownership
+
+The LocalSystem service checks protected engine paths and supported versions.
+Xray uses the explicitly provisioned, checksum- and signature-verified Wintun
+DLL; toggles do not download it. Windows Xray configuration includes per-family
+TUN DNS addresses. Sing-box automatic routing requires `strict_route = true`.
+
+IP Helper snapshots verify preferred interface addresses, DNS servers and full
+capture-route coverage after explicit exclusions. The ownership journal saves
+both the adapter GUID and LUID before readiness succeeds. A missing journal
+write prevents launch; a changed identity prevents cleanup. Engine exit must
+release the adapter and all routes for its recorded LUID before the journal is
+cleared. Foreign adapters, routes and physical-interface DNS are preserved. An
+SCM process job terminates descendants on service death. Recovery reconciles the
+journal and remains disconnected until the operator connects explicitly.
+
+See [Windows preparation](../02-cli/tun.md#windows-preparation). Native traffic,
+DNS, rollback, crash and reboot acceptance remains pending on both
+architectures.
 
 ## Reproduce acceptance checks
 

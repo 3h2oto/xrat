@@ -147,12 +147,18 @@ fn event_lines(app: &TuiApp, content_width: usize) -> Vec<Line<'_>> {
 }
 
 fn api_lines(app: &TuiApp, content_width: usize) -> Vec<Line<'_>> {
-    let events: Vec<_> = app
-        .data
-        .logs
-        .events
+    let logs = &app.data.logs;
+    let watermark = if logs.frontend_api_events.is_some() {
+        app.frontend_api_clear_before_id
+    } else {
+        app.events_clear_before_id
+    };
+    let events: Vec<_> = logs
+        .frontend_api_events
+        .as_ref()
+        .unwrap_or(&logs.events)
         .iter()
-        .filter(|event| event.source == "api" && app.event_visible(event.id))
+        .filter(|event| event.source == "api" && event.id > watermark)
         .collect();
     if events.is_empty() {
         return vec![Line::styled(

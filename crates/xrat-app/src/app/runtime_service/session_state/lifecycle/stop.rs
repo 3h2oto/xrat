@@ -29,6 +29,17 @@ pub(crate) async fn stop_session(
     session: &RuntimeSessionRecord,
     signals: &dyn xrat_support::signals::ProcessSignals,
 ) -> crate::app::Result<()> {
+    #[cfg(windows)]
+    if xrat_support::windows::current_user_sid()?.as_str() == "S-1-5-18"
+        && session
+            .process_id
+            .is_some_and(|pid| signals.is_running(pid))
+        && !crate::app::runtime_service::reattach::verified_system_session(context, session)
+    {
+        return Err(AppError::InvalidArgument(
+            "refusing privileged termination of an unverified persisted runtime process; reconcile stale session state before retrying".into(),
+        ));
+    }
     context
         .db
         .update_runtime_session_state(

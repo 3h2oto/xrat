@@ -1,7 +1,8 @@
 use super::super::super::test_support::{test_context, test_node, test_source};
-use super::helpers::{set_running_session, spawn_sleep, write_fake_runtime_script};
+use super::helpers::{set_running_session, write_fake_runtime_script};
 use super::*;
 use crate::app::daemon::supervisor::{SupervisorEvent, SupervisorState};
+use crate::app::tests::platform::spawn_sleep;
 
 #[tokio::test]
 async fn health_tick_timer_due_success_updates_rotation_state_and_reschedules() {

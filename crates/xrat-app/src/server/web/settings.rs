@@ -18,6 +18,7 @@ pub async fn get(
         .settings
         .iter()
         .filter(|setting| !setting.path.starts_with("server.web."))
+        .filter(|setting| context.allows_setting(&setting.path))
         .map(|setting| {
             let (kind, options) = match &setting.kind {
                 SettingKind::Secret => ("secret", vec![]),
@@ -93,6 +94,12 @@ async fn save_changes(
         }
     }
     let context = web(state)?.context.as_ref().ok_or(ServerError::NotFound)?;
+    if changes
+        .iter()
+        .any(|change| !context.allows_setting(&change.path))
+    {
+        return Err(ServerError::Forbidden);
+    }
     let mut editor = ConfigEditSession::open(&context.runtime_paths.config_path)
         .map_err(ServerError::InvalidQuery)?;
     if digest(&editor.original_contents) != revision {
@@ -166,10 +173,14 @@ pub async fn raw_config(
     axum::extract::Path(id): axum::extract::Path<i64>,
 ) -> ServerResult<String> {
     require_operator(&principal)?;
-    Ok(state
-        .db
-        .get_config_by_id(xrat_model::ConfigId(id))
+    if id <= 0 {
+        return Err(ServerError::NotFound);
+    }
+    state
+        .services
+        .configs
+        .raw_configs_by_ids(&[xrat_model::ConfigId(id)])
         .await?
-        .ok_or(ServerError::NotFound)?
-        .raw_config)
+        .and_then(|mut rows| rows.pop())
+        .ok_or(ServerError::NotFound)
 }

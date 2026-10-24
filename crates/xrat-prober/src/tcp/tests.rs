@@ -148,6 +148,26 @@ fn classifies_permission_errors() {
     assert_eq!(reason, "Permission denied");
 }
 
+#[cfg(unix)]
+#[test]
+fn classifies_unix_connection_refused_os_error() {
+    // ECONNREFUSED (111) is the Unix code for a closed port.
+    let error = std::io::Error::from_raw_os_error(111);
+    let (kind, reason) = classify::classify_tcp_error(&error);
+    assert_eq!(kind, FailureKind::Refused);
+    assert_eq!(reason, "Connection refused");
+}
+
+#[cfg(windows)]
+#[test]
+fn classifies_windows_connection_refused_os_error() {
+    // WSAECONNREFUSED (10061) is the Windows counterpart of Unix ECONNREFUSED.
+    let error = std::io::Error::from_raw_os_error(10061);
+    let (kind, reason) = classify::classify_tcp_error(&error);
+    assert_eq!(kind, FailureKind::Refused);
+    assert_eq!(reason, "Connection refused");
+}
+
 #[tokio::test]
 async fn classifies_dns_lookup_failures() {
     let result = tcp_check("definitely-not-a-host.invalid", 80, Duration::from_secs(1)).await;

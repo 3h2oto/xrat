@@ -32,7 +32,7 @@ pub fn resolve() -> crate::app::Result<AppPaths> {
 pub fn resolve_with_env(env: &dyn xrat_support::env::EnvVars) -> crate::app::Result<AppPaths> {
     let root_dir = resolve_root_dir_from(
         env.get_os((XRAT_PATH_ENV).as_ref()).map(PathBuf::from),
-        env.get_os(("HOME").as_ref()).map(PathBuf::from),
+        xrat_support::platform::home_dir_with_env(env),
     )?;
 
     Ok(AppPaths::new(root_dir))

@@ -6,10 +6,16 @@ use super::model::{PacEndpoints, PacRules};
 pub fn render_pac(endpoints: &PacEndpoints, rules: &PacRules) -> String {
     let mut chain: Vec<String> = Vec::new();
     if let Some((host, port)) = &endpoints.socks {
-        chain.push(format!("SOCKS5 {}:{port}", pac_proxy_host(host)));
+        chain.push(format!(
+            "SOCKS5 {}",
+            xrat_support::net::format_host_port(pac_proxy_host(host), *port)
+        ));
     }
     if let Some((host, port)) = &endpoints.http {
-        chain.push(format!("PROXY {}:{port}", pac_proxy_host(host)));
+        chain.push(format!(
+            "PROXY {}",
+            xrat_support::net::format_host_port(pac_proxy_host(host), *port)
+        ));
     }
     if chain.is_empty() {
         chain.push("DIRECT".to_string());
@@ -160,10 +166,10 @@ fn cidr_condition(cidr: &str) -> Option<String> {
 }
 
 fn pac_proxy_host(host: &str) -> &str {
-    if host == "0.0.0.0" || host.is_empty() {
-        "127.0.0.1"
-    } else {
-        host
+    match host {
+        "" | "0.0.0.0" => "127.0.0.1",
+        "::" => "::1",
+        _ => host,
     }
 }
 

@@ -1,23 +1,29 @@
 use crate::app::commands::output;
 use crate::app::commands::runtime_output::format_inbound_endpoint;
-use crate::app::context::AppContext;
+use crate::app::services::proxy_pac::ProxyService;
 
 use super::{loopback_host, resolve_active_endpoints};
 
-pub(super) async fn run(context: &AppContext, json: bool) -> crate::app::Result<()> {
+pub(super) async fn run(context: &ProxyService, json: bool) -> crate::app::Result<()> {
     let active = resolve_active_endpoints(context).await?;
 
     let mut rows: Vec<(&str, String)> = Vec::new();
     if let Some((host, port)) = &active.http {
         rows.push((
             "HTTP",
-            format!("http://{}", format_inbound_endpoint(host, *port)),
+            format!(
+                "http://{}",
+                format_inbound_endpoint(host, *port).replace('%', "%25")
+            ),
         ));
     }
     if let Some((host, port)) = &active.socks {
         rows.push((
             "SOCKS5",
-            format!("socks5://{}", format_inbound_endpoint(host, *port)),
+            format!(
+                "socks5://{}",
+                format_inbound_endpoint(host, *port).replace('%', "%25")
+            ),
         ));
     }
     if let Some((host, port)) = &active.shadowsocks {
@@ -32,15 +38,10 @@ pub(super) async fn run(context: &AppContext, json: bool) -> crate::app::Result<
         ));
     }
 
-    let server = &context.app_config.server;
-    let pac_url = (server.enabled && server.pac_enabled).then(|| {
-        let host = if server.host == "0.0.0.0" || server.host.is_empty() {
-            "127.0.0.1"
-        } else {
-            server.host.as_str()
-        };
-        format!("http://{host}:{}/proxy.pac", server.port)
-    });
+    let server = context.server()?;
+    let pac_url = (server.enabled && server.pac_enabled)
+        .then(|| crate::app::services::proxy_pac::frontend_pac_url(&server))
+        .transpose()?;
     if let Some(url) = &pac_url {
         rows.push(("PAC URL", url.clone()));
     }
@@ -48,9 +49,9 @@ pub(super) async fn run(context: &AppContext, json: bool) -> crate::app::Result<
     if json {
         let payload = serde_json::json!({
             "endpoints": {
-                "http": active.http.as_ref().map(|(h, p)| format!("http://{}:{p}", loopback_host(h))),
-                "socks5": active.socks.as_ref().map(|(h, p)| format!("socks5://{}:{p}", loopback_host(h))),
-                "shadowsocks": active.shadowsocks.as_ref().map(|(h, p)| format!("{}:{p}", loopback_host(h))),
+                "http": active.http.as_ref().map(|(h, p)| super::http_proxy_url(h, *p)),
+                "socks5": active.socks.as_ref().map(|(h, p)| super::socks_proxy_url(h, *p)),
+                "shadowsocks": active.shadowsocks.as_ref().map(|(h, p)| xrat_support::net::format_host_port(loopback_host(h), *p)),
                 "pac": pac_url,
             },
         });

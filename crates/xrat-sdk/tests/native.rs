@@ -2,69 +2,16 @@
 
 mod common;
 mod native_support;
+#[path = "native_support/validators.rs"]
+mod validators;
 
 use native_support::{engine::Engine, proxy::Proxy};
-use std::{path::PathBuf, process::Command, time::Duration};
+use std::time::Duration;
 use xrat_sdk::{
     config::parse_link,
-    engines::{singbox, xray},
+    engines::xray,
     prober::{self, AcceptedHttpStatuses, FailureKind, ProbeEngineKind},
 };
-
-#[test]
-#[ignore = "requires pinned Xray and sing-box binaries"]
-fn generated_configs_pass_pinned_native_validators() {
-    let xray_binary = PathBuf::from(std::env::var("XRAT_SDK_XRAY_BINARY").expect("Xray binary"));
-    let singbox_binary =
-        PathBuf::from(std::env::var("XRAT_SDK_SINGBOX_BINARY").expect("sing-box binary"));
-    let version = Command::new(&xray_binary).arg("version").output().unwrap();
-    assert!(String::from_utf8_lossy(&version.stdout).contains("26.3.27"));
-    let version = Command::new(&singbox_binary)
-        .arg("version")
-        .output()
-        .unwrap();
-    assert!(String::from_utf8_lossy(&version.stdout).contains("1.13.21"));
-    let directory = tempfile::tempdir().unwrap();
-    for node in common::nodes::nodes() {
-        let xray = xray::generate_runtime_config(&node, 1080, Some(8080)).unwrap();
-        let singbox = singbox::generate_singbox_runtime_config(
-            &node,
-            vec![singbox::SingboxInbound::socks(
-                "socks-in",
-                "127.0.0.1",
-                1080,
-                None,
-            )],
-            None,
-            None,
-        )
-        .unwrap();
-        for (binary, args, value) in [
-            (
-                &xray_binary,
-                vec!["run", "-test", "-c"],
-                serde_json::to_vec(&xray).unwrap(),
-            ),
-            (
-                &singbox_binary,
-                vec!["check", "-c"],
-                serde_json::to_vec(&singbox).unwrap(),
-            ),
-        ] {
-            let file = directory.path().join("config.json");
-            std::fs::write(&file, value).unwrap();
-            let output = Command::new(binary).args(args).arg(&file).output().unwrap();
-            assert!(
-                output.status.success(),
-                "{} {}: {} {}",
-                binary.display(),
-                node.protocol,
-                String::from_utf8_lossy(&output.stdout),
-                String::from_utf8_lossy(&output.stderr)
-            );
-        }
-    }
-}
 
 #[tokio::test]
 #[ignore = "requires native engines and local sockets"]

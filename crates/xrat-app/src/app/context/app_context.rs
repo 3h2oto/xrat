@@ -8,11 +8,52 @@ pub struct AppContext {
     pub db: Database,
     pub app_config: AppConfig,
     pub runtime_paths: RuntimePaths,
+    #[cfg(any(windows, test))]
+    pub(crate) machine_client: Option<crate::app::services::machine_service::MachineClient>,
 }
 
 impl AppContext {
+    pub(crate) fn allows_setting(&self, path: &str) -> bool {
+        !self.is_machine_client() || path.starts_with("server.") || path.starts_with("tui.")
+    }
+    pub fn is_machine_client(&self) -> bool {
+        #[cfg(any(windows, test))]
+        {
+            self.machine_client.is_some()
+        }
+        #[cfg(not(any(windows, test)))]
+        {
+            false
+        }
+    }
+    #[cfg(any(windows, test))]
+    pub async fn from_machine_client(
+        client: crate::app::services::machine_service::MachineClient,
+    ) -> crate::app::Result<Self> {
+        #[cfg(windows)]
+        super::machine_client::require_ordinary_user()?;
+        let root = crate::app::app_paths::resolve()?
+            .root_dir
+            .join("machine-client");
+        super::machine_client::compose(client, &root).await
+    }
+
+    pub(crate) fn require_local_runtime(&self) -> crate::app::Result<()> {
+        #[cfg(any(windows, test))]
+        if self.machine_client.is_some() {
+            return Err(crate::app::AppError::InvalidArgument(
+                "machine runtime operations require the service gateway".into(),
+            ));
+        }
+        Ok(())
+    }
     /// Build from parsed CLI arguments, resolving paths from disk.
     pub async fn build(args: &cli::Cli) -> crate::app::Result<Self> {
+        if args.profile == cli::ExecutionProfile::Machine {
+            return Err(crate::app::AppError::InvalidArgument(
+                "machine profile operations require the service gateway; refusing user-profile bootstrap".into(),
+            ));
+        }
         let (runtime_paths, app_config) = paths::resolve_runtime(args)?;
         build_app_context(runtime_paths, app_config).await
     }
@@ -51,6 +92,8 @@ pub async fn build_app_context(
         db,
         app_config,
         runtime_paths,
+        #[cfg(any(windows, test))]
+        machine_client: None,
     };
     crate::app::runtime_service::log_retention::cleanup(&context).await;
     tracing::debug!(

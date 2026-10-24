@@ -1,7 +1,11 @@
 mod activity;
+mod activity_progress;
+pub(crate) use activity_progress::TestActivityProgress;
 mod bulk;
 mod bulk_progress;
 mod execution;
+#[cfg(any(windows, test))]
+mod machine;
 mod output_types;
 mod progress;
 mod request;
@@ -31,10 +35,13 @@ pub(crate) use activity::{TestActivity, TestActivitySender, TestMetric};
 pub(crate) use bulk::{run_bulk_for_configs, run_bulk_for_configs_cancellable};
 pub(crate) use execution::test_and_record_config;
 pub(crate) use output_types::*;
-pub(crate) use progress::run_bulk_for_config_ids_with_activity;
 pub use progress::{TestProgressUpdate, run_bulk_for_config_ids_with_progress};
+pub(crate) use progress::{run_bulk_for_config_ids_with_activity, run_machine_probe};
 pub use request::TestRunRequest;
 pub(crate) use settings::*;
 use stages::*;
 #[cfg(test)]
 pub(crate) use stages::{classify_endpoint_location, resolve_endpoint_meta};
+
+#[cfg(any(windows, test))]
+pub(crate) use machine::run_for_client as run_machine_for_config_ids;

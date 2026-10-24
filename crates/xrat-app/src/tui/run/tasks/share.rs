@@ -9,19 +9,15 @@ pub async fn open_qr_for_config(
     config_id: xrat_model::ConfigId,
     config_name: String,
 ) {
-    match context.db.get_config_by_id(config_id).await {
-        Ok(Some(record)) => {
-            if record.raw_config.trim().is_empty() {
+    match load_config_uri(context, config_id).await {
+        Ok(Some((_reference, raw))) => {
+            if raw.trim().is_empty() {
                 let error = "config has no link to show QR".to_string();
                 app.push_log(format!("ERR {error}"));
                 app.set_chrome_message(error, true);
                 return;
             }
-            app.qr_modal = Some(QrModalState::new(
-                QrKind::Config,
-                config_name,
-                record.raw_config,
-            ));
+            app.qr_modal = Some(QrModalState::new(QrKind::Config, config_name, raw));
             app.needs_full_clear = true;
         }
         Ok(None) => app.push_log(format!("ERR config {config_id} not found")),
@@ -34,18 +30,17 @@ pub async fn copy_config_uri(
     app: &mut TuiApp,
     config_id: xrat_model::ConfigId,
 ) {
-    match context.db.get_config_by_id(config_id).await {
-        Ok(Some(record)) => {
-            if record.raw_config.trim().is_empty() {
+    match load_config_uri(context, config_id).await {
+        Ok(Some((config_ref, raw))) => {
+            if raw.trim().is_empty() {
                 let error = "config has no link to copy".to_string();
                 app.push_log(format!("ERR {error}"));
                 app.set_chrome_message(error, true);
                 return;
             }
-            let config_ref = record.r#ref;
             set_clipboard(
                 app,
-                record.raw_config,
+                raw,
                 format!(
                     "copied config#{} to clipboard",
                     xrat_support::refs::short_ref(&config_ref)
@@ -55,6 +50,22 @@ pub async fn copy_config_uri(
         Ok(None) => app.push_log(format!("ERR config {config_id} not found")),
         Err(err) => app.push_log(format!("ERR failed to load config URI: {err}")),
     }
+}
+
+async fn load_config_uri(
+    context: &AppContext,
+    id: xrat_model::ConfigId,
+) -> crate::app::Result<Option<(String, String)>> {
+    let services = context.services();
+    let Some(reference) = services.configs.reference(id).await? else {
+        return Ok(None);
+    };
+    let raw = services
+        .configs
+        .raw_configs_by_ids(&[id])
+        .await?
+        .and_then(|mut links| links.pop());
+    Ok(raw.map(|raw| (reference, raw)))
 }
 
 pub fn open_qr_for_source(app: &mut TuiApp, source_name: String, source_url: String) {

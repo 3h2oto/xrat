@@ -15,8 +15,15 @@ pub async fn run(context: &AppContext, args: &ConnectArgs) -> crate::app::Result
     let result = control.connect(config_id).await;
     progress.finish_and_clear();
     let outcome = result?;
+    print_outcome(outcome, args.json, "daemon")
+}
 
-    if args.json {
+pub(super) fn print_outcome(
+    outcome: crate::app::services::runtime_control::RuntimeConnectOutcome,
+    json: bool,
+    owner: &str,
+) -> crate::app::Result<()> {
+    if json {
         println!(
             "{}",
             serde_json::to_string_pretty(&serde_json::json!({
@@ -30,7 +37,7 @@ pub async fn run(context: &AppContext, args: &ConnectArgs) -> crate::app::Result
         println!(
             "{}",
             output::success(
-                format!("Connected config {} via daemon.", outcome.config_id),
+                format!("Connected config {} via {owner}.", outcome.config_id),
                 output::color_enabled()
             )
         );
@@ -49,11 +56,13 @@ pub async fn run(context: &AppContext, args: &ConnectArgs) -> crate::app::Result
     Ok(())
 }
 
-#[cfg(test)]
+#[cfg(all(test, unix))]
 mod tests {
     use super::*;
     use crate::app::AppError;
 
+    /// The daemon IPC client only exists on Unix, so the "daemon is not
+    /// running" hint cannot be produced on Windows.
     #[tokio::test]
     async fn connect_returns_daemon_unreachable_hint() {
         let context = test_context("connect-daemon-hint").await;

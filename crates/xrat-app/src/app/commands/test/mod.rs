@@ -25,7 +25,10 @@ use xrat_support::geoip;
 pub(crate) use bulk::run_rotation_bulk_tests;
 use bulk::*;
 pub use handlers::run;
-use output::*;
+pub(crate) use output::*;
 
 #[cfg(test)]
 mod tests;
+
+#[cfg(any(windows, test))]
+pub(crate) use handlers::print_run_summary;

@@ -54,6 +54,7 @@ pub fn apply_init(context: &AppContext) -> StepOutcome {
 // daemon
 // ---------------------------------------------------------------------------
 
+#[cfg(not(windows))]
 pub fn daemon_unit_path() -> Option<PathBuf> {
     #[cfg(target_os = "linux")]
     {
@@ -71,12 +72,37 @@ pub fn daemon_unit_path() -> Option<PathBuf> {
 }
 
 fn daemon_installed() -> bool {
+    #[cfg(windows)]
+    {
+        crate::app::services::machine_service::scm::status()
+            .ok()
+            .flatten()
+            .is_some()
+    }
+    #[cfg(not(windows))]
     daemon_unit_path()
         .map(|path| path.exists())
         .unwrap_or(false)
 }
 
 pub fn probe_daemon() -> StepOutcome {
+    #[cfg(windows)]
+    {
+        use crate::app::services::machine_service::scm;
+        match scm::status() {
+            Ok(Some(status)) => StepOutcome::new(STEP_DAEMON, StepStatus::AlreadyDone, false)
+                .with_detail(format!(
+                    "Windows machine service installed; SCM state {}",
+                    status.dwCurrentState
+                )),
+            Ok(None) => StepOutcome::new(STEP_DAEMON, StepStatus::Missing, false).with_detail(
+                "optional Windows machine service not installed; installation requires elevation",
+            ),
+            Err(error) => StepOutcome::new(STEP_DAEMON, StepStatus::Failed, false)
+                .with_detail(format!("cannot inspect Windows service: {error}")),
+        }
+    }
+    #[cfg(not(windows))]
     if daemon_installed() {
         StepOutcome::new(STEP_DAEMON, StepStatus::AlreadyDone, false)
     } else {
@@ -88,6 +114,8 @@ pub fn probe_daemon() -> StepOutcome {
 pub fn apply_daemon(context: &AppContext) -> StepOutcome {
     let existed = daemon_installed();
     let args = DaemonInstallArgs {
+        #[cfg(windows)]
+        operator_sid: None,
         start: true,
         dry_run: false,
         with_api: false,
@@ -209,6 +237,19 @@ pub fn apply_linger() -> StepOutcome {
 // completions
 // ---------------------------------------------------------------------------
 
+#[cfg(windows)]
+fn completion_targets() -> Vec<(clap_complete::Shell, PathBuf)> {
+    platform::xdg_data_home()
+        .map(|data| {
+            vec![(
+                clap_complete::Shell::PowerShell,
+                data.join("xrat/completions/xrat.ps1"),
+            )]
+        })
+        .unwrap_or_default()
+}
+
+#[cfg(not(windows))]
 fn completion_targets() -> Vec<(clap_complete::Shell, PathBuf)> {
     use clap_complete::Shell;
     let mut targets = Vec::new();
@@ -282,6 +323,9 @@ pub fn apply_completions() -> StepOutcome {
 // ---------------------------------------------------------------------------
 
 fn man_dir() -> Option<PathBuf> {
+    if cfg!(windows) {
+        return None;
+    }
     platform::xdg_data_home().map(|data| data.join("man").join("man1"))
 }
 
@@ -319,19 +363,26 @@ pub fn apply_manpages() -> StepOutcome {
 
 // ---------------------------------------------------------------------------
 // xratui shim
+//
+// The shim is an extensionless `sh` script. Unix execs it directly; Windows
+// would need a `.cmd` wrapper or a registered file association that setup
+// does not create, so the step is skipped there.
 // ---------------------------------------------------------------------------
 
-fn tui_shim_path() -> Option<PathBuf> {
+#[cfg(unix)]
+pub(super) fn tui_shim_path() -> Option<PathBuf> {
     exe_dir().map(|dir| dir.join("xratui"))
 }
 
-fn tui_shim_script(xrat_path: &std::path::Path) -> String {
+#[cfg(unix)]
+pub(super) fn tui_shim_script(xrat_path: &std::path::Path) -> String {
     format!(
         "#!/usr/bin/env sh\nexec \"{}\" tui \"$@\"\n",
         xrat_path.display()
     )
 }
 
+#[cfg(unix)]
 pub fn probe_tui_shim() -> StepOutcome {
     match tui_shim_path() {
         Some(path) if path.exists() => {
@@ -345,6 +396,12 @@ pub fn probe_tui_shim() -> StepOutcome {
     }
 }
 
+#[cfg(not(unix))]
+pub fn probe_tui_shim() -> StepOutcome {
+    StepOutcome::new(STEP_TUI_SHIM, StepStatus::Skipped, false).with_detail("Unix only".to_string())
+}
+
+#[cfg(unix)]
 pub fn apply_tui_shim() -> StepOutcome {
     let Some(path) = tui_shim_path() else {
         return StepOutcome::new(STEP_TUI_SHIM, StepStatus::Skipped, false)
@@ -371,6 +428,12 @@ pub fn apply_tui_shim() -> StepOutcome {
     StepOutcome::new(STEP_TUI_SHIM, status, false).with_detail(path.display().to_string())
 }
 
+#[cfg(not(unix))]
+pub fn apply_tui_shim() -> StepOutcome {
+    StepOutcome::new(STEP_TUI_SHIM, StepStatus::Skipped, false).with_detail("Unix only".to_string())
+}
+
+#[cfg(unix)]
 fn set_executable(path: &std::path::Path) -> std::io::Result<()> {
     use std::os::unix::fs::PermissionsExt;
     let mut perms = std::fs::metadata(path)?.permissions();
@@ -394,11 +457,21 @@ pub fn probe_path() -> StepOutcome {
             StepOutcome::new(STEP_PATH, StepStatus::Done, false)
                 .with_detail(dir.display().to_string())
         }
-        Some(dir) => StepOutcome::new(STEP_PATH, StepStatus::Missing, false).with_detail(format!(
-            "{} is not in PATH; add: export PATH=\"{}:$PATH\"",
-            dir.display(),
-            dir.display()
-        )),
+        Some(dir) => {
+            let guidance = if cfg!(windows) {
+                format!(
+                    "{} is not in PATH; add it to your user Path in Windows Environment Variables, then restart your terminal",
+                    dir.display()
+                )
+            } else {
+                format!(
+                    "{} is not in PATH; add: export PATH=\"{}:$PATH\"",
+                    dir.display(),
+                    dir.display()
+                )
+            };
+            StepOutcome::new(STEP_PATH, StepStatus::Missing, false).with_detail(guidance)
+        }
         None => StepOutcome::new(STEP_PATH, StepStatus::Skipped, false)
             .with_detail("could not resolve executable directory".to_string()),
     }

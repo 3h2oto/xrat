@@ -18,3 +18,6 @@ pub mod readiness;
 pub mod signals;
 
 pub mod dns;
+
+#[cfg(windows)]
+pub mod windows;

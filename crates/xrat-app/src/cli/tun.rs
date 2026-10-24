@@ -26,7 +26,7 @@ pub enum TunAction {
     #[command(about = "Report configured mode, active capture, engine support, and privileges.")]
     Status(TunStatusArgs),
     #[command(
-        about = "Grant CAP_NET_ADMIN/CAP_NET_RAW/CAP_DAC_READ_SEARCH/CAP_SYS_PTRACE to the files TUN needs via setcap."
+        about = "Prepare TUN privileges and dependencies (Linux capabilities or elevated Windows machine driver files)."
     )]
     Setup(TunSetupArgs),
 }
@@ -77,7 +77,7 @@ pub struct TunStatusArgs {
 
 #[derive(Debug, Args, Default)]
 pub struct TunSetupArgs {
-    #[arg(long, help = "Print the setcap command without running it.")]
+    #[arg(long, help = "Print the platform setup actions without applying them.")]
     pub dry_run: bool,
 }
 

@@ -26,6 +26,7 @@ impl<'a> RuntimeService<'a> {
 
     #[tracing::instrument(skip_all)]
     pub async fn disconnect(&self) -> crate::app::Result<DisconnectResult> {
+        self.context.require_local_runtime()?;
         let session = self.context.db.get_running_runtime_session().await?;
         let stopped_session =
             stop_active_session(self.context, self.process_ports.signals.as_ref()).await?;

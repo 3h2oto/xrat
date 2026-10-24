@@ -1,4 +1,5 @@
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "snake_case")]
 pub enum RuntimeSessionStatus {
     Starting,
     Running,
@@ -46,7 +47,7 @@ pub struct RuntimeSessionInsert {
     pub stopped_at: Option<String>,
 }
 
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct RuntimeSessionRecord {
     pub id: i64,
     pub config_id: Option<xrat_model::ConfigId>,

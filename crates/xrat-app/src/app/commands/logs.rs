@@ -269,7 +269,10 @@ fn level_threshold(level: Option<LogLevel>) -> Option<Vec<String>> {
     }
 }
 
-fn render_events(events: &[EventRecord], format: ListFormat) -> crate::app::Result<String> {
+pub(super) fn render_events(
+    events: &[EventRecord],
+    format: ListFormat,
+) -> crate::app::Result<String> {
     match format {
         ListFormat::Json => Ok(serde_json::to_string_pretty(
             &events.iter().map(event_json).collect::<Vec<_>>(),
@@ -379,7 +382,7 @@ fn level_style(level: &str) -> output::Style {
     }
 }
 
-fn format_event_line(event: &EventRecord, color: bool) -> String {
+pub(super) fn format_event_line(event: &EventRecord, color: bool) -> String {
     let level_text = format!(
         "{:<EVENT_LEVEL_WIDTH$}",
         output::truncate(&event.level, EVENT_LEVEL_WIDTH)
@@ -428,7 +431,7 @@ fn is_engine_label(label: &str) -> bool {
 
 /// Parse engine log lines into structured rows and drop xrat's own stats-poll
 /// `[api -> api]` access traffic, mirroring the TUI engine tab.
-fn engine_rows(engine: &str, lines: &[String]) -> Vec<EngineLogRow> {
+pub(super) fn engine_rows(engine: &str, lines: &[String]) -> Vec<EngineLogRow> {
     lines
         .iter()
         .map(|line| EngineLogRow::parse(engine, ProxyStream::Stdout, line))
@@ -438,7 +441,7 @@ fn engine_rows(engine: &str, lines: &[String]) -> Vec<EngineLogRow> {
 
 /// Render a single engine log line for follow mode, returning `None` when the
 /// line is self-api traffic to be hidden. Non-engine feeds pass through raw.
-fn emit_file_line(label: &str, line: &str, color: bool) -> Option<String> {
+pub(super) fn emit_file_line(label: &str, line: &str, color: bool) -> Option<String> {
     if !is_engine_label(label) {
         return Some(format_file_line(label, line, color));
     }
@@ -467,7 +470,7 @@ fn format_engine_row(label: &str, row: &EngineLogRow, color: bool) -> String {
     format!("{tag}  {time}  {level}  {source}  {}", row.message)
 }
 
-fn format_engine_table(rows: &[EngineLogRow]) -> String {
+pub(super) fn format_engine_table(rows: &[EngineLogRow]) -> String {
     let columns = [
         Column {
             header: "TIME",

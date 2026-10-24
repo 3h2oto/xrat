@@ -240,11 +240,42 @@ fn selects_supported_platform_assets() {
             "aarch64",
             "sing-box-1.13.18-darwin-arm64.tar.gz",
         ),
+        (CoreKind::Xray, "windows", "x86_64", "Xray-windows-64.zip"),
+        (
+            CoreKind::Xray,
+            "windows",
+            "aarch64",
+            "Xray-windows-arm64-v8a.zip",
+        ),
+        (CoreKind::V2Ray, "windows", "x86_64", "v2ray-windows-64.zip"),
+        (
+            CoreKind::V2Ray,
+            "windows",
+            "aarch64",
+            "v2ray-windows-arm64-v8a.zip",
+        ),
+        (
+            CoreKind::SingBox,
+            "windows",
+            "x86_64",
+            "sing-box-1.13.18-windows-amd64.zip",
+        ),
+        (
+            CoreKind::SingBox,
+            "windows",
+            "aarch64",
+            "sing-box-1.13.18-windows-arm64.zip",
+        ),
     ];
     for (kind, os, arch, expected) in cases {
         assert_eq!(asset_name_for(kind, &version, os, arch).unwrap(), expected);
     }
-    assert!(asset_name_for(CoreKind::Xray, &version, "windows", "x86_64").is_err());
+    assert!(asset_name_for(CoreKind::Xray, &version, "freebsd", "x86_64").is_err());
+    assert!(asset_name_for(CoreKind::V2Ray, &version, "openbsd", "aarch64").is_err());
+    assert!(asset_name_for(CoreKind::SingBox, &version, "freebsd", "x86_64").is_err());
+    assert!(asset_name_for(CoreKind::SingBox, &version, "windows", "riscv64").is_err());
+    // Upstream publishes Windows builds for 64-bit targets only.
+    assert!(asset_name_for(CoreKind::Xray, &version, "windows", "x86").is_err());
 }
 
 #[test]
@@ -313,29 +344,42 @@ fn creates_cli_link_to_managed_binary() {
     assert_eq!(fs::read_link(bin_dir.join("xray")).unwrap(), binary);
 }
 
-#[test]
-fn extracts_only_expected_xray_files() {
+fn zip_with(entries: &[(&str, &str)]) -> Vec<u8> {
     let mut archive = zip::ZipWriter::new(Cursor::new(Vec::new()));
     let options = zip::write::SimpleFileOptions::default();
-    for (name, value) in [
+    for (name, value) in entries {
+        archive.start_file(*name, options).unwrap();
+        archive.write_all(value.as_bytes()).unwrap();
+    }
+    archive.finish().unwrap().into_inner()
+}
+
+#[test]
+fn extracts_only_expected_xray_files() {
+    let bytes = zip_with(&[
         ("xray", "binary"),
         ("geoip.dat", "ip"),
         ("geosite.dat", "site"),
         ("../escape", "bad"),
-    ] {
-        archive.start_file(name, options).unwrap();
-        archive.write_all(value.as_bytes()).unwrap();
-    }
-    let bytes = archive.finish().unwrap().into_inner();
+    ]);
     let root = tempfile::tempdir().unwrap();
 
-    extract_zip(CoreKind::Xray, &bytes, root.path()).unwrap();
+    extract_zip_named(CoreKind::Xray, &bytes, root.path(), "xray").unwrap();
 
     assert_eq!(
         fs::read_to_string(root.path().join("xray")).unwrap(),
         "binary"
     );
+    assert_eq!(
+        fs::read_to_string(root.path().join("geoip.dat")).unwrap(),
+        "ip"
+    );
+    assert_eq!(
+        fs::read_to_string(root.path().join("geosite.dat")).unwrap(),
+        "site"
+    );
     assert!(!root.path().parent().unwrap().join("escape").exists());
+    assert!(!root.path().join("escape").exists());
 }
 
 #[test]
@@ -358,10 +402,112 @@ fn extracts_nested_sing_box_binary() {
     let bytes = encoder.finish().unwrap();
     let root = tempfile::tempdir().unwrap();
 
-    extract_sing_box(&bytes, root.path()).unwrap();
+    extract_sing_box_named(&bytes, root.path(), "sing-box").unwrap();
 
     assert_eq!(fs::read(root.path().join("sing-box")).unwrap(), contents);
 }
 
+#[test]
+fn extracts_nested_windows_xray_executable() {
+    let wanted = binary_file_name_for(CoreKind::Xray, true);
+    let bytes = zip_with(&[("Xray-windows-64/xray.exe", "xray-binary")]);
+    let root = tempfile::tempdir().unwrap();
+
+    extract_zip_named(CoreKind::Xray, &bytes, root.path(), &wanted).unwrap();
+
+    assert_eq!(
+        fs::read_to_string(root.path().join(&wanted)).unwrap(),
+        "xray-binary"
+    );
+}
+
+#[test]
+fn extracts_nested_windows_sing_box_executable() {
+    let wanted = binary_file_name_for(CoreKind::SingBox, true);
+    let bytes = zip_with(&[(
+        "sing-box-1.13.21-windows-amd64/sing-box.exe",
+        "sing-box-binary",
+    )]);
+    let root = tempfile::tempdir().unwrap();
+
+    extract_zip_named(CoreKind::SingBox, &bytes, root.path(), &wanted).unwrap();
+
+    assert_eq!(
+        fs::read_to_string(root.path().join(&wanted)).unwrap(),
+        "sing-box-binary"
+    );
+}
+
+#[test]
+fn extracts_archive_without_optional_geo_databases() {
+    let wanted = binary_file_name_for(CoreKind::SingBox, true);
+    let bytes = zip_with(&[("sing-box-1.13.21-windows-amd64/sing-box.exe", "binary")]);
+    let root = tempfile::tempdir().unwrap();
+
+    extract_zip_named(CoreKind::SingBox, &bytes, root.path(), &wanted).unwrap();
+
+    assert!(root.path().join(&wanted).is_file());
+    assert!(!root.path().join("geoip.dat").exists());
+    assert!(!root.path().join("geosite.dat").exists());
+}
+
+#[test]
+fn windows_extraction_produces_the_installed_executable_name() {
+    for kind in [CoreKind::Xray, CoreKind::SingBox, CoreKind::V2Ray] {
+        let wanted = binary_file_name_for(kind, true);
+        let entry = format!("nested/{wanted}");
+        let bytes = zip_with(&[(entry.as_str(), "binary")]);
+        let root = tempfile::tempdir().unwrap();
+
+        extract_zip_named(kind, &bytes, root.path(), &wanted).unwrap();
+
+        assert!(root.path().join(&wanted).is_file());
+    }
+}
+
+#[test]
+fn selects_the_windows_archive_format_for_sing_box() {
+    let bytes = zip_with(&[("sing-box-1.13.21-windows-amd64/sing-box.exe", "binary")]);
+    let root = tempfile::tempdir().unwrap();
+
+    extract_archive_for(CoreKind::SingBox, &bytes, root.path(), true).unwrap();
+
+    assert!(root.path().join("sing-box.exe").is_file());
+}
+
+#[test]
+fn extracts_the_bare_core_name_when_no_platform_suffix_is_present() {
+    let bytes = zip_with(&[("xray", "binary")]);
+    let root = tempfile::tempdir().unwrap();
+
+    extract_zip_named(CoreKind::Xray, &bytes, root.path(), "xray.exe").unwrap();
+
+    assert_eq!(
+        fs::read_to_string(root.path().join("xray.exe")).unwrap(),
+        "binary"
+    );
+}
+
 #[path = "release_tests.rs"]
 mod release_tests;
+
+#[test]
+fn prepares_machine_core_bytes_only_after_archive_verification() {
+    for kind in CORE_KINDS {
+        let name = format!("nested/{}.exe", kind.name());
+        let archive = zip_with(&[("unrelated.exe", "wrong"), (&name, "verified-binary")]);
+        let mut release = test_release("https://example.invalid/archive.zip".into());
+        release.asset.sha256 = format!("{:x}", Sha256::digest(&archive));
+        assert_eq!(
+            super::prepare_machine_binary(kind, &release, &archive).unwrap(),
+            b"verified-binary"
+        );
+        release.asset.sha256 = "0".repeat(64);
+        assert!(super::prepare_machine_binary(kind, &release, &archive).is_err());
+        for entries in [vec![("other.exe", "payload")], vec![(name.as_str(), "")]] {
+            let archive = zip_with(&entries);
+            release.asset.sha256 = format!("{:x}", Sha256::digest(&archive));
+            assert!(super::prepare_machine_binary(kind, &release, &archive).is_err());
+        }
+    }
+}

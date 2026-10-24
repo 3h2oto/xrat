@@ -33,7 +33,7 @@ pub struct ConfigWithLatestTest {
     pub tested_at: Option<String>,
 }
 
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct ConfigRecord {
     pub id: xrat_model::ConfigId,
     pub r#ref: String,

@@ -1,6 +1,8 @@
 use crate::app::config::{ConfigEditSession, SettingValue, TunSettings, TunSplitMode};
 use crate::app::context::AppContext;
-use crate::app::daemon::ipc::{self, TunStatePayload};
+#[cfg(any(unix, windows))]
+use crate::app::daemon::ipc;
+use crate::app::daemon::ipc::TunStatePayload;
 use crate::app::runtime_service::RuntimeService;
 use crate::app::{AppError, Result};
 
@@ -13,7 +15,17 @@ pub(crate) async fn apply(
     enabled: Option<bool>,
     standalone_owner: bool,
 ) -> Result<TunStatePayload> {
-    #[cfg(unix)]
+    #[cfg(any(windows, test))]
+    if let Some(client) = &context.machine_client {
+        use super::machine_service::{GatewayPayload, GatewayRequestKind};
+        return match client.call(GatewayRequestKind::Tun { enabled }).await? {
+            GatewayPayload::Tun(state) => Ok(state),
+            _ => Err(AppError::InvalidArgument(
+                "unexpected machine TUN response".into(),
+            )),
+        };
+    }
+    #[cfg(any(unix, windows))]
     {
         let socket = ipc::default_socket_path(&context.runtime_paths.runtime_dir);
         if super::runtime_control::tui_uses_daemon(&socket).await? {
@@ -55,6 +67,11 @@ pub(crate) async fn mutate_tun_settings<F>(
 where
     F: FnOnce(&mut TunSettings) -> Result<()>,
 {
+    if context.is_machine_client() {
+        return Err(AppError::InvalidArgument(
+            "Machine split-tunnel policy requires local administrator maintenance".into(),
+        ));
+    }
     let config_path = context.runtime_paths.config_path.clone();
     let mut session = ConfigEditSession::open(&config_path).map_err(AppError::InvalidArgument)?;
     let mut config: crate::app::config::AppConfig = toml::from_str(&session.original_contents)?;
@@ -131,6 +148,7 @@ fn restore_tun_settings_on_disk(
 }
 
 pub(crate) fn reload(context: &mut AppContext) -> Result<()> {
+    context.require_local_runtime()?;
     let contents = std::fs::read_to_string(&context.runtime_paths.config_path)?;
     let config: crate::app::config::AppConfig = toml::from_str(&contents)?;
     context.app_config.runtime = config.runtime;

@@ -231,6 +231,128 @@ User config, database, logs, and all application state are **preserved**.
 
 ---
 
+## Windows machine service
+
+Windows service installation requires an elevated terminal:
+
+```powershell
+xrat daemon install --dry-run --start
+xrat daemon install --start
+```
+
+The service runs as LocalSystem from a protected Program Files directory and
+stores its configuration, SQLite catalog, runtime files, and engine binaries
+under the ProgramData known folder, in `XRAT-Service`. The installing user is
+registered as its operator. When elevating with a different administrator account,
+pass `--operator-sid <SID>` for the intended operator.
+
+Provision service cores explicitly from an elevated terminal while the machine
+service is stopped. Core installation uses official release metadata/checksums,
+checks the staged executable version, and writes only the fixed protected core
+path. It leaves the service stopped and does not edit user configuration or PATH.
+
+```powershell
+xrat --profile machine daemon stop
+xrat --profile machine install xray --version 26.9.30
+xrat --profile machine install sing-box --version 1.13.21
+xrat --profile machine daemon start
+```
+
+An exclusive profile lease prevents core provisioning while a service host is
+active, and prevents service startup during provisioning. Locked executable or
+activation errors preserve the previous core. Routine gateway requests cannot
+install cores.
+
+The registered operator can use these commands from an ordinary terminal:
+
+```powershell
+xrat --profile machine daemon status
+xrat --profile machine daemon start
+xrat --profile machine import https://example.com/subscription
+xrat --profile machine list configs
+xrat --profile machine connect <config-ref>
+xrat --profile machine status --json
+xrat --profile machine disconnect
+xrat --profile machine daemon stop
+```
+
+`--profile user` is the default. Machine commands use the service gateway and
+never open a user catalog or fall back when the service is unavailable. Path and
+database overrides are rejected. Supported catalog commands currently include
+`add`, `import`, `update`, `list`, `show`, `enable`, `disable`, `delete`,
+`restore`, `purge`, and `test`. Machine `rotate enable/disable/status/now` also use the
+supervisor; rotation controls are volatile and do not edit administrator policy.
+`rotate now --refresh` refreshes subscriptions through the ordinary client.
+Machine `logs` reads service events and fixed daemon/engine feeds, including
+`--follow`, event `--level`/`--format`, and `logs clear --yes`. Machine log requests
+accept `--lines 1..2000`; file reads are bounded to 512 KiB per request and report
+omitted older content. The operator never opens protected log files directly.
+Machine frontends run from an ordinary terminal:
+
+```powershell
+xrat --profile machine tui
+xrat --profile machine serve
+xrat --profile machine webui --no-open
+```
+
+These frontends require a ready service and reject elevated tokens. Their
+configuration and SQLite UI/authentication store live in `machine-client` under
+the user data root. They read and modify the service catalog through the
+gateway; that local store never substitutes for an unavailable service.
+Configure Web credentials in the frontend configuration before enabling its Web
+interface. HTTP authentication, roles, and CSRF checks still apply. Machine legacy exports
+(`/json`, `/configs`, and key-based `/b64`) require a configured `server.key`;
+absence of a key does not enable anonymous machine exports. Account-token
+subscription access retains its existing scope and revocation checks.
+
+Test jobs use administrator-configured service targets, timeouts, concurrency,
+and cores. Machine CLI `test` supports single references, bulk enabled/active/
+subscription filters, existing output formats, and `--latest-run-summary`;
+Ctrl+C requests cancellation and waits for the service result. Policy overrides
+and machine `test --ping` are explicitly unsupported. TUI split-policy edits and Web core/GeoIP maintenance, policy
+validation, and upgrades require local administrator maintenance. Frontend
+server settings and TUI preferences remain editable. Machine `proxy` reads
+service-owned endpoints/PAC while applying shell and desktop changes in the
+interactive user's session. Desktop disable/status and shell restoration remain
+available without a running service and do not open a catalog/UI database. PAC policy, runtime state,
+probe history, and operational logs come from the service; API request logs stay
+in the frontend store with a separate display cursor.
+
+Add `--with-api` during elevated installation to register the optional
+`XRAT-Machine-API` login task. It uses the registered operator's existing
+interactive token with least privilege, stores no password, and launches the
+protected executable as `--profile machine serve --host 127.0.0.1`. It starts at
+the operator's next logon. `--start` starts the SCM service immediately; an
+already logged-on operator can start the API task from Task Scheduler without
+elevation. Configure `server.key` and optional Web credentials in that user's
+`machine-client` configuration first.
+
+The task grants the operator read/run access; administrators control its
+registration and action. Reinstallation preserves operator identity. Uninstall
+removes the owned task and service while preserving protected data and user
+UI/authentication data. Unexpected task ownership, permissions, or actions cause
+an explicit error rather than replacing or deleting another task. Native task
+registration, login, and ACL acceptance remain pending.
+
+Driver provisioning and coordinated service upgrade are still under
+implementation. Windows `daemon install --tun` returns an explicit unsupported
+operation error.
+
+Import files and subscription URLs are read by the invoking user. The service
+receives bounded link bodies and source metadata, then uses the shared parsing
+and catalog lifecycle services. Root engine JSON and structured engine extension
+parameters require administrator provisioning; the gateway rejects them. Routine
+requests cannot supply executable paths, SQL, service configuration, or driver
+sources. Listing pagination preserves shared filters and ordering, and exports
+include the complete filtered selection.
+
+After service startup, crash recovery, or restart, the service reconciles and
+cleans stale runtime ownership and remains disconnected with rotation disabled.
+Connect explicitly to resume. Uninstall requires elevation and preserves the
+protected profile and installed executable. Source and local tests do not yet
+establish native Windows runtime acceptance.
+
+
 ## IPC Protocol
 
 The daemon uses JSON over Unix domain socket with protocol version 1.

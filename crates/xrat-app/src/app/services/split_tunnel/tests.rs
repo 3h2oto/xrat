@@ -146,7 +146,7 @@ Exec=/usr/bin/helper
 }
 
 #[test]
-#[cfg(not(target_os = "macos"))]
+#[cfg(all(unix, not(target_os = "macos")))]
 fn resolves_desktop_specifiers_from_custom_directory() {
     let dir = tempfile::tempdir().unwrap();
     std::fs::write(
@@ -209,6 +209,7 @@ fn compiles_split_rules_for_xray_and_singbox() {
 }
 
 #[test]
+#[cfg(unix)]
 fn resolves_shebang_wrapper_script_to_real_binary() {
     let dir = tempfile::tempdir().unwrap();
     let wrapper = std::fs::canonicalize(dir.path())

@@ -57,3 +57,12 @@ pub async fn recent_connection_tests(
 ) -> crate::Result<Vec<ConnectionTestRecord>> {
     connection_tests::list_recent_by_config(pool, config_id, limit).await
 }
+
+pub async fn connection_test_page(
+    pool: &DbPool,
+    selection: &crate::ConnectionTestSelection,
+    before: Option<&crate::ConnectionTestCursor>,
+    limit: i64,
+) -> crate::Result<Vec<ConnectionTestRecord>> {
+    connection_tests::page(pool, selection, before, limit).await
+}

@@ -8,6 +8,41 @@ pub async fn probe_engines(
     context: &AppContext,
     probe: &dyn RuntimeEngineProbe,
 ) -> Vec<EngineInfo> {
+    #[cfg(any(windows, test))]
+    if let Some(client) = &context.machine_client {
+        use super::diagnostics::{DiagnosticsPayload, DiagnosticsRequest};
+        let rows = match client.diagnostics(DiagnosticsRequest::Engines {}).await {
+            Ok(DiagnosticsPayload::Engines(rows)) => rows,
+            result => {
+                tracing::debug!(?result, "machine engine metadata unavailable");
+                Vec::new()
+            }
+        };
+        return ["xray", "sing-box"]
+            .into_iter()
+            .map(|name| {
+                rows.iter()
+                    .find(|row| row.name == name)
+                    .map(|row| EngineInfo {
+                        name,
+                        available: row.available,
+                        version: row.version.clone(),
+                    })
+                    .unwrap_or(EngineInfo {
+                        name,
+                        available: false,
+                        version: None,
+                    })
+            })
+            .collect();
+    }
+    probe_local_engines(context, probe).await
+}
+
+pub(crate) async fn probe_local_engines(
+    context: &AppContext,
+    probe: &dyn RuntimeEngineProbe,
+) -> Vec<EngineInfo> {
     let (xray, sing_box) = tokio::join!(
         probe.probe("xray", &context.runtime_paths.xray_path),
         probe.probe("sing-box", &context.runtime_paths.sing_box_path)

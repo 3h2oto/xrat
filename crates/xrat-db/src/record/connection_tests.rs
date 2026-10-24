@@ -23,7 +23,7 @@ pub struct ConnectionTestInsert {
     pub failure_reason: Option<String>,
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct ConnectionTestRecord {
     pub id: i64,
     pub run_id: Option<i64>,
@@ -55,9 +55,28 @@ pub struct ConnectionTestRunInsert {
     pub kind: String,
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct ConnectionTestRunRecord {
     pub id: i64,
     pub kind: String,
     pub created_at: String,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[serde(
+    tag = "type",
+    content = "id",
+    rename_all = "snake_case",
+    deny_unknown_fields
+)]
+pub enum ConnectionTestSelection {
+    Config(xrat_model::ConfigId),
+    Run(i64),
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct ConnectionTestCursor {
+    pub tested_at: String,
+    pub id: i64,
 }

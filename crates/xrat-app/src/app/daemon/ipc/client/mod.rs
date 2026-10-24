@@ -1,9 +1,11 @@
-#[cfg(unix)]
-mod unix_impl;
-#[cfg(not(unix))]
+#[cfg(any(unix, windows))]
+mod requests;
+#[cfg(not(any(unix, windows)))]
 mod unsupported_impl;
+#[cfg(any(unix, windows))]
+mod wire;
 
-#[cfg(unix)]
-pub use unix_impl::*;
-#[cfg(not(unix))]
+#[cfg(any(unix, windows))]
+pub use requests::*;
+#[cfg(not(any(unix, windows)))]
 pub use unsupported_impl::*;

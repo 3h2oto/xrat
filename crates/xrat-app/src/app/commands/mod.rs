@@ -13,6 +13,8 @@ mod init;
 mod lifecycle;
 mod list;
 mod logs;
+#[cfg(any(windows, test))]
+pub mod machine;
 mod manpage;
 pub(crate) use crate::app::terminal::output;
 mod parse;

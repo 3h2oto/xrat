@@ -8,8 +8,8 @@ fn validate_for_platform(tun: &TunSettings, engine: &str, platform: &str) -> Res
     if !tun.enabled {
         return Ok(());
     }
-    if !matches!(platform, "linux" | "macos") {
-        return Err("[runtime.tun] managed capture requires Linux or macOS".into());
+    if !matches!(platform, "linux" | "macos" | "windows") {
+        return Err("[runtime.tun] managed capture requires Linux, macOS or Windows".into());
     }
     if platform == "macos" {
         if engine != "sing-box" {
@@ -82,6 +82,12 @@ fn validate_for_platform(tun: &TunSettings, engine: &str, platform: &str) -> Res
     {
         return Err("[runtime.tun] stack selection, strict_route and route_exclude_address are sing-box-only; Xray uses its fixed native stack".into());
     }
+    if platform == "windows" {
+        crate::app::services::windows_tun::policy::dns_addresses(&tun.address)?;
+        if engine == "sing-box" && tun.auto_route && !tun.strict_route {
+            return Err("Windows sing-box managed auto-route requires strict_route=true to constrain system DNS".into());
+        }
+    }
     Ok(())
 }
 
@@ -98,7 +104,9 @@ mod tests {
         };
         assert!(validate_for_platform(&tun, "sing-box", "macos").is_ok());
         assert!(validate_for_platform(&tun, "xray", "macos").is_err());
-        assert!(validate_for_platform(&tun, "sing-box", "windows").is_err());
+        tun.strict_route = true;
+        assert!(validate_for_platform(&tun, "sing-box", "windows").is_ok());
+        tun.strict_route = false;
         tun.interface_name = "xrat0".into();
         assert!(validate_for_platform(&tun, "sing-box", "macos").is_err());
         tun.interface_name = "utun99".into();

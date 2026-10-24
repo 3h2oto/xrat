@@ -87,6 +87,24 @@ xrat setup
 
 Launch the TUI with `xratui` (or `xrat tui`).
 
+### Windows (experimental)
+
+```powershell
+Invoke-WebRequest https://raw.githubusercontent.com/mhyrzt/xrat/master/install.ps1 -OutFile install.ps1
+.\install.ps1
+```
+
+> [!WARNING]
+>
+> Windows support is experimental, targets x64 and ARM64, and requires a release
+> with Windows assets. Native automated checks cover installation,
+> daemon/service control, proxy engines, desktop proxy restoration, and
+> upgrades. End-to-end TUN traffic, DNS, bypass and crash recovery, plus
+> interactive UAC, desktop and reboot checks, remain unverified. Feel free to
+> [open an issue](https://github.com/mhyrzt/xrat/issues) or
+> [submit a pull request](https://github.com/mhyrzt/xrat/pulls) to report
+> problems or help improve Windows support.
+
 XRAT manages external proxy engines: Xray is the default, V2Ray is an
 alternative, and sing-box supports all imported protocols. Setup can install
 managed copies of the cores; they do not need to be installed beforehand.

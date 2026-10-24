@@ -35,4 +35,5 @@ output reports the installed core, version, binary path, and updated `config.tom
 path. The same details are recorded as a best-effort `core_installed` event for
 `xrat logs`.
 
-Managed installation currently supports Linux and macOS on x86-64 and ARM64.
+Managed installation currently supports Linux and macOS on x86-64 and ARM64,
+and Windows on x86-64 and ARM64.

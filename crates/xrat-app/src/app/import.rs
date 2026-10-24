@@ -10,6 +10,7 @@ use xrat_support::url::looks_like_url;
 
 mod subscription;
 pub use subscription::import_subscription;
+pub(crate) use subscription::{load_subscription_input, parse_request_headers};
 
 pub fn load_nodes(input: &str) -> crate::app::Result<(ImportSource, Vec<Node>)> {
     let (source, input_data) = read_input(input)?;
@@ -79,6 +80,15 @@ fn reject_raw_json_config(config_text: &str) -> crate::app::Result<()> {
 }
 
 pub async fn load_url_list(path: &str) -> crate::app::Result<(ImportSource, Vec<Node>)> {
+    let (source, parts) = load_url_list_parts(path, parse_nodes).await?;
+    Ok((source, parts.into_iter().flatten().collect()))
+}
+
+pub(crate) async fn load_url_list_parts<T>(
+    path: &str,
+    mut parse: impl FnMut(&[u8]) -> crate::app::Result<T>,
+) -> crate::app::Result<(ImportSource, Vec<T>)> {
+    crate::app::input::source::ensure_acquisition_allowed()?;
     if !std::path::Path::new(path).is_file() {
         return Err(AppError::InvalidArgument(
             "--url-list requires a local file of subscription URLs".into(),
@@ -96,12 +106,12 @@ pub async fn load_url_list(path: &str) -> crate::app::Result<(ImportSource, Vec<
             "--url-list accepts only HTTP(S) subscription URLs".into(),
         ));
     }
-    let mut nodes = Vec::new();
+    let mut parts = Vec::new();
     for url in urls {
         let (_, body) = read_input_async(url).await?;
-        nodes.extend(parse_nodes(&body)?);
+        parts.push(parse(&body)?);
     }
-    Ok((source, nodes))
+    Ok((source, parts))
 }
 
 #[cfg(test)]

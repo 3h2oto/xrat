@@ -1,56 +1,13 @@
-use std::collections::HashMap;
-
 use crate::app::commands::output;
 use crate::app::commands::resolve::resolve_subscription_id;
 use crate::app::context::AppContext;
-use crate::app::import;
 use crate::cli::UpdateArgs;
 use xrat_db::SubscriptionRecord;
 use xrat_model::SubscriptionId;
 
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct SubscriptionUpdateResult {
-    pub subscription_id: SubscriptionId,
-    pub subscription_ref: String,
-    pub subscription_name: String,
-    pub imported_configs: usize,
-    pub removed_configs: u64,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct SubscriptionUpdateError {
-    pub subscription_id: SubscriptionId,
-    pub subscription_ref: String,
-    pub subscription_name: String,
-    pub error: String,
-}
-
-#[derive(Debug, Default, Clone, PartialEq, Eq)]
-pub struct SubscriptionUpdateSummary {
-    pub attempted: usize,
-    pub succeeded: usize,
-    pub failed: usize,
-    pub imported_configs: usize,
-    pub removed_configs: u64,
-    pub successes: Vec<SubscriptionUpdateResult>,
-    pub failures: Vec<SubscriptionUpdateError>,
-}
-
-impl SubscriptionUpdateSummary {
-    pub fn status_message(&self) -> String {
-        if self.attempted == 0 {
-            return "No subscriptions matched.".to_string();
-        }
-        if self.failed == 0 {
-            if self.succeeded == 1 {
-                let item = &self.successes[0];
-                return format!("{} updated", item.subscription_name);
-            }
-            return "All subscriptions updated!".to_string();
-        }
-        format!("{} of {} subscriptions failed", self.failed, self.attempted)
-    }
-}
+#[cfg(test)]
+use crate::app::services::subscriptions::SubscriptionUpdateResult;
+pub use crate::app::services::subscriptions::SubscriptionUpdateSummary;
 
 pub async fn run(context: &AppContext, args: &UpdateArgs) -> crate::app::Result<()> {
     let summary = if args.subs_ref.is_empty() {
@@ -68,17 +25,16 @@ pub async fn update_by_ids(
     context: &AppContext,
     ids: &[SubscriptionId],
 ) -> crate::app::Result<SubscriptionUpdateSummary> {
-    let mut targets = Vec::with_capacity(ids.len());
-    for id in ids {
-        if let Some(subscription) = context.db.get_subscription_by_id(*id).await? {
-            targets.push(subscription);
-        }
-    }
+    let subscriptions = context.services().configs.subscriptions().await?;
+    let targets = ids
+        .iter()
+        .filter_map(|id| subscriptions.iter().find(|row| row.id == *id).cloned())
+        .collect();
     update_targets(context, targets).await
 }
 
 pub async fn update_all(context: &AppContext) -> crate::app::Result<SubscriptionUpdateSummary> {
-    let subscriptions = context.db.list_subscriptions().await?;
+    let subscriptions = context.services().configs.subscriptions().await?;
     let targets = subscriptions
         .into_iter()
         .filter(|subscription| !subscription.source_url.as_deref().unwrap_or("").is_empty())
@@ -90,13 +46,14 @@ pub async fn update_by_refs(
     context: &AppContext,
     refs: &[String],
 ) -> crate::app::Result<SubscriptionUpdateSummary> {
+    let subscriptions = context.services().configs.subscriptions().await?;
     let mut targets = Vec::with_capacity(refs.len());
     for raw in refs {
         let id = resolve_subscription_id(context, raw).await?;
-        let subscription = context
-            .db
-            .get_subscription_by_id(id)
-            .await?
+        let subscription = subscriptions
+            .iter()
+            .find(|row| row.id == id)
+            .cloned()
             .ok_or_else(|| {
                 crate::app::AppError::InvalidArgument(format!("no subscription found for '{raw}'"))
             })?;
@@ -109,59 +66,15 @@ async fn update_targets(
     context: &AppContext,
     targets: Vec<SubscriptionRecord>,
 ) -> crate::app::Result<SubscriptionUpdateSummary> {
-    let mut summary = SubscriptionUpdateSummary::default();
-    let mut dedup = HashMap::<SubscriptionId, SubscriptionRecord>::new();
-    for subscription in targets {
-        dedup.insert(subscription.id, subscription);
-    }
-    let mut ordered = dedup.into_values().collect::<Vec<_>>();
-    ordered.sort_by_key(|subscription| subscription.id);
-
-    for subscription in ordered {
-        let Some(source_url) = subscription.source_url.as_deref() else {
-            continue;
-        };
-        if source_url.is_empty() {
-            continue;
-        }
-        summary.attempted += 1;
-        let label = subscription
-            .name
-            .as_deref()
-            .filter(|value| !value.is_empty())
-            .unwrap_or(subscription.r#ref.as_str())
-            .to_string();
-        match import::import_subscription(&context.db, source_url, None, &subscription.headers)
-            .await
-        {
-            Ok(import_summary) => {
-                summary.succeeded += 1;
-                summary.imported_configs += import_summary.imported_configs;
-                summary.removed_configs += import_summary.removed_configs;
-                summary.successes.push(SubscriptionUpdateResult {
-                    subscription_id: subscription.id,
-                    subscription_ref: subscription.r#ref.clone(),
-                    subscription_name: label,
-                    imported_configs: import_summary.imported_configs,
-                    removed_configs: import_summary.removed_configs,
-                });
-            }
-            Err(error) => {
-                summary.failed += 1;
-                summary.failures.push(SubscriptionUpdateError {
-                    subscription_id: subscription.id,
-                    subscription_ref: subscription.r#ref.clone(),
-                    subscription_name: label,
-                    error: error.to_string(),
-                });
-            }
-        }
-    }
-
-    Ok(summary)
+    Ok(
+        crate::app::services::subscriptions::refresh_targets(targets, |url, headers| async move {
+            crate::app::services::catalog_import::subscription(context, &url, None, &headers).await
+        })
+        .await,
+    )
 }
 
-fn print_summary(summary: &SubscriptionUpdateSummary) {
+pub(super) fn print_summary(summary: &SubscriptionUpdateSummary) {
     println!(
         "{}",
         output::notice(summary.status_message(), output::color_enabled())

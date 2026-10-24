@@ -45,7 +45,9 @@ pub async fn run(context: &AppContext) -> crate::app::Result<()> {
         let drain = drain_task_events(&mut app, &mut task_rx);
         needs_redraw |= drain.any;
         if drain.reloaded {
-            if let Err(error) = crate::app::services::tun_control::reload(&mut context) {
+            if !context.is_machine_client()
+                && let Err(error) = crate::app::services::tun_control::reload(&mut context)
+            {
                 app.push_log(format!("ERR reload runtime settings: {error}"));
             }
             tasks::spawn_enrich_locations(
@@ -74,18 +76,12 @@ pub async fn run(context: &AppContext) -> crate::app::Result<()> {
             app.record_stats(session_id, sample);
         }
         let stats_settings = &context.app_config.runtime.stats;
-        if stats_settings.enabled && app.data.runtime.pid_running {
+        if (context.is_machine_client() || stats_settings.enabled) && app.data.runtime.pid_running {
             let poll_due = (!stats_poll_pending
                 && last_stats_poll.elapsed() >= Duration::from_secs(1))
                 || last_stats_poll.elapsed() >= Duration::from_secs(5);
             if poll_due {
-                tasks::spawn_poll_stats(
-                    stats_engine_for(&context.app_config.runtime.engine),
-                    stats_settings.host.clone(),
-                    stats_settings.port,
-                    app.data.runtime.session_id,
-                    &stats_tx,
-                );
+                tasks::spawn_poll_stats(context.clone(), app.data.runtime.session_id, &stats_tx);
                 stats_poll_pending = true;
                 last_stats_poll = std::time::Instant::now();
             }
@@ -291,6 +287,10 @@ pub async fn run(context: &AppContext) -> crate::app::Result<()> {
                         app.import_modal = Some(crate::tui::app::ImportModalState::default());
                         app.needs_full_clear = true;
                     }
+                    if open_split && context.is_machine_client() {
+                        app.push_log("ERR split tunneling policy is administrator-controlled");
+                        continue;
+                    }
                     if open_split {
                         let _ = crate::app::services::tun_control::reload(&mut context);
                         app.split_modal = Some(crate::tui::app::SplitModalState::from_tun(
@@ -328,14 +328,33 @@ pub async fn run(context: &AppContext) -> crate::app::Result<()> {
                     }
                     if open_settings {
                         match ConfigEditSession::open(&context.runtime_paths.config_path) {
-                            Ok(session) => {
-                                app.settings_modal = Some(SettingsModalState::new(session));
+                            Ok(mut session) => {
+                                session
+                                    .settings
+                                    .retain(|setting| context.allows_setting(&setting.path));
+                                let mut modal = SettingsModalState::new(session);
+                                if context.is_machine_client() {
+                                    modal.notice = Some("Frontend settings; runtime policy requires administrator access.".into());
+                                }
+                                app.settings_modal = Some(modal);
                                 app.needs_full_clear = true;
                             }
                             Err(error) => app.set_chrome_message(error, true),
                         }
                     }
                     if save_settings {
+                        if app.settings_modal.as_ref().is_some_and(|modal| {
+                            modal.session.settings.iter().any(|setting| {
+                                setting.is_dirty() && !context.allows_setting(&setting.path)
+                            })
+                        }) {
+                            if let Some(modal) = &mut app.settings_modal {
+                                modal.error = Some(
+                                    "Machine runtime policy requires administrator access.".into(),
+                                );
+                            }
+                            continue;
+                        }
                         let settings_dirty = app
                             .settings_modal
                             .as_ref()
@@ -443,7 +462,11 @@ pub async fn run(context: &AppContext) -> crate::app::Result<()> {
                                         }
                                         Err(error) => Some(error),
                                     };
-                                let mut message = if daemon_restart {
+                                let mut message = if daemon_restart && context.is_machine_client() {
+                                    format!(
+                                        "saved {changed_count} setting(s); restart the frontend to apply all changes"
+                                    )
+                                } else if daemon_restart {
                                     format!(
                                         "saved {changed_count} setting(s); restart daemon to apply all changes"
                                     )
@@ -482,7 +505,10 @@ pub async fn run(context: &AppContext) -> crate::app::Result<()> {
                                     )),
                                 )
                                 .await;
-                                if runtime_restart && app.data.runtime.pid_running {
+                                if runtime_restart
+                                    && !context.is_machine_client()
+                                    && app.data.runtime.pid_running
+                                {
                                     app.confirm = Some(ConfirmState {
                                         kind: ConfirmKind::RestartAfterSettings,
                                         prompt: "restart active runtime with new settings?"
@@ -743,14 +769,6 @@ pub(super) fn prepare_import_submission(app: &mut TuiApp) -> Option<tasks::TuiIm
 pub(super) fn set_import_error(app: &mut TuiApp, error: &str) {
     if let Some(modal) = &mut app.import_modal {
         modal.error = Some(error.to_string());
-    }
-}
-
-/// Match the stats backend to the configured managed runtime engine.
-pub(super) fn stats_engine_for(configured_engine: &str) -> tasks::StatsEngine {
-    match configured_engine {
-        "sing-box" => tasks::StatsEngine::Singbox,
-        _ => tasks::StatsEngine::Xray,
     }
 }
 

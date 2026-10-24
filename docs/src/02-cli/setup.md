@@ -47,8 +47,9 @@ combined with `--no-daemon` (linger implies the daemon).
    `$XDG_DATA_HOME/man/man1`.
 7. **desktop** — _(Linux/XDG)_ installs a terminal-aware launcher, a `.desktop`
    entry, and hicolor icons.
-8. **xratui** — installs an `xratui` shortcut script next to the `xrat` binary
-   that execs `xrat tui`.
+8. **xratui** - installs an `xratui` shortcut script next to the `xrat` binary
+   that execs `xrat tui`. This step is skipped on Windows, where the shortcut
+   would need a `.cmd` wrapper; start the TUI with `xrat tui` instead.
 9. **PATH** — checks whether the binary's directory is on `PATH` and prints an
    export hint if not.
 

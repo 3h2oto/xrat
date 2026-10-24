@@ -22,3 +22,5 @@ use xrat_support::time::now_epoch_seconds;
 
 mod state;
 pub use state::run;
+#[cfg(windows)]
+pub use state::run_machine;

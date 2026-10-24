@@ -8,7 +8,8 @@ use xrat_model::{ConfigId, ConfigRef, SubscriptionId};
 use crate::app::services::configs::DatabaseConfigRepository;
 
 /// Outcome of an enable or disable request.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "snake_case")]
 pub enum ToggleOutcome {
     Changed,
     AlreadyEnabled,
@@ -17,7 +18,8 @@ pub enum ToggleOutcome {
 }
 
 /// Outcome of a delete request.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "snake_case")]
 pub enum DeleteOutcome {
     SoftDeleted,
     HardDeleted,
@@ -25,7 +27,8 @@ pub enum DeleteOutcome {
 }
 
 /// Outcome of a restore request.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "snake_case")]
 pub enum RestoreOutcome {
     Restored,
     NotDeleted,
@@ -38,16 +41,37 @@ pub enum RestoreOutcome {
 #[derive(Clone)]
 pub struct ConfigLifecycleService {
     repository: Arc<DatabaseConfigRepository>,
+    #[cfg(any(windows, test))]
+    machine_client: Option<crate::app::services::machine_service::MachineClient>,
 }
 
 impl ConfigLifecycleService {
     pub fn new(repository: Arc<DatabaseConfigRepository>) -> Self {
-        Self { repository }
+        Self {
+            repository,
+            #[cfg(any(windows, test))]
+            machine_client: None,
+        }
+    }
+
+    #[cfg(any(windows, test))]
+    pub(crate) fn for_machine(
+        client: crate::app::services::machine_service::MachineClient,
+    ) -> Self {
+        Self {
+            repository: Arc::new(DatabaseConfigRepository::detached()),
+            machine_client: Some(client),
+        }
     }
 
     /// Resolve a numeric id or ref prefix into a config id, or error when it
     /// does not identify a stored config.
     pub async fn resolve_config_id(&self, raw: &ConfigRef) -> Result<ConfigId> {
+        #[cfg(any(windows, test))]
+        if let Some(client) = &self.machine_client {
+            return client.resolve_config(raw).await;
+        }
+
         crate::app::services::ConfigService::new(Arc::clone(&self.repository))
             .resolve_id(raw)
             .await?
@@ -55,6 +79,11 @@ impl ConfigLifecycleService {
     }
 
     pub async fn resolve_subscription_id(&self, raw: &str) -> Result<SubscriptionId> {
+        #[cfg(any(windows, test))]
+        if let Some(client) = &self.machine_client {
+            return client.resolve_subscription(raw).await;
+        }
+
         crate::app::services::ConfigService::new(Arc::clone(&self.repository))
             .resolve_subscription_id(raw)
             .await?
@@ -63,6 +92,11 @@ impl ConfigLifecycleService {
 
     /// Load a config record or report that the identifier matched nothing.
     pub async fn config(&self, raw: &ConfigRef) -> Result<ConfigRecord> {
+        #[cfg(any(windows, test))]
+        if let Some(client) = &self.machine_client {
+            return client.config(raw).await;
+        }
+
         let id = self.resolve_config_id(raw).await?;
         self.repository
             .get_config_by_id(id)
@@ -72,6 +106,11 @@ impl ConfigLifecycleService {
 
     /// Load a subscription record or report that the identifier matched nothing.
     pub async fn subscription(&self, raw: &str) -> Result<SubscriptionRecord> {
+        #[cfg(any(windows, test))]
+        if let Some(client) = &self.machine_client {
+            return client.subscription(raw).await;
+        }
+
         let id = self.resolve_subscription_id(raw).await?;
         self.repository
             .get_subscription_by_id(id)
@@ -80,6 +119,11 @@ impl ConfigLifecycleService {
     }
 
     pub async fn enable(&self, raw: &ConfigRef) -> Result<ToggleOutcome> {
+        #[cfg(any(windows, test))]
+        if let Some(client) = &self.machine_client {
+            return client.toggle_config(raw, true).await;
+        }
+
         let config = self.config(raw).await?;
         if config.is_deleted {
             return Ok(ToggleOutcome::DeletedConfig);
@@ -92,6 +136,11 @@ impl ConfigLifecycleService {
     }
 
     pub async fn disable(&self, raw: &ConfigRef) -> Result<ToggleOutcome> {
+        #[cfg(any(windows, test))]
+        if let Some(client) = &self.machine_client {
+            return client.toggle_config(raw, false).await;
+        }
+
         let config = self.config(raw).await?;
         if config.is_deleted {
             return Ok(ToggleOutcome::DeletedConfig);
@@ -108,6 +157,11 @@ impl ConfigLifecycleService {
         raw: &ConfigRef,
         hard: bool,
     ) -> Result<(ConfigRecord, DeleteOutcome)> {
+        #[cfg(any(windows, test))]
+        if let Some(client) = &self.machine_client {
+            return client.delete_config(raw, hard).await;
+        }
+
         let config = self.config(raw).await?;
         if hard {
             self.repository.hard_delete_config(config.id).await?;
@@ -121,6 +175,11 @@ impl ConfigLifecycleService {
     }
 
     pub async fn delete_subscription(&self, raw: &str) -> Result<SubscriptionRecord> {
+        #[cfg(any(windows, test))]
+        if let Some(client) = &self.machine_client {
+            return client.delete_subscription(raw).await;
+        }
+
         let subscription = self.subscription(raw).await?;
         self.repository
             .delete_subscription_with_configs(subscription.id)
@@ -129,6 +188,11 @@ impl ConfigLifecycleService {
     }
 
     pub async fn rename_subscription(&self, raw: &str, name: &str) -> Result<SubscriptionRecord> {
+        #[cfg(any(windows, test))]
+        if let Some(client) = &self.machine_client {
+            return client.rename_subscription(raw, name).await;
+        }
+
         let subscription = self.subscription(raw).await?;
         self.repository
             .set_subscription_name(subscription.id, name)
@@ -137,6 +201,11 @@ impl ConfigLifecycleService {
     }
 
     pub async fn restore(&self, raw: &ConfigRef) -> Result<(ConfigRecord, RestoreOutcome)> {
+        #[cfg(any(windows, test))]
+        if let Some(client) = &self.machine_client {
+            return client.restore_config(raw).await;
+        }
+
         let config = self.config(raw).await?;
         if !config.is_deleted {
             return Ok((config, RestoreOutcome::NotDeleted));
@@ -145,6 +214,11 @@ impl ConfigLifecycleService {
         Ok((config, RestoreOutcome::Restored))
     }
     pub async fn delete_many(&self, ids: &[ConfigId], hard: bool) -> Result<u64> {
+        #[cfg(any(windows, test))]
+        if let Some(client) = &self.machine_client {
+            return client.delete_configs(ids, hard).await;
+        }
+
         Ok(if hard {
             self.repository.hard_delete_configs(ids).await?
         } else {
@@ -153,6 +227,42 @@ impl ConfigLifecycleService {
     }
 
     pub async fn restore_many(&self, ids: &[ConfigId]) -> Result<u64> {
+        #[cfg(any(windows, test))]
+        if let Some(client) = &self.machine_client {
+            return client.restore_configs(ids).await;
+        }
+
         Ok(self.repository.restore_configs(ids).await?)
+    }
+    pub async fn count_deleted(&self) -> Result<i64> {
+        #[cfg(any(windows, test))]
+        if let Some(client) = &self.machine_client {
+            return Ok(client
+                .list(&crate::app::services::ConfigListRequest {
+                    only_deleted: true,
+                    offset: Some(0),
+                    limit: Some(0),
+                    ..Default::default()
+                })
+                .await?
+                .total);
+        }
+
+        Ok(self
+            .repository
+            .count_filtered_configs(&xrat_db::ConfigListFilter {
+                only_deleted: true,
+                ..Default::default()
+            })
+            .await?)
+    }
+
+    pub async fn purge(&self) -> Result<u64> {
+        #[cfg(any(windows, test))]
+        if let Some(client) = &self.machine_client {
+            return client.purge().await;
+        }
+
+        Ok(self.repository.purge_deleted_configs().await?)
     }
 }

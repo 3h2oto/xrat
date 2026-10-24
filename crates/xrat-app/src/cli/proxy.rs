@@ -19,7 +19,7 @@ pub enum ProxyAction {
     Pac(ProxyPacArgs),
     #[command(about = "Print shell commands to proxy the current terminal session.")]
     Shell(ProxyShellArgs),
-    #[command(about = "Manage Linux desktop environment proxy settings.")]
+    #[command(about = "Manage desktop proxy settings.")]
     Desktop(ProxyDesktopArgs),
 }
 
@@ -62,7 +62,8 @@ pub enum ProxyShellAction {
         long_about = "Print commands that point the current shell at xrat endpoints.\n\n\
             Apply them in the current session with:\n\
             - bash/zsh: eval \"$(xrat proxy shell enable)\"\n\
-            - fish:     xrat proxy shell enable | source"
+            - fish:     xrat proxy shell enable | source\n\
+            - PowerShell: xrat proxy shell enable --shell powershell | Out-String | Invoke-Expression"
     )]
     Enable(ProxyShellEnableArgs),
     #[command(
@@ -70,7 +71,8 @@ pub enum ProxyShellAction {
         long_about = "Print commands that unset the proxy environment variables.\n\n\
             Apply them in the current session with:\n\
             - bash/zsh: eval \"$(xrat proxy shell disable)\"\n\
-            - fish:     xrat proxy shell disable | source"
+            - fish:     xrat proxy shell disable | source\n\
+            - PowerShell: xrat proxy shell disable --shell powershell | Out-String | Invoke-Expression"
     )]
     Disable(ProxyShellDisableArgs),
     #[command(
@@ -78,7 +80,8 @@ pub enum ProxyShellAction {
         long_about = "Toggle shell proxy variables, preserving previous values.\n\n\
             Apply them in the current session with:\n\
             - bash/zsh: eval \"$(xrat proxy shell toggle)\"\n\
-            - fish:     xrat proxy shell toggle | source"
+            - fish:     xrat proxy shell toggle | source\n\
+            - PowerShell: xrat proxy shell toggle --shell powershell | Out-String | Invoke-Expression"
     )]
     Toggle(ProxyShellToggleArgs),
     #[command(about = "Report whether the current shell points at active xrat endpoints.")]
@@ -116,6 +119,7 @@ pub enum ProxyShellKind {
     Bash,
     Zsh,
     Fish,
+    Powershell,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, ValueEnum)]
@@ -133,13 +137,13 @@ pub struct ProxyDesktopArgs {
 
 #[derive(Debug, Subcommand)]
 pub enum ProxyDesktopAction {
-    #[command(about = "Point the Linux desktop proxy settings at xrat endpoints.")]
+    #[command(about = "Point desktop proxy settings at xrat endpoints.")]
     Enable(ProxyDesktopEnableArgs),
-    #[command(about = "Reset the Linux desktop proxy settings to none.")]
+    #[command(about = "Disable the desktop proxy; Windows restores saved settings.")]
     Disable(ProxyDesktopDisableArgs),
-    #[command(about = "Show the current Linux desktop proxy settings.")]
+    #[command(about = "Show current desktop proxy settings.")]
     Status(ProxyDesktopStatusArgs),
-    #[command(about = "Toggle the Linux desktop proxy settings.")]
+    #[command(about = "Toggle desktop proxy settings.")]
     Toggle(ProxyDesktopToggleArgs),
 }
 

@@ -16,7 +16,11 @@ pub async fn proxy_pac(
     }
     require_allowed_pac_host(&state, &headers)?;
 
-    let body = active_pac(&state.db, &state.pac_rules).await?;
+    let body = if let Some(context) = &state.context {
+        crate::app::services::proxy_pac::context_pac(context).await?
+    } else {
+        active_pac(&state.db, &state.pac_rules).await?
+    };
 
     let mut response = Response::new(Body::from(body));
     response.headers_mut().insert(

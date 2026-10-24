@@ -10,8 +10,11 @@ pub async fn run(context: &AppContext, args: &DisconnectArgs) -> crate::app::Res
     let result = control.disconnect().await;
     progress.finish_and_clear();
     let stopped_session = result?;
+    print_outcome(stopped_session, args.json)
+}
 
-    if args.json {
+pub(super) fn print_outcome(stopped_session: bool, json: bool) -> crate::app::Result<()> {
+    if json {
         println!(
             "{}",
             serde_json::to_string_pretty(&serde_json::json!({
@@ -43,11 +46,13 @@ pub async fn run(context: &AppContext, args: &DisconnectArgs) -> crate::app::Res
     Ok(())
 }
 
-#[cfg(test)]
+#[cfg(all(test, unix))]
 mod tests {
     use super::*;
     use crate::app::AppError;
 
+    /// The daemon IPC client only exists on Unix, so the "daemon is not
+    /// running" hint cannot be produced on Windows.
     #[tokio::test]
     async fn disconnect_returns_daemon_unreachable_hint() {
         let context = test_context("disconnect-daemon-hint").await;

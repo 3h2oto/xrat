@@ -5,6 +5,12 @@ use clap::Args;
 #[derive(Debug, Args, Default)]
 #[command(about = "Self-upgrade xrat from the latest release or by building from source.")]
 pub struct UpgradeArgs {
+    #[cfg(windows)]
+    #[arg(long, hide = true, conflicts_with_all = ["status", "source", "version", "force"])]
+    pub apply_transaction: Option<PathBuf>,
+    #[cfg(windows)]
+    #[arg(long, help = "Show the last Windows upgrade transaction.", conflicts_with_all = ["source", "version", "force"])]
+    pub status: bool,
     #[arg(
         long = "source",
         help = "Build and install from source instead of downloading a release."

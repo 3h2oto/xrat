@@ -1,8 +1,15 @@
 use std::path::PathBuf;
 
-use clap::{ArgAction, Parser};
+use clap::{ArgAction, Parser, ValueEnum};
 
 use crate::cli::Command;
+
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, ValueEnum)]
+pub enum ExecutionProfile {
+    #[default]
+    User,
+    Machine,
+}
 
 #[derive(Debug, Parser)]
 #[command(
@@ -14,6 +21,14 @@ use crate::cli::Command;
         and optional daemon supervisor for auto-rotation."
 )]
 pub struct Cli {
+    #[arg(
+        long,
+        global = true,
+        value_enum,
+        default_value = "user",
+        help = "Use the user profile or the protected Windows machine service."
+    )]
+    pub profile: ExecutionProfile,
     #[arg(
         short = 'v',
         long = "verbose",

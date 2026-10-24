@@ -2,6 +2,7 @@ mod daemon;
 mod enrichment;
 mod geo;
 mod logs;
+mod runtime;
 
 pub use enrichment::enrich_locations;
 pub use geo::build_geo_lookup;

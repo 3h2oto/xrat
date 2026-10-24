@@ -1,13 +1,32 @@
+#[cfg(any(
+    target_os = "linux",
+    target_os = "macos",
+    target_os = "freebsd",
+    target_os = "openbsd"
+))]
 use std::path::{Path, PathBuf};
 
+#[cfg(not(windows))]
 use crate::app::AppError;
 use crate::app::context::AppContext;
 use crate::cli::{DaemonInstallArgs, DaemonUninstallArgs};
 
+#[cfg(any(
+    target_os = "linux",
+    target_os = "macos",
+    target_os = "freebsd",
+    target_os = "openbsd"
+))]
 fn resolve_exe() -> PathBuf {
     std::env::current_exe().unwrap_or_else(|_| PathBuf::from("/usr/local/bin/xrat"))
 }
 
+#[cfg(any(
+    target_os = "linux",
+    target_os = "macos",
+    target_os = "freebsd",
+    target_os = "openbsd"
+))]
 fn render_service(template: &str, exe: &Path, xrat_path: &str) -> String {
     template
         .replace("{{EXE}}", &exe.display().to_string())
@@ -877,6 +896,7 @@ pub fn uninstall_with_spawner(
 // ---------------------------------------------------------------------------
 
 #[cfg(not(any(
+    windows,
     target_os = "linux",
     target_os = "macos",
     target_os = "freebsd",
@@ -893,6 +913,7 @@ pub fn install(
 }
 
 #[cfg(not(any(
+    windows,
     target_os = "linux",
     target_os = "macos",
     target_os = "freebsd",
@@ -902,6 +923,20 @@ pub fn uninstall(_context: &AppContext, _args: &DaemonUninstallArgs) -> crate::a
     Err(AppError::UnsupportedPlatform(
         "daemon uninstall is not supported on this platform".to_string(),
     ))
+}
+
+#[cfg(windows)]
+pub fn install(
+    _context: &AppContext,
+    args: &DaemonInstallArgs,
+    quiet: bool,
+) -> crate::app::Result<()> {
+    super::machine::install(args, quiet)
+}
+
+#[cfg(windows)]
+pub fn uninstall(_context: &AppContext, args: &DaemonUninstallArgs) -> crate::app::Result<()> {
+    super::machine::uninstall(args)
 }
 
 #[cfg(all(test, target_os = "linux"))]

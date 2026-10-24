@@ -64,6 +64,11 @@ fn command(spec: &CommandSpec) -> io::Result<std::process::Command> {
         use std::os::unix::process::CommandExt;
         command.process_group(0);
     }
+    #[cfg(windows)]
+    if spec.detached {
+        use std::os::windows::process::CommandExt;
+        command.creation_flags(0x0000_0200 | 0x0000_0008);
+    }
     Ok(command)
 }
 
@@ -95,6 +100,10 @@ async fn read_output(reader: Option<impl AsyncRead + Unpin>) -> io::Result<Vec<u
 #[async_trait]
 impl ProcessSpawner for SystemProcessSpawner {
     fn spawn(&self, spec: &CommandSpec) -> io::Result<Child> {
+        #[cfg(windows)]
+        if let Some(child) = super::windows_detached::spawn(spec)? {
+            return Ok(child);
+        }
         let mut child = command(spec)?.spawn()?;
         let id = child.id();
         let stdout = child

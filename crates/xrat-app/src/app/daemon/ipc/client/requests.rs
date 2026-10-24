@@ -1,8 +1,5 @@
 use std::path::Path;
 
-use tokio::io::{AsyncReadExt, AsyncWriteExt};
-use tokio::net::UnixStream;
-
 use crate::app::daemon::ipc::{
     DaemonRequest, DaemonRequestKind, DaemonResponse, DaemonShutdownPayload, PROTOCOL_VERSION,
     PingPayload, ProxyControlPayload, ProxyStatusPayload, RotationTrigger, RuntimeConnectPayload,
@@ -99,17 +96,10 @@ async fn send_request(
     socket_path: &Path,
     request_kind: DaemonRequestKind,
 ) -> crate::app::Result<Vec<u8>> {
-    let mut stream = UnixStream::connect(socket_path).await?;
     let request = DaemonRequest {
         protocol_version: PROTOCOL_VERSION,
         request: request_kind,
     };
-    let mut encoded = serde_json::to_vec(&request)?;
-    encoded.push(b'\n');
-    stream.write_all(&encoded).await?;
-    stream.shutdown().await?;
-
-    let mut response_bytes = Vec::new();
-    stream.read_to_end(&mut response_bytes).await?;
-    Ok(response_bytes)
+    let encoded = serde_json::to_vec(&request)?;
+    super::wire::send(socket_path, &encoded).await
 }

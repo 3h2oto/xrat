@@ -1,4 +1,4 @@
-use xrat_support::process::{Command, Stdio};
+use crate::app::tests::platform::spawn_sleep;
 
 use super::support::import_single_config;
 use super::*;
@@ -34,13 +34,7 @@ async fn connect_rejects_when_runtime_running_and_replace_disabled() {
     context.app_config.runtime.replace_active_session = false;
     let config = import_single_config(&context).await;
 
-    let mut child = Command::new("sleep")
-        .arg("5")
-        .stdin(Stdio::null())
-        .stdout(Stdio::null())
-        .stderr(Stdio::null())
-        .spawn()
-        .expect("sleep process should spawn");
+    let mut child = spawn_sleep(5);
     let pid = i64::from(child.id());
 
     context
@@ -73,6 +67,7 @@ async fn connect_rejects_when_runtime_running_and_replace_disabled() {
     assert!(matches!(result, Err(AppError::RuntimeSessionAlreadyActive)));
 }
 
+#[cfg(unix)]
 #[tokio::test]
 async fn connect_preflight_failure_keeps_running_session() {
     let mut context = test_context().await;
@@ -80,13 +75,7 @@ async fn connect_preflight_failure_keeps_running_session() {
     context.runtime_paths.xray_path = "/bin/false".into();
     let config = import_single_config(&context).await;
 
-    let mut child = Command::new("sleep")
-        .arg("5")
-        .stdin(Stdio::null())
-        .stdout(Stdio::null())
-        .stderr(Stdio::null())
-        .spawn()
-        .expect("sleep process should spawn");
+    let mut child = spawn_sleep(5);
     let pid = i64::from(child.id());
     let session_id = context
         .db
