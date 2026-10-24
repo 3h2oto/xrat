@@ -1,39 +1,60 @@
-## xrat v0.31.3
+## xrat v0.32.0
 
-This patch improves TUI navigation, readability, and clipboard support, and
-moves Web UI browser interactions into Rust.
+This release adds experimental Windows x64 and ARM64 support, including native
+daemon control, protected background services, PowerShell integration, desktop
+proxy restoration, and coordinated upgrades.
 
-### TUI improvements
+### Windows support
 
-- Synchronize panel numbers with the tab cycle, improve search and sort
-  controls, and add table scrollbars, a row cursor, and contextual key hints.
-- Keep connection status and mode visible, organize config details into
-  sections, and improve tables and log views at narrow terminal widths.
-- Add optional rounded borders through `tui.border_style` (`plain` remains the
-  default).
-- Support `h`/`l` pane navigation in settings and word deletion with `Ctrl+W` in
-  settings and split-tunnel inputs. Cycle settings values with `[`/`]` or
-  `<`/`>`.
-- Improve Wayland clipboard support and add an OSC 52 terminal fallback.
-- Keep confirmation messages visible.
+- Publish Windows x64 and ARM64 ZIP archives with SHA-256 checksums alongside
+  the Linux and macOS archives. The PowerShell installer verifies downloads
+  before replacing the executable.
+- Add local-only named-pipe daemon control and a protected LocalSystem service.
+  The registered operator can use shared CLI, TUI, and Web application services
+  without routinely elevating the interface.
+- Add PowerShell proxy scripts, completions and setup guidance, plus
+  ownership-aware WinINET manual/PAC proxy restoration.
+- Coordinate ordinary-user and machine-service upgrades, preserving prior
+  running state and retaining recovery evidence when replacement fails.
+- Add managed Windows TUN integration for Xray and sing-box, with protected
+  Wintun provisioning, adapter identity checks and ownership-aware cleanup.
+  Windows V2Ray TUN remains outside this release's scope.
+- Exercise native x64/ARM64 installers, services, security boundaries, proxy
+  engines, packaged daemon/browser assets/login, and upgrade transactions in CI.
 
-Thanks to [@f02xygen](https://github.com/f02xygen) for the TUI improvements in
-[#260](https://github.com/mhyrzt/xrat/pull/260).
+Thanks to [@subfocusx](https://github.com/subfocusx) for the initial Windows
+contribution in [#259](https://github.com/mhyrzt/xrat/pull/259). The runtime and
+acceptance implementation is tracked in
+[#268](https://github.com/mhyrzt/xrat/pull/268).
 
-### Web UI improvements
+### Experimental status and remaining checks
 
-- Move dialogs, menus, tooltips, clipboard helpers, paste handling, chart
-  navigation, and service-worker registration into Rust.
-- Inline the WebAssembly bootstrap and remove the separate JavaScript
-  controllers.
-- Prevent copy dialogs from flashing when clipboard access succeeds.
+> [!WARNING]
+>
+> Windows support is experimental. Native automated checks cover the service,
+> proxy and upgrade paths, including Wintun adapter creation/release. Actual TUN
+> traffic, DNS, IPv4/IPv6, bypass, replacement and crash recovery remain
+> unverified. Interactive Windows 11 UAC, Terminal, desktop, login and reboot
+> checks also remain outstanding. These results do not establish full Windows
+> support.
 
-See [#267](https://github.com/mhyrzt/xrat/pull/267) for the browser refactor.
+Track remaining acceptance in the
+[Windows Support roadmap](https://github.com/mhyrzt/xrat/issues/262). Feel free
+to [open an issue](https://github.com/mhyrzt/xrat/issues) or
+[submit a pull request](https://github.com/mhyrzt/xrat/pulls) to report problems
+or help improve support.
 
 ### Upgrade notes
 
-- Refresh an already open browser tab after upgrading to load the updated UI.
 - This release adds no database migrations. Existing configurations remain
-  valid; the new `tui.border_style` setting is optional.
+  valid.
+- Windows users should use the PowerShell installer or the ZIP matching their
+  architecture. Machine service/core/driver provisioning requires elevation;
+  routine operator access uses the protected service gateway.
+- Managed Windows TUN targets Xray `>=26.9.30, <27` and sing-box
+  `>=1.13.21, <1.14`. Follow the
+  [TUN guide](https://github.com/mhyrzt/xrat/blob/v0.32.0/docs/src/02-cli/tun.md)
+  for setup and limitations.
+- Refresh an already open browser tab after upgrading.
 
-**Full Changelog**: https://github.com/mhyrzt/xrat/compare/v0.31.2...v0.31.3
+**Full Changelog**: https://github.com/mhyrzt/xrat/compare/v0.31.3...v0.32.0
